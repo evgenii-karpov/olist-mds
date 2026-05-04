@@ -10,6 +10,7 @@ import os
 import subprocess
 from collections.abc import Mapping
 from datetime import datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -19,8 +20,18 @@ from airflow.sdk import Param, dag, get_current_context, task, task_group
 from airflow.sdk.exceptions import AirflowException
 
 DAG_ID = "olist_modern_data_stack_aws"
+DEFAULT_SOURCE_ARCHIVE = "olist.zip"
+DEFAULT_SOURCE_PROFILE = "docs/source_profile.json"
+DEFAULT_PREPARED_DIR_TEMPLATE = "data/prepared/{ds_nodash}"
+DEFAULT_S3_PREFIX = "olist"
+DEFAULT_DBT_TARGET = "redshift"
+REDSHIFT_SQL_DIR = "infra/redshift"
+# Runtime default for manual/demo runs. It is after all generated correction
+# feed effective dates, so one batch sees the complete synthetic SCD2 scenario.
+DEFAULT_DEMO_BATCH_DATE = "2018-09-01"
 
 
+@lru_cache(maxsize=1)
 def resolve_project_root() -> Path:
     configured_root = os.environ.get("OLIST_PROJECT_ROOT")
     if configured_root:
@@ -37,22 +48,94 @@ def resolve_project_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-PROJECT_ROOT = resolve_project_root()
-PYTHON_BIN = os.environ.get("OLIST_PYTHON_BIN", "python")
-DBT_PROJECT_DIR = PROJECT_ROOT / "dbt" / "olist_analytics"
-DEFAULT_SOURCE_ARCHIVE = "olist.zip"
-DEFAULT_SOURCE_PROFILE = "docs/source_profile.json"
-DEFAULT_PREPARED_DIR_TEMPLATE = "data/prepared/{ds_nodash}"
-DEFAULT_S3_PREFIX = "olist"
-DEFAULT_DBT_TARGET = "redshift"
-REDSHIFT_SQL_DIR = "infra/redshift"
-DEFAULT_RETRIES = int(os.environ.get("OLIST_AIRFLOW_RETRIES", "2"))
-DEFAULT_RETRY_DELAY_SECONDS = int(
-    os.environ.get("OLIST_AIRFLOW_RETRY_DELAY_SECONDS", "300")
-)
-# Runtime default for manual/demo runs. It is after all generated correction
-# feed effective dates, so one batch sees the complete synthetic SCD2 scenario.
-DEFAULT_DEMO_BATCH_DATE = "2018-09-01"
+def project_root() -> Path:
+    return resolve_project_root()
+
+
+def python_bin() -> str:
+    return os.environ.get("OLIST_PYTHON_BIN", "python")
+
+
+def dbt_project_dir() -> Path:
+    return project_root() / "dbt" / "olist_analytics"
+
+
+def default_args() -> dict[str, Any]:
+    return {
+        "owner": "data-engineering",
+        "retries": int(os.environ.get("OLIST_AIRFLOW_RETRIES", "2")),
+        "retry_delay": timedelta(
+            seconds=int(os.environ.get("OLIST_AIRFLOW_RETRY_DELAY_SECONDS", "300"))
+        ),
+        "on_failure_callback": mark_batch_failed,
+    }
+
+
+def dag_params() -> dict[str, Param]:
+    return {
+        "batch_date": Param(
+            DEFAULT_DEMO_BATCH_DATE,
+            type="string",
+            pattern=r"^\d{4}-\d{2}-\d{2}$",
+            description="Batch date in YYYY-MM-DD format.",
+        ),
+        "lookback_days": Param(
+            3,
+            type="integer",
+            minimum=0,
+            maximum=365,
+            description="Late-arriving data lookback window for incremental dbt models.",
+        ),
+        "full_refresh": Param(
+            False,
+            type="boolean",
+            description="Run dbt build with --full-refresh.",
+        ),
+        "source_archive": Param(
+            DEFAULT_SOURCE_ARCHIVE,
+            type="string",
+            description="Path to the source Olist zip archive.",
+        ),
+        "source_profile": Param(
+            DEFAULT_SOURCE_PROFILE,
+            type="string",
+            description="Path to the source profile JSON file.",
+        ),
+        "prepared_dir_template": Param(
+            DEFAULT_PREPARED_DIR_TEMPLATE,
+            type="string",
+            description="Local prepared-file directory template. Supports {ds_nodash}.",
+        ),
+        "s3_bucket": Param(
+            os.environ.get("OLIST_S3_BUCKET", ""),
+            type="string",
+            description="S3 bucket for prepared raw files. Falls back to OLIST_S3_BUCKET.",
+        ),
+        "s3_prefix": Param(
+            os.environ.get("OLIST_S3_PREFIX", DEFAULT_S3_PREFIX),
+            type="string",
+            description="S3 prefix for prepared raw files.",
+        ),
+        "aws_region": Param(
+            os.environ.get("AWS_REGION", "us-east-1"),
+            type="string",
+            description="AWS region used by Redshift COPY.",
+        ),
+        "dead_letter_max_rows": Param(
+            10,
+            type="integer",
+            minimum=0,
+            maximum=100000,
+            description="Maximum accepted dead-letter row count.",
+        ),
+        "dead_letter_max_rate": Param(
+            0.001,
+            type="number",
+            minimum=0,
+            maximum=1,
+            description="Maximum accepted dead-letter rate.",
+        ),
+    }
 
 
 def required_env(name: str) -> str:
@@ -74,7 +157,7 @@ def param_or_env(params: Mapping[str, Any], param_name: str, env_name: str) -> s
 def run_project_command(command: list[str], env: dict[str, str] | None = None) -> None:
     subprocess.run(
         command,
-        cwd=str(PROJECT_ROOT),
+        cwd=str(project_root()),
         check=True,
         env=env,
     )
@@ -115,7 +198,7 @@ def batch_control_args(
     status: str | None = None,
 ) -> list[str]:
     args = [
-        PYTHON_BIN,
+        python_bin(),
         "scripts/orchestration/batch_control.py",
         command,
         "--batch-date",
@@ -151,7 +234,7 @@ def mark_batch_failed(context: dict) -> None:
 
     subprocess.run(
         [
-            PYTHON_BIN,
+            python_bin(),
             "scripts/orchestration/batch_control.py",
             "fail",
             "--batch-date",
@@ -169,96 +252,22 @@ def mark_batch_failed(context: dict) -> None:
             "--error-message",
             error_message,
         ],
-        cwd=str(PROJECT_ROOT),
+        cwd=str(project_root()),
         check=False,
         env=redshift_batch_control_env(),
     )
 
 
-default_args = {
-    "owner": "data-engineering",
-    "retries": DEFAULT_RETRIES,
-    "retry_delay": timedelta(seconds=DEFAULT_RETRY_DELAY_SECONDS),
-    "on_failure_callback": mark_batch_failed,
-}
-
-
-dag_params = {
-    "batch_date": Param(
-        DEFAULT_DEMO_BATCH_DATE,
-        type="string",
-        pattern=r"^\d{4}-\d{2}-\d{2}$",
-        description="Batch date in YYYY-MM-DD format.",
-    ),
-    "lookback_days": Param(
-        3,
-        type="integer",
-        minimum=0,
-        maximum=365,
-        description="Late-arriving data lookback window for incremental dbt models.",
-    ),
-    "full_refresh": Param(
-        False,
-        type="boolean",
-        description="Run dbt build with --full-refresh.",
-    ),
-    "source_archive": Param(
-        DEFAULT_SOURCE_ARCHIVE,
-        type="string",
-        description="Path to the source Olist zip archive.",
-    ),
-    "source_profile": Param(
-        DEFAULT_SOURCE_PROFILE,
-        type="string",
-        description="Path to the source profile JSON file.",
-    ),
-    "prepared_dir_template": Param(
-        DEFAULT_PREPARED_DIR_TEMPLATE,
-        type="string",
-        description="Local prepared-file directory template. Supports {ds_nodash}.",
-    ),
-    "s3_bucket": Param(
-        os.environ.get("OLIST_S3_BUCKET", ""),
-        type="string",
-        description="S3 bucket for prepared raw files. Falls back to OLIST_S3_BUCKET.",
-    ),
-    "s3_prefix": Param(
-        os.environ.get("OLIST_S3_PREFIX", DEFAULT_S3_PREFIX),
-        type="string",
-        description="S3 prefix for prepared raw files.",
-    ),
-    "aws_region": Param(
-        os.environ.get("AWS_REGION", "us-east-1"),
-        type="string",
-        description="AWS region used by Redshift COPY.",
-    ),
-    "dead_letter_max_rows": Param(
-        10,
-        type="integer",
-        minimum=0,
-        maximum=100000,
-        description="Maximum accepted dead-letter row count.",
-    ),
-    "dead_letter_max_rate": Param(
-        0.001,
-        type="number",
-        minimum=0,
-        maximum=1,
-        description="Maximum accepted dead-letter rate.",
-    ),
-}
-
-
 @dag(
     dag_id=DAG_ID,
     description="Olist batch pipeline: S3 raw files, Redshift load, and dbt transformations.",
-    default_args=default_args,
+    default_args=default_args(),
     start_date=datetime(2016, 9, 1),
     schedule=None,
     catchup=False,
     max_active_runs=1,
     tags=["olist", "aws", "s3", "redshift", "dbt"],
-    params=dag_params,
+    params=dag_params(),
 )
 def olist_modern_data_stack_aws():
     start = EmptyOperator(task_id="start")
@@ -292,7 +301,7 @@ def olist_modern_data_stack_aws():
             params, _, _, _ = current_batch_context()
             run_project_command(
                 [
-                    PYTHON_BIN,
+                    python_bin(),
                     "scripts/utilities/validate_source_contract.py",
                     "--archive",
                     str(params["source_archive"]),
@@ -306,7 +315,7 @@ def olist_modern_data_stack_aws():
             params, batch_date, run_id, artifact_dir = current_batch_context()
             run_project_command(
                 [
-                    PYTHON_BIN,
+                    python_bin(),
                     "scripts/ingestion/ingest_olist_to_s3.py",
                     "--archive",
                     str(params["source_archive"]),
@@ -337,7 +346,7 @@ def olist_modern_data_stack_aws():
             params, batch_date, run_id, artifact_dir = current_batch_context()
             run_project_command(
                 [
-                    PYTHON_BIN,
+                    python_bin(),
                     "scripts/ingestion/generate_correction_feeds.py",
                     "--archive",
                     str(params["source_archive"]),
@@ -381,7 +390,7 @@ def olist_modern_data_stack_aws():
             params, batch_date, run_id, artifact_dir = current_batch_context()
             run_project_command(
                 [
-                    PYTHON_BIN,
+                    python_bin(),
                     "scripts/loading/load_raw_to_redshift.py",
                     "--raw-dir",
                     artifact_dir,
@@ -411,7 +420,7 @@ def olist_modern_data_stack_aws():
             params, batch_date, run_id, artifact_dir = current_batch_context()
             run_project_command(
                 [
-                    PYTHON_BIN,
+                    python_bin(),
                     "scripts/quality/reconcile_batch.py",
                     "--raw-dir",
                     artifact_dir,
@@ -442,7 +451,7 @@ def olist_modern_data_stack_aws():
 
         dbt_build = BashOperator(
             task_id="dbt_build",
-            cwd=str(DBT_PROJECT_DIR),
+            cwd=str(dbt_project_dir()),
             env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
             bash_command=(
                 "{% if params.full_refresh %}"
