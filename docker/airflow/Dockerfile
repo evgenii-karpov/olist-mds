@@ -1,4 +1,4 @@
-FROM apache/airflow:3.2.1-python3.14
+FROM apache/airflow:3.2.1-python3.13
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.7 /uv /uvx /bin/
 
