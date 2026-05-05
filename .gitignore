@@ -11,6 +11,7 @@ venv/
 # dbt
 target/
 dbt_packages/
+edr_target/
 logs/
 profiles.yml
 .user.yml

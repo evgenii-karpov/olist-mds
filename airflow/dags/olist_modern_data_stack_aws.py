@@ -463,11 +463,25 @@ def olist_modern_data_stack_aws():
             ),
         )
 
+        elementary_report = BashOperator(
+            task_id="elementary_report",
+            cwd=str(dbt_project_dir()),
+            env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
+            bash_command=(
+                "mkdir -p target/edr && "
+                "edr report --env prod --profiles-dir . "
+                f"--profile-target {DEFAULT_DBT_TARGET} "
+                '--target-path "$PWD/target/edr" '
+                '--file-path "$PWD/target/edr/elementary_report.html" '
+                "--open-browser false"
+            ),
+        )
+
         mark_dbt_built = mark_batch_status.override(task_id="mark_dbt_built")(
             "DBT_BUILT"
         )
 
-        _ = dbt_build >> mark_dbt_built
+        _ = dbt_build >> elementary_report >> mark_dbt_built
 
     end = EmptyOperator(task_id="end")
 

@@ -17,6 +17,9 @@ winget install --id astral-sh.uv -e
 uv sync --locked
 Copy-Item -Force .env.example .env
 Copy-Item -Force dbt\olist_analytics\profiles.yml.example dbt\olist_analytics\profiles.yml
+Push-Location dbt\olist_analytics
+uv run dbt deps
+Pop-Location
 uv run pre-commit install
 ```
 
@@ -133,13 +136,27 @@ $env:POSTGRES_USER = "olist"
 $env:POSTGRES_PASSWORD = "olist"
 
 uv run dbt debug
+uv run dbt deps
 uv run dbt source freshness
 uv run dbt build --select staging intermediate --indirect-selection cautious --vars '{batch_date: "2018-09-01"}'
 uv run dbt snapshot --vars '{batch_date: "2018-09-01"}'
 uv run dbt build --exclude resource_type:snapshot --vars '{batch_date: "2018-09-01", lookback_days: 3}'
 uv run dbt test --vars '{batch_date: "2018-09-01", lookback_days: 3}'
+uv run edr report --env prod --profiles-dir . --profile-target local_pg --target-path "$((Get-Location).Path)\target\edr" --file-path "$((Get-Location).Path)\target\edr\elementary_report.html" --open-browser false
 Set-Location ..\..
 ```
+
+The Elementary report is written to:
+
+```text
+dbt\olist_analytics\target\edr\elementary_report.html
+```
+
+In the Airflow image, Python dependencies and dbt packages are installed during
+image build. The DAG run executes `dbt build` and `edr report`; it does not run
+`dbt deps` at task runtime. The mounted or baked dbt project must include an
+up-to-date `profiles.yml` with both the `olist_analytics` and `elementary`
+profiles before the DAG starts.
 
 ## Airflow Run
 

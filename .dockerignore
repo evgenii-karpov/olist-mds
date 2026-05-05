@@ -1,5 +1,8 @@
 .git
 .venv
+.env
+.env.*
+!.env.example
 data
 olist.zip
 airflow/logs
@@ -7,8 +10,12 @@ airflow/plugins
 dbt/olist_analytics/logs
 dbt/olist_analytics/target
 dbt/olist_analytics/dbt_packages
+dbt/olist_analytics/edr_target
 __pycache__
 *.pyc
 *.pyo
+*.pem
+*.key
+aws_credentials*
 .DS_Store
 Thumbs.db

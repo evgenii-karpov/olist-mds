@@ -22,6 +22,8 @@ the AWS/Redshift DAG when cloud infrastructure is available.
   runs.
 - dbt layers for staging, intermediate logic, snapshots, core dimensions/facts,
   and business marts.
+- Elementary data observability with collected dbt artifacts, test results, and
+  an automated observability report after dbt builds.
 - SCD Type 2 customer and product dimensions using deterministic correction
   feeds.
 - Incremental fact loading with late-arriving data handling.
@@ -36,6 +38,7 @@ Olist CSV archive
   -> raw and dead-letter zones on local storage or S3
   -> PostgreSQL or Redshift raw and audit schemas
   -> dbt staging, intermediate, snapshots, core, and marts
+  -> Elementary observability schema and report
   -> Airflow-controlled quality gates
 ```
 
@@ -91,6 +94,11 @@ tests/
 - Reconciliation runs before dbt so silent data loss or duplicate raw loads stop
   the pipeline early.
 - dbt owns analytical modeling and data quality checks after the raw load.
+- Elementary is installed as both a dbt package and a pinned CLI dependency.
+  The Airflow image resolves dbt packages at image build time, so production DAG
+  runs do not download dependencies from package registries. The dbt
+  `profiles.yml` is provisioned explicitly from the committed example and must
+  include both project and Elementary profiles before Airflow runs.
 - CI intentionally stays on the local PostgreSQL path so pull-request checks
   remain reproducible, self-contained, and fast.
 - CI uses a small deterministic fixture while still covering the real

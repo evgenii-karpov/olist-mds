@@ -56,6 +56,18 @@ jobs:
         run: cp profiles.yml.example profiles.yml
         working-directory: dbt/olist_analytics
 
+      - name: Validate dbt profiles for dbt and Elementary
+        run: >-
+          uv run python -c "import yaml;
+          profiles = yaml.safe_load(open('profiles.yml'));
+          assert 'olist_analytics' in profiles;
+          assert 'elementary' in profiles"
+        working-directory: dbt/olist_analytics
+
+      - name: Install dbt packages
+        run: uv run dbt deps
+        working-directory: dbt/olist_analytics
+
       - name: Run Ruff lint
         run: uv run ruff check .
 
@@ -162,6 +174,11 @@ jobs:
       - name: Prepare dbt profile
         run: cp profiles.yml.example profiles.yml
         working-directory: dbt/olist_analytics
+
+      - name: Install dbt packages in mounted workspace
+        run: >-
+          docker compose run --rm --no-deps airflow
+          bash -lc 'cd /opt/airflow/project/dbt/olist_analytics && dbt deps'
 
       - name: Start Airflow fixture stack
         run: docker compose up -d --wait postgres airflow-postgres airflow

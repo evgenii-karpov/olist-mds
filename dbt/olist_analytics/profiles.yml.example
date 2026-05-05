@@ -23,3 +23,29 @@ olist_analytics:
       threads: 4
       connect_timeout: 10
       sslmode: prefer
+
+elementary:
+  target: "{{ env_var('DBT_TARGET', 'local_pg') }}"
+  outputs:
+    local_pg:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      user: "{{ env_var('POSTGRES_USER', 'olist') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'olist') }}"
+      port: "{{ env_var('POSTGRES_PORT', 5432) | as_number }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'olist_analytics') }}"
+      schema: elementary
+      threads: 4
+      connect_timeout: 10
+
+    redshift:
+      type: redshift
+      host: "{{ env_var('REDSHIFT_HOST') }}"
+      user: "{{ env_var('REDSHIFT_USER') }}"
+      password: "{{ env_var('REDSHIFT_PASSWORD') }}"
+      port: "{{ env_var('REDSHIFT_PORT', 5439) | as_number }}"
+      dbname: "{{ env_var('REDSHIFT_DATABASE') }}"
+      schema: elementary
+      threads: 4
+      connect_timeout: 10
+      sslmode: prefer
