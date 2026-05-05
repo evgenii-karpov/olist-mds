@@ -162,8 +162,20 @@ jobs:
 
       - name: Prepare writable Airflow workspace paths
         run: |
-          mkdir -p airflow/logs airflow/plugins data dbt/olist_analytics/logs dbt/olist_analytics/target
-          chmod -R a+rwX airflow/logs airflow/plugins data dbt/olist_analytics/logs dbt/olist_analytics/target
+          mkdir -p \
+            airflow/logs \
+            airflow/plugins \
+            data \
+            dbt/olist_analytics/logs \
+            dbt/olist_analytics/target \
+            dbt/olist_analytics/dbt_packages
+          chmod -R a+rwX \
+            airflow/logs \
+            airflow/plugins \
+            data \
+            dbt/olist_analytics/logs \
+            dbt/olist_analytics/target \
+            dbt/olist_analytics/dbt_packages
 
       - name: Validate Compose configuration
         run: docker compose config
