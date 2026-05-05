@@ -173,6 +173,7 @@ jobs:
             airflow/logs \
             airflow/plugins \
             data \
+            dbt/olist_analytics \
             dbt/olist_analytics/logs \
             dbt/olist_analytics/target \
             dbt/olist_analytics/dbt_packages
