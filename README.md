@@ -5,9 +5,8 @@ The default development path uses Python ingestion, a filesystem raw zone with
 S3-style paths, PostgreSQL in Docker, Apache Airflow, and dbt. An AWS path is
 also available with S3-backed raw files and Redshift as the warehouse target.
 
-The repository remains reviewable without cloud access, but it is no longer
-limited to local execution. You can run the default local DAG end to end or use
-the AWS/Redshift DAG when cloud infrastructure is available.
+The project is fully reviewable without cloud access, while also supporting an
+AWS/Redshift execution path when cloud infrastructure is available.
 
 ## What It Demonstrates
 
@@ -94,11 +93,8 @@ tests/
 - Reconciliation runs before dbt so silent data loss or duplicate raw loads stop
   the pipeline early.
 - dbt owns analytical modeling and data quality checks after the raw load.
-- Elementary is installed as both a dbt package and a pinned CLI dependency.
-  The Airflow image resolves dbt packages at image build time, so production DAG
-  runs do not download dependencies from package registries. The dbt
-  `profiles.yml` is provisioned explicitly from the committed example and must
-  include both project and Elementary profiles before Airflow runs.
+- Elementary adds dbt observability while keeping dependencies pinned and
+  resolved before Airflow runs.
 - CI intentionally stays on the local PostgreSQL path so pull-request checks
   remain reproducible, self-contained, and fast.
 - CI uses a small deterministic fixture while still covering the real
