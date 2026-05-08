@@ -21,14 +21,15 @@ flowchart LR
     core["core star schema"]
     marts["business marts"]
     airflow["Apache Airflow DAG"]
+    dbtbuild["dbt build\nsnapshots, models, and tests"]
+    edr["edr report\nElementary data observability report"]
 
     airflow --> ingestion
     airflow --> corrections
     airflow --> copy
     airflow --> batchcontrol
-    airflow --> snapshots
-    airflow --> core
-    airflow --> marts
+    airflow --> dbtbuild
+    airflow --> edr
 
     source --> ingestion
     corrections --> validation
@@ -42,6 +43,12 @@ flowchart LR
     raw --> reconcile
     rawzone --> reconcile
     reconcile --> batchcontrol
+    reconcile --> dbtbuild
+    dbtbuild --> staging
+    dbtbuild --> snapshots
+    dbtbuild --> core
+    dbtbuild --> marts
+    dbtbuild --> edr
     raw --> staging
     staging --> intermediate
     intermediate --> snapshots
@@ -91,7 +98,17 @@ flowchart TB
     snapshots["snapshots\nSCD2 history managed by dbt"]
     core["core\nDimensional star schema"]
     marts["marts\nDaily revenue and monthly ARPU"]
+    build["dbt build\nRuns snapshots, models, and tests as one graph"]
+    edr["edr report\nReads dbt artifacts and warehouse results"]
     tests["dbt tests\nSource, staging, core, mart quality gates"]
+
+    build -.->|executes| staging
+    build -.->|executes| intermediate
+    build -.->|executes| snapshots
+    build -.->|executes| core
+    build -.->|executes| marts
+    build -.->|executes| tests
+    build --> edr
 
     raw --> staging
     staging --> intermediate
@@ -103,6 +120,7 @@ flowchart TB
 
     raw -.-> tests
     staging -.-> tests
+    snapshots -.-> tests
     core -.-> tests
     marts -.-> tests
 ```
@@ -199,7 +217,7 @@ erDiagram
     FACT_ORDER_ITEMS }o--|| DIM_DATE : order_purchase_date_key
 ```
 
-## SCD2 Simulation Flow
+## Unified dbt Build And EDR Flow
 
 ```mermaid
 sequenceDiagram
@@ -212,8 +230,12 @@ sequenceDiagram
     Airflow->>Generator: Generate corrections visible as of batch_date
     Generator->>RawZone: Write customer/product correction feeds
     Airflow->>Warehouse: Load raw correction tables
-    Airflow->>dbt: Run snapshot step for batch_date
-    dbt->>Warehouse: Read current attributes as of batch_date
-    dbt->>Warehouse: Insert new snapshot versions when tracked attributes change
-    Airflow->>dbt: Build core models and marts
+    Airflow->>Warehouse: Reconcile raw load before transformations
+    Airflow->>dbt: Run dbt build with batch_date vars
+    dbt->>Warehouse: Build staging and intermediate models
+    dbt->>Warehouse: Run snapshots inside the dbt graph
+    dbt->>Warehouse: Build core dimensions, facts, and marts
+    dbt->>Warehouse: Run selected tests from the same build command
+    Airflow->>dbt: Run edr report after dbt build succeeds
+    dbt->>Warehouse: Read dbt artifacts and warehouse test results
 ```
