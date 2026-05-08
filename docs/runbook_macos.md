@@ -124,7 +124,7 @@ uv run python scripts/quality/reconcile_batch.py \
   --run-id manual_2018_09_01
 ```
 
-Run dbt:
+Run dbt with the same unified flow as the Airflow DAG:
 
 ```bash
 cd dbt/olist_analytics
@@ -136,16 +136,14 @@ export POSTGRES_DB="olist_analytics"
 export POSTGRES_USER="olist"
 export POSTGRES_PASSWORD="olist"
 
-uv run dbt debug
-uv run dbt deps
-uv run dbt source freshness
-uv run dbt build --select staging intermediate --indirect-selection cautious --vars '{batch_date: "2018-09-01"}'
-uv run dbt snapshot --vars '{batch_date: "2018-09-01"}'
-uv run dbt build --exclude resource_type:snapshot --vars '{batch_date: "2018-09-01", lookback_days: 3}'
-uv run dbt test --vars '{batch_date: "2018-09-01", lookback_days: 3}'
+uv run dbt build --vars '{batch_date: "2018-09-01", lookback_days: 3}'
+mkdir -p target/edr
 uv run edr report --env prod --profiles-dir . --profile-target local_pg --target-path "$PWD/target/edr" --file-path "$PWD/target/edr/elementary_report.html" --open-browser false
 cd ../..
 ```
+
+Use `uv run dbt build --vars '{batch_date: "2018-09-01", lookback_days: 3}' --full-refresh`
+when you trigger the equivalent of the DAG's `full_refresh: true` parameter.
 
 The Elementary report is written to:
 
