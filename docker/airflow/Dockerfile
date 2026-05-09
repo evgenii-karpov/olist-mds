@@ -8,9 +8,19 @@ RUN cd /tmp/project-deps \
 
 WORKDIR /opt/airflow/project
 
-COPY --chown=airflow:0 . /opt/airflow/project
+COPY --chown=airflow:0 \
+    pyproject.toml \
+    docker \
+    docs \
+    infra \
+    scripts \
+    /opt/airflow/project/
+
+COPY --chown=airflow:0 airflow /opt/airflow/project/airflow
+COPY --chown=airflow:0 dbt/olist_analytics /opt/airflow/project/dbt/olist_analytics
 
 RUN cd /opt/airflow/project/dbt/olist_analytics \
+    && cp profiles.yml.example profiles.yml \
     && dbt deps \
     && edr --help >/dev/null \
     && mkdir -p /opt/airflow/dags \
