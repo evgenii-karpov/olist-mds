@@ -15,13 +15,17 @@ committed small fixture for CI-style smoke runs.
 ```powershell
 winget install --id astral-sh.uv -e
 uv sync --locked
-Copy-Item -Force .env.example .env
 Copy-Item -Force dbt\olist_analytics\profiles.yml.example dbt\olist_analytics\profiles.yml
 Push-Location dbt\olist_analytics
 uv run dbt deps
 Pop-Location
 uv run pre-commit install
 ```
+
+`compose.yaml` already points at committed demo-only Docker secret files, so a
+local stack can start without a `.env` file. Copy `.env.example` to `.env` only
+when you want to override local config, point Compose at custom secret files,
+or configure the AWS/Redshift path.
 
 ## Start The Local Stack
 
@@ -168,6 +172,14 @@ full_refresh: false
 dead_letter_max_rows: 10
 dead_letter_max_rate: 0.001
 ```
+
+## AWS / Redshift Path
+
+For the AWS DAG, copy `.env.example` to `.env`, fill in the non-secret
+Redshift and S3 settings, and prefer `*_AWS_SECRET_ID` entries for sensitive
+values such as `REDSHIFT_PASSWORD` and `AIRFLOW__API__SECRET_KEY`. Let AWS
+credentials come from the standard provider chain such as IAM role, AWS SSO, or
+a short-lived shared-profile session instead of long-lived keys in `.env`.
 
 ## Dead-Letter Demo
 

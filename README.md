@@ -110,8 +110,17 @@ Use the OS-specific runbook:
 Both runbooks cover dependency setup, Docker Compose, manual smoke runs, the
 Airflow DAG, dbt execution, CI-style fixture validation, and cleanup.
 
-For AWS/Redshift execution, use the AWS DAG together with the optional
-environment variables described in `.env.example`.
+Local Docker runs use committed demo-only Docker secret files by default, so
+`docker compose up -d` works without creating a `.env` file. Copy
+`.env.example` to `.env` only when you want to override local config, point
+Compose at different local secret files, or configure the AWS/Redshift path.
+
+For AWS/Redshift execution, prefer standard AWS authentication resolution
+(IAM role, SSO, shared config, or a short-lived local session) together with
+the optional runtime configuration in `.env`. Sensitive values such as the
+Redshift password and Airflow API secret key can be resolved inside the Airflow
+container from AWS Secrets Manager by setting `*_AWS_SECRET_ID` entries in
+`.env`.
 
 ## Data License
 

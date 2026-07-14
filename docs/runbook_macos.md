@@ -15,7 +15,6 @@ committed small fixture for CI-style smoke runs.
 ```bash
 brew install uv
 uv sync --locked
-cp .env.example .env
 cp dbt/olist_analytics/profiles.yml.example dbt/olist_analytics/profiles.yml
 (cd dbt/olist_analytics && uv run dbt deps)
 uv run pre-commit install
@@ -23,6 +22,11 @@ uv run pre-commit install
 
 If you do not use Homebrew, install `uv` with Astral's standalone installer and
 then rerun the remaining setup commands.
+
+`compose.yaml` already points at committed demo-only Docker secret files, so a
+local stack can start without a `.env` file. Copy `.env.example` to `.env` only
+when you want to override local config, point Compose at custom secret files,
+or configure the AWS/Redshift path.
 
 ## Start The Local Stack
 
@@ -169,6 +173,14 @@ full_refresh: false
 dead_letter_max_rows: 10
 dead_letter_max_rate: 0.001
 ```
+
+## AWS / Redshift Path
+
+For the AWS DAG, copy `.env.example` to `.env`, fill in the non-secret
+Redshift and S3 settings, and prefer `*_AWS_SECRET_ID` entries for sensitive
+values such as `REDSHIFT_PASSWORD` and `AIRFLOW__API__SECRET_KEY`. Let AWS
+credentials come from the standard provider chain such as IAM role, AWS SSO, or
+a short-lived shared-profile session instead of long-lived keys in `.env`.
 
 ## Dead-Letter Demo
 

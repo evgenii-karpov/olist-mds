@@ -28,6 +28,7 @@ airflow/webserver_config.py
 .env
 .env.*
 !.env.example
+.secrets/
 *.pem
 *.key
 aws_credentials*
