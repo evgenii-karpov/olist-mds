@@ -23,7 +23,7 @@ dev = [
 ]
 
 airflow = [
-    "apache-airflow==3.2.1",
+    "apache-airflow==3.3.0",
 ]
 
 quality = [

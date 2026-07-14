@@ -24,7 +24,7 @@ def airflow_dags_folder() -> Path:
 
 def main() -> None:
     dags_dir = airflow_dags_folder()
-    dag_bag = DagBag(dag_folder=str(dags_dir), include_examples=False)
+    dag_bag = DagBag(dag_folder=str(dags_dir))
     if dag_bag.import_errors:
         print(json.dumps(dag_bag.import_errors, indent=2, sort_keys=True))
         raise SystemExit(1)
