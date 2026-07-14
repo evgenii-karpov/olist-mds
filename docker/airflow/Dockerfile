@@ -1,4 +1,10 @@
+ARG UV_VERSION=0.11.28
+
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
 FROM apache/airflow:3.2.1-python3.13
+
+COPY --from=uv /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock /tmp/project-deps/
 
