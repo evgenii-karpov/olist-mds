@@ -101,7 +101,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}" || exit 1',
+          'bash /opt/airflow/project/docker/airflow/load-env-and-run.sh airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}" || exit 1',
         ]
       interval: 30s
       timeout: 10s
