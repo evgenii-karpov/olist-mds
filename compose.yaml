@@ -85,6 +85,8 @@ services:
       AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
       AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
       AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
+      AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
       AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
       REDSHIFT_PASSWORD_FILE: /run/secrets/redshift_password
     volumes:
@@ -101,7 +103,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'bash /opt/airflow/project/docker/airflow/load-env-and-run.sh airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}" || exit 1',
+          'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}" || exit 1',
         ]
       interval: 30s
       timeout: 10s
