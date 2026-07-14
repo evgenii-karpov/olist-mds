@@ -202,7 +202,10 @@ jobs:
           python scripts/ci/check_airflow_dag_imports.py
 
       - name: Register Airflow DAGs
-        run: docker compose exec -T airflow airflow dags reserialize
+        run: >-
+          docker compose exec -T airflow
+          bash /opt/airflow/project/docker/airflow/load-env-and-run.sh
+          airflow dags reserialize
 
       - name: Run small fixture DAG idempotency check
         run: >-
