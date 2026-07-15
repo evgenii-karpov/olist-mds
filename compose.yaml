@@ -112,6 +112,33 @@ services:
       retries: 5
       start_period: 60s
 
+  oltp-postgres:
+    image: postgres:18.4
+    profiles: [realtime-core]
+    container_name: olist-oltp-postgres
+    restart: unless-stopped
+    shm_size: 128mb
+    environment:
+      POSTGRES_DB: ${OLTP_POSTGRES_DB:-olist_oltp}
+      POSTGRES_USER: ${OLTP_POSTGRES_ADMIN_USER:-olist_admin}
+      POSTGRES_PASSWORD_FILE: /run/secrets/oltp_admin_password
+      PGDATA: /var/lib/postgresql/18/docker
+    ports:
+      - "${OLTP_POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - olist_oltp_data:/var/lib/postgresql
+      - ./infra/oltp/initdb:/docker-entrypoint-initdb.d:ro
+    secrets:
+      - oltp_admin_password
+      - oltp_simulator_password
+      - oltp_cdc_reader_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-olist_admin} -d $${POSTGRES_DB:-olist_oltp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
   # Phase 0 profile marker. Later phases attach real services to the named
   # profiles. The marker makes every profile selectable and testable now while
   # keeping the default batch stack unchanged.
@@ -124,6 +151,7 @@ services:
 volumes:
   olist_postgres_data:
   airflow_postgres_data:
+  olist_oltp_data:
 
 secrets:
   postgres_password:
@@ -134,3 +162,9 @@ secrets:
     file: ${AIRFLOW_API_SECRET_KEY_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
   redshift_password:
     file: ${REDSHIFT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/redshift_password.txt}
+  oltp_admin_password:
+    file: ${OLTP_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+  oltp_simulator_password:
+    file: ${OLTP_SIMULATOR_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+  oltp_cdc_reader_password:
+    file: ${OLTP_CDC_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
