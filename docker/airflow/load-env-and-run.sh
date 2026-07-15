@@ -46,7 +46,12 @@ resolve_secret_env_var() {
       exit 1
     fi
 
-    export "${base_name}=$(<"${file_path}")"
+    local file_value
+    file_value="$(<"${file_path}")"
+    # Command substitution removes LF but preserves the CR from Windows CRLF.
+    # Docker secret files are single-line values, so normalize that final CR.
+    file_value="${file_value%$'\r'}"
+    export "${base_name}=${file_value}"
     return 0
   fi
 
