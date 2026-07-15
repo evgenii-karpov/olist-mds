@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "verified_on": "2026-07-16",
+  "components": {
+    "airflow": {
+      "version": "3.2.1",
+      "image": "apache/airflow:slim-3.2.1-python3.12"
+    },
+    "kafka": {
+      "version": "4.3.1",
+      "image": "apache/kafka:4.3.1"
+    },
+    "debezium_connect": {
+      "version": "3.6.0.Final",
+      "image": "quay.io/debezium/connect:3.6.0.Final"
+    },
+    "nifi": {
+      "version": "2.10.0",
+      "image": "apache/nifi:2.10.0"
+    },
+    "apicurio_registry": {
+      "version": "3.3.0",
+      "image": "quay.io/apicurio/apicurio-registry:3.3.0"
+    },
+    "prometheus": {
+      "version": "3.12.0",
+      "image": "prom/prometheus:v3.12.0"
+    },
+    "alertmanager": {
+      "version": "0.30.0",
+      "image": "prom/alertmanager:v0.30.0"
+    },
+    "grafana": {
+      "version": "13.0.2",
+      "image": "grafana/grafana:13.0.2"
+    },
+    "alloy": {
+      "version": "1.16.1",
+      "image": "grafana/alloy:v1.16.1"
+    },
+    "loki": {
+      "version": "3.6.5",
+      "image": "grafana/loki:3.6.5"
+    },
+    "node_exporter": {
+      "version": "1.10.2",
+      "image": "prom/node-exporter:v1.10.2"
+    },
+    "postgres_exporter": {
+      "version": "0.18.1",
+      "image": "quay.io/prometheuscommunity/postgres-exporter:v0.18.1"
+    },
+    "statsd_exporter": {
+      "version": "0.29.0",
+      "image": "prom/statsd-exporter:v0.29.0"
+    },
+    "cadvisor": {
+      "version": "0.55.1",
+      "image": "gcr.io/cadvisor/cadvisor:v0.55.1"
+    }
+  }
+}

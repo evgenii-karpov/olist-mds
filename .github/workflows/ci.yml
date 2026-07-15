@@ -118,6 +118,12 @@ jobs:
       - name: Compile Python modules
         run: uv run python -m compileall airflow/dags scripts tests
 
+      - name: Validate realtime configuration scaffolding
+        run: uv run python scripts/ci/validate_realtime_configuration.py
+
+      - name: Check Avro schema compatibility
+        run: uv run python scripts/ci/check_avro_schema_compatibility.py
+
       - name: Validate small fixture contract
         run: >-
           uv run python scripts/utilities/validate_source_contract.py
@@ -136,7 +142,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate Compose configuration
-        run: docker compose config
+        run: |
+          docker compose config --quiet
+          for profiles in \
+            batch \
+            realtime-core \
+            observability \
+            logs \
+            "batch,realtime-core" \
+            "realtime-core,observability" \
+            "realtime-core,observability,logs" \
+            "batch,realtime-core,observability,logs"; do
+            profile_args=()
+            IFS=',' read -ra profile_names <<< "$profiles"
+            for profile_name in "${profile_names[@]}"; do
+              profile_args+=(--profile "$profile_name")
+            done
+            docker compose "${profile_args[@]}" config --quiet
+          done
 
       - name: Build Airflow image
         run: docker compose build airflow

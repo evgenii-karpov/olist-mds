@@ -1,0 +1,5 @@
+{
+  "format": "AVRO",
+  "compatibility": "BACKWARD_TRANSITIVE",
+  "file_layout": "<subject>/v<positive-integer>.avsc"
+}
