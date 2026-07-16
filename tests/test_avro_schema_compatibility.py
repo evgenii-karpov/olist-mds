@@ -103,6 +103,37 @@ class AvroSchemaCompatibilityTests(unittest.TestCase):
 
             self.assertTrue(any("has no default" in error for error in errors))
 
+    def test_rename_and_incompatible_type_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            self.write_schema(
+                root,
+                "orders-value",
+                1,
+                record(
+                    [
+                        {"name": "id", "type": "string"},
+                        {"name": "status", "type": "string"},
+                    ]
+                ),
+            )
+            self.write_schema(
+                root,
+                "orders-value",
+                2,
+                record(
+                    [
+                        {"name": "id", "type": "int"},
+                        {"name": "order_status", "type": "string", "default": "new"},
+                    ]
+                ),
+            )
+
+            errors = check_schema_directory(root)
+
+            self.assertTrue(any("changed incompatibly" in error for error in errors))
+            self.assertTrue(any("removed or renamed" in error for error in errors))
+
     def test_nested_record_change_is_rejected_conservatively(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

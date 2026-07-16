@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "bootstrap_servers": {
+    "container": "kafka:29092",
+    "host": "localhost:9092"
+  },
+  "topics": [
+    {"name": "olist_connect_configs", "partitions": 1, "replication_factor": 1, "cleanup_policy": "compact", "retention_ms": -1},
+    {"name": "olist_connect_offsets", "partitions": 25, "replication_factor": 1, "cleanup_policy": "compact", "retention_ms": -1},
+    {"name": "olist_connect_status", "partitions": 5, "replication_factor": 1, "cleanup_policy": "compact", "retention_ms": -1},
+    {"name": "olist_cdc.schema_history", "partitions": 1, "replication_factor": 1, "cleanup_policy": "compact", "retention_ms": -1},
+    {"name": "olist_cdc.transaction", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.heartbeat", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.customers", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.orders", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.order_items", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.order_payments", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.order_reviews", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.products", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.sellers", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.public.product_category_translation", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.customers", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.orders", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.order_items", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.order_payments", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.order_reviews", "partitions": 3, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.products", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.sellers", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000},
+    {"name": "olist_cdc.dlq.product_category_translation", "partitions": 1, "replication_factor": 1, "cleanup_policy": "delete", "retention_ms": 604800000}
+  ]
+}

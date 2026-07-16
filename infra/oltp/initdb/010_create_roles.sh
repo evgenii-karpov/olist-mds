@@ -16,5 +16,6 @@ SELECT format(
   'CREATE ROLE olist_cdc_reader LOGIN PASSWORD %L',
   :'reader_password'
 ) WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'olist_cdc_reader') \gexec
-SQL
 
+ALTER ROLE olist_cdc_reader WITH REPLICATION;
+SQL

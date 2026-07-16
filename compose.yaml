@@ -123,6 +123,18 @@ services:
       POSTGRES_USER: ${OLTP_POSTGRES_ADMIN_USER:-olist_admin}
       POSTGRES_PASSWORD_FILE: /run/secrets/oltp_admin_password
       PGDATA: /var/lib/postgresql/18/docker
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_slot_wal_keep_size=1GB
+      - -c
+      - wal_keep_size=128MB
     ports:
       - "${OLTP_POSTGRES_PORT:-5433}:5432"
     volumes:
@@ -139,6 +151,119 @@ services:
       retries: 10
       start_period: 20s
 
+  kafka:
+    image: apache/kafka:4.3.1
+    profiles: [realtime-core]
+    container_name: olist-kafka
+    hostname: kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_HOST_PORT:-9092}:9092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:29093,INTERNAL://:29092,EXTERNAL://:9092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:${KAFKA_HOST_PORT:-9092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+    volumes:
+      - olist_kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  kafka-topics:
+    image: apache/kafka:4.3.1
+    profiles: [realtime-core]
+    container_name: olist-kafka-topics
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./streaming/kafka/create-topics.sh:/opt/olist/create-topics.sh:ro
+    command: ["bash", "/opt/olist/create-topics.sh", "kafka:29092"]
+
+  apicurio-registry:
+    image: quay.io/apicurio/apicurio-registry:3.3.0
+    profiles: [realtime-core]
+    container_name: olist-apicurio-registry
+    hostname: apicurio-registry
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-topics:
+        condition: service_completed_successfully
+    ports:
+      - "${APICURIO_HOST_PORT:-8081}:8080"
+    environment:
+      APICURIO_STORAGE_KIND: kafkasql
+      APICURIO_KAFKASQL_BOOTSTRAP_SERVERS: kafka:29092
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/apis/registry/v3/system/info >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  kafka-connect:
+    build:
+      context: streaming/connect
+      dockerfile: Dockerfile
+    image: olist-kafka-connect:3.6.0.Final
+    profiles: [realtime-core]
+    container_name: olist-kafka-connect
+    hostname: kafka-connect
+    restart: unless-stopped
+    depends_on:
+      oltp-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-topics:
+        condition: service_completed_successfully
+      apicurio-registry:
+        condition: service_healthy
+    ports:
+      - "${KAFKA_CONNECT_HOST_PORT:-8083}:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: olist-connect-cluster
+      CONFIG_STORAGE_TOPIC: olist_connect_configs
+      OFFSET_STORAGE_TOPIC: olist_connect_offsets
+      STATUS_STORAGE_TOPIC: olist_connect_status
+      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      STATUS_STORAGE_REPLICATION_FACTOR: "1"
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      INTERNAL_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      ENABLE_APICURIO_CONVERTERS: "true"
+      CONNECT_TOPIC_CREATION_ENABLE: "false"
+      REST_ADVERTISED_HOST_NAME: kafka-connect
+    secrets:
+      - oltp_cdc_reader_password
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8083/connectors >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
   # Phase 0 profile marker. Later phases attach real services to the named
   # profiles. The marker makes every profile selectable and testable now while
   # keeping the default batch stack unchanged.
@@ -152,6 +277,7 @@ volumes:
   olist_postgres_data:
   airflow_postgres_data:
   olist_oltp_data:
+  olist_kafka_data:
 
 secrets:
   postgres_password:

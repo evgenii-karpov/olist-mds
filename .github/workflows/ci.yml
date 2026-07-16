@@ -210,6 +210,85 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
+  stage2-cdc-integration:
+    name: Stage 2 Kafka, Apicurio, and Debezium integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+
+      - name: Build Connect and start persistent CDC dependencies
+        run: |
+          docker compose --profile realtime-core build kafka-connect
+          docker compose --profile realtime-core up -d --wait oltp-postgres kafka kafka-topics apicurio-registry
+
+      - name: Configure registry, seed OLTP, and start connector
+        run: |
+          uv run python scripts/cdc/stage2_admin.py configure-registry
+          uv run python -m scripts.simulation seed \
+            --archive tests/fixtures/olist_small/olist_small.zip \
+            --seed 20260716 \
+            --password-file docker/secrets/dev/postgres_password.txt
+          docker compose --profile realtime-core up -d --wait kafka-connect
+          uv run python scripts/cdc/stage2_admin.py register-connector \
+            --password-file docker/secrets/dev/postgres_password.txt
+
+      - name: Validate topics, Avro snapshot, CRUD, keys, and evolution
+        run: |
+          uv run python scripts/cdc/stage2_admin.py validate-topics
+          uv run python scripts/ci/check_oltp_cdc_configuration.py \
+            --require-slot \
+            --password-file docker/secrets/dev/postgres_password.txt
+          uv run python scripts/ci/check_stage2_cdc_integration.py \
+            --password-file docker/secrets/dev/postgres_password.txt
+          uv run python scripts/ci/check_apicurio_compatibility.py
+
+      - name: Prove Connect downtime recovery without resnapshot
+        run: |
+          docker compose --profile realtime-core stop kafka-connect
+          docker compose --profile realtime-core exec -T oltp-postgres \
+            psql -U olist_admin -d olist_oltp -v ON_ERROR_STOP=1 \
+            -c "update public.customers set customer_city='ci downtime recovery' where customer_id=(select customer_id from public.customers order by customer_id limit 1)"
+          docker compose --profile realtime-core start kafka-connect
+          sleep 15
+          uv run python scripts/cdc/stage2_admin.py connector-status
+          uv run python scripts/ci/check_stage2_cdc_integration.py \
+            --password-file docker/secrets/dev/postgres_password.txt
+
+      - name: Prove broker and registry persistence
+        run: |
+          docker compose --profile realtime-core restart kafka
+          docker compose --profile realtime-core up -d --wait kafka
+          docker compose --profile realtime-core restart apicurio-registry
+          docker compose --profile realtime-core up -d --wait apicurio-registry
+          sleep 15
+          uv run python scripts/cdc/stage2_admin.py restart-failed
+          uv run python scripts/cdc/stage2_admin.py connector-status
+          uv run python scripts/ci/check_stage2_cdc_integration.py \
+            --password-file docker/secrets/dev/postgres_password.txt
+
+      - name: Dump bounded CDC diagnostics
+        if: failure()
+        run: >-
+          docker compose --profile realtime-core logs --no-color --tail=500
+          oltp-postgres kafka apicurio-registry kafka-connect
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose --profile realtime-core down -v
+
   fixture-integration:
     name: Small fixture integration and replay
     runs-on: ubuntu-latest

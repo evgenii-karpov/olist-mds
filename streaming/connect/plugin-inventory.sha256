@@ -1,0 +1,5 @@
+c65c63c5232f5492b9c073ce36e6ae3feb7469fc97c2a20bab3c7aeb97da00c8  /kafka/connect/debezium-connector-postgres/debezium-connector-postgres-3.6.0.Final.jar
+1981b31d3993c58702783c1cddf10a34e48c1f413d70ff1cb6def0a143484647  /kafka/connect/debezium-connector-postgres/postgresql-42.7.11.jar
+b3bd340db79327cc9e0ec2bc40d689da87c903a8300302bd10ccb48988307f0c  /kafka/external_libs/apicurio/apicurio-registry-utils-converter-3.2.5.jar
+9ff9c453ca0a9d21bddb39b705d1055e62594fe457691a1f38fcc1e1e83d9d0c  /kafka/external_libs/apicurio/apicurio-registry-avro-serde-kafka-3.2.5.jar
+72600f057bfbe2efe35fa55433e7756d45667dc938934be38a6e2be368aca237  /kafka/external_libs/apicurio/avro-1.12.1.jar

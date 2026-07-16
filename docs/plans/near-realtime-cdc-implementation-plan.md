@@ -5,7 +5,7 @@
 | Field             | Value                                                             |
 | ----------------- | ----------------------------------------------------------------- |
 | Status            | Approved implementation plan                                      |
-| Last updated      | 2026-07-15                                                        |
+| Last updated      | 2026-07-16                                                        |
 | Repository        | `olist-mds`                                                       |
 | Primary audience  | AI implementation agents and maintainers                          |
 | Delivery strategy | Complete the local path first, then build an independent AWS path |
@@ -159,7 +159,7 @@ orchestrates finite, idempotent micro-batches after NiFi has closed object files
 | CDC runtime      | Distributed Kafka Connect                       | Amazon MSK Connect                                   |
 | CDC connector    | Debezium PostgreSQL connector                   | Same Debezium connector as a versioned custom plugin |
 | Kafka            | Apache Kafka in KRaft mode                      | Amazon MSK Provisioned                               |
-| Schema registry  | Apicurio Registry in Confluent-compatible mode  | AWS Glue Schema Registry                             |
+| Schema registry  | Apicurio Registry with Confluent-compatible wire format | AWS Glue Schema Registry                        |
 | NiFi             | One Docker container with persistent volumes    | One private EC2 instance with persistent EBS         |
 | Object storage   | MinIO                                           | Amazon S3                                            |
 | Warehouse        | Existing local PostgreSQL, separate CDC schemas | Amazon Redshift Serverless                           |
@@ -274,10 +274,14 @@ using Glue locally would couple the local path to AWS.
 
 **Decision:** Use Apicurio Registry locally and AWS Glue Schema Registry on AWS.
 Both enforce backward-transitive compatibility and represent the same logical
-Kafka Connect schemas. Environment adapters may use different wire framing.
+Kafka Connect schemas. Locally, the Debezium converters register through the
+Apicurio v2 API and emit Confluent-compatible framing; consumers resolve the
+numeric content ID through the ccompat v7 API. Environment adapters may use
+different wire framing.
 
 **Consequences:** NiFi reader configuration is environment-specific, while the
-normalized event contract is shared. CI must test logical compatibility rather
+normalized event contract is shared. Apicurio content IDs are registry state,
+not portable logical schema versions. CI must test logical compatibility rather
 than byte-for-byte registry framing.
 
 ### ADR-005: Keep streaming services outside Airflow and split CDC DAGs
@@ -465,7 +469,9 @@ business decisions and identifiers.
 - Include only initial CDC-scope tables.
 - Use `REPLICA IDENTITY FULL` on captured tables for reliable before images and
   deletes in this educational workload.
-- Enable tombstones, but route them separately from business delete events.
+- Enable tombstones. They remain null values on the source topic after the
+  `op=d` business event; downstream consumers must not normalize them as a
+  second delete.
 - Configure periodic heartbeats and a heartbeat action query that advances WAL
   during otherwise idle periods.
 - Set `tasks.max=1`; a PostgreSQL logical stream is not parallelized by adding
@@ -479,7 +485,11 @@ Source topics use `olist_cdc.public.<table>`. Additional topics include:
 
 - `olist_cdc.dlq.<table>` for records rejected before successful NiFi landing;
 - compacted Connect config, offset, status, and Debezium schema-history topics;
-- a heartbeat topic or heartbeat records using the Debezium prefix.
+- `olist_cdc.transaction` for transaction boundary metadata;
+- `olist_cdc.heartbeat` for consumer-facing heartbeat records. Debezium derives
+  `<heartbeat-prefix>.<topic-prefix>` first; a heartbeat-only predicate and
+  `RegexRouter` map that derived name to the fixed topic without changing
+  business topics.
 
 Local default:
 
@@ -495,10 +505,23 @@ AWS lab default:
 - the same partition counts as local.
 
 The project must document that the AWS lab profile is cost-conscious, not a
-production HA profile. Kafka retention is 7 days for source topics. Internal and
-schema-history topics use compaction and appropriate retention.
+production HA profile. Kafka retention is 7 days for source, heartbeat,
+transaction, and reserved DLQ topics. Internal and schema-history topics use
+compaction and unlimited logical retention. The version-controlled local
+manifest contains 22 explicit topics; auto-creation is disabled. Phase 2 only
+reserves the eight table DLQs, and Phase 3 owns their first producer.
 
-### 7.3 Event identity and order
+### 7.3 Local Avro wire contract
+
+Keys and non-null values use Confluent-compatible framing: magic byte `0`, a
+four-byte big-endian numeric Apicurio content ID, then Avro payload bytes.
+Resolve the content ID through ccompat `/schemas/ids/<id>` and recursively
+resolve schema references before decoding. Main subjects use `<topic>-key` and
+`<topic>-value`; referenced Debezium table `Value`, PostgreSQL `Source`, and
+transaction record subjects are expected registry state. Tombstones have a null
+value and therefore no value schema framing.
+
+### 7.4 Event identity and order
 
 The immutable event identifier is:
 
@@ -507,14 +530,18 @@ The immutable event identifier is:
 Business ordering is determined by the following tuple, in order:
 
 1. source LSN;
-2. Debezium transaction event order when present;
+2. `source.txId` and Debezium transaction event order when present;
 3. Kafka partition offset.
+
+With Debezium 3.6 PostgreSQL events, `source.txId` is the shared PostgreSQL
+transaction identity. The envelope transaction ID contains an event-specific
+LSN and must not be used by itself to group all events from one transaction.
 
 Warehouse ingestion timestamps are never used to decide which source row is
 current. Kafka keys must be derived from source primary keys so all changes for
 one source key remain ordered within a partition.
 
-### 7.4 Schema evolution
+### 7.5 Schema evolution
 
 - Registry compatibility is backward-transitive.
 - Adding a nullable field with a default is allowed.
@@ -522,8 +549,9 @@ one source key remain ordered within a partition.
   plan and must fail compatibility checks.
 - NiFi groups records by source table, Kafka partition, and schema identifier so
   one output file never silently mixes incompatible schemas.
-- Schema identifiers and logical schema versions are retained in object and
-  warehouse metadata.
+- Wire schema identifiers are retained in object and warehouse metadata for
+  decoding and audit, but registry-assigned IDs must not be treated as logical
+  schema versions across resets or environments.
 
 ## 8. NiFi and Object Storage Contract
 
@@ -823,6 +851,20 @@ implementation.
 Each phase is a separate deliverable. An agent must not start a later phase until
 the previous phase exit criteria are met and documented.
 
+Implementation status as of 2026-07-16:
+
+| Phase | Status | Evidence and handoff |
+| --- | --- | --- |
+| 0 | Complete | `docs/cdc/phases/phase-0-baseline.md` |
+| 1 | Complete | `docs/cdc/phases/phase-1-oltp-simulator.md`, `docs/cdc/handoffs/stage-2-kafka-debezium.md` |
+| 2 | Complete | `docs/cdc/phases/phase-2-kafka-debezium.md`, `docs/cdc/handoffs/stage-3-nifi-minio.md` |
+| 3-8 | Not started | Start only from the preceding phase handoff and current contracts in this plan |
+
+Phase reports are the evidence record for completed work. This plan remains the
+normative cross-phase contract; when verified implementation reveals a contract
+detail that affects later phases, update both this plan and the relevant report
+or handoff.
+
 ### Phase 0: Contracts, compatibility, and repository scaffolding
 
 **Objectives**
@@ -892,6 +934,9 @@ the previous phase exit criteria are met and documented.
 **Required work**
 
 - Add Kafka KRaft, Apicurio, and distributed Kafka Connect services.
+- Persist Apicurio state in its KafkaSQL journal and enforce global
+  `BACKWARD_TRANSITIVE` compatibility explicitly; the image default is not the
+  project contract.
 - Build a reproducible Connect image/plugin layer containing the pinned Debezium
   connector and Avro converter.
 - Create topics explicitly with the defined partitions and policies.
@@ -906,6 +951,8 @@ the previous phase exit criteria are met and documented.
   transaction metadata.
 - Multiple changes in one transaction are ordered.
 - Connector restart resumes from offsets without a second initial snapshot.
+- Kafka and Apicurio restart retain broker data, schemas, subjects, and registry
+  compatibility configuration.
 - A compatible schema addition succeeds and an incompatible change fails.
 - WAL retention remains bounded during idle heartbeat operation.
 
@@ -913,6 +960,9 @@ the previous phase exit criteria are met and documented.
 
 - Kafka contains validated Avro CDC for every initial-scope table and all
   Debezium/Connect health checks pass.
+- The committed Phase 2 report records snapshot counts, composite-key decoding,
+  delete/tombstone behavior, transaction ordering, dependency-restart recovery,
+  schema compatibility, and regression-test evidence.
 
 ### Phase 3: NiFi to MinIO
 
@@ -1139,6 +1189,11 @@ Runbooks must cover these scenarios:
 
 - **Kafka Connect restart:** retain the existing slot and offsets; verify no new
   snapshot and confirm WAL decreases after recovery.
+- **Registry outage during production:** `errors.tolerance=none` is intentional.
+  If converter retries are exhausted, restore registry health, inspect connector
+  and task status, and explicitly restart failed tasks without deleting Connect
+  offsets, the publication, or the PostgreSQL slot. Verify that no new snapshot
+  occurs.
 - **NiFi restart:** preserve repositories, resume the consumer group, and verify
   no missing offset ranges.
 - **Kafka backlog:** keep NiFi stopped, generate data, restart it, and observe lag
@@ -1179,6 +1234,10 @@ Agents may refine names only when required by existing conventions, but the
 separation of responsibilities must remain clear:
 
 - `docs/plans/`: approved implementation plans and ADR-containing specifications;
+- `docs/cdc/phases/`: implementation records and verification evidence for each
+  completed CDC phase;
+- `docs/cdc/handoffs/`: bounded instructions and verified upstream contracts for
+  the next CDC phase;
 - `docs/runbooks/`: new CDC operations, recovery, AWS startup/teardown, and cost;
   existing root-level runbooks do not need to move as part of this work;
 - `infra/oltp/`: shared OLTP schema and bootstrap assets;

@@ -8,6 +8,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VERSION_MANIFEST = PROJECT_ROOT / "streaming" / "runtime-versions.json"
 POLICY_FILE = PROJECT_ROOT / "streaming" / "schemas" / "compatibility-policy.json"
+TOPIC_MANIFEST = PROJECT_ROOT / "streaming" / "kafka" / "topics.json"
+CONNECTOR_TEMPLATE = PROJECT_ROOT / "streaming" / "connect" / "olist-postgres-cdc.json"
 
 REQUIRED_COMPONENTS = {
     "airflow",
@@ -96,9 +98,45 @@ def validate_policy(policy: dict[str, object]) -> list[str]:
     ]
 
 
+def validate_stage2_contracts() -> list[str]:
+    errors: list[str] = []
+    topics = load_json(TOPIC_MANIFEST).get("topics")
+    if not isinstance(topics, list):
+        errors.append("topics.json topics must be an array")
+    else:
+        names = [topic.get("name") for topic in topics if isinstance(topic, dict)]
+        if len(names) != len(topics) or len(names) != len(set(names)):
+            errors.append("topics.json topic names must be present and unique")
+
+    connector = load_json(CONNECTOR_TEMPLATE)
+    config = connector.get("config")
+    if connector.get("name") != "olist-postgres-cdc" or not isinstance(config, dict):
+        return [*errors, "connector template has an invalid name or config"]
+    expected = {
+        "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+        "plugin.name": "pgoutput",
+        "tasks.max": "1",
+        "topic.prefix": "olist_cdc",
+        "slot.name": "olist_cdc_slot",
+        "publication.name": "olist_cdc_publication",
+        "publication.autocreate.mode": "disabled",
+        "snapshot.mode": "initial",
+        "topic.heartbeat.prefix": "olist_cdc.heartbeat",
+        "schema.history.internal.kafka.topic": "olist_cdc.schema_history",
+        "database.password": "${OLTP_CDC_READER_PASSWORD}",
+    }
+    errors.extend(
+        f"connector config {key!r} must be {value!r}"
+        for key, value in expected.items()
+        if config.get(key) != value
+    )
+    return errors
+
+
 def main() -> int:
     errors = validate_version_manifest(load_json(VERSION_MANIFEST))
     errors.extend(validate_policy(load_json(POLICY_FILE)))
+    errors.extend(validate_stage2_contracts())
     for relative_path in REQUIRED_DIRECTORIES:
         if not (PROJECT_ROOT / relative_path).is_dir():
             errors.append(f"required directory is missing: {relative_path}")
