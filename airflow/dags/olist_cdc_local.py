@@ -142,17 +142,17 @@ def load_closed_normalized_objects(run_kind: str) -> dict[str, Any]:
     params, dag_id, orchestration_run_id = context_values()
     ingest_run_id = f"{dag_id}__{safe_run_id(orchestration_run_id)}"
     command = [
-            *command_prefix(),
-            "ingest",
-            "--ingest-run-id",
-            ingest_run_id,
-            "--run-kind",
-            run_kind,
-            "--dag-id",
-            dag_id,
-            "--orchestration-run-id",
-            orchestration_run_id,
-        ]
+        *command_prefix(),
+        "ingest",
+        "--ingest-run-id",
+        ingest_run_id,
+        "--run-kind",
+        run_kind,
+        "--dag-id",
+        dag_id,
+        "--orchestration-run-id",
+        orchestration_run_id,
+    ]
     if run_kind == "REPLAY":
         command.extend(["--replay-request-id", ingest_run_id])
     command.extend(selector_args(params))

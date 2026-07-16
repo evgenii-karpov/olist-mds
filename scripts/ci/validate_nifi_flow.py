@@ -152,7 +152,9 @@ def main() -> int:
         ):
             errors.append("coverage schema must use JSON Schema draft 2020-12")
         if set(coverage_schema.get("required", [])) != COVERAGE_REQUIRED:
-            errors.append("coverage schema required fields do not match the v1 contract")
+            errors.append(
+                "coverage schema required fields do not match the v1 contract"
+            )
         properties = coverage_schema.get("properties", {})
         if properties.get("contract_version", {}).get("const") != 1:
             errors.append("coverage contract_version must be fixed at 1")
@@ -168,9 +170,9 @@ def main() -> int:
     describe_source = (ROOT / "streaming/nifi/python/DescribeAvroBatch.py").read_text(
         encoding="utf-8"
     )
-    put_source = (
-        ROOT / "streaming/nifi/python/PutImmutableS3Object.py"
-    ).read_text(encoding="utf-8")
+    put_source = (ROOT / "streaming/nifi/python/PutImmutableS3Object.py").read_text(
+        encoding="utf-8"
+    )
     for attribute in (
         "cdc.coverage.key",
         "cdc.business_offset_ranges",
