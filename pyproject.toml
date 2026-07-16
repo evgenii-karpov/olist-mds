@@ -16,6 +16,7 @@ dependencies = [
     "fastavro>=1.12,<2",
     "importlib-metadata>=6,<8.8",
     "pandas>=2.2,<3",
+    "pyarrow>=21,<24",
     "psycopg2-binary>=2.9,<3",
 ]
 
@@ -75,4 +76,8 @@ ignore = [
 "scripts/**/*.py" = [
     # CLI scripts bootstrap the repository root onto sys.path before local imports.
     "E402",
+]
+"streaming/nifi/python/*.py" = [
+    # NiFi's AST discovery contract requires literal list class attributes.
+    "RUF012",
 ]

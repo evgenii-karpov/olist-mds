@@ -16,6 +16,9 @@ REQUIRED_COMPONENTS = {
     "kafka",
     "debezium_connect",
     "nifi",
+    "nifi_parquet",
+    "minio",
+    "minio_client",
     "apicurio_registry",
     "prometheus",
     "alertmanager",
@@ -26,6 +29,7 @@ REQUIRED_COMPONENTS = {
     "postgres_exporter",
     "statsd_exporter",
     "cadvisor",
+    "kafka_exporter",
 }
 
 REQUIRED_DIRECTORIES = (

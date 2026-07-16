@@ -18,6 +18,21 @@
       "version": "2.10.0",
       "image": "apache/nifi:2.10.0"
     },
+    "nifi_parquet": {
+      "version": "2.10.0",
+      "image": "olist-nifi:2.10.0",
+      "artifact": "org.apache.nifi:nifi-parquet-nar:2.10.0",
+      "sha1": "09966fe6d6ad87b163cea1d122b73cd80c7770c0"
+    },
+    "minio": {
+      "version": "RELEASE.2025-10-15T17-29-55Z",
+      "image": "olist-minio:RELEASE.2025-10-15T17-29-55Z",
+      "source": "github.com/minio/minio"
+    },
+    "minio_client": {
+      "version": "RELEASE.2025-08-13T08-35-41Z",
+      "image": "quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z"
+    },
     "apicurio_registry": {
       "version": "3.3.0",
       "image": "quay.io/apicurio/apicurio-registry:3.3.0"
@@ -57,6 +72,10 @@
     "cadvisor": {
       "version": "0.55.1",
       "image": "gcr.io/cadvisor/cadvisor:v0.55.1"
+    },
+    "kafka_exporter": {
+      "version": "1.9.0",
+      "image": "danielqsj/kafka-exporter:v1.9.0"
     }
   }
 }

@@ -25,6 +25,12 @@
 !scripts/
 !scripts/**
 
+!streaming/
+!streaming/nifi/
+!streaming/nifi/**
+!streaming/schemas/
+!streaming/schemas/**
+
 !dbt/
 !dbt/olist_analytics/
 !dbt/olist_analytics/analyses/

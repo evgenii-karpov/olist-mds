@@ -1,0 +1,18 @@
+{
+  "type":"record", "name":"OrderItemsCdcV1", "namespace":"io.olist.cdc.normalized",
+  "fields":[
+    {"name":"order_id","type":"string"}, {"name":"order_item_id","type":"int"}, {"name":"product_id","type":"string"},
+    {"name":"seller_id","type":"string"}, {"name":"shipping_limit_date","type":{"type":"long","logicalType":"timestamp-micros"}},
+    {"name":"price","type":{"type":"bytes","logicalType":"decimal","precision":18,"scale":2}},
+    {"name":"freight_value","type":{"type":"bytes","logicalType":"decimal","precision":18,"scale":2}},
+    {"name":"_event_id","type":"string"}, {"name":"_op","type":"string"},
+    {"name":"_source_ts","type":["null",{"type":"long","logicalType":"timestamp-micros"}],"default":null},
+    {"name":"_source_lsn","type":"long"}, {"name":"_tx_id","type":["null","long"],"default":null},
+    {"name":"_tx_order","type":["null","long"],"default":null}, {"name":"_topic","type":"string"},
+    {"name":"_partition","type":"int"}, {"name":"_offset","type":"long"},
+    {"name":"_kafka_ts","type":["null",{"type":"long","logicalType":"timestamp-millis"}],"default":null},
+    {"name":"_key_schema_id","type":["null","int"],"default":null}, {"name":"_schema_id","type":"int"},
+    {"name":"_nifi_written_at","type":{"type":"long","logicalType":"timestamp-millis"}}
+  ]
+}
+

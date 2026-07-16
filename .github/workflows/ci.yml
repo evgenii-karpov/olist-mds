@@ -121,6 +121,9 @@ jobs:
       - name: Validate realtime configuration scaffolding
         run: uv run python scripts/ci/validate_realtime_configuration.py
 
+      - name: Validate NiFi flow and CDC schemas
+        run: uv run python scripts/ci/validate_nifi_flow.py
+
       - name: Check Avro schema compatibility
         run: uv run python scripts/ci/check_avro_schema_compatibility.py
 

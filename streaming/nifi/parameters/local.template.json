@@ -1,0 +1,18 @@
+{
+  "flow_version": "olist-cdc-v1",
+  "kafka_bootstrap_servers": "kafka:29092",
+  "kafka_group_id": "olist-nifi-cdc-v1",
+  "registry_url": "http://apicurio-registry:8080",
+  "minio_endpoint": "http://minio:9000",
+  "minio_region": "us-east-1",
+  "minio_bucket": "olist-cdc",
+  "minio_access_key": "olist_nifi",
+  "minio_secret_file": "/run/secrets/minio_nifi_password",
+  "schema_directory": "/opt/olist/schemas",
+  "max_bin_age": "45 sec",
+  "minimum_bin_size": "32 MB",
+  "maximum_bin_size": "64 MB",
+  "backpressure_object_threshold": 10000,
+  "backpressure_data_size_threshold": "1 GB"
+}
+

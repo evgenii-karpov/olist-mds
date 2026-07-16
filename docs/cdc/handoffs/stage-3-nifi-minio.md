@@ -72,11 +72,13 @@ connector task fails visibly; after registry recovery,
 `python scripts/cdc/stage2_admin.py restart-failed` resumes it without deleting
 offsets or the PostgreSQL slot.
 
-NiFi must use its own stable consumer group, commit only after durable landing,
-and preserve topic/partition/offset plus key/value schema IDs. It must tolerate
-replay and duplicate delivery. A MinIO outage must retain queued FlowFiles and
-must not acknowledge Kafka offsets. NiFi restart must preserve repositories and
-resume the same group.
+NiFi must use its own stable consumer group and preserve topic/partition/offset
+plus key/value schema IDs. In stock NiFi 2.10, `ConsumeKafka` commits after
+durable FlowFile repository acceptance, not after an arbitrary downstream S3
+branch. A MinIO outage must therefore retain accepted FlowFiles in persistent
+repositories and apply backpressure until further Kafka consumption stops.
+Replay and duplicate delivery must remain safe through immutable event/object
+identity. NiFi restart must preserve repositories and resume the same group.
 
 ## Phase 3 acceptance boundary
 

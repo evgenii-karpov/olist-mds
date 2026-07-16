@@ -1,0 +1,39 @@
+groups:
+  - name: cdc-component-health
+    rules:
+      - alert: CdcConnectorNotRunning
+        expr: olist_connect_connector_running{connector="olist-postgres-cdc"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Debezium connector is not running
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcConnectorTaskNotRunning
+        expr: olist_connect_tasks_running{connector="olist-postgres-cdc"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Debezium connector task is not running
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcNifiUnavailable
+        expr: up{job="nifi"} != 1 or olist_nifi_metrics_proxy_up != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: NiFi metrics or runtime is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcMinioUnavailable
+        expr: up{job="minio"} != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: MinIO metrics or runtime is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
+

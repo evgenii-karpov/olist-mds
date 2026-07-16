@@ -612,7 +612,11 @@ ingest ledger.
   backoff and NiFi backpressure.
 - Invalid data and incompatible schemas go to a quarantine object prefix and a
   DLQ topic with reason, processor, schema ID, and original Kafka coordinates.
-- A failed branch must not acknowledge the Kafka offset.
+- Stock NiFi `ConsumeKafka` commits after the consumed FlowFile is durably
+  accepted by the NiFi repositories; it cannot defer that commit until an
+  arbitrary downstream S3 branch completes. Failed object writes therefore
+  remain replayable in the persistent FlowFile/content repositories, and
+  backpressure must stop further consumption before repository exhaustion.
 - NiFi provenance remains enabled with bounded retention.
 - Persistent repositories survive container or EC2 restarts.
 - The deployment defines disk thresholds before NiFi repositories can exhaust
@@ -987,7 +991,8 @@ or handoff.
 - Deletes use `before` values and are represented once.
 - Duplicate consumption creates no ambiguous object identity.
 - NiFi restart preserves queued data and resumes consumption.
-- Object-store outage applies backpressure without acknowledging Kafka offsets.
+- Object-store outage retains accepted FlowFiles in persistent NiFi
+  repositories, applies backpressure, and stops further Kafka consumption.
 - Invalid records go to quarantine/DLQ while healthy partitions continue.
 
 **Exit criteria**

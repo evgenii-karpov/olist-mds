@@ -1,0 +1,271 @@
+{
+  "name": "olist-cdc-v1",
+  "version": 1,
+  "controller_services": [
+    {
+      "name": "kafka-connection",
+      "type": "org.apache.nifi.kafka.service.Kafka3ConnectionService",
+      "properties": {
+        "bootstrap.servers": "#{kafka_bootstrap_servers}",
+        "security.protocol": "PLAINTEXT",
+        "isolation.level": "read_committed",
+        "max.poll.records": "1000"
+      }
+    },
+    {
+      "name": "avro-reader",
+      "type": "org.apache.nifi.avro.AvroReader",
+      "properties": {"Schema Access Strategy": "embedded-avro-schema"}
+    },
+    {
+      "name": "avro-writer",
+      "type": "org.apache.nifi.avro.AvroRecordSetWriter",
+      "properties": {
+        "Schema Write Strategy": "avro-embedded",
+        "Schema Access Strategy": "inherit-record-schema",
+        "Compression Format": "DEFLATE"
+      }
+    },
+    {
+      "name": "parquet-writer",
+      "type": "org.apache.nifi.parquet.ParquetRecordSetWriter",
+      "properties": {}
+    }
+  ],
+  "processors": [
+    {
+      "name": "Consume Olist CDC",
+      "type": "org.apache.nifi.kafka.processors.ConsumeKafka",
+      "x": 0, "y": 300,
+      "properties": {
+        "Kafka Connection Service": "@service:kafka-connection",
+        "Group ID": "#{kafka_group_id}",
+        "Topic Format": "names",
+        "Topics": "olist_cdc.public.customers,olist_cdc.public.orders,olist_cdc.public.order_items,olist_cdc.public.order_payments,olist_cdc.public.order_reviews,olist_cdc.public.products,olist_cdc.public.sellers,olist_cdc.public.product_category_translation",
+        "auto.offset.reset": "earliest",
+        "Commit Offsets": "true",
+        "Max Uncommitted Time": "1 sec",
+        "Processing Strategy": "FLOW_FILE",
+        "Key Attribute Encoding": "hex"
+      }
+    },
+    {
+      "name": "Route Tombstones",
+      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
+      "x": 350, "y": 300,
+      "properties": {
+        "Routing Strategy": "Route to Property name",
+        "tombstone": "${kafka.tombstone:equals('true')}"
+      }
+    },
+    {
+      "name": "Duplicate Business Event",
+      "type": "org.apache.nifi.processors.standard.DuplicateFlowFile",
+      "x": 700, "y": 400,
+      "properties": {"Number of Copies": "1"}
+    },
+    {
+      "name": "Route Landing and Normalized",
+      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
+      "x": 1050, "y": 400,
+      "properties": {
+        "Routing Strategy": "Route to Property name",
+        "landing": "${copy.index:equals('0')}",
+        "normalized": "${copy.index:equals('1')}"
+      },
+      "auto_terminate": ["unmatched"]
+    },
+    {
+      "name": "Build Landing Avro",
+      "type": "BuildCdcAvro",
+      "x": 1400, "y": 150,
+      "properties": {
+        "Output Kind": "landing",
+        "Registry URL": "#{registry_url}",
+        "Schema Directory": "#{schema_directory}"
+      }
+    },
+    {
+      "name": "Build Normalized Avro",
+      "type": "BuildCdcAvro",
+      "x": 1400, "y": 550,
+      "properties": {
+        "Output Kind": "normalized",
+        "Registry URL": "#{registry_url}",
+        "Schema Directory": "#{schema_directory}"
+      }
+    },
+    {
+      "name": "Merge Landing",
+      "type": "org.apache.nifi.processors.standard.MergeRecord",
+      "x": 1750, "y": 150,
+      "properties": {
+        "Record Reader": "@service:avro-reader",
+        "Record Writer": "@service:avro-writer",
+        "Merge Strategy": "Bin-Packing Algorithm",
+        "Correlation Attribute Name": "cdc.bin.key",
+        "Minimum Number of Records": "1",
+        "Maximum Number of Records": "50000",
+        "Minimum Bin Size": "#{minimum_bin_size}",
+        "Maximum Bin Size": "#{maximum_bin_size}",
+        "Max Bin Age": "#{max_bin_age}",
+        "Maximum Number of Bins": "256"
+      },
+      "auto_terminate": ["original"]
+    },
+    {
+      "name": "Merge Normalized",
+      "type": "org.apache.nifi.processors.standard.MergeRecord",
+      "x": 1750, "y": 550,
+      "properties": {
+        "Record Reader": "@service:avro-reader",
+        "Record Writer": "@service:avro-writer",
+        "Merge Strategy": "Bin-Packing Algorithm",
+        "Correlation Attribute Name": "cdc.bin.key",
+        "Minimum Number of Records": "1",
+        "Maximum Number of Records": "50000",
+        "Minimum Bin Size": "#{minimum_bin_size}",
+        "Maximum Bin Size": "#{maximum_bin_size}",
+        "Max Bin Age": "#{max_bin_age}",
+        "Maximum Number of Bins": "256"
+      },
+      "auto_terminate": ["original"]
+    },
+    {
+      "name": "Describe Landing Batch",
+      "type": "DescribeAvroBatch",
+      "x": 2100, "y": 150,
+      "properties": {}
+    },
+    {
+      "name": "Describe Normalized Batch",
+      "type": "DescribeAvroBatch",
+      "x": 2100, "y": 550,
+      "properties": {}
+    },
+    {
+      "name": "Convert Normalized to Parquet",
+      "type": "org.apache.nifi.processors.standard.ConvertRecord",
+      "x": 2450, "y": 550,
+      "properties": {
+        "Record Reader": "@service:avro-reader",
+        "Record Writer": "@service:parquet-writer",
+        "Include Zero Record FlowFiles": "false"
+      }
+    },
+    {
+      "name": "Put Landing Immutable",
+      "type": "PutImmutableS3Object",
+      "x": 2450, "y": 150,
+      "properties": {
+        "Endpoint URL": "#{minio_endpoint}", "Region": "#{minio_region}",
+        "Bucket": "#{minio_bucket}", "Access Key": "#{minio_access_key}",
+        "Secret Key File": "#{minio_secret_file}", "Write Manifest": "true"
+      },
+      "auto_terminate": ["success"]
+    },
+    {
+      "name": "Put Normalized Immutable",
+      "type": "PutImmutableS3Object",
+      "x": 2800, "y": 550,
+      "properties": {
+        "Endpoint URL": "#{minio_endpoint}", "Region": "#{minio_region}",
+        "Bucket": "#{minio_bucket}", "Access Key": "#{minio_access_key}",
+        "Secret Key File": "#{minio_secret_file}", "Write Manifest": "true"
+      },
+      "auto_terminate": ["success"]
+    },
+    {
+      "name": "Build DLQ Envelope",
+      "type": "BuildDlqEnvelope",
+      "x": 1750, "y": 900,
+      "properties": {}
+    },
+    {
+      "name": "Duplicate DLQ Envelope",
+      "type": "org.apache.nifi.processors.standard.DuplicateFlowFile",
+      "x": 2100, "y": 900,
+      "properties": {"Number of Copies": "1"}
+    },
+    {
+      "name": "Route Quarantine and DLQ",
+      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
+      "x": 2450, "y": 900,
+      "properties": {
+        "Routing Strategy": "Route to Property name",
+        "quarantine": "${copy.index:equals('0')}",
+        "dlq": "${copy.index:equals('1')}"
+      },
+      "auto_terminate": ["unmatched"]
+    },
+    {
+      "name": "Put Quarantine Immutable",
+      "type": "PutImmutableS3Object",
+      "x": 2800, "y": 800,
+      "properties": {
+        "Endpoint URL": "#{minio_endpoint}", "Region": "#{minio_region}",
+        "Bucket": "#{minio_bucket}", "Access Key": "#{minio_access_key}",
+        "Secret Key File": "#{minio_secret_file}", "Write Manifest": "false"
+      },
+      "auto_terminate": ["success"]
+    },
+    {
+      "name": "Publish Table DLQ",
+      "type": "org.apache.nifi.kafka.processors.PublishKafka",
+      "x": 2800, "y": 1000,
+      "properties": {
+        "Kafka Connection Service": "@service:kafka-connection",
+        "Topic Name": "${cdc.dlq.topic}",
+        "Failure Strategy": "Rollback",
+        "acks": "all",
+        "Transactions Enabled": "false",
+        "Publish Strategy": "USE_VALUE",
+        "Kafka Key": "${kafka.key}",
+        "Kafka Key Attribute Encoding": "hex"
+      },
+      "auto_terminate": ["success", "failure"]
+    },
+    {
+      "name": "Log Pipeline Error",
+      "type": "org.apache.nifi.processors.standard.LogAttribute",
+      "x": 3150, "y": 400,
+      "properties": {
+        "Log Level": "error",
+        "Log Payload": "false",
+        "Attributes to Log": "cdc.event_id,cdc.error.stage,cdc.error.reason,cdc.object.key"
+      },
+      "auto_terminate": ["success"]
+    }
+  ],
+  "connections": [
+    ["Consume Olist CDC", "success", "Route Tombstones"],
+    ["Route Tombstones", "unmatched", "Duplicate Business Event"],
+    ["Route Tombstones", "tombstone", "Build Landing Avro"],
+    ["Duplicate Business Event", "success", "Route Landing and Normalized"],
+    ["Route Landing and Normalized", "landing", "Build Landing Avro"],
+    ["Route Landing and Normalized", "normalized", "Build Normalized Avro"],
+    ["Build Landing Avro", "success", "Merge Landing"],
+    ["Build Landing Avro", "failure", "Build DLQ Envelope"],
+    ["Build Normalized Avro", "success", "Merge Normalized"],
+    ["Build Normalized Avro", "failure", "Build DLQ Envelope"],
+    ["Merge Landing", "merged", "Describe Landing Batch"],
+    ["Merge Landing", "failure", "Log Pipeline Error"],
+    ["Merge Normalized", "merged", "Describe Normalized Batch"],
+    ["Merge Normalized", "failure", "Log Pipeline Error"],
+    ["Describe Landing Batch", "success", "Put Landing Immutable"],
+    ["Describe Landing Batch", "failure", "Log Pipeline Error"],
+    ["Describe Normalized Batch", "success", "Convert Normalized to Parquet"],
+    ["Describe Normalized Batch", "failure", "Log Pipeline Error"],
+    ["Convert Normalized to Parquet", "success", "Put Normalized Immutable"],
+    ["Convert Normalized to Parquet", "failure", "Log Pipeline Error"],
+    ["Put Landing Immutable", "failure", "Log Pipeline Error"],
+    ["Put Normalized Immutable", "failure", "Log Pipeline Error"],
+    ["Build DLQ Envelope", "success", "Duplicate DLQ Envelope"],
+    ["Build DLQ Envelope", "failure", "Log Pipeline Error"],
+    ["Duplicate DLQ Envelope", "success", "Route Quarantine and DLQ"],
+    ["Route Quarantine and DLQ", "quarantine", "Put Quarantine Immutable"],
+    ["Route Quarantine and DLQ", "dlq", "Publish Table DLQ"],
+    ["Put Quarantine Immutable", "failure", "Log Pipeline Error"]
+  ]
+}
+
