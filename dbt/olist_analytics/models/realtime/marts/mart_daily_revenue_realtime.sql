@@ -11,26 +11,26 @@
 
 with item_facts as (
     select
-        order_purchase_timestamp::date as order_purchase_date,
-        order_id,
-        order_item_key,
-        customer_unique_id,
-        price,
-        freight_value,
-        gross_item_amount,
-        allocated_payment_value,
-        delivery_days,
-        is_delivered_late,
-        max_source_ts
-    from {{ ref('fact_order_items_realtime') }}
+        facts.order_purchase_timestamp::date as order_purchase_date,
+        facts.order_id,
+        facts.order_item_key,
+        facts.customer_unique_id,
+        facts.price,
+        facts.freight_value,
+        facts.gross_item_amount,
+        facts.allocated_payment_value,
+        facts.delivery_days,
+        facts.is_delivered_late,
+        facts.max_source_ts
+    from {{ ref('fact_order_items_realtime') }} as facts
+    {% if is_incremental() %}
+        inner join {{ ref('int_cdc__changed_periods') }} as changed
+            on
+                facts.order_purchase_timestamp::date
+                = changed.order_purchase_date
+    {% endif %}
     where
-        order_purchase_timestamp is not null
-        {% if is_incremental() %}
-            and order_purchase_timestamp::date in (
-                select changed.order_purchase_date
-                from {{ ref('int_cdc__changed_periods') }} as changed
-            )
-        {% endif %}
+        facts.order_purchase_timestamp is not null
 ),
 
 order_level as (

@@ -11,20 +11,25 @@
 
 with item_facts as (
     select
-        date_trunc('month', order_purchase_timestamp)::date as order_month,
-        order_id,
-        customer_unique_id,
-        coalesce(allocated_payment_value, gross_item_amount) as revenue_amount,
-        max_source_ts
-    from {{ ref('fact_order_items_realtime') }}
+        date_trunc(
+            'month', facts.order_purchase_timestamp
+        )::date as order_month,
+        facts.order_id,
+        facts.customer_unique_id,
+        coalesce(
+            facts.allocated_payment_value, facts.gross_item_amount
+        ) as revenue_amount,
+        facts.max_source_ts
+    from {{ ref('fact_order_items_realtime') }} as facts
+    {% if is_incremental() %}
+        inner join {{ ref('int_cdc__changed_periods') }} as changed
+            on
+                date_trunc('month', facts.order_purchase_timestamp)::date
+                = changed.order_month
+    {% endif %}
     where
-        order_purchase_timestamp is not null and customer_unique_id is not null
-        {% if is_incremental() %}
-            and date_trunc('month', order_purchase_timestamp)::date in (
-                select changed.order_month
-                from {{ ref('int_cdc__changed_periods') }} as changed
-            )
-        {% endif %}
+        facts.order_purchase_timestamp is not null
+        and facts.customer_unique_id is not null
 ),
 
 customer_month as (
