@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://olist.local/schemas/cdc-coverage/v1.schema.json",
+  "title": "Olist CDC offset coverage manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "flow_version",
+    "kind",
+    "table",
+    "topic",
+    "partition",
+    "consumed_offset_ranges",
+    "business_event_offset_ranges",
+    "tombstone_offset_ranges",
+    "consumed_row_count",
+    "business_event_count",
+    "tombstone_count",
+    "closed_at",
+    "landing_manifest",
+    "landing_object"
+  ],
+  "properties": {
+    "contract_version": {"const": 1},
+    "flow_version": {"type": "string", "minLength": 1},
+    "kind": {"const": "coverage"},
+    "table": {"type": "string", "minLength": 1},
+    "topic": {"type": "string", "minLength": 1},
+    "partition": {"type": "integer", "minimum": 0},
+    "consumed_offset_ranges": {"$ref": "#/$defs/nonEmptyRanges"},
+    "business_event_offset_ranges": {"$ref": "#/$defs/ranges"},
+    "tombstone_offset_ranges": {"$ref": "#/$defs/ranges"},
+    "consumed_row_count": {"type": "integer", "minimum": 1},
+    "business_event_count": {"type": "integer", "minimum": 0},
+    "tombstone_count": {"type": "integer", "minimum": 0},
+    "closed_at": {"type": "string", "format": "date-time"},
+    "landing_manifest": {"$ref": "#/$defs/manifestRef"},
+    "landing_object": {"$ref": "#/$defs/objectRef"}
+  },
+  "$defs": {
+    "range": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0},
+        {"type": "integer", "minimum": 0}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "ranges": {"type": "array", "items": {"$ref": "#/$defs/range"}},
+    "nonEmptyRanges": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/range"}
+    },
+    "manifestRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "etag"],
+      "properties": {
+        "uri": {"type": "string", "pattern": "^s3://"},
+        "etag": {"type": "string", "minLength": 1}
+      }
+    },
+    "objectRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "etag", "sha256", "size_bytes"],
+      "properties": {
+        "uri": {"type": "string", "pattern": "^s3://"},
+        "etag": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 # Phase 3: NiFi to MinIO
 
-Status: implemented and verified on 2026-07-16.
+Status: implemented and verified on 2026-07-16; coverage-contract amendment
+implemented on 2026-07-16 for Phase 4 warehouse continuity.
 
 Phase 3 adds persistent MinIO and NiFi services to `realtime-core`, a
 version-controlled `olist-cdc-v1` process group, typed CDC schemas, immutable
@@ -26,6 +27,11 @@ first Prometheus/Grafana component-health baseline.
 - Object and manifest identity includes topic, partition, exact offset range,
   schema ID, and an event-set digest. Existing identical content is an
   idempotent success; conflicting content at the same key fails closed.
+- After each landing object and landing manifest are durable, NiFi writes a
+  separate immutable `kind=coverage` manifest. It classifies exact consumed
+  offsets into business-event and tombstone ranges and references the committed
+  landing identities. Normalized business files and coverage manifests remain
+  independent commit markers.
 
 Stock NiFi commits Kafka offsets after durable acceptance into its repositories,
 not after all downstream S3 processors finish. A MinIO outage therefore leaves
@@ -48,6 +54,11 @@ group and replay immutable event IDs without ambiguous object identity.
   multi-partition tables. Replay reused immutable keys.
 - Static schema/flow/configuration tests, Ruff, Pyright, and nine Stage 3 unit
   tests pass.
+- The amended coverage contract is versioned under
+  `streaming/schemas/cdc-coverage/v1.schema.json`. Contract tests prove exact
+  business/tombstone classification, and the Phase 4 isolated integration test
+  proves that verified tombstones close normalized offset holes without adding
+  raw rows.
 
 ## Operations
 

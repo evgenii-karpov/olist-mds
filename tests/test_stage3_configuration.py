@@ -78,6 +78,24 @@ class Stage3ConfigurationTests(unittest.TestCase):
             fields = {field["name"] for field in schema["fields"]}
             self.assertTrue(fields >= REQUIRED_METADATA, table)
 
+    def test_coverage_manifest_contract_is_versioned(self) -> None:
+        schema = json.loads(
+            (ROOT / "streaming/schemas/cdc-coverage/v1.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(1, schema["properties"]["contract_version"]["const"])
+        self.assertEqual("coverage", schema["properties"]["kind"]["const"])
+        put_processor = (
+            ROOT / "streaming/nifi/python/PutImmutableS3Object.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"tombstone_offset_ranges"', put_processor)
+        self.assertIn('attributes.get("cdc.coverage.key")', put_processor)
+        describe_processor = (
+            ROOT / "streaming/nifi/python/DescribeAvroBatch.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("batch contains duplicate offset or event ID", describe_processor)
+
     def test_no_secret_values_in_flow_or_parameter_template(self) -> None:
         text = json.dumps(self.flow) + (
             ROOT / "streaming/nifi/parameters/local.template.json"

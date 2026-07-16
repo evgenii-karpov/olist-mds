@@ -16,7 +16,7 @@ class DescribeAvroBatch(FlowFileTransform):
         implements = ["org.apache.nifi.python.processor.FlowFileTransform"]
 
     class ProcessorDetails:
-        version = "1.0.0"
+        version = "1.1.0"
         description = (
             "Validate a merged CDC Avro batch and derive immutable object identity."
         )
@@ -26,7 +26,7 @@ class DescribeAvroBatch(FlowFileTransform):
         super().__init__()
 
     def transform(self, context, flowfile):
-        from cdc_common import offset_ranges
+        from cdc_common import classified_offset_ranges
 
         content = bytes(flowfile.getContentsAsBytes())
         records = list(reader(BytesIO(content)))
@@ -51,6 +51,13 @@ class DescribeAvroBatch(FlowFileTransform):
         schema_id = next(iter(schema_ids))
         offsets = [int(record["_offset"]) for record in records]
         event_ids = [str(record["_event_id"]) for record in records]
+        if len(set(offsets)) != len(offsets) or len(set(event_ids)) != len(event_ids):
+            return FlowFileTransformResult(
+                relationship="failure",
+                attributes={
+                    "cdc.error.reason": "batch contains duplicate offset or event ID"
+                },
+            )
         kind = flowfile.getAttribute("cdc.kind") or "normalized"
         extension = "avro" if kind == "landing" else "parquet"
         prefix = "landing/debezium" if kind == "landing" else "stage/cdc"
@@ -78,6 +85,13 @@ class DescribeAvroBatch(FlowFileTransform):
             f"manifests/cdc/kind={kind}/table={table}/ingest_date={date_text}/"
             f"hour={hour_text}/{stem}.manifest.json"
         )
+        coverage_key = (
+            f"manifests/cdc/kind=coverage/table={table}/ingest_date={date_text}/"
+            f"hour={hour_text}/{stem}.coverage.json"
+        )
+        consumed_ranges, business_ranges, tombstone_ranges = classified_offset_ranges(
+            records
+        )
         op_counts = Counter(str(record.get("_op") or "tombstone") for record in records)
         attributes = {
             "cdc.table": table,
@@ -87,13 +101,26 @@ class DescribeAvroBatch(FlowFileTransform):
             "cdc.kind": kind,
             "cdc.row_count": str(len(records)),
             "cdc.covered_offset_ranges": json.dumps(
-                offset_ranges(offsets), separators=(",", ":")
+                consumed_ranges, separators=(",", ":")
+            ),
+            "cdc.business_offset_ranges": json.dumps(
+                business_ranges, separators=(",", ":")
+            ),
+            "cdc.tombstone_offset_ranges": json.dumps(
+                tombstone_ranges, separators=(",", ":")
+            ),
+            "cdc.business_event_count": str(
+                sum(end - start + 1 for start, end in business_ranges)
+            ),
+            "cdc.tombstone_count": str(
+                sum(end - start + 1 for start, end in tombstone_ranges)
             ),
             "cdc.operation_counts": json.dumps(
                 dict(op_counts), sort_keys=True, separators=(",", ":")
             ),
             "cdc.object.key": object_key,
             "cdc.manifest.key": manifest_key,
+            "cdc.coverage.key": coverage_key if kind == "landing" else "",
             "cdc.batch.identity": digest,
             "cdc.source_ts_min": min(timestamps).isoformat() if timestamps else "",
             "cdc.source_ts_max": max(timestamps).isoformat() if timestamps else "",

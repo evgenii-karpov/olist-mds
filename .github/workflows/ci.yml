@@ -291,6 +291,44 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
+  stage4-warehouse-integration:
+    name: Stage 4 idempotent warehouse integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+
+      - name: Build MinIO and start isolated storage and warehouse
+        run: |
+          docker compose --profile realtime-core build minio
+          docker compose --profile realtime-core up -d --wait postgres minio
+
+      - name: Validate idempotency, gaps, retry, reconciliation, and replay
+        run: >-
+          uv run python scripts/ci/check_stage4_cdc_integration.py
+          --postgres-password-file docker/secrets/dev/postgres_password.txt
+          --s3-secret-file docker/secrets/dev/airflow_api_secret_key.txt
+
+      - name: Dump bounded Phase 4 diagnostics
+        if: failure()
+        run: docker compose --profile realtime-core logs --no-color --tail=500 postgres minio
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose --profile realtime-core down -v
+
   fixture-integration:
     name: Small fixture integration and replay
     runs-on: ubuntu-latest

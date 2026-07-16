@@ -37,3 +37,20 @@ groups:
           summary: MinIO metrics or runtime is unavailable
           runbook: docs/runbooks/cdc-service-restart.md
 
+      - alert: CdcWarehousePipelineUnavailable
+        expr: up{job="cdc-pipeline"} != 1 or olist_cdc_pipeline_up != 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: CDC warehouse audit metrics are unavailable
+          runbook: docs/runbooks/cdc-warehouse-ingest.md
+
+      - alert: CdcWarehouseOffsetGap
+        expr: sum(olist_cdc_offset_gaps) > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: CDC warehouse offset coverage contains a gap
+          runbook: docs/runbooks/cdc-warehouse-ingest.md

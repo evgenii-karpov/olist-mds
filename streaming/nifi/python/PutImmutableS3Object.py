@@ -14,7 +14,7 @@ class PutImmutableS3Object(FlowFileTransform):
         implements = ["org.apache.nifi.python.processor.FlowFileTransform"]
 
     class ProcessorDetails:
-        version = "1.0.0"
+        version = "1.1.0"
         description = (
             "Write an immutable S3-compatible object and publish its manifest last."
         )
@@ -158,7 +158,50 @@ class PutImmutableS3Object(FlowFileTransform):
                 manifest_body = json.dumps(
                     manifest, sort_keys=True, separators=(",", ":")
                 ).encode()
-                self._put_once(manifest_key, manifest_body, "application/json")
+                manifest_etag, _ = self._put_once(
+                    manifest_key, manifest_body, "application/json"
+                )
+                coverage_key = attributes.get("cdc.coverage.key")
+                if attributes.get("cdc.kind") == "landing" and coverage_key:
+                    coverage = {
+                        "contract_version": 1,
+                        "flow_version": "olist-cdc-v1",
+                        "kind": "coverage",
+                        "table": attributes.get("cdc.table"),
+                        "topic": attributes.get("cdc.topic"),
+                        "partition": int(attributes.get("cdc.partition", "-1")),
+                        "consumed_offset_ranges": json.loads(
+                            attributes.get("cdc.covered_offset_ranges", "[]")
+                        ),
+                        "business_event_offset_ranges": json.loads(
+                            attributes.get("cdc.business_offset_ranges", "[]")
+                        ),
+                        "tombstone_offset_ranges": json.loads(
+                            attributes.get("cdc.tombstone_offset_ranges", "[]")
+                        ),
+                        "consumed_row_count": int(attributes.get("cdc.row_count", "0")),
+                        "business_event_count": int(
+                            attributes.get("cdc.business_event_count", "0")
+                        ),
+                        "tombstone_count": int(
+                            attributes.get("cdc.tombstone_count", "0")
+                        ),
+                        "closed_at": attributes.get("cdc.closed_at"),
+                        "landing_manifest": {
+                            "uri": f"s3://{self.bucket_name}/{manifest_key}",
+                            "etag": manifest_etag,
+                        },
+                        "landing_object": {
+                            "uri": f"s3://{self.bucket_name}/{key}",
+                            "etag": etag,
+                            "sha256": digest,
+                            "size_bytes": len(body),
+                        },
+                    }
+                    coverage_body = json.dumps(
+                        coverage, sort_keys=True, separators=(",", ":")
+                    ).encode()
+                    self._put_once(coverage_key, coverage_body, "application/json")
             return FlowFileTransformResult(
                 relationship="success",
                 attributes={

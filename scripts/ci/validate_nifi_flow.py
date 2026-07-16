@@ -37,6 +37,23 @@ REQUIRED_METADATA = {
     "_schema_id",
     "_nifi_written_at",
 }
+COVERAGE_REQUIRED = {
+    "contract_version",
+    "flow_version",
+    "kind",
+    "table",
+    "topic",
+    "partition",
+    "consumed_offset_ranges",
+    "business_event_offset_ranges",
+    "tombstone_offset_ranges",
+    "consumed_row_count",
+    "business_event_count",
+    "tombstone_count",
+    "closed_at",
+    "landing_manifest",
+    "landing_object",
+}
 
 
 def main() -> int:
@@ -126,12 +143,51 @@ def main() -> int:
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         errors.append(f"invalid landing schema: {exc}")
 
+    try:
+        coverage_schema = json.loads(
+            (SCHEMA_ROOT / "cdc-coverage/v1.schema.json").read_text(encoding="utf-8")
+        )
+        if coverage_schema.get("$schema") != (
+            "https://json-schema.org/draft/2020-12/schema"
+        ):
+            errors.append("coverage schema must use JSON Schema draft 2020-12")
+        if set(coverage_schema.get("required", [])) != COVERAGE_REQUIRED:
+            errors.append("coverage schema required fields do not match the v1 contract")
+        properties = coverage_schema.get("properties", {})
+        if properties.get("contract_version", {}).get("const") != 1:
+            errors.append("coverage contract_version must be fixed at 1")
+        if properties.get("kind", {}).get("const") != "coverage":
+            errors.append("coverage kind must be fixed at coverage")
+        if properties.get("consumed_offset_ranges", {}).get("$ref") != (
+            "#/$defs/nonEmptyRanges"
+        ):
+            errors.append("coverage consumed ranges must be non-empty")
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        errors.append(f"invalid coverage schema: {exc}")
+
+    describe_source = (ROOT / "streaming/nifi/python/DescribeAvroBatch.py").read_text(
+        encoding="utf-8"
+    )
+    put_source = (
+        ROOT / "streaming/nifi/python/PutImmutableS3Object.py"
+    ).read_text(encoding="utf-8")
+    for attribute in (
+        "cdc.coverage.key",
+        "cdc.business_offset_ranges",
+        "cdc.tombstone_offset_ranges",
+    ):
+        if attribute not in describe_source:
+            errors.append(f"DescribeAvroBatch does not publish {attribute}")
+    for field in ("landing_manifest", "landing_object", "coverage_key"):
+        if field not in put_source:
+            errors.append(f"immutable S3 writer does not publish coverage {field}")
+
     if errors:
         print("NiFi flow validation failed:")
         for error in errors:
             print(f"- {error}")
         return 1
-    print("NiFi flow, parameters, and typed CDC schemas are valid.")
+    print("NiFi flow, parameters, typed CDC schemas, and coverage contract are valid.")
     return 0
 
 

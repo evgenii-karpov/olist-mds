@@ -29,6 +29,11 @@ fixture-integration
   -> Small fixture end-to-end path through the local Airflow DAG, PostgreSQL,
      reconciliation, dbt snapshots/build/tests, batch-control checks, raw file
      comparison, and incremental replay idempotency.
+
+stage4-warehouse-integration
+  -> Builds isolated MinIO/PostgreSQL state and verifies normalized loading,
+     tombstone coverage, gap closure, transient retry, reconciliation, and
+     duplicate-only replay in a disposable database and bucket.
 ```
 
 ## Small Fixture Dataset

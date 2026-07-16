@@ -24,6 +24,11 @@ Source archive
 Airflow coordinates both paths, while warehouse audit tables keep durable batch
 state and quality results in PostgreSQL or Redshift.
 
+The separate near-realtime path adds Debezium, Kafka, NiFi, immutable landing
+and normalized objects, explicit offset-coverage manifests, `raw_cdc`, and
+`cdc_audit`. Its warehouse watermark advances through committed normalized
+events plus verified tombstones; it never treats ingestion time as source order.
+
 ## Components
 
 ### Ingestion

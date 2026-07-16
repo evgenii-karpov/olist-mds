@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from fastavro import parse_schema, reader, writer
-from streaming.nifi.python.cdc_common import offset_ranges
+from streaming.nifi.python.cdc_common import classified_offset_ranges, offset_ranges
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -60,6 +60,19 @@ class Stage3ContractTests(unittest.TestCase):
             "\n".join(sorted(reversed(events))).encode()
         ).hexdigest()[:16]
         self.assertEqual(first, second)
+
+    def test_coverage_classifies_business_and_tombstone_offsets(self) -> None:
+        consumed, business, tombstones = classified_offset_ranges(
+            [
+                {"_offset": 10, "_tombstone": False},
+                {"_offset": 11, "_tombstone": True},
+                {"_offset": 12, "_tombstone": False},
+                {"_offset": 15, "_tombstone": True},
+            ]
+        )
+        self.assertEqual([[10, 12], [15, 15]], consumed)
+        self.assertEqual([[10, 10], [12, 12]], business)
+        self.assertEqual([[11, 11], [15, 15]], tombstones)
 
 
 if __name__ == "__main__":

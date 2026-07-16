@@ -126,3 +126,19 @@ def offset_ranges(offsets: list[int]) -> list[list[int]]:
         else:
             ranges[-1][1] = offset
     return ranges
+
+
+def classified_offset_ranges(
+    records: list[dict[str, Any]],
+) -> tuple[list[list[int]], list[list[int]], list[list[int]]]:
+    """Return consumed, business, and tombstone Kafka offset coverage."""
+    consumed = [int(record["_offset"]) for record in records]
+    tombstones = [
+        int(record["_offset"]) for record in records if record.get("_tombstone") is True
+    ]
+    business = [
+        int(record["_offset"])
+        for record in records
+        if record.get("_tombstone") is not True
+    ]
+    return offset_ranges(consumed), offset_ranges(business), offset_ranges(tombstones)

@@ -33,7 +33,8 @@ new capability will add a production-oriented change data capture path:
 3. Debezium reads PostgreSQL WAL through Kafka Connect.
 4. Kafka stores keyed Avro change events.
 5. Apache NiFi continuously consumes Kafka, validates and batches events, and
-   writes immutable Avro and normalized Parquet objects.
+   writes immutable Avro, normalized Parquet, and explicit offset-coverage
+   manifests that classify business and tombstone records.
 6. Airflow loads closed Parquet objects into an append-only warehouse CDC layer
    every two minutes.
 7. An Airflow Asset event triggers incremental dbt current-state, history, fact,
@@ -308,12 +309,21 @@ claimed honestly. Retries can duplicate Kafka consumption, object writes, and
 warehouse load attempts.
 
 **Decision:** Define `_event_id` as `topic:partition:offset`. Maintain immutable
-object manifests, a warehouse file ledger, partition watermarks, and event-level
-deduplication. Current state is ordered by source LSN and transaction order,
-then Kafka offset, never by ingestion time.
+object manifests, an explicit coverage manifest that classifies consumed offsets
+as business events or tombstones, a warehouse file and coverage ledger,
+partition watermarks, and event-level deduplication. Current state is ordered by
+source LSN and transaction order, then Kafka offset, never by ingestion time.
 
 **Consequences:** Replay is safe and measurable. Redshift constraints are not
 trusted for enforcement; dbt and loader tests verify uniqueness.
+
+**Amendment, 2026-07-16:** Normalized storage intentionally omits Debezium
+tombstones, so normalized ranges alone cannot distinguish an intentional
+tombstone hole from lost data. Phase 3 therefore publishes a separate immutable
+coverage manifest from the durable landing branch. Phase 4 advances a warehouse
+watermark only with normalized ranges committed to `raw_cdc` plus tombstone
+ranges verified through that coverage contract. This amendment is authoritative
+for local and AWS adapters.
 
 ### ADR-007: Keep NiFi simple on AWS
 
@@ -595,7 +605,9 @@ Every normalized table record contains typed source business columns plus:
 Use the same logical paths in MinIO and S3:
 
 - `landing/debezium/table=<table>/event_date=<date>/hour=<hour>/...avro`
-- `stage/cdc/table=<table>/ingest_date=<date>/hour=<hour>/...parquet`
+- `stage/cdc/table=<table>/event_date=<date>/hour=<hour>/...parquet`
+- `manifests/cdc/kind=normalized/table=<table>/ingest_date=<date>/hour=<hour>/...manifest.json`
+- `manifests/cdc/kind=coverage/table=<table>/ingest_date=<date>/hour=<hour>/...coverage.json`
 - `quarantine/stage=<stage>/reason=<reason>/event_date=<date>/...`
 
 File names include topic, partition, minimum offset, maximum offset, schema ID,
@@ -605,6 +617,12 @@ Target file size is 32-64 MB. To meet the latency SLO, a bin closes after 60
 seconds even if it is small. Monitor small-file rate and compact only into a
 separate query-optimized prefix; never replace files referenced by the warehouse
 ingest ledger.
+
+Coverage manifests are written only after the corresponding immutable landing
+object and landing manifest exist. They contain exact consumed, business-event,
+and tombstone offset ranges plus row counts and immutable references to the
+landing object and manifest. Coverage is a control-plane contract: it is not
+loaded into `raw_cdc` and it does not replace normalized manifests.
 
 ### 8.4 Failure handling
 
@@ -643,8 +661,12 @@ At minimum, create these logical audit tables:
   failure summary;
 - `cdc_files`: object URI, object version or ETag, table, partition, offset range,
   schema ID, row count, status, first/last attempt, and ingest run ID;
+- `cdc_coverage_files`: coverage URI/ETag, classified offset ranges, landing
+  references, verification status, and ingest run ID;
+- `cdc_offset_coverage`: one row per exact range classified as
+  `SOURCE_CONSUMED`, `NORMALIZED_LOADED`, or `TOMBSTONE_AUDITED`;
 - `cdc_partition_watermarks`: topic, partition, last contiguous offset, source
-  LSN, source timestamp, and update time;
+  LSN, source timestamp, last loaded business-event offset, and update time;
 - `cdc_reconciliation`: source/object/warehouse counts, duplicates, gaps, and
   pass/fail result;
 - `cdc_dead_letters`: Kafka coordinates, stage, reason, schema ID, object URI,
@@ -652,10 +674,16 @@ At minimum, create these logical audit tables:
 - `cdc_mart_freshness`: model, maximum represented source timestamp, build time,
   latency, and build run ID.
 
-The loader claims files through the ledger, loads an immutable manifest, inserts
-only unseen `_event_id` values, validates offset continuity, and commits ledger
-status and watermarks only after data commit. A failed run must be safely
+The loader claims files through the ledger, loads an immutable normalized
+manifest, inserts only unseen `_event_id` values, verifies coverage manifests,
+and commits ledger status and watermarks only after data commit. Warehouse
+continuity is the union of committed `NORMALIZED_LOADED` ranges and verified
+`TOMBSTONE_AUDITED` ranges. Business ranges present only in landing or coverage
+storage never advance the warehouse watermark. A failed run must be safely
 retryable.
+`SOURCE_CONSUMED` establishes the observed horizon but is not proof of loading;
+unproven business offsets, including a missing tail offset, remain explicit
+gaps until matching normalized rows commit.
 
 The local adapter loads Parquet records into PostgreSQL staging tables and then
 performs the transactional ledger/deduplication step. The AWS adapter creates an
@@ -982,6 +1010,8 @@ or handoff.
   quarantine, DLQ, retry, and backpressure.
 - Version the NiFi flow and environment parameter templates.
 - Add deterministic object naming and offset-range metadata.
+- Publish a deterministic coverage manifest after each landing commit with exact
+  consumed, business-event, and tombstone offset ranges.
 - Add initial Prometheus/Grafana services and scrape NiFi/Kafka/Connect/source
   metrics.
 
@@ -994,6 +1024,8 @@ or handoff.
 - Object-store outage retains accepted FlowFiles in persistent NiFi
   repositories, applies backpressure, and stops further Kafka consumption.
 - Invalid records go to quarantine/DLQ while healthy partitions continue.
+- Coverage ranges reconcile exactly to landing rows, and coverage publication is
+  idempotent across NiFi replay.
 
 **Exit criteria**
 
@@ -1010,16 +1042,23 @@ or handoff.
 
 - Add local `raw_cdc` and `cdc_audit` bootstrap SQL.
 - Implement object discovery, immutable manifests, file claiming, staging load,
-  `_event_id` deduplication, offset continuity, reconciliation, and watermarks.
+  `_event_id` deduplication, coverage verification, offset continuity,
+  reconciliation, and watermarks.
 - Implement the scheduled local ingest DAG.
 - Implement read-only pipeline metrics from audit state.
 - Add manual replay by table/date/object range.
+- Bind replay-selected files to an idempotent replay request so scheduled ingest
+  cannot claim them and an Airflow retry can safely reuse the request ID.
+- Skip downloading manifests whose immutable URI/ETag is already verified in
+  the warehouse ledger; reject any changed ETag.
 
 **Verification**
 
 - Repeating the same file and DAG run leaves event counts unchanged.
 - Loading files out of order preserves all events and reports contiguous/gapped
   watermarks correctly.
+- Tombstone offsets close intentional normalized-stream holes only after their
+  immutable coverage manifests are verified.
 - Failed loads can be retried without manual table cleanup.
 - Object row counts, warehouse inserted counts, duplicates, and rejected counts
   reconcile.
@@ -1204,7 +1243,7 @@ Runbooks must cover these scenarios:
 - **Kafka backlog:** keep NiFi stopped, generate data, restart it, and observe lag
   drain within retention.
 - **Object replay:** reset only file-ledger state selected by the operator; rely
-  on `_event_id` deduplication.
+  on `_event_id` deduplication and retain verified tombstone coverage.
 - **Warehouse rebuild:** recreate realtime schemas from immutable normalized
   objects; if necessary regenerate normalized objects from landing Avro.
 - **Controlled resnapshot:** pause simulator writes, record watermarks, stop the
@@ -1223,7 +1262,7 @@ Runbooks must cover these scenarios:
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | WAL fills source storage while connector is down | Heartbeats, retained-WAL metrics, alerts, connector runbook                            |
 | Small files degrade warehouse load               | 60-second bounded binning, size metrics, manifest batching, separate compaction prefix |
-| Duplicate or replayed delivery                   | Immutable event ID, file ledger, manifests, warehouse dedupe                           |
+| Duplicate or replayed delivery                   | Immutable event ID, file/coverage ledgers, manifests, warehouse dedupe                  |
 | Late object arrival produces stale current state | Order by LSN/transaction/offset, never ingestion time                                  |
 | Deletes disappear downstream                     | Preserve before image, explicit delete model tests, SCD2 deleted state                 |
 | Batch and CDC duplicate one another              | Separate schemas and parity comparison; never union copies                             |

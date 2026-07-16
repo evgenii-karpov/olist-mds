@@ -26,15 +26,34 @@
       "type": "timeseries", "title": "Kafka consumer lag", "id": 5,
       "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
       "targets": [{"expr": "sum(kafka_consumergroup_lag{consumergroup=\"olist-nifi-cdc-v1\"})", "refId": "A"}]
+    },
+    {
+      "type": "stat", "title": "Warehouse ingest", "id": 6,
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "targets": [{"expr": "olist_cdc_pipeline_up", "refId": "A"}]
+    },
+    {
+      "type": "timeseries", "title": "Warehouse offset gaps", "id": 7,
+      "gridPos": {"x": 0, "y": 12, "w": 8, "h": 8},
+      "targets": [{"expr": "olist_cdc_offset_gaps", "legendFormat": "{{table}}", "refId": "A"}]
+    },
+    {
+      "type": "timeseries", "title": "Verified coverage ranges", "id": 8,
+      "gridPos": {"x": 8, "y": 12, "w": 8, "h": 8},
+      "targets": [{"expr": "olist_cdc_offset_coverage_ranges", "legendFormat": "{{table}} / {{status}}", "refId": "A"}]
+    },
+    {
+      "type": "timeseries", "title": "Raw CDC freshness", "id": 9,
+      "gridPos": {"x": 16, "y": 12, "w": 8, "h": 8},
+      "targets": [{"expr": "olist_cdc_raw_freshness_seconds", "legendFormat": "{{table}}", "refId": "A"}]
     }
   ],
   "schemaVersion": 41,
-  "tags": ["olist", "cdc", "phase-3"],
+  "tags": ["olist", "cdc", "phase-3", "phase-4"],
   "templating": {"list": []},
   "time": {"from": "now-1h", "to": "now"},
   "timezone": "browser",
   "title": "Olist CDC Components",
   "uid": "olist-cdc-components",
-  "version": 1
+  "version": 2
 }
-
