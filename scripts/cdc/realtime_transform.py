@@ -175,8 +175,8 @@ def build(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
         run_dbt(
             [
                 "build",
-                "--select",
-                "tag:realtime_transform",
+                "--selector",
+                "realtime_transform",
                 "--vars",
                 variables,
                 "--exclude-resource-type",
@@ -303,15 +303,15 @@ def quality(args: argparse.Namespace) -> dict[str, Any]:
     run_dbt(
         [
             "test",
-            "--select",
-            "tag:realtime_quality",
+            "--selector",
+            "realtime_quality",
             "--quiet",
             "--warn-error-options",
             json.dumps({"error": ["NoNodesForSelectionCriteria"]}),
         ]
     )
     if args.full:
-        run_dbt(["test", "--select", "path:models/realtime"])
+        run_dbt(["test", "--selector", "realtime_transform"])
         target = os.environ.get("DBT_TARGET", "local_pg")
         subprocess.run(
             [
@@ -405,7 +405,7 @@ def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[st
             where publication_name = 'olist_marts'
             """
         )
-    run_dbt(["build", "--select", "tag:realtime_parity"])
+    run_dbt(["build", "--selector", "realtime_parity"])
     with connection, connection.cursor() as cursor:
         cursor.execute(
             """

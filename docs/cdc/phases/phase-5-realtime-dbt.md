@@ -26,6 +26,9 @@ and is not claimed by the bounded integration run.
   `analytics` views switch only through an explicit parity-gated command.
 - This phase ships the local PostgreSQL/Airflow adapter. The independent
   AWS/Redshift DAGs and packaging remain Phase 7 work under ADR-009.
+- One dbt project is retained for shared calculations, with explicit `batch`,
+  `realtime`, and `parity` groups. Named selectors bound every DAG/runtime
+  build, and `models/parity` is the only allowed cross-group dependency bridge.
 
 ## Verification evidence
 
@@ -47,6 +50,11 @@ and is not claimed by the bounded integration run.
 - An independent Docker check confirmed Docker Engine 29.6.1/Desktop 4.82.0
   and 9 healthy Compose services. `docker compose config --quiet` passed, and
   the Airflow container import check loaded all 6 repository DAGs.
+- The selector boundary contract resolved `batch=208` (including 30 required
+  Elementary package models),
+  `realtime_transform=133`, `realtime_quality=3`, and `realtime_parity=4`
+  resources with no forbidden leakage. The full batch fixture DAG plus its
+  incremental replay passed in Docker and retained identical fingerprints.
 
 ## Remaining operational evidence
 

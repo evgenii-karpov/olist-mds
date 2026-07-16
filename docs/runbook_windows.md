@@ -139,13 +139,16 @@ $env:POSTGRES_DB = "olist_analytics"
 $env:POSTGRES_USER = "olist"
 $env:POSTGRES_PASSWORD = "olist"
 
-uv run dbt build --vars '{batch_date: "2018-09-01", lookback_days: 3}'
+uv run dbt build --selector batch --vars '{batch_date: "2018-09-01", lookback_days: 3}'
 New-Item -ItemType Directory -Force target\edr | Out-Null
 uv run edr report --env prod --profiles-dir . --profile-target local_pg --target-path "$((Get-Location).Path)\target\edr" --file-path "$((Get-Location).Path)\target\edr\elementary_report.html" --open-browser false
 Set-Location ..\..
 ```
 
-Use `uv run dbt build --vars '{batch_date: "2018-09-01", lookback_days: 3}' --full-refresh`
+The operational `batch` selector also provisions the Elementary package models
+required by dbt hooks and the following report command.
+
+Use `uv run dbt build --selector batch --vars '{batch_date: "2018-09-01", lookback_days: 3}' --full-refresh`
 when you trigger the equivalent of the DAG's `full_refresh: true` parameter.
 
 The Elementary report is written to:
@@ -155,7 +158,8 @@ dbt\olist_analytics\target\edr\elementary_report.html
 ```
 
 In the Airflow image, Python dependencies and dbt packages are installed during
-image build. The DAG run executes `dbt build` and `edr report`; it does not run
+image build. The DAG run executes `dbt build --selector batch` and `edr report`;
+it does not run
 `dbt deps` at task runtime. The mounted or baked dbt project must include an
 up-to-date `profiles.yml` with both the `olist_analytics` and `elementary`
 profiles before the DAG starts.

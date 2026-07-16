@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 select
     product_id,
     valid_from,

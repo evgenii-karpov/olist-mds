@@ -86,6 +86,9 @@ jobs:
         run: uv run dbt compile --no-partial-parse
         working-directory: dbt/olist_analytics
 
+      - name: Verify dbt selector boundaries
+        run: uv run python scripts/ci/check_dbt_selector_boundaries.py
+
       - name: Lint SQL with SQLFluff
         run: >-
           uv run sqlfluff lint

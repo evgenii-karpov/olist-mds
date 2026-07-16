@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 with expected_items as (
     select
         md5(

@@ -133,6 +133,18 @@ dates and months associated with the transform's immutable manifest set.
 Publication views in `analytics` change only after parity approval and can be
 switched back to batch without renaming or dropping either mart set.
 
+The dbt project defines `batch`, `realtime`, and `parity` groups. Runtime entry
+points select `batch`, `realtime_transform`, `realtime_quality`, or
+`realtime_parity`; a bare `dbt build` is intentionally not used. The three
+models under `models/parity` are the only permitted bridge: they may reference
+both batch and realtime relations, while neither transformation group may
+reference the other.
+
+`batch` is an operational selector: in addition to the batch transformation
+graph, snapshots, and batch quality tests, it includes the Elementary package
+models required by dbt hooks and `edr report`. It does not include realtime or
+parity models.
+
 Realtime fact rebuilds resolve customer and product surrogate keys to the
 source-current dimension version. This is an explicit processing-time lineage
 choice because the Debezium contract has source ordering timestamps but no

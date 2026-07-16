@@ -59,6 +59,44 @@ class Stage5ConfigurationTests(unittest.TestCase):
         self.assertIn('"realtime": (', runtime)
         self.assertIn("create or replace view analytics.mart_daily_revenue", runtime)
 
+    def test_dbt_entrypoints_use_named_selectors(self) -> None:
+        selectors = (ROOT / "dbt/olist_analytics/selectors.yml").read_text(
+            encoding="utf-8"
+        )
+        for selector in (
+            "batch",
+            "realtime_transform",
+            "realtime_quality",
+            "realtime_parity",
+        ):
+            self.assertIn(f"- name: {selector}", selectors)
+        self.assertIn("method: package\n          value: elementary", selectors)
+
+        for dag_name in (
+            "olist_modern_data_stack_local.py",
+            "olist_modern_data_stack_aws.py",
+        ):
+            dag = (ROOT / "airflow/dags" / dag_name).read_text(encoding="utf-8")
+            self.assertIn("dbt build --selector batch", dag)
+
+        runtime = (ROOT / "scripts/cdc/realtime_transform.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"realtime_transform"', runtime)
+        self.assertIn('"realtime_quality"', runtime)
+        self.assertIn('"realtime_parity"', runtime)
+
+    def test_parity_models_are_an_explicit_bridge(self) -> None:
+        parity_root = ROOT / "dbt/olist_analytics/models/parity"
+        old_root = ROOT / "dbt/olist_analytics/models/realtime/core"
+        for name in (
+            "realtime_parity_report.sql",
+            "realtime_parity_checksums.sql",
+            "realtime_parity_grain_diffs.sql",
+        ):
+            self.assertTrue((parity_root / name).exists())
+            self.assertFalse((old_root / name).exists())
+
 
 if __name__ == "__main__":
     unittest.main()

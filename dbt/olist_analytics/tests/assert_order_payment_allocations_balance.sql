@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 with item_orders as (
     select distinct order_id
     from {{ ref('stg_olist__order_items') }}

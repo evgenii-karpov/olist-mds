@@ -40,6 +40,13 @@ stage5-realtime-dbt-integration
      database and verifies source ordering, complete update history, late event
      handling, impacted-key rebuilds, hard-delete propagation to facts/marts,
      and reversible realtime-to-batch publication.
+
+dbt-selector-boundaries
+  -> Resolves all named selectors with `dbt ls`, restricts batch to project
+     batch resources plus the required Elementary observability package,
+     rejects realtime resources in batch, restricts cross-group refs to
+     `models/parity`, and rejects unbounded `dbt build` commands in DAGs and CI
+     workflows.
 ```
 
 ## Small Fixture Dataset

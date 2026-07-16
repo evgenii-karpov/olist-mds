@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 with reconciliation as (
     select status
     from {{ source('pipeline_audit', 'batch_reconciliation') }}

@@ -14,6 +14,10 @@ membership, parity gate, or isolated batch/realtime schemas.
 - Hard deletes disappear from current facts/marts and remain in history.
 - Hourly quality and Asset-triggered transform DAGs are separate finite jobs.
 - Realtime publication is reversible and requires a recorded parity PASS.
+- Batch/realtime builds use named selectors; only `models/parity` may reference
+  both transformation groups.
+- The operational `batch` selector includes Elementary package models and must
+  continue to bootstrap its hooks and `edr report` on a clean warehouse.
 
 ## Required boundary
 

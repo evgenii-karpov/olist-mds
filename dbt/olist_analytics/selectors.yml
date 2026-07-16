@@ -1,0 +1,36 @@
+selectors:
+  - name: batch
+    description: Batch pipeline resources, including Elementary observability models.
+    definition:
+      union:
+        - method: group
+          value: batch
+        - method: path
+          value: snapshots
+        - method: tag
+          value: batch_quality
+        - method: package
+          value: elementary
+
+  - name: realtime_transform
+    description: Manifest-bounded realtime transformation graph.
+    definition:
+      method: tag
+      value: realtime_transform
+
+  - name: realtime_quality
+    description: Focused hourly realtime reconciliation, freshness, and continuity tests.
+    definition:
+      union:
+        - method: path
+          value: tests/assert_realtime_latest_reconciliation_passed.sql
+        - method: path
+          value: tests/assert_realtime_mart_freshness.sql
+        - method: path
+          value: tests/assert_realtime_offset_continuity.sql
+
+  - name: realtime_parity
+    description: Explicit batch-to-realtime comparison bridge.
+    definition:
+      method: tag
+      value: realtime_parity

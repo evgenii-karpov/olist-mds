@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 select
     order_purchase_date,
     gross_revenue,

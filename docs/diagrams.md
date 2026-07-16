@@ -21,7 +21,7 @@ flowchart LR
     core["core star schema"]
     marts["business marts"]
     airflow["Apache Airflow DAG"]
-    dbtbuild["dbt build\nsnapshots, models, and tests"]
+    dbtbuild["dbt build --selector batch\nsnapshots, models, tests, and Elementary"]
     edr["edr report\nElementary data observability report"]
 
     airflow --> ingestion
@@ -98,7 +98,7 @@ flowchart TB
     snapshots["snapshots\nSCD2 history managed by dbt"]
     core["core\nDimensional star schema"]
     marts["marts\nDaily revenue and monthly ARPU"]
-    build["dbt build\nRuns snapshots, models, and tests as one graph"]
+    build["dbt build --selector batch\nRuns batch resources and Elementary as one graph"]
     edr["edr report\nReads dbt artifacts and warehouse results"]
     tests["dbt tests\nSource, staging, core, mart quality gates"]
 
@@ -231,7 +231,7 @@ sequenceDiagram
     Generator->>RawZone: Write customer/product correction feeds
     Airflow->>Warehouse: Load raw correction tables
     Airflow->>Warehouse: Reconcile raw load before transformations
-    Airflow->>dbt: Run dbt build with batch_date vars
+    Airflow->>dbt: Run dbt build --selector batch with batch_date vars
     dbt->>Warehouse: Build staging and intermediate models
     dbt->>Warehouse: Run snapshots inside the dbt graph
     dbt->>Warehouse: Build core dimensions, facts, and marts

@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 select
     product_id,
     count(*) as current_row_count

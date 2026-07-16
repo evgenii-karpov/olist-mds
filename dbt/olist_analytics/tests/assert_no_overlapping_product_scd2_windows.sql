@@ -1,3 +1,5 @@
+{{ config(tags=['batch_quality']) }}
+
 with ordered as (
     select
         product_id,

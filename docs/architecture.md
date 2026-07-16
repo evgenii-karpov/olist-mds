@@ -21,6 +21,18 @@ reconciliation, freshness, and realtime model integrity. Its midnight logical
 run additionally executes the full realtime test suite and Elementary. Batch
 DAGs and schemas remain independent.
 
+Batch and realtime transformations stay in one dbt project so they can share
+portable business macros. dbt groups and named selectors enforce the runtime
+boundary: batch DAGs use `batch`, CDC builds use `realtime_transform`, hourly
+checks use `realtime_quality`, and comparisons use `realtime_parity`. The only
+cross-group refs live in `models/parity`; unrestricted `dbt build` is not an
+orchestration entrypoint.
+
+The operational `batch` selector also includes the Elementary package models.
+They provision the observability schema required by Elementary's dbt hooks and
+the subsequent `edr report`, including on a clean warehouse. The selector
+boundary check rejects every other third-party package from `batch`.
+
 ## Flow
 
 ```text

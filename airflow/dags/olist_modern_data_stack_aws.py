@@ -445,7 +445,7 @@ def olist_modern_data_stack_aws():
     @task_group(group_id="dbt_transformations")
     def dbt_transformations():
         dbt_build_command = (
-            "dbt build --vars "
+            "dbt build --selector batch --vars "
             "'{batch_date: \"{{ params.batch_date }}\", lookback_days: {{ params.lookback_days }}}'"
         )
 

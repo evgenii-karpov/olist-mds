@@ -335,6 +335,17 @@ This prevents concurrent ingest races while allowing a late-loaded older source
 event to rebuild its affected keys. Source LSN, transaction order, partition,
 and offset remain the only current/history business ordering tuple.
 
+Batch and realtime models remain in one dbt project to share portable business
+calculations. Runtime isolation is enforced by dbt groups plus the `batch`,
+`realtime_transform`, `realtime_quality`, and `realtime_parity` selectors.
+Only models in `models/parity` may have cross-boundary refs; DAGs and CI must not
+use an unbounded `dbt build`.
+
+The `batch` selector is the bounded operational batch pipeline and includes the
+Elementary package models required by its hooks and report generation. It must
+not select realtime or parity project resources, or any other third-party dbt
+package.
+
 ### ADR-007: Keep NiFi simple on AWS
 
 **Status:** Accepted.

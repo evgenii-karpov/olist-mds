@@ -1,0 +1,14 @@
+version: 2
+
+groups:
+  - name: batch
+    owner:
+      name: analytics-engineering
+
+  - name: realtime
+    owner:
+      name: analytics-engineering
+
+  - name: parity
+    owner:
+      name: analytics-engineering

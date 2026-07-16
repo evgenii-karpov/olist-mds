@@ -34,4 +34,7 @@ copies, or order current state by ingestion timestamps.
 
 Implemented on 2026-07-16. The delivered contract and verification evidence are
 recorded in `docs/cdc/phases/phase-5-realtime-dbt.md`. Phase 6 must retain the
-immutable transform membership and operator-approved publication gate.
+immutable transform membership, named dbt selector boundaries, parity-only
+cross-group bridge, and operator-approved publication gate. The operational
+`batch` selector includes Elementary package models so its hooks and report are
+safe on a clean warehouse; it still excludes realtime and parity resources.
