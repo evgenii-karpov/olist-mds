@@ -1,7 +1,7 @@
 # Local Debezium Connect contract
 
 The local image is built from immutable Debezium digest
-`sha256:61d29e5a0316de5dd0a564ec40eaa662d837a05217523e1a1745ecde3d790455`.
+`sha256:d574a7c9575ed78e2349a034ebdf57a99c516771b3dddb7bbeeb44f912a36e22`.
 The base contains PostgreSQL connector 3.6.0.Final and Apicurio converter 3.2.5.
 The Dockerfile verifies the primary JAR checksums at build time and downloads
 nothing at container startup.
