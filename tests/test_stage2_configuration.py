@@ -4,8 +4,14 @@ import json
 import re
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from scripts.cdc.stage2_admin import connector_is_running, parse_topic_description
+from scripts.cdc.stage2_admin import (
+    connector_has_failed,
+    connector_is_running,
+    parse_topic_description,
+    wait_connector_status,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -123,6 +129,54 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertTrue(connector_is_running(running))
         self.assertFalse(connector_is_running(failed))
         self.assertFalse(connector_is_running(partial))
+        self.assertFalse(connector_has_failed(running))
+        self.assertTrue(connector_has_failed(failed))
+        self.assertFalse(connector_has_failed(partial))
+
+    @patch("scripts.cdc.stage2_admin.time.sleep")
+    @patch("scripts.cdc.stage2_admin.request_json")
+    def test_wait_connector_status_retries_transient_startup(
+        self, request_json_mock: Mock, _sleep_mock: Mock
+    ) -> None:
+        starting = {
+            "connector": {"state": "RUNNING"},
+            "tasks": [{"state": "UNASSIGNED"}],
+        }
+        running = {
+            "connector": {"state": "RUNNING"},
+            "tasks": [{"state": "RUNNING"}],
+        }
+        request_json_mock.side_effect = [
+            ConnectionResetError("worker is starting"),
+            (200, starting),
+            (200, running),
+        ]
+
+        result = wait_connector_status(
+            "http://localhost:8083",
+            expected="RUNNING",
+            timeout=10,
+            poll_interval=0,
+        )
+
+        self.assertEqual(running, result)
+        self.assertEqual(3, request_json_mock.call_count)
+
+    @patch("scripts.cdc.stage2_admin.request_json")
+    def test_wait_connector_status_observes_failed_task(
+        self, request_json_mock: Mock
+    ) -> None:
+        failed = {
+            "connector": {"state": "RUNNING"},
+            "tasks": [{"state": "FAILED"}],
+        }
+        request_json_mock.return_value = (200, failed)
+
+        result = wait_connector_status(
+            "http://localhost:8083", expected="FAILED", timeout=10
+        )
+
+        self.assertEqual(failed, result)
 
     def test_topic_description_parser(self) -> None:
         output = (

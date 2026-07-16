@@ -264,9 +264,8 @@ jobs:
           docker compose --profile realtime-core exec -T oltp-postgres \
             psql -U olist_admin -d olist_oltp -v ON_ERROR_STOP=1 \
             -c "update public.customers set customer_city='ci downtime recovery' where customer_id=(select customer_id from public.customers order by customer_id limit 1)"
-          docker compose --profile realtime-core start kafka-connect
-          sleep 15
-          uv run python scripts/cdc/stage2_admin.py connector-status
+          docker compose --profile realtime-core up -d --wait kafka-connect
+          uv run python scripts/cdc/stage2_admin.py wait-connector-running
           uv run python scripts/ci/check_stage2_cdc_integration.py \
             --password-file docker/secrets/dev/postgres_password.txt
 
@@ -276,7 +275,7 @@ jobs:
           docker compose --profile realtime-core up -d --wait kafka
           docker compose --profile realtime-core restart apicurio-registry
           docker compose --profile realtime-core up -d --wait apicurio-registry
-          sleep 15
+          uv run python scripts/cdc/stage2_admin.py wait-connector-failed
           uv run python scripts/cdc/stage2_admin.py restart-failed
           uv run python scripts/cdc/stage2_admin.py connector-status
           uv run python scripts/ci/check_stage2_cdc_integration.py \

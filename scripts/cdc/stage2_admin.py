@@ -103,6 +103,12 @@ def connector_is_running(status: dict[str, Any]) -> bool:
     return connector_state == "RUNNING" and task_states == ["RUNNING"]
 
 
+def connector_has_failed(status: dict[str, Any]) -> bool:
+    connector_state = status.get("connector", {}).get("state")
+    task_states = [task.get("state") for task in status.get("tasks", [])]
+    return connector_state == "FAILED" or "FAILED" in task_states
+
+
 def connector_status(
     connect_url: str, *, require_running: bool = True
 ) -> dict[str, Any]:
@@ -118,6 +124,41 @@ def connector_status(
             f"tasks={task_states}"
         )
     return status
+
+
+def wait_connector_status(
+    connect_url: str,
+    *,
+    expected: str,
+    timeout: float = 120,
+    poll_interval: float = 2,
+) -> dict[str, Any]:
+    predicates = {
+        "RUNNING": connector_is_running,
+        "FAILED": connector_has_failed,
+    }
+    if expected not in predicates:
+        raise ValueError(f"Unsupported connector state: {expected}")
+
+    deadline = time.monotonic() + timeout
+    last_status: dict[str, Any] | None = None
+    last_error: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            last_status = connector_status(connect_url, require_running=False)
+            last_error = None
+            if predicates[expected](last_status):
+                return last_status
+        except (OSError, RuntimeError, json.JSONDecodeError) as exc:
+            last_error = exc
+        time.sleep(poll_interval)
+
+    details = f"last_status={last_status!r}"
+    if last_error is not None:
+        details += f", last_error={last_error}"
+    raise RuntimeError(
+        f"Timed out waiting for connector and task state {expected}: {details}"
+    )
 
 
 def register_connector(connect_url: str, password_file: Path) -> None:
@@ -154,35 +195,20 @@ def register_connector(connect_url: str, password_file: Path) -> None:
         )
         action = "updated"
 
-    deadline = time.monotonic() + 120
-    while True:
-        try:
-            connector_status(base)
-            break
-        except RuntimeError:
-            if time.monotonic() >= deadline:
-                raise
-            time.sleep(2)
+    wait_connector_status(base, expected="RUNNING")
     print(f"Connector {name} {action} and RUNNING.")
 
 
 def restart_failed_connector(connect_url: str) -> None:
     base = connect_url.rstrip("/")
+    wait_http(f"{base}/connectors", 120)
     request_json(
         f"{base}/connectors/olist-postgres-cdc/restart"
         "?includeTasks=true&onlyFailed=true",
         method="POST",
         accepted=(200, 202, 204),
     )
-    deadline = time.monotonic() + 120
-    while True:
-        try:
-            connector_status(base)
-            break
-        except RuntimeError:
-            if time.monotonic() >= deadline:
-                raise
-            time.sleep(2)
+    wait_connector_status(base, expected="RUNNING")
     print("Connector olist-postgres-cdc failed tasks restarted and RUNNING.")
 
 
@@ -291,6 +317,12 @@ def parse_args() -> argparse.Namespace:
     )
     status = commands.add_parser("connector-status")
     status.add_argument("--url", default="http://localhost:8083")
+    wait_running = commands.add_parser("wait-connector-running")
+    wait_running.add_argument("--url", default="http://localhost:8083")
+    wait_running.add_argument("--timeout", type=float, default=120)
+    wait_failed = commands.add_parser("wait-connector-failed")
+    wait_failed.add_argument("--url", default="http://localhost:8083")
+    wait_failed.add_argument("--timeout", type=float, default=120)
     restart = commands.add_parser("restart-failed")
     restart.add_argument("--url", default="http://localhost:8083")
     commands.add_parser("validate-topics")
@@ -306,6 +338,16 @@ def main() -> int:
             register_connector(args.url, args.password_file)
         elif args.command == "connector-status":
             print(json.dumps(connector_status(args.url), indent=2, sort_keys=True))
+        elif args.command == "wait-connector-running":
+            status = wait_connector_status(
+                args.url, expected="RUNNING", timeout=args.timeout
+            )
+            print(json.dumps(status, indent=2, sort_keys=True))
+        elif args.command == "wait-connector-failed":
+            status = wait_connector_status(
+                args.url, expected="FAILED", timeout=args.timeout
+            )
+            print(json.dumps(status, indent=2, sort_keys=True))
         elif args.command == "restart-failed":
             restart_failed_connector(args.url)
         elif args.command == "validate-topics":
