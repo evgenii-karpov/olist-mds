@@ -366,9 +366,6 @@ services:
     container_name: olist-kafka-exporter
     restart: unless-stopped
     command: ["--kafka.server=kafka:29092", "--group.filter=olist-.*"]
-    depends_on:
-      kafka:
-        condition: service_healthy
 
   postgres-exporter-oltp:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.18.1
@@ -381,18 +378,12 @@ services:
       DATA_SOURCE_PASS_FILE: /run/secrets/oltp_cdc_reader_password
     secrets:
       - oltp_cdc_reader_password
-    depends_on:
-      oltp-postgres:
-        condition: service_healthy
 
   nifi-metrics-proxy:
     image: olist-nifi:2.10.0
     profiles: [observability]
     container_name: olist-nifi-metrics-proxy
     restart: unless-stopped
-    depends_on:
-      nifi:
-        condition: service_healthy
     entrypoint: ["python3", "/opt/olist/metrics_proxy.py"]
     command: ["--url", "https://nifi:8443/nifi-api", "--port", "9105"]
     secrets:
@@ -408,9 +399,6 @@ services:
     profiles: [observability]
     container_name: olist-cdc-component-exporter
     restart: unless-stopped
-    depends_on:
-      kafka-connect:
-        condition: service_healthy
     entrypoint: ["python3", "/opt/olist/component_metrics.py"]
     command: ["--connect-url", "http://kafka-connect:8083", "--port", "9106"]
 
