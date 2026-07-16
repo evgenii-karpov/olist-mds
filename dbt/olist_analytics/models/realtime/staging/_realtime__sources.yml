@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: raw_cdc
+    schema: raw_cdc
+    description: Append-only typed Debezium business events committed by Phase 4.
+    tables:
+      - name: customers
+      - name: orders
+      - name: order_items
+      - name: order_payments
+      - name: order_reviews
+      - name: products
+      - name: sellers
+      - name: product_category_translation
+  - name: cdc_audit
+    schema: cdc_audit
+    description: Durable ingest and transform control state; never interpreted as business events.
+    tables:
+      - name: cdc_files
+      - name: cdc_transform_runs
+      - name: cdc_transform_run_files
+      - name: cdc_partition_watermarks
+      - name: cdc_reconciliation
+      - name: cdc_mart_freshness
+      - name: cdc_publication_state

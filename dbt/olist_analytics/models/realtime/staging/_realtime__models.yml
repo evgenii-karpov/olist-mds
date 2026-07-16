@@ -1,0 +1,130 @@
+version: 2
+
+models:
+  - name: stg_cdc__customers_events
+    description: One row per committed customer CDC event, including deletes and source ordering metadata.
+    columns: &event_columns
+      - name: _event_id
+        data_tests: [not_null, unique]
+      - name: _op
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [r, c, u, d]
+      - name: _source_lsn
+        data_tests: [not_null]
+      - name: _partition
+        data_tests: [not_null]
+      - name: _offset
+        data_tests: [not_null]
+  - name: stg_cdc__orders_events
+    description: One row per committed order CDC event without load-time deduplication.
+    columns: *event_columns
+  - name: stg_cdc__order_items_events
+    description: One row per committed order-item CDC event at composite-key grain.
+    columns: *event_columns
+  - name: stg_cdc__order_payments_events
+    description: One row per committed payment CDC event at order and sequence grain.
+    columns: *event_columns
+  - name: stg_cdc__order_reviews_events
+    description: One row per committed review CDC event.
+    columns: *event_columns
+  - name: stg_cdc__products_events
+    description: One row per committed product CDC event.
+    columns: *event_columns
+  - name: stg_cdc__sellers_events
+    description: One row per committed seller CDC event.
+    columns: *event_columns
+  - name: stg_cdc__product_category_translation_events
+    description: One row per committed category-translation CDC event.
+    columns: *event_columns
+  - name: stg_cdc__customers_current
+    description: Source-latest non-deleted customer record at customer_id grain.
+    columns:
+      - name: customer_id
+        data_tests: [not_null, unique]
+  - name: stg_cdc__orders_current
+    description: Source-latest non-deleted order record at order_id grain.
+    columns:
+      - name: order_id
+        data_tests: [not_null, unique]
+  - name: stg_cdc__order_items_current
+    description: Source-latest non-deleted item at order_id and order_item_id grain.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, order_item_id]
+  - name: stg_cdc__order_payments_current
+    description: Source-latest non-deleted payment at order and sequence grain.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [order_id, payment_sequential]
+  - name: stg_cdc__order_reviews_current
+    description: Source-latest non-deleted review at review and order grain.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [review_id, order_id]
+  - name: stg_cdc__products_current
+    description: Source-latest non-deleted product at product_id grain.
+    columns:
+      - name: product_id
+        data_tests: [not_null, unique]
+  - name: stg_cdc__sellers_current
+    description: Source-latest non-deleted seller at seller_id grain.
+    columns:
+      - name: seller_id
+        data_tests: [not_null, unique]
+  - name: stg_cdc__product_category_translation_current
+    description: Source-latest non-deleted category translation.
+    columns:
+      - name: product_category_name
+        data_tests: [not_null, unique]
+  - name: int_cdc__changed_order_ids
+    description: Orders affected by the immutable manifest set captured for the current transform run.
+    columns:
+      - name: order_id
+        data_tests: [not_null, unique]
+  - name: int_cdc__changed_periods
+    description: Old and new daily/monthly partitions that must be rebuilt for changed orders.
+
+unit_tests:
+  - name: current_uses_source_order_and_excludes_delete
+    model: stg_cdc__customers_current
+    given:
+      - input: ref('stg_cdc__customers_events')
+        rows:
+          - {customer_id: c1, customer_city: new, _op: u, _source_lsn: 20, _tx_order: 1, _partition: 0, _offset: 20}
+          - {customer_id: c1, customer_city: late_old, _op: u, _source_lsn: 10, _tx_order: 1, _partition: 0, _offset: 30}
+          - {customer_id: c2, customer_city: deleted, _op: c, _source_lsn: 10, _tx_order: 1, _partition: 0, _offset: 10}
+          - {customer_id: c2, customer_city: deleted, _op: d, _source_lsn: 11, _tx_order: 2, _partition: 0, _offset: 11}
+    expect:
+      rows:
+        - {customer_id: c1, customer_city: new, _op: u, _source_lsn: 20}
+  - name: changed_orders_preserve_direct_order_change
+    model: int_cdc__changed_order_ids
+    given:
+      - input: ref('stg_cdc__orders_events')
+        rows: [{order_id: o1}]
+      - input: ref('stg_cdc__order_items_events')
+        rows: []
+      - input: ref('stg_cdc__order_payments_events')
+        rows: []
+      - input: ref('stg_cdc__customers_events')
+        rows: []
+      - input: ref('stg_cdc__products_events')
+        rows: []
+      - input: ref('stg_cdc__sellers_events')
+        rows: []
+      - input: ref('stg_cdc__product_category_translation_events')
+        rows: []
+      - input: ref('hist_cdc__orders')
+        rows: []
+      - input: ref('hist_cdc__order_items')
+        rows: []
+      - input: ref('hist_cdc__products')
+        rows: []
+    expect:
+      rows: [{order_id: o1}]

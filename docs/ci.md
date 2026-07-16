@@ -34,6 +34,12 @@ stage4-warehouse-integration
   -> Builds isolated MinIO/PostgreSQL state and verifies normalized loading,
      tombstone coverage, gap closure, transient retry, reconciliation, and
      duplicate-only replay in a disposable database and bucket.
+
+stage5-realtime-dbt-integration
+  -> Builds three exact-manifest dbt micro-batches in a disposable PostgreSQL
+     database and verifies source ordering, complete update history, late event
+     handling, impacted-key rebuilds, hard-delete propagation to facts/marts,
+     and reversible realtime-to-batch publication.
 ```
 
 ## Small Fixture Dataset

@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: mart_daily_revenue_realtime
+    description: Incremental daily revenue rebuilt only for old/new purchase dates affected by a CDC micro-batch.
+    columns:
+      - name: order_purchase_date
+        data_tests: [not_null, unique]
+      - name: gross_revenue
+        data_tests: [not_null, non_negative]
+  - name: mart_monthly_arpu_realtime
+    description: Incremental monthly ARPU rebuilt only for months affected by changed orders.
+    columns:
+      - name: order_month
+        data_tests: [not_null, unique]
+      - name: total_revenue
+        data_tests: [not_null, non_negative]

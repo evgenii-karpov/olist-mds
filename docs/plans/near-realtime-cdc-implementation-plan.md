@@ -325,6 +325,16 @@ watermark only with normalized ranges committed to `raw_cdc` plus tombstone
 ranges verified through that coverage contract. This amendment is authoritative
 for local and AWS adapters.
 
+**Phase 5 amendment, 2026-07-16:** Changed keys are bounded by immutable
+warehouse manifest membership, not by a maximum source LSN, source timestamp,
+or warehouse load timestamp. At transform start, every eligible `LOADED`
+manifest not owned by an earlier successful transform is attached to a durable
+transform run. Retries reuse that exact membership. The run becomes successful
+only after focused dbt build/tests complete and mart freshness is recorded.
+This prevents concurrent ingest races while allowing a late-loaded older source
+event to rebuild its affected keys. Source LSN, transaction order, partition,
+and offset remain the only current/history business ordering tuple.
+
 ### ADR-007: Keep NiFi simple on AWS
 
 **Status:** Accepted.
@@ -1086,6 +1096,10 @@ or handoff.
 - Implement focused per-micro-batch tests and nightly full tests/Elementary.
 - Implement parity reports and reversible `analytics` publication views.
 
+Phase 5 delivers the local PostgreSQL/Airflow adapters first, following
+ADR-009. AWS/Redshift transform and quality DAGs are Phase 7 work and must reuse
+the same logical ordering, checkpoint, parity, and publication contracts.
+
 **Verification**
 
 - Multiple updates between transformations produce complete history.
@@ -1099,6 +1113,11 @@ or handoff.
 
 - p95 commit-to-realtime-mart latency is at most 5 minutes under reference load.
 - Realtime marts are safely publishable through `analytics` views.
+
+Implementation status on 2026-07-16: the functional and publication criteria
+are implemented and verified locally. The formal 30-minute reference/burst
+latency benchmark remains open and is carried into Phase 6 hardening; Phase 5
+does not claim the p95 SLO from the bounded integration fixture.
 
 ### Phase 6: Local hardening, logs, alerts, and recovery
 

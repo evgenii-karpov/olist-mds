@@ -18,6 +18,8 @@ clean-targets:
 
 vars:
   batch_date: "2018-09-01"
+  cdc_transform_run_id: ""
+  realtime_publication_enabled: false
 
 models:
   olist_analytics:
@@ -33,6 +35,16 @@ models:
     marts:
       +materialized: table
       +schema: marts
+    realtime:
+      staging:
+        +materialized: view
+        +schema: realtime_staging
+      core:
+        +materialized: table
+        +schema: realtime_core
+      marts:
+        +materialized: incremental
+        +schema: realtime_marts
   elementary:
     +schema: elementary
 

@@ -8,6 +8,19 @@ files, PostgreSQL, Airflow, and dbt. An alternate workflow stages raw files in
 S3 and loads them into Redshift before running the same dbt project on the
 Redshift target.
 
+## Near-realtime transformation boundary
+
+The local CDC ingest Asset triggers `olist_cdc_transform_local`. Before dbt
+runs, the DAG records the exact set of newly loaded immutable manifests in
+`cdc_audit.cdc_transform_run_files`. The set is stable across retries. After
+focused dbt build/tests succeed, the DAG records mart freshness and commits the
+transform run; failed builds never consume manifests.
+
+The hourly `olist_cdc_quality_local` DAG checks offset continuity,
+reconciliation, freshness, and realtime model integrity. Its midnight logical
+run additionally executes the full realtime test suite and Elementary. Batch
+DAGs and schemas remain independent.
+
 ## Flow
 
 ```text

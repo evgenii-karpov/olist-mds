@@ -329,6 +329,53 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
+  stage5-realtime-dbt-integration:
+    name: Stage 5 realtime dbt semantics
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.4
+        env:
+          POSTGRES_DB: olist_analytics
+          POSTGRES_USER: olist
+          POSTGRES_PASSWORD: olist
+          PGDATA: /var/lib/postgresql/18/docker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U olist -d olist_analytics"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_analytics
+      DBT_TARGET: local_pg
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: olist_analytics
+      POSTGRES_USER: olist
+      POSTGRES_PASSWORD: olist
+      PYTHONUTF8: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+      - name: Prepare dbt project
+        run: |
+          cp profiles.yml.example profiles.yml
+          uv run dbt deps
+        working-directory: dbt/olist_analytics
+      - name: Verify source ordering, history, impact isolation, and hard deletes
+        run: uv run python scripts/ci/check_stage5_cdc_integration.py
+
   fixture-integration:
     name: Small fixture integration and replay
     runs-on: ubuntu-latest

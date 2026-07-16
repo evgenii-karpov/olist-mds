@@ -115,3 +115,32 @@ average order value, and repeat-customer rate.
 dbt tests cover source and staging keys, accepted values, non-negative monetary
 fields, fact grain, dimension relationships, SCD2 window validity, current-row
 uniqueness, payment allocation balance, and mart metric formulas.
+
+## Realtime CDC Model
+
+The CDC path is isolated from batch schemas. `realtime_staging` contains all
+typed events, source-latest non-deleted state, and exact-transform changed keys.
+Every current model orders by `_source_lsn`, `_tx_order`, `_partition`, and
+`_offset`; warehouse and NiFi timestamps are lineage only.
+
+`realtime_core` retains event-derived history for all eight captured entities.
+Delete rows remain in history with `is_deleted=true`, while current models and
+`fact_order_items_realtime` exclude deleted orders/items. Payment allocation
+uses the same dbt macro as the batch fact.
+
+`realtime_marts` incrementally deletes and rebuilds only the old/new purchase
+dates and months associated with the transform's immutable manifest set.
+Publication views in `analytics` change only after parity approval and can be
+switched back to batch without renaming or dropping either mart set.
+
+Realtime fact rebuilds resolve customer and product surrogate keys to the
+source-current dimension version. This is an explicit processing-time lineage
+choice because the Debezium contract has source ordering timestamps but no
+separate business-effective timestamp for profile corrections. Batch facts keep
+their existing purchase-time SCD2 joins. Cross-path parity therefore gates
+natural grain, attributes, allocations, and mart measures rather than requiring
+the two independently generated surrogate keys to match.
+
+Mart freshness records the maximum source timestamp of the exact transform
+manifest set. The quality check compares its build horizon with newly loaded
+raw manifests, so an idle but fully caught-up source is not reported as stale.

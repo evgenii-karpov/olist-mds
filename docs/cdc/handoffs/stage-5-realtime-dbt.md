@@ -30,3 +30,8 @@ Create only Phase 5 realtime dbt models and transform/quality orchestration.
 Do not reinterpret coverage manifests as business events, union batch and CDC
 copies, or order current state by ingestion timestamps.
 
+## Delivery status
+
+Implemented on 2026-07-16. The delivered contract and verification evidence are
+recorded in `docs/cdc/phases/phase-5-realtime-dbt.md`. Phase 6 must retain the
+immutable transform membership and operator-approved publication gate.
