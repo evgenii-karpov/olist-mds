@@ -154,21 +154,21 @@ orchestrates finite, idempotent micro-batches after NiFi has closed object files
 
 ### 4.2 Environment mapping
 
-| Capability       | Local implementation                            | AWS implementation                                   |
-| ---------------- | ----------------------------------------------- | ---------------------------------------------------- |
-| OLTP source      | Dedicated PostgreSQL container                  | Amazon RDS for PostgreSQL                            |
-| CDC runtime      | Distributed Kafka Connect                       | Amazon MSK Connect                                   |
-| CDC connector    | Debezium PostgreSQL connector                   | Same Debezium connector as a versioned custom plugin |
-| Kafka            | Apache Kafka in KRaft mode                      | Amazon MSK Provisioned                               |
-| Schema registry  | Apicurio Registry with Confluent-compatible wire format | AWS Glue Schema Registry                        |
-| NiFi             | One Docker container with persistent volumes    | One private EC2 instance with persistent EBS         |
-| Object storage   | MinIO                                           | Amazon S3                                            |
-| Warehouse        | Existing local PostgreSQL, separate CDC schemas | Amazon Redshift Serverless                           |
-| Orchestration    | Docker Compose Airflow                          | Amazon MWAA                                          |
-| Metrics          | Prometheus, Alertmanager, Grafana               | CloudWatch plus Grafana Cloud                        |
-| Collection agent | Grafana Alloy where needed                      | Alloy on the NiFi EC2 host                           |
-| Logs             | Loki after the metrics milestone                | Grafana Cloud Logs and selected CloudWatch logs      |
-| Secrets          | Stable committed dev-only Docker secret files   | AWS Secrets Manager and IAM roles                    |
+| Capability       | Local implementation                                    | AWS implementation                                   |
+| ---------------- | ------------------------------------------------------- | ---------------------------------------------------- |
+| OLTP source      | Dedicated PostgreSQL container                          | Amazon RDS for PostgreSQL                            |
+| CDC runtime      | Distributed Kafka Connect                               | Amazon MSK Connect                                   |
+| CDC connector    | Debezium PostgreSQL connector                           | Same Debezium connector as a versioned custom plugin |
+| Kafka            | Apache Kafka in KRaft mode                              | Amazon MSK Provisioned                               |
+| Schema registry  | Apicurio Registry with Confluent-compatible wire format | AWS Glue Schema Registry                             |
+| NiFi             | One Docker container with persistent volumes            | One private EC2 instance with persistent EBS         |
+| Object storage   | MinIO                                                   | Amazon S3                                            |
+| Warehouse        | Existing local PostgreSQL, separate CDC schemas         | Amazon Redshift Serverless                           |
+| Orchestration    | Docker Compose Airflow                                  | Amazon MWAA                                          |
+| Metrics          | Prometheus, Alertmanager, Grafana                       | CloudWatch plus Grafana Cloud                        |
+| Collection agent | Grafana Alloy where needed                              | Alloy on the NiFi EC2 host                           |
+| Logs             | Loki after the metrics milestone                        | Grafana Cloud Logs and selected CloudWatch logs      |
+| Secrets          | Stable committed dev-only Docker secret files           | AWS Secrets Manager and IAM roles                    |
 
 ### 4.3 Latency budget
 
@@ -905,15 +905,6 @@ implementation.
 Each phase is a separate deliverable. An agent must not start a later phase until
 the previous phase exit criteria are met and documented.
 
-Implementation status as of 2026-07-16:
-
-| Phase | Status | Evidence and handoff |
-| --- | --- | --- |
-| 0 | Complete | `docs/cdc/phases/phase-0-baseline.md` |
-| 1 | Complete | `docs/cdc/phases/phase-1-oltp-simulator.md`, `docs/cdc/handoffs/stage-2-kafka-debezium.md` |
-| 2 | Complete | `docs/cdc/phases/phase-2-kafka-debezium.md`, `docs/cdc/handoffs/stage-3-nifi-minio.md` |
-| 3-8 | Not started | Start only from the preceding phase handoff and current contracts in this plan |
-
 Phase reports are the evidence record for completed work. This plan remains the
 normative cross-phase contract; when verified implementation reveals a contract
 detail that affects later phases, update both this plan and the relevant report
@@ -1324,7 +1315,7 @@ Runbooks must cover these scenarios:
 | ------------------------------------------------ | -------------------------------------------------------------------------------------- |
 | WAL fills source storage while connector is down | Heartbeats, retained-WAL metrics, alerts, connector runbook                            |
 | Small files degrade warehouse load               | 60-second bounded binning, size metrics, manifest batching, separate compaction prefix |
-| Duplicate or replayed delivery                   | Immutable event ID, file/coverage ledgers, manifests, warehouse dedupe                  |
+| Duplicate or replayed delivery                   | Immutable event ID, file/coverage ledgers, manifests, warehouse dedupe                 |
 | Late object arrival produces stale current state | Order by LSN/transaction/offset, never ingestion time                                  |
 | Deletes disappear downstream                     | Preserve before image, explicit delete model tests, SCD2 deleted state                 |
 | Batch and CDC duplicate one another              | Separate schemas and parity comparison; never union copies                             |
