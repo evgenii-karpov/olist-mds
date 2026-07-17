@@ -1,0 +1,74 @@
+version: 2
+
+models:
+  - name: realtime_parity_daily_revenue_batch
+    description: Normalized batch daily-revenue projection used only for parity testing.
+    data_tests:
+      - dbt_utils.equality:
+          name: dbt_utils_equality_daily_revenue
+          arguments:
+            compare_model: ref('realtime_parity_daily_revenue_realtime')
+            compare_columns:
+              - order_purchase_date
+              - gross_revenue
+              - allocated_payment_revenue
+              - product_revenue
+              - freight_revenue
+              - orders_count
+              - customers_count
+              - items_count
+              - average_order_value
+              - average_paid_order_value
+              - average_delivery_days
+              - late_deliveries_count
+            precision: 2
+          config:
+            tags: [realtime_parity]
+    columns:
+      - name: order_purchase_date
+      - name: gross_revenue
+      - name: allocated_payment_revenue
+      - name: product_revenue
+      - name: freight_revenue
+      - name: orders_count
+      - name: customers_count
+      - name: items_count
+      - name: average_order_value
+      - name: average_paid_order_value
+      - name: average_delivery_days
+      - name: late_deliveries_count
+
+  - name: realtime_parity_daily_revenue_realtime
+    description: Normalized realtime daily-revenue projection used only for parity testing.
+
+  - name: realtime_parity_monthly_arpu_batch
+    description: Normalized batch monthly-ARPU projection used only for parity testing.
+    data_tests:
+      - dbt_utils.equality:
+          name: dbt_utils_equality_monthly_arpu
+          arguments:
+            compare_model: ref('realtime_parity_monthly_arpu_realtime')
+            compare_columns:
+              - order_month
+              - active_customers
+              - total_revenue
+              - arpu
+              - orders_count
+              - orders_per_customer
+              - average_order_value
+              - repeat_customer_rate
+            precision: 2
+          config:
+            tags: [realtime_parity]
+    columns:
+      - name: order_month
+      - name: active_customers
+      - name: total_revenue
+      - name: arpu
+      - name: orders_count
+      - name: orders_per_customer
+      - name: average_order_value
+      - name: repeat_customer_rate
+
+  - name: realtime_parity_monthly_arpu_realtime
+    description: Normalized realtime monthly-ARPU projection used only for parity testing.

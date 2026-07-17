@@ -1,4 +1,4 @@
-"""Disposable PostgreSQL proof for Phase 5 ordering, history, and delete semantics."""
+"""Disposable PostgreSQL proof for Phase 5 semantics and parity sensitivity."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import sys
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import psycopg2
 from psycopg2 import sql
@@ -220,6 +221,7 @@ def verify_publication_round_trip(
             where publication_name = 'olist_marts';
             """
         )
+    create_batch_parity_projections(connection)
     base = [
         sys.executable,
         str(ROOT / "scripts/cdc/realtime_transform.py"),
@@ -245,6 +247,196 @@ def verify_publication_round_trip(
             scalar(connection, "select count(*) from analytics.mart_daily_revenue") == 1
         )
         connection.commit()
+
+
+def dbt_command(args: argparse.Namespace, database: str) -> list[str]:
+    return [
+        sys.executable,
+        str(ROOT / "scripts/cdc/realtime_transform.py"),
+        "--host",
+        args.host,
+        "--port",
+        str(args.port),
+        "--database",
+        database,
+        "--user",
+        args.user,
+        "--password",
+        password(args),
+    ]
+
+
+def dbt_environment(args: argparse.Namespace, database: str) -> dict[str, str]:
+    return {
+        **os.environ,
+        "POSTGRES_HOST": args.host,
+        "POSTGRES_PORT": str(args.port),
+        "POSTGRES_DB": database,
+        "POSTGRES_USER": args.user,
+        "POSTGRES_PASSWORD": password(args),
+        "DBT_PROFILES_DIR": str(ROOT / "dbt/olist_analytics"),
+        "PYTHONUTF8": "1",
+    }
+
+
+def create_batch_parity_projections(connection) -> None:
+    """Mirror the realtime business relations as disposable Stage 5 batch inputs."""
+    with connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            create or replace view staging.stg_olist__customers as
+            select customer_id, customer_unique_id, customer_zip_code_prefix,
+                   customer_city, customer_state
+            from realtime_staging.stg_cdc__customers_current;
+
+            create or replace view staging.stg_olist__orders as
+            select order_id, customer_id, order_status,
+                   order_purchase_timestamp::timestamp as order_purchase_timestamp,
+                   order_approved_at::timestamp as order_approved_at,
+                   order_delivered_carrier_date::timestamp
+                       as order_delivered_carrier_date,
+                   order_delivered_customer_date::timestamp
+                       as order_delivered_customer_date,
+                   order_estimated_delivery_date::timestamp
+                       as order_estimated_delivery_date
+            from realtime_staging.stg_cdc__orders_current;
+
+            create or replace view staging.stg_olist__order_items as
+            select order_id, order_item_id, product_id, seller_id,
+                   shipping_limit_date::timestamp as shipping_limit_date,
+                   price, freight_value
+            from realtime_staging.stg_cdc__order_items_current;
+
+            create or replace view staging.stg_olist__order_payments as
+            select order_id, payment_sequential, payment_type,
+                   payment_installments, payment_value
+            from realtime_staging.stg_cdc__order_payments_current;
+
+            create or replace view staging.stg_olist__order_reviews as
+            select review_id, order_id, review_score, review_comment_title,
+                   review_comment_message,
+                   review_creation_date::timestamp as review_creation_date,
+                   review_answer_timestamp::timestamp as review_answer_timestamp
+            from realtime_staging.stg_cdc__order_reviews_current;
+
+            create or replace view staging.stg_olist__products as
+            select product_id, product_category_name,
+                   product_name_lenght as product_name_length,
+                   product_description_lenght as product_description_length,
+                   product_photos_qty, product_weight_g, product_length_cm,
+                   product_height_cm, product_width_cm
+            from realtime_staging.stg_cdc__products_current;
+
+            create or replace view staging.stg_olist__sellers as
+            select seller_id, seller_zip_code_prefix, seller_city, seller_state
+            from realtime_staging.stg_cdc__sellers_current;
+
+            create or replace view
+                staging.stg_olist__product_category_translation as
+            select product_category_name, product_category_name_english
+            from realtime_staging.stg_cdc__product_category_translation_current;
+
+            create or replace view core.fact_order_items as
+            select order_id, order_item_id, customer_id, product_id, seller_id,
+                   order_status, order_purchase_timestamp::timestamp
+                       as order_purchase_timestamp,
+                   price, freight_value, gross_item_amount,
+                   allocated_payment_value
+            from realtime_core.fact_order_items_realtime;
+            """
+        )
+
+
+def run_record_parity(args: argparse.Namespace, database: str) -> dict[str, Any]:
+    result = subprocess.run(
+        [*dbt_command(args, database), "record-parity"],
+        cwd=ROOT,
+        env=dbt_environment(args, database),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    summary: dict[str, Any] | None = None
+    for line in reversed(result.stdout.splitlines()):
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            summary = value
+            break
+    if summary is None:
+        raise AssertionError(
+            "record-parity did not return JSON: " + result.stdout[-2000:]
+        )
+    summary["command_exit_code"] = result.returncode
+    return summary
+
+
+def verify_parity_comparator_sensitivity(
+    args: argparse.Namespace, database: str, connection
+) -> dict[str, object]:
+    passing = run_record_parity(args, database)
+    assert passing["parity_status"] == "PASS", passing
+
+    with connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            update realtime_marts.mart_daily_revenue_realtime
+            set gross_revenue = gross_revenue + 1
+            """
+        )
+    try:
+        failing = run_record_parity(args, database)
+        assert failing["parity_status"] == "FAIL", failing
+        assert int(failing["custom_failed_metric_count"]) > 0, failing
+        assert (
+            "dbt_utils_equality_daily_revenue" in failing["failed_dbt_utils_tests"]
+        ), failing
+        with connection, connection.cursor() as cursor:
+            cursor.execute(
+                """
+                select grain_key
+                from cdc_audit.realtime_parity_grain_diffs
+                where metric_name = 'mart_daily_revenue'
+                order by grain_key
+                limit 1
+                """
+            )
+            row = cursor.fetchone()
+        if row is None:
+            raise AssertionError("custom parity did not return a daily mart grain key")
+        assert str(row[0]) == "2018-01-01", row
+        assert (
+            scalar(
+                connection,
+                """
+            select parity_status
+            from cdc_audit.cdc_publication_state
+            where publication_name = 'olist_marts'
+            """,
+            )
+            == "FAIL"
+        )
+    finally:
+        with connection, connection.cursor() as cursor:
+            cursor.execute(
+                """
+                update realtime_marts.mart_daily_revenue_realtime
+                set gross_revenue = gross_revenue - 1
+                """
+            )
+        restored = run_record_parity(args, database)
+        assert restored["parity_status"] == "PASS", restored
+
+    return {
+        "initial_status": passing["parity_status"],
+        "mutation_status": failing["parity_status"],
+        "mutation_custom_failed_metric_count": failing["custom_failed_metric_count"],
+        "mutation_dbt_utils_failed_tests": failing["failed_dbt_utils_tests"],
+        "mutation_grain_key": row[0],
+        "restored_status": restored["parity_status"],
+    }
 
 
 def scalar(connection, query: str):
@@ -319,7 +511,7 @@ def seed_initial(connection) -> None:
         add_event(connection, table, business, "r", 100 + offset, offset, offset, uri)
 
 
-def verify(args: argparse.Namespace, database: str) -> None:
+def verify(args: argparse.Namespace, database: str) -> dict[str, object]:
     connection = test_connection(args, database)
     try:
         apply_bootstrap(connection)
@@ -344,6 +536,9 @@ def verify(args: argparse.Namespace, database: str) -> None:
             "select min(max_source_ts) from cdc_audit.cdc_mart_freshness",
         )
         verify_publication_round_trip(args, database, connection)
+        parity_sensitivity = verify_parity_comparator_sensitivity(
+            args, database, connection
+        )
 
         order_business = {
             "order_id": "o1",
@@ -446,6 +641,7 @@ def verify(args: argparse.Namespace, database: str) -> None:
         )
     finally:
         connection.close()
+    return parity_sensitivity
 
 
 def main() -> None:
@@ -465,8 +661,16 @@ def main() -> None:
             cursor.execute(
                 sql.SQL("create database {}").format(sql.Identifier(database))
             )
-        verify(args, database)
-        print(json.dumps({"database": database, "status": "success"}))
+        parity_sensitivity = verify(args, database)
+        print(
+            json.dumps(
+                {
+                    "database": database,
+                    "status": "success",
+                    "parity_sensitivity": parity_sensitivity,
+                }
+            )
+        )
     finally:
         if not database.startswith(PREFIX):
             raise RuntimeError("refusing to drop a non-disposable database")

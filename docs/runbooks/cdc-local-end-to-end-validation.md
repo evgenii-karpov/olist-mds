@@ -466,7 +466,35 @@ Publication is not required to validate the CDC chain itself. Successful
 ingest/transform runs and data in `raw_cdc`, `realtime_core`, and
 `realtime_marts` are the primary evidence.
 
-## 17. Troubleshooting
+## 17. Batch-to-realtime parity integration
+
+For the defining end-to-end evidence, use the disposable batch plus
+`realtime-core` stack and the exact committed fixture on both branches:
+
+```powershell
+docker compose --profile batch --profile realtime-core down -v --remove-orphans
+docker compose --profile realtime-core build airflow kafka-connect minio nifi
+docker compose --profile batch --profile realtime-core up -d --wait
+docker compose exec -T airflow `
+  python scripts/ci/check_batch_cdc_parity_integration.py `
+  --archive tests/fixtures/olist_small/olist_small.zip `
+  --profile tests/fixtures/olist_small/source_profile_small.json `
+  --timeout-seconds 1200 `
+  --poll-seconds 2 `
+  --report data/reports/batch-cdc-parity.json
+Get-Content data/reports/batch-cdc-parity.json
+docker compose --profile batch --profile realtime-core down -v --remove-orphans
+```
+
+The command runs the real batch DAG and the real Debezium snapshot through
+Kafka, NiFi, MinIO, CDC ingest, the Asset-triggered transform, and realtime
+dbt models. A passing report proves initial-snapshot business parity for all
+eight captured source projections, the item-grain fact, and both marts. It
+does not prove the latency SLO, SCD2 history equality, or CRUD/replay/recovery
+behavior; those remain separate checks. The nightly/manual GitHub Actions
+workflow runs this same command and uploads the bounded JSON report.
+
+## 18. Troubleshooting
 
 Connector is not running:
 

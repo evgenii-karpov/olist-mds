@@ -20,6 +20,12 @@ runtime acceptance gates remain open under the approved plan amendment.
   alert fire/resolution evidence under ignored `data/reports/`.
 - The benchmark helper encodes the approved 5/s reference, 20/s burst, and
   four-hour soak profiles and produces machine-readable latency/capacity data.
+- The dedicated nightly/manual batch-to-realtime parity workflow and bounded
+  report runner now exercise the same small archive through the real batch DAG
+  and the Debezium/Kafka/NiFi/MinIO/Airflow realtime path. Its exact claim is
+  initial-snapshot business parity for the eight captured source projections,
+  item-grain fact, and both consumer marts; it makes no latency-SLO or SCD2
+  history-equality claim.
 Phase 5 manifest membership, ordering, delete, parity, publication, and selector
 contracts were not changed.
 
@@ -51,6 +57,9 @@ workstation. This changes no container endpoint or committed default.
   continuous stack, so no comprehensive fire-and-resolve matrix is claimed.
 - Connect/WAL recovery, NiFi backlog drain, and a clean warehouse rebuild still
   require disposable full-stack drills.
+- A clean full-stack execution of the new batch-to-realtime parity workflow and
+  its uploaded report remains required evidence before marking that acceptance
+  criterion complete.
 - Reference, burst, and soak benchmark profiles have not been executed. The
   p95 five-minute SLO remains unproven.
 

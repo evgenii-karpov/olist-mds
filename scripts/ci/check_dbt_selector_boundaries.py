@@ -17,6 +17,20 @@ REALTIME_QUALITY_TESTS = {
     "assert_realtime_mart_freshness",
     "assert_realtime_offset_continuity",
 }
+REALTIME_PARITY_TESTS = {
+    "assert_realtime_parity_passed",
+    "dbt_utils_equality_daily_revenue",
+    "dbt_utils_equality_monthly_arpu",
+}
+REALTIME_PARITY_MODELS = {
+    "realtime_parity_report",
+    "realtime_parity_checksums",
+    "realtime_parity_grain_diffs",
+    "realtime_parity_daily_revenue_batch",
+    "realtime_parity_daily_revenue_realtime",
+    "realtime_parity_monthly_arpu_batch",
+    "realtime_parity_monthly_arpu_realtime",
+}
 ALLOWED_BATCH_PACKAGES = {"olist_analytics", "elementary"}
 REQUIRED_ELEMENTARY_MODELS = {
     "dbt_invocations",
@@ -101,10 +115,15 @@ def assert_selector_membership(selected: dict[str, list[dict[str, Any]]]) -> Non
     for resource in selected["realtime_parity"]:
         path = normalized_path(resource.get("original_file_path"))
         resource_type = resource.get("resource_type")
-        if resource_type == "model" and not path.startswith("models/parity/"):
-            raise ValueError(f"parity selector leaked model outside bridge: {path}")
-        if resource_type == "test" and resource.get("name") != (
-            "assert_realtime_parity_passed"
+        if resource_type == "model":
+            if not path.startswith("models/parity/"):
+                raise ValueError(f"parity selector leaked model outside bridge: {path}")
+            if resource.get("name") not in REALTIME_PARITY_MODELS:
+                raise ValueError(
+                    f"parity selector leaked unrelated model: {resource.get('name')}"
+                )
+        if resource_type == "test" and resource.get("name") not in (
+            REALTIME_PARITY_TESTS
         ):
             raise ValueError(f"parity selector leaked test: {resource.get('name')}")
 

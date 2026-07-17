@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import subprocess
+import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,15 @@ from psycopg2.extensions import connection as PgConnection
 
 ROOT = Path(__file__).resolve().parents[2]
 DBT_PROJECT = ROOT / "dbt" / "olist_analytics"
+PARITY_REPORTS = (
+    "realtime_parity_report",
+    "realtime_parity_checksums",
+    "realtime_parity_grain_diffs",
+)
+DBT_UTILS_PARITY_TESTS = (
+    "dbt_utils_equality_daily_revenue",
+    "dbt_utils_equality_monthly_arpu",
+)
 
 
 def read_secret(value: str | None, file_value: str | None, default: str) -> str:
@@ -135,12 +146,229 @@ def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
     }
 
 
-def run_dbt(arguments: list[str]) -> None:
-    subprocess.run(
+def run_dbt(
+    arguments: list[str], *, check: bool = True, capture_output: bool = False
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
         [os.environ.get("DBT_BIN", "dbt"), *arguments],
         cwd=DBT_PROJECT,
-        check=True,
+        check=False,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.STDOUT if capture_output else None,
+        text=True if capture_output else None,
     )
+    if check and result.returncode != 0:
+        if result.stdout:
+            print(result.stdout, end="", file=sys.stderr, flush=True)
+        raise subprocess.CalledProcessError(
+            result.returncode,
+            result.args,
+            output=result.stdout,
+        )
+    return result
+
+
+def read_dbt_utils_results() -> list[dict[str, Any]]:
+    run_results_path = DBT_PROJECT / "target" / "run_results.json"
+    if not run_results_path.exists():
+        return [
+            {
+                "name": name,
+                "status": "ERROR",
+                "message": "dbt did not produce target/run_results.json",
+            }
+            for name in DBT_UTILS_PARITY_TESTS
+        ]
+
+    payload = json.loads(run_results_path.read_text(encoding="utf-8"))
+    results = payload.get("results", [])
+    by_name: dict[str, dict[str, Any]] = {}
+    for item in results:
+        if not isinstance(item, dict) or not str(item.get("unique_id", "")).startswith(
+            "test."
+        ):
+            continue
+        unique_id = str(item.get("unique_id", ""))
+        item_name = str(item.get("name", ""))
+        for expected_name in DBT_UTILS_PARITY_TESTS:
+            if item_name == expected_name or f".{expected_name}." in unique_id:
+                by_name[expected_name] = item
+    parsed: list[dict[str, Any]] = []
+    for name in DBT_UTILS_PARITY_TESTS:
+        item = by_name.get(name)
+        if item is None:
+            parsed.append(
+                {
+                    "name": name,
+                    "status": "ERROR",
+                    "message": "test was not present in dbt run results",
+                }
+            )
+            continue
+        parsed.append(
+            {
+                "name": name,
+                "status": str(item.get("status", "ERROR")).upper(),
+                "failures": item.get("failures"),
+                "message": str(item.get("message", ""))[:1000],
+            }
+        )
+    return parsed
+
+
+def dbt_utils_error_results(message: str) -> list[dict[str, Any]]:
+    return [
+        {"name": name, "status": "ERROR", "message": message[:1000]}
+        for name in DBT_UTILS_PARITY_TESTS
+    ]
+
+
+def read_custom_parity_results(
+    connection: PgConnection,
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    results: dict[str, list[dict[str, str]]] = {}
+    failed_metrics: list[str] = []
+    try:
+        with connection.cursor() as cursor:
+            for report in PARITY_REPORTS:
+                if report == "realtime_parity_grain_diffs":
+                    cursor.execute(
+                        """
+                        select metric_name, grain_key
+                        from cdc_audit.realtime_parity_grain_diffs
+                        order by metric_name, grain_key
+                        limit 1000
+                        """
+                    )
+                    rows = [
+                        {"metric_name": str(metric), "grain_key": str(grain)}
+                        for metric, grain in cursor.fetchall()
+                    ]
+                    results[report] = rows
+                    failed_metrics.extend(f"{metric}:{grain}" for metric, grain in rows)
+                    continue
+
+                cursor.execute(
+                    f"""
+                    select metric_name, status
+                    from cdc_audit.{report}
+                    where status <> 'PASS'
+                    order by metric_name
+                    limit 1000
+                    """
+                )
+                rows = [
+                    {"metric_name": str(metric), "status": str(status)}
+                    for metric, status in cursor.fetchall()
+                ]
+                results[report] = rows
+                failed_metrics.extend(str(row["metric_name"]) for row in rows)
+    except Exception:
+        connection.rollback()
+        raise
+    return results, failed_metrics
+
+
+def parity_status(
+    *,
+    custom_failed_metric_count: int,
+    failed_dbt_utils_tests: list[str],
+    dbt_exit_code: int,
+) -> str:
+    return (
+        "PASS"
+        if (
+            dbt_exit_code == 0
+            and custom_failed_metric_count == 0
+            and not failed_dbt_utils_tests
+        )
+        else "FAIL"
+    )
+
+
+def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
+    bootstrap(connection)
+    with connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            update cdc_audit.cdc_publication_state
+            set parity_status = 'PENDING', updated_at = clock_timestamp()
+            where publication_name = 'olist_marts'
+            """
+        )
+
+    run_results_path = DBT_PROJECT / "target" / "run_results.json"
+    with suppress(FileNotFoundError):
+        run_results_path.unlink()
+    dbt_arguments = ["build", "--selector", "realtime_parity"]
+    try:
+        dbt_result = run_dbt(
+            dbt_arguments,
+            check=False,
+            capture_output=True,
+        )
+    except OSError as exc:
+        dbt_result = subprocess.CompletedProcess(
+            [os.environ.get("DBT_BIN", "dbt"), *dbt_arguments],
+            1,
+            stdout=f"Unable to execute dbt parity build: {exc}",
+        )
+    try:
+        dbt_utils_results = read_dbt_utils_results()
+    except (OSError, TypeError, ValueError) as exc:
+        dbt_utils_results = dbt_utils_error_results(
+            f"Unable to read dbt parity results: {exc}"
+        )
+    failed_dbt_utils_tests = [
+        str(item["name"]) for item in dbt_utils_results if item.get("status") != "PASS"
+    ]
+
+    custom_results: dict[str, list[dict[str, str]]]
+    custom_failed_metrics: list[str]
+    try:
+        custom_results, custom_failed_metrics = read_custom_parity_results(connection)
+    except Exception as exc:
+        custom_results = {
+            report: [
+                {
+                    "metric_name": "parity_relation_unavailable",
+                    "status": "ERROR",
+                }
+            ]
+            for report in PARITY_REPORTS
+        }
+        custom_failed_metrics = [f"parity_relation_unavailable: {exc}"]
+
+    custom_failed_metric_count = len(custom_failed_metrics)
+    status = parity_status(
+        custom_failed_metric_count=custom_failed_metric_count,
+        failed_dbt_utils_tests=failed_dbt_utils_tests,
+        dbt_exit_code=dbt_result.returncode,
+    )
+    with connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            update cdc_audit.cdc_publication_state
+            set parity_status = %s, updated_at = clock_timestamp()
+            where publication_name = 'olist_marts'
+            """,
+            (status,),
+        )
+
+    output_tail = str(dbt_result.stdout or "")[-4000:]
+    if output_tail and dbt_result.returncode != 0:
+        print(output_tail, end="", file=sys.stderr, flush=True)
+    return {
+        "parity_status": status,
+        "failed_metrics": custom_failed_metric_count,
+        "custom_failed_metric_count": custom_failed_metric_count,
+        "custom_failed_metrics": custom_failed_metrics[:1000],
+        "custom_results": custom_results,
+        "dbt_utils_tests": dbt_utils_results,
+        "failed_dbt_utils_tests": failed_dbt_utils_tests,
+        "dbt_exit_code": dbt_result.returncode,
+        "dbt_output_tail": output_tail,
+    }
 
 
 def build(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
@@ -395,42 +623,6 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
     return {"publication": "olist_marts", "target": args.target}
 
 
-def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
-    bootstrap(connection)
-    with connection, connection.cursor() as cursor:
-        cursor.execute(
-            """
-            update cdc_audit.cdc_publication_state
-            set parity_status = 'PENDING', updated_at = clock_timestamp()
-            where publication_name = 'olist_marts'
-            """
-        )
-    run_dbt(["build", "--selector", "realtime_parity"])
-    with connection, connection.cursor() as cursor:
-        cursor.execute(
-            """
-            select
-                    (select count(*) from cdc_audit.realtime_parity_report where status <> 'PASS')
-                    + (select count(*) from cdc_audit.realtime_parity_checksums where status <> 'PASS')
-                    + (select count(*) from cdc_audit.realtime_parity_grain_diffs)
-            """
-        )
-        row = cursor.fetchone()
-        if row is None:
-            raise ValueError("parity report returned no aggregate")
-        failures = int(row[0])
-        status = "PASS" if failures == 0 else "FAIL"
-        cursor.execute(
-            """
-                update cdc_audit.cdc_publication_state
-                set parity_status = %s, updated_at = clock_timestamp()
-                where publication_name = 'olist_marts'
-                """,
-            (status,),
-        )
-    return {"parity_status": status, "failed_metrics": failures}
-
-
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser()
     value.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
@@ -485,6 +677,8 @@ def main() -> None:
         finally:
             connection.close()
     print(json.dumps(result, default=str, sort_keys=True))
+    if args.command == "record-parity" and result.get("parity_status") != "PASS":
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

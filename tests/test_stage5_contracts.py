@@ -97,6 +97,18 @@ class Stage5ConfigurationTests(unittest.TestCase):
             self.assertTrue((parity_root / name).exists())
             self.assertFalse((old_root / name).exists())
 
+    def test_stage5_disposable_check_exercises_both_parity_comparators(self) -> None:
+        checker = (ROOT / "scripts/ci/check_stage5_cdc_integration.py").read_text(
+            encoding="utf-8"
+        )
+        for fragment in (
+            "verify_parity_comparator_sensitivity",
+            "dbt_utils_equality_daily_revenue",
+            "realtime_parity_grain_diffs",
+            "parity_status",
+        ):
+            self.assertIn(fragment, checker)
+
 
 if __name__ == "__main__":
     unittest.main()
