@@ -25,17 +25,25 @@ airflow-imports
   -> Docker Compose validation, Airflow image build, metadata database startup,
      and isolated DAG imports.
 
-fixture-integration
+cdc-stage1-oltp-simulator
+  -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
+     validates deterministic seed, lifecycle, replay, and stop behavior.
+
+cdc-stage2-kafka-debezium
+  -> CDC implementation Stage 2: validates Kafka topics, Apicurio compatibility,
+     Debezium snapshot/CRUD semantics, and connector restart recovery.
+
+batch-fixture-idempotency
   -> Small fixture end-to-end path through the local Airflow DAG, PostgreSQL,
      reconciliation, dbt snapshots/build/tests, batch-control checks, raw file
      comparison, and incremental replay idempotency.
 
-stage4-warehouse-integration
+cdc-stage4-warehouse-ingest
   -> Builds isolated MinIO/PostgreSQL state and verifies normalized loading,
      tombstone coverage, gap closure, transient retry, reconciliation, and
      duplicate-only replay in a disposable database and bucket.
 
-stage5-realtime-dbt-integration
+cdc-stage5-realtime-dbt
   -> Builds three exact-manifest dbt micro-batches in a disposable PostgreSQL
      database and verifies source ordering, complete update history, late event
      handling, impacted-key rebuilds, hard-delete propagation to facts/marts,
@@ -47,6 +55,12 @@ dbt-selector-boundaries
      rejects realtime resources in batch, restricts cross-group refs to
      `models/parity`, and rejects unbounded `dbt build` commands in DAGs and CI
      workflows.
+
+python-unit / CDC Stage 6 observability contract
+  -> Validates real Loki/Alloy services, six dashboard domains, the complete
+     alert inventory, runbook links, retention, and low-cardinality log labels.
+     Destructive or long-running fault/benchmark execution remains manual or
+     nightly through `failure_injection.py` and `benchmark_local.py`.
 ```
 
 ## Small Fixture Dataset

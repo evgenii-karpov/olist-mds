@@ -185,8 +185,9 @@ Explicitly exclude:
 - every table in `simulator_control` — operational state, never business CDC;
 - the analytical PostgreSQL and Airflow metadata databases.
 
-Do not commit passwords. Continue using Docker secrets and ignored override
-files. Connector templates must contain placeholders, not resolved values.
+Use the committed development-only Docker secret as the stable local default.
+Connector templates must contain placeholders, not resolved values, and
+non-local credentials must remain external.
 
 ## Kafka broker and topic contract
 
@@ -381,7 +382,7 @@ Add tests that do not require live services for:
 - topic manifest names, partition counts, retention, cleanup policy, and
   replication factor;
 - source primary-key and partitioning contract, including all composite keys;
-- no plaintext secret values in committed templates or rendered test output;
+- no resolved non-local credentials in committed templates or rendered output;
 - registry compatibility configuration;
 - Connect plug-in inventory/checksums;
 - Compose default behavior and `realtime-core` dependency wiring;

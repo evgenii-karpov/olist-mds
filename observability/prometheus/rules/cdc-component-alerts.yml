@@ -2,7 +2,7 @@ groups:
   - name: cdc-component-health
     rules:
       - alert: CdcConnectorNotRunning
-        expr: olist_connect_connector_running{connector="olist-postgres-cdc"} != 1
+        expr: olist_connect_connector_running{connector="olist-postgres-cdc"} != 1 or absent(olist_connect_connector_running{connector="olist-postgres-cdc"})
         for: 2m
         labels:
           severity: critical
@@ -11,7 +11,7 @@ groups:
           runbook: docs/runbooks/cdc-service-restart.md
 
       - alert: CdcConnectorTaskNotRunning
-        expr: olist_connect_tasks_running{connector="olist-postgres-cdc"} != 1
+        expr: olist_connect_tasks_running{connector="olist-postgres-cdc"} != 1 or absent(olist_connect_tasks_running{connector="olist-postgres-cdc"})
         for: 2m
         labels:
           severity: critical
@@ -20,7 +20,7 @@ groups:
           runbook: docs/runbooks/cdc-service-restart.md
 
       - alert: CdcNifiUnavailable
-        expr: up{job="nifi"} != 1 or olist_nifi_metrics_proxy_up != 1
+        expr: up{job="nifi"} != 1 or absent(up{job="nifi"}) or olist_nifi_metrics_proxy_up != 1
         for: 2m
         labels:
           severity: critical
@@ -29,7 +29,7 @@ groups:
           runbook: docs/runbooks/cdc-service-restart.md
 
       - alert: CdcMinioUnavailable
-        expr: up{job="minio"} != 1
+        expr: up{job="minio"} != 1 or absent(up{job="minio"})
         for: 2m
         labels:
           severity: critical
@@ -38,7 +38,7 @@ groups:
           runbook: docs/runbooks/cdc-service-restart.md
 
       - alert: CdcWarehousePipelineUnavailable
-        expr: up{job="cdc-pipeline"} != 1 or olist_cdc_pipeline_up != 1
+        expr: up{job="cdc-pipeline"} != 1 or absent(up{job="cdc-pipeline"}) or olist_cdc_pipeline_up != 1
         for: 2m
         labels:
           severity: critical
@@ -54,3 +54,127 @@ groups:
         annotations:
           summary: CDC warehouse offset coverage contains a gap
           runbook: docs/runbooks/cdc-warehouse-ingest.md
+
+      - alert: CdcHeartbeatMissing
+        expr: olist_cdc_heartbeat_age_seconds{component_name="debezium"} > 180 or absent(olist_cdc_heartbeat_age_seconds{component_name="debezium"})
+        labels:
+          severity: critical
+        annotations:
+          summary: Debezium source heartbeat is older than three minutes
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcRetainedWalHighAndGrowing
+        expr: min_over_time(olist_cdc_replication_slot_retained_wal_bytes[15m]) > 536870912 and deriv(olist_cdc_replication_slot_retained_wal_bytes[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: PostgreSQL CDC slot retains more than 512 MiB and is growing
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcDlqOrQuarantineRecords
+        expr: olist_cdc_dlq_open_records > 0 or olist_cdc_quarantine_recent_records > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: CDC records require DLQ or quarantine investigation
+          runbook: docs/runbooks/cdc-schema-migration.md
+
+      - alert: CdcNifiBackpressureHigh
+        expr: olist_cdc:nifi_queue_utilization_ratio > 0.7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: NiFi queue is above 70 percent of the object threshold
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcKafkaBacklogHigh
+        expr: olist_cdc:kafka_consumer_lag > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: NiFi Kafka consumer backlog exceeds the tuned local threshold
+          runbook: docs/runbooks/cdc-kafka-replay.md
+
+      - alert: CdcCommitToMartSloBreach
+        expr: olist_cdc:commit_to_mart_latency_p95_seconds > 300
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: CDC p95 commit-to-mart latency exceeds five minutes
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: CdcLatencyErrorBudgetBurn
+        expr: olist_cdc:latency_error_budget_burn_ratio_10m > 0.05
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: More than five percent of recent mart observations exceed the SLO
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: CdcIngestStalled
+        expr: time() - (olist_cdc_last_ingest_success_timestamp_seconds or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Source events are recent but warehouse ingest has not succeeded
+          runbook: docs/runbooks/cdc-warehouse-ingest.md
+
+      - alert: CdcTransformStalled
+        expr: time() - (olist_cdc_last_transform_success_timestamp_seconds or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Source events are recent but realtime transform has not succeeded
+          runbook: docs/runbooks/cdc-realtime-dbt.md
+
+      - alert: CdcTooManySmallFiles
+        expr: olist_cdc_files_last_hour > 100 or (olist_cdc_files_last_hour > 10 and olist_cdc_file_median_size_bytes < 1048576)
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: CDC object output is producing too many or too-small files
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: CdcAirflowDagFailure
+        expr: increase(airflow_dagrun_duration_seconds_count{status="failed"}[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: An Airflow DAG run failed
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: CdcDbtTransformFailure
+        expr: increase(olist_cdc_transform_failures_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: A realtime dbt transform failed
+          runbook: docs/runbooks/cdc-realtime-dbt.md
+
+      - alert: CdcMartStale
+        expr: time() - (max(olist_cdc_mart_build_timestamp_seconds) or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Realtime marts are stale while source events remain active
+          runbook: docs/runbooks/cdc-realtime-dbt.md
+
+      - alert: CdcContainerDiskPressure
+        expr: 1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Local host filesystem usage exceeds 85 percent
+          runbook: docs/runbooks/cdc-service-restart.md

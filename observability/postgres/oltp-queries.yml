@@ -1,0 +1,30 @@
+olist_cdc_replication_slot:
+  query: |
+    select slot_name,
+           coalesce(pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn), 0) as retained_wal_bytes,
+           case when active then 1 else 0 end as active
+    from pg_replication_slots
+    where slot_name = 'olist_cdc_slot'
+  metrics:
+    - slot_name:
+        usage: LABEL
+        description: PostgreSQL logical replication slot.
+    - retained_wal_bytes:
+        usage: GAUGE
+        description: WAL bytes retained behind the CDC slot restart LSN.
+    - active:
+        usage: GAUGE
+        description: Whether the CDC replication slot is active.
+
+olist_cdc_heartbeat:
+  query: |
+    select component_name,
+           extract(epoch from clock_timestamp() - observed_at) as age_seconds
+    from simulator_control.heartbeats
+  metrics:
+    - component_name:
+        usage: LABEL
+        description: Heartbeat component.
+    - age_seconds:
+        usage: GAUGE
+        description: Seconds since the latest source-side heartbeat.

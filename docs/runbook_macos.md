@@ -23,8 +23,8 @@ uv run pre-commit install
 If you do not use Homebrew, install `uv` with Astral's standalone installer and
 then rerun the remaining setup commands.
 
-`compose.yaml` already points at committed demo-only Docker secret files, so a
-local stack can start without a `.env` file. Copy `.env.example` to `.env` only
+`compose.yaml` points at committed development-only Docker secret files, so the
+local stack starts without a `.env` file. Copy `.env.example` to `.env` only
 when you want to override local config, point Compose at custom secret files,
 or configure the AWS/Redshift path.
 

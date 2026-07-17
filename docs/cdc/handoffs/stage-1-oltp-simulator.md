@@ -84,8 +84,9 @@ mapping. Do not add simulator-ownership columns to business tables. A stable
 synthetic ID prefix is allowed.
 
 Use dedicated roles for bootstrap/admin, simulator writes, and the later
-read/replication integration. Do not commit passwords. Phase 2 will add the
-final least-privilege logical-replication grants and publication/slot.
+read/replication integration. Stable committed development-only Docker secrets
+are the local default. Phase 2 will add the final least-privilege
+logical-replication grants and publication/slot.
 
 ## Simulator contract
 

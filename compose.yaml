@@ -71,6 +71,10 @@ services:
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/simple_auth_manager_passwords.json
+      AIRFLOW__METRICS__STATSD_ON: "${AIRFLOW_STATSD_ON:-false}"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+      AIRFLOW__METRICS__STATSD_PREFIX: airflow
       OLIST_PROJECT_ROOT: /opt/airflow/project
       OLIST_PYTHON_BIN: python
       OLIST_AIRFLOW_RETRIES: "${OLIST_AIRFLOW_RETRIES:-2}"
@@ -403,8 +407,53 @@ services:
       DATA_SOURCE_URI: oltp-postgres:5432/olist_oltp?sslmode=disable
       DATA_SOURCE_USER: olist_cdc_reader
       DATA_SOURCE_PASS_FILE: /run/secrets/oltp_cdc_reader_password
+      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/oltp-queries.yml
+    volumes:
+      - ./observability/postgres/oltp-queries.yml:/etc/postgres-exporter/oltp-queries.yml:ro
     secrets:
       - oltp_cdc_reader_password
+
+  postgres-exporter-warehouse:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.18.1
+    profiles: [observability]
+    container_name: olist-postgres-exporter-warehouse
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-olist_analytics}?sslmode=disable
+      DATA_SOURCE_USER: ${POSTGRES_USER:-olist}
+      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.29.0
+    profiles: [observability]
+    container_name: olist-statsd-exporter
+    restart: unless-stopped
+    command: ["--statsd.mapping-config=/etc/statsd/statsd-mapping.yml"]
+    volumes:
+      - ./observability/statsd/statsd-mapping.yml:/etc/statsd/statsd-mapping.yml:ro
+
+  node-exporter:
+    image: prom/node-exporter:v1.10.2
+    profiles: [observability]
+    container_name: olist-node-exporter
+    restart: unless-stopped
+    command: ["--path.rootfs=/host"]
+    volumes:
+      - /:/host:ro,rslave
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
+    profiles: [observability]
+    container_name: olist-cadvisor
+    restart: unless-stopped
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
 
   nifi-metrics-proxy:
     image: olist-nifi:2.10.0
@@ -501,6 +550,32 @@ services:
     depends_on:
       - prometheus
 
+  loki:
+    image: grafana/loki:3.6.5
+    profiles: [logs]
+    container_name: olist-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/loki.yml"]
+    ports:
+      - "${LOKI_HOST_PORT:-3100}:3100"
+    volumes:
+      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
+      - olist_loki_data:/loki
+
+  alloy:
+    image: grafana/alloy:v1.16.1
+    profiles: [logs]
+    container_name: olist-alloy
+    restart: unless-stopped
+    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - olist_alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_started
+
   # Phase 0 profile marker. Later phases attach real services to the named
   # profiles. The marker makes every profile selectable and testable now while
   # keeping the default batch stack unchanged.
@@ -525,6 +600,8 @@ volumes:
   olist_prometheus_data:
   olist_alertmanager_data:
   olist_grafana_data:
+  olist_loki_data:
+  olist_alloy_data:
 
 secrets:
   postgres_password:

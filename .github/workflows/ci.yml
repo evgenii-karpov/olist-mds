@@ -124,6 +124,9 @@ jobs:
       - name: Validate realtime configuration scaffolding
         run: uv run python scripts/ci/validate_realtime_configuration.py
 
+      - name: Validate Phase 6 observability and recovery configuration
+        run: uv run python scripts/ci/validate_stage6_configuration.py
+
       - name: Validate NiFi flow and CDC schemas
         run: uv run python scripts/ci/validate_nifi_flow.py
 
@@ -180,8 +183,8 @@ jobs:
         if: always()
         run: docker compose down -v
 
-  oltp-simulator-integration:
-    name: Stage 1 OLTP simulator integration
+  cdc-stage1-oltp-simulator:
+    name: "CDC implementation — Stage 1: OLTP simulator"
     runs-on: ubuntu-latest
 
     steps:
@@ -216,8 +219,8 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
-  stage2-cdc-integration:
-    name: Stage 2 Kafka, Apicurio, and Debezium integration
+  cdc-stage2-kafka-debezium:
+    name: "CDC implementation — Stage 2: Kafka, Apicurio, and Debezium"
     runs-on: ubuntu-latest
 
     steps:
@@ -294,8 +297,8 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
-  stage4-warehouse-integration:
-    name: Stage 4 idempotent warehouse integration
+  cdc-stage4-warehouse-ingest:
+    name: "CDC implementation — Stage 4: idempotent warehouse ingestion"
     runs-on: ubuntu-latest
 
     steps:
@@ -332,8 +335,8 @@ jobs:
         if: always()
         run: docker compose --profile realtime-core down -v
 
-  stage5-realtime-dbt-integration:
-    name: Stage 5 realtime dbt semantics
+  cdc-stage5-realtime-dbt:
+    name: "CDC implementation — Stage 5: realtime dbt semantics"
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -379,8 +382,8 @@ jobs:
       - name: Verify source ordering, history, impact isolation, and hard deletes
         run: uv run python scripts/ci/check_stage5_cdc_integration.py
 
-  fixture-integration:
-    name: Small fixture integration and replay
+  batch-fixture-idempotency:
+    name: "Batch pipeline: small-fixture idempotency and replay"
     runs-on: ubuntu-latest
     env:
       OLIST_AIRFLOW_RETRIES: "0"

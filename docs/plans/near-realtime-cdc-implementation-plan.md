@@ -5,7 +5,7 @@
 | Field             | Value                                                             |
 | ----------------- | ----------------------------------------------------------------- |
 | Status            | Approved implementation plan                                      |
-| Last updated      | 2026-07-16                                                        |
+| Last updated      | 2026-07-17                                                        |
 | Repository        | `olist-mds`                                                       |
 | Primary audience  | AI implementation agents and maintainers                          |
 | Delivery strategy | Complete the local path first, then build an independent AWS path |
@@ -168,7 +168,7 @@ orchestrates finite, idempotent micro-batches after NiFi has closed object files
 | Metrics          | Prometheus, Alertmanager, Grafana               | CloudWatch plus Grafana Cloud                        |
 | Collection agent | Grafana Alloy where needed                      | Alloy on the NiFi EC2 host                           |
 | Logs             | Loki after the metrics milestone                | Grafana Cloud Logs and selected CloudWatch logs      |
-| Secrets          | Docker secrets and ignored local files          | AWS Secrets Manager and IAM roles                    |
+| Secrets          | Stable committed dev-only Docker secret files   | AWS Secrets Manager and IAM roles                    |
 
 ### 4.3 Latency budget
 
@@ -843,7 +843,8 @@ boundaries.
 
 ### 12.1 Local
 
-- Use Docker secrets or ignored environment files; commit only examples.
+- Use stable committed development-only Docker secret files for the local lab;
+  allow ignored overrides for custom environments.
 - Use a dedicated PostgreSQL replication account and separate warehouse account.
 - Enable Kafka authentication/TLS and NiFi HTTPS during the hardening phase.
 - Protect NiFi metrics and administration APIs with separate least-privilege
@@ -1143,9 +1144,34 @@ does not claim the p95 SLO from the bounded integration fixture.
 - Add Loki and Alloy structured log collection.
 - Add disk, WAL, lag, small-file, freshness, and error-budget monitoring.
 - Write and exercise runbooks for service restart, Kafka replay, object replay,
-  rebuild from landing, connector resnapshot, schema migration, and secret
-  rotation.
+  rebuild from landing, connector resnapshot, and schema migration.
 - Add failure-injection scenarios to nightly/manual CI.
+
+**Scope amendment, 2026-07-17.**
+
+**Context:** Enabling Kafka TLS/authentication is a coordinated protocol
+migration across the broker, Connect, Debezium schema history, NiFi, topic
+bootstrap, exporters, and integration clients. Treating it as an isolated
+broker toggle would leave a broken or misleadingly partial security boundary.
+Grafana dashboards, logs, alerts, and recovery tooling are the immediate
+local-operability priority.
+
+**Decision:** Phase 6 delivers the complete version-controlled observability
+surface now. Kafka TLS/authentication and NiFi managed least-privilege metrics
+authorization are deferred as one bounded local security migration before the
+AWS phase is accepted. NiFi remains HTTPS-only, and the local stack must not be
+exposed beyond the developer workstation.
+
+**Consequences:** The local lab is operable but does not claim
+transport-security completion. Phase 7 handoff treats the local security
+migration, controlled alert exercises, recovery drills, and formal
+reference/burst benchmark as explicit open gates. No AWS design may copy the
+local plaintext Kafka listener or single-user NiFi authorization model.
+
+**Migration impact:** All Kafka clients must move together to authenticated TLS
+with generated PKI and per-service identities; NiFi bootstrap and metrics
+identities must move to a managed authorizer. Existing event, ordering,
+manifest, and warehouse contracts are unchanged.
 
 **Verification**
 
@@ -1157,8 +1183,14 @@ does not claim the p95 SLO from the bounded integration fixture.
 
 **Exit criteria**
 
-- The local stack has tested recovery procedures, actionable alerts, and no
-  plaintext committed secrets.
+- The local stack has tested recovery procedures and actionable alerts.
+
+Implementation status on 2026-07-17: dashboards, metrics, recording/alert
+rules, Loki/Alloy, recovery/benchmark helpers, and runbooks are implemented.
+Loki/Alloy runtime log correlation passed a local smoke test. Kafka/NiFi
+security migration, controlled fire-and-resolve evidence for every alert,
+recovery drills, and the reference/burst/soak reports remain open; therefore
+the full Phase 6 exit criterion and 5-minute SLO are not yet claimed.
 
 ### Phase 7: Independent AWS implementation
 
@@ -1327,9 +1359,9 @@ separation of responsibilities must remain clear:
 - `dbt/olist_analytics/models/realtime/`: realtime dbt sources and models;
 - `airflow/dags/`: thin DAG definitions backed by shared orchestration modules.
 
-Do not place generated secrets, Kafka data, NiFi repositories, MinIO objects,
-Terraform state, rendered reports, or simulator runtime state under version
-control.
+Do not place non-local credentials, Kafka data, NiFi repositories, MinIO
+objects, Terraform state, rendered reports, or simulator runtime state under
+version control.
 
 ## 19. Agent Execution Rules
 
@@ -1344,8 +1376,9 @@ control.
 7. Do not start the next phase while an exit criterion is unmet.
 8. Do not claim exactly-once delivery, production HA, or a 5-minute SLO without
    the defined evidence.
-9. Never expose secret values in code, configuration examples, logs, test output,
-   Terraform state outputs, or documentation.
+9. Never expose non-local secret values in code, configuration examples,
+   Terraform state outputs, or documentation; never print any resolved secret
+   value in logs or test output.
 10. When local and AWS adapters differ, preserve the shared logical event,
     audit, dbt, and Airflow contracts.
 

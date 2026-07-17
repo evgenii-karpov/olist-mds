@@ -1,0 +1,13 @@
+mappings:
+  - match: "airflow.dagrun.duration.success.*"
+    name: airflow_dagrun_duration_seconds
+    labels:
+      status: success
+  - match: "airflow.dagrun.duration.failed.*"
+    name: airflow_dagrun_duration_seconds
+    labels:
+      status: failed
+  - match: "airflow.dagrun.*.first_task_scheduling_delay"
+    name: airflow_dagrun_first_task_scheduling_delay_seconds
+  - match: "airflow.*"
+    name: airflow_$1

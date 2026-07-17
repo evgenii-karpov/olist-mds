@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []}, "editable": false, "schemaVersion": 41,
+  "tags": ["olist", "cdc", "phase-6", "airflow", "dbt"],
+  "templating": {"list": []}, "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser", "title": "Olist CDC — Airflow, dbt, and Warehouse",
+  "uid": "olist-cdc-airflow", "version": 1,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Pipeline exporter", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_cdc_pipeline_up"}]},
+    {"id": 2, "type": "stat", "title": "Last ingest age", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "time() - olist_cdc_last_ingest_success_timestamp_seconds"}]},
+    {"id": 3, "type": "stat", "title": "Last transform age", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "time() - olist_cdc_last_transform_success_timestamp_seconds"}]},
+    {"id": 4, "type": "stat", "title": "Transform failures", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_cdc_transform_failures_total"}]},
+    {"id": 5, "type": "timeseries", "title": "Ingest and transform duration", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "olist_cdc_last_ingest_duration_seconds", "legendFormat": "ingest"}, {"refId": "B", "expr": "olist_cdc_last_transform_duration_seconds", "legendFormat": "transform"}]},
+    {"id": 6, "type": "timeseries", "title": "Mart build age", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "time() - olist_cdc_mart_build_timestamp_seconds", "legendFormat": "{{table}}"}]}
+  ]
+}

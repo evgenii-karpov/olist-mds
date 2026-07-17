@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []}, "editable": false, "schemaVersion": 41,
+  "tags": ["olist", "cdc", "phase-6", "kafka"],
+  "templating": {"list": []}, "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser", "title": "Olist CDC — Kafka and Connect",
+  "uid": "olist-cdc-kafka", "version": 1,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "Kafka exporter", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "up{job=\"kafka\"}"}]},
+    {"id": 2, "type": "stat", "title": "Connect REST", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_connect_rest_up"}]},
+    {"id": 3, "type": "stat", "title": "Connect tasks", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_connect_task_count"}]},
+    {"id": 4, "type": "stat", "title": "Total lag", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_cdc:kafka_consumer_lag"}]},
+    {"id": 5, "type": "timeseries", "title": "Consumer lag by topic/partition", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "targets": [{"refId": "A", "expr": "kafka_consumergroup_lag{consumergroup=\"olist-nifi-cdc-v1\"}", "legendFormat": "{{topic}} / p{{partition}}"}]},
+    {"id": 6, "type": "timeseries", "title": "Partition offsets", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "targets": [{"refId": "A", "expr": "kafka_topic_partition_current_offset{topic=~\"olist_cdc.*\"}", "legendFormat": "{{topic}} / p{{partition}}"}]}
+  ]
+}

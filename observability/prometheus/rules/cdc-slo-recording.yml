@@ -1,0 +1,12 @@
+groups:
+  - name: cdc-slo-recording
+    interval: 30s
+    rules:
+      - record: olist_cdc:commit_to_mart_latency_p95_seconds
+        expr: histogram_quantile(0.95, sum by (le) (olist_cdc_event_commit_to_mart_latency_seconds_bucket))
+      - record: olist_cdc:latency_error_budget_burn_ratio_10m
+        expr: 1 - (sum(olist_cdc_event_commit_to_mart_latency_seconds_bucket{le="300"}) / sum(olist_cdc_event_commit_to_mart_latency_seconds_count))
+      - record: olist_cdc:kafka_consumer_lag
+        expr: sum(kafka_consumergroup_lag{consumergroup="olist-nifi-cdc-v1"})
+      - record: olist_cdc:nifi_queue_utilization_ratio
+        expr: sum(nifi_amount_items_queued) / 10000

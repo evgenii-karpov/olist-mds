@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []}, "editable": false, "schemaVersion": 41,
+  "tags": ["olist", "cdc", "phase-6", "slo"],
+  "templating": {"list": []}, "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser", "title": "Olist CDC — SLO and Error Budget",
+  "uid": "olist-cdc-slo", "version": 1,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "p95 commit-to-mart", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green"}, {"color": "red", "value": 300}]}}}, "targets": [{"refId": "A", "expr": "olist_cdc:commit_to_mart_latency_p95_seconds"}]},
+    {"id": 2, "type": "gauge", "title": "10m error-budget burn", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}, "targets": [{"refId": "A", "expr": "olist_cdc:latency_error_budget_burn_ratio_10m"}]},
+    {"id": 3, "type": "stat", "title": "Offset gaps", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "sum(olist_cdc_offset_gaps)"}]},
+    {"id": 4, "type": "stat", "title": "Open DLQ", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_cdc_dlq_open_records"}]},
+    {"id": 5, "type": "timeseries", "title": "Mart freshness latency", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "olist_cdc_mart_freshness_latency_seconds", "legendFormat": "{{table}}"}]},
+    {"id": 6, "type": "timeseries", "title": "Raw freshness", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "olist_cdc_raw_freshness_seconds", "legendFormat": "{{table}}"}]}
+  ]
+}

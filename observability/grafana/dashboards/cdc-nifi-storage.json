@@ -1,0 +1,15 @@
+{
+  "annotations": {"list": []}, "editable": false, "schemaVersion": 41,
+  "tags": ["olist", "cdc", "phase-6", "nifi", "minio"],
+  "templating": {"list": []}, "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser", "title": "Olist CDC — NiFi and Object Storage",
+  "uid": "olist-cdc-nifi", "version": 1,
+  "panels": [
+    {"id": 1, "type": "stat", "title": "NiFi metrics", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_nifi_metrics_proxy_up"}]},
+    {"id": 2, "type": "stat", "title": "MinIO", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "up{job=\"minio\"}"}]},
+    {"id": 3, "type": "stat", "title": "Queue utilization", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "percentunit"}}, "targets": [{"refId": "A", "expr": "olist_cdc:nifi_queue_utilization_ratio"}]},
+    {"id": 4, "type": "stat", "title": "Files last hour", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "sum(olist_cdc_files_last_hour)"}]},
+    {"id": 5, "type": "timeseries", "title": "Queued FlowFiles", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "targets": [{"refId": "A", "expr": "sum(nifi_amount_items_queued)", "legendFormat": "queued"}]},
+    {"id": 6, "type": "timeseries", "title": "Median object size", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "bytes"}}, "targets": [{"refId": "A", "expr": "olist_cdc_file_median_size_bytes", "legendFormat": "{{table}}"}]}
+  ]
+}

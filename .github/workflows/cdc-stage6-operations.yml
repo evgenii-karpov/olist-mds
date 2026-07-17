@@ -1,0 +1,86 @@
+name: CDC implementation — Stage 6 operational drills
+
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Bounded service outage to exercise
+        required: true
+        default: connect
+        type: choice
+        options:
+          - connect
+          - nifi
+          - minio
+
+jobs:
+  failure-injection:
+    name: "CDC implementation — Stage 6: alert fire and recovery"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      AIRFLOW_STATSD_ON: "true"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+
+      - name: Build local runtime images
+        run: >-
+          docker compose --profile realtime-core build
+          airflow kafka-connect minio nifi
+
+      - name: Start continuous and telemetry stack
+        run: >-
+          docker compose --profile realtime-core --profile observability
+          --profile logs up -d --wait
+
+      - name: Seed source and register Debezium
+        run: |
+          uv run python scripts/cdc/stage2_admin.py configure-registry
+          uv run python -m scripts.simulation seed \
+            --archive tests/fixtures/olist_small/olist_small.zip \
+            --seed 20260717 \
+            --password-file docker/secrets/dev/postgres_password.txt
+          uv run python scripts/cdc/stage2_admin.py register-connector \
+            --password-file docker/secrets/dev/postgres_password.txt
+
+      - name: Exercise firing and resolved transition
+        run: >-
+          uv run python scripts/cdc/failure_injection.py
+          --scenario "${{ inputs.scenario || 'connect' }}"
+          --execute
+          --report data/reports/stage6-${{ inputs.scenario || 'connect' }}.json
+
+      - name: Upload drill evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage6-operational-drill
+          path: data/reports/*.json
+          if-no-files-found: warn
+
+      - name: Dump bounded diagnostics
+        if: failure()
+        run: >-
+          docker compose --profile realtime-core --profile observability
+          --profile logs logs --no-color --tail=500
+
+      - name: Clean up Compose resources
+        if: always()
+        run: >-
+          docker compose --profile realtime-core --profile observability
+          --profile logs down -v

@@ -1,8 +1,8 @@
 # CDC warehouse ingest runbook
 
 Run commands from the repository root. PowerShell examples use the committed
-development secret files; replace them with environment-specific secret mounts
-outside local development.
+development-only Docker secret files; replace them with environment-specific
+secret mounts outside local development.
 
 ## Bootstrap and start
 

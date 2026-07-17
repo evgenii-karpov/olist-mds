@@ -17,6 +17,8 @@ import psycopg2
 from psycopg2 import sql
 from scripts.cdc.warehouse_ingest import BUSINESS_COLUMNS, read_secret
 
+LATENCY_BUCKETS = (15, 30, 60, 120, 180, 300, 600, 1800)
+
 
 def labels(**values: str) -> str:
     rendered = ",".join(
@@ -24,6 +26,68 @@ def labels(**values: str) -> str:
         for key, value in values.items()
     )
     return "{" + rendered + "}"
+
+
+def render_event_latency_histogram(cursor) -> list[str]:
+    """Render a rolling event-level histogram from immutable transform membership."""
+    bucket_counts = {bucket: 0 for bucket in LATENCY_BUCKETS}
+    total_count = 0
+    total_sum = 0.0
+    for table in BUSINESS_COLUMNS:
+        aggregates: list[sql.Composable] = [
+            sql.SQL("count(*) filter (where latency_seconds <= {})").format(
+                sql.Literal(bucket)
+            )
+            for bucket in LATENCY_BUCKETS
+        ]
+        aggregates.extend(
+            [
+                sql.SQL("count(*)"),
+                sql.SQL("coalesce(sum(latency_seconds), 0)"),
+            ]
+        )
+        cursor.execute(
+            sql.SQL(
+                """
+                select {} from (
+                    select extract(epoch from min(t.finished_at) - r._source_ts)
+                           as latency_seconds
+                    from raw_cdc.{} r
+                    join cdc_audit.cdc_files f
+                      on f.object_uri = r._source_object_uri
+                    join cdc_audit.cdc_transform_run_files rf
+                      on rf.manifest_uri = f.manifest_uri
+                    join cdc_audit.cdc_transform_runs t
+                      on t.transform_run_id = rf.transform_run_id
+                     and t.status = 'SUCCEEDED'
+                    where t.finished_at >= clock_timestamp() - interval '10 minutes'
+                      and r._source_ts is not null
+                    group by r._event_id, r._source_ts
+                ) event_latency
+                """
+            ).format(sql.SQL(", ").join(aggregates), sql.Identifier(table))
+        )
+        row = cursor.fetchone()
+        for index, bucket in enumerate(LATENCY_BUCKETS):
+            bucket_counts[bucket] += int(row[index])
+        total_count += int(row[-2])
+        total_sum += float(row[-1])
+    result = [
+        "olist_cdc_event_commit_to_mart_latency_seconds_bucket"
+        f"{labels(environment='local', le=str(bucket))} {bucket_counts[bucket]}"
+        for bucket in LATENCY_BUCKETS
+    ]
+    result.extend(
+        [
+            "olist_cdc_event_commit_to_mart_latency_seconds_bucket"
+            f"{labels(environment='local', le='+Inf')} {total_count}",
+            "olist_cdc_event_commit_to_mart_latency_seconds_count"
+            f"{labels(environment='local')} {total_count}",
+            "olist_cdc_event_commit_to_mart_latency_seconds_sum"
+            f"{labels(environment='local')} {total_sum}",
+        ]
+    )
+    return result
 
 
 def render_metrics(connection_factory) -> bytes:
@@ -159,6 +223,115 @@ def render_metrics(connection_factory) -> bytes:
                     """
                 )
                 lines.append(f"olist_cdc_ingest_failures_total {cursor.fetchone()[0]}")
+                cursor.execute(
+                    """
+                    select extract(epoch from max(finished_at - started_at))
+                    from cdc_audit.cdc_ingest_runs
+                    where status = 'SUCCEEDED'
+                      and finished_at = (
+                        select max(finished_at)
+                        from cdc_audit.cdc_ingest_runs
+                        where status = 'SUCCEEDED'
+                      )
+                    """
+                )
+                ingest_duration = cursor.fetchone()[0]
+                if ingest_duration is not None:
+                    lines.append(
+                        f"olist_cdc_last_ingest_duration_seconds {ingest_duration}"
+                    )
+                cursor.execute(
+                    """
+                    select source_table, count(*),
+                           coalesce(sum(object_size_bytes), 0),
+                           coalesce(percentile_cont(0.5) within group (
+                             order by object_size_bytes
+                           ), 0)
+                    from cdc_audit.cdc_files
+                    where closed_at >= clock_timestamp() - interval '1 hour'
+                    group by source_table
+                    """
+                )
+                for table, count, total_size, median_size in cursor.fetchall():
+                    metric_labels = labels(environment="local", table=str(table))
+                    lines.append(f"olist_cdc_files_last_hour{metric_labels} {count}")
+                    lines.append(
+                        f"olist_cdc_file_bytes_last_hour{metric_labels} {total_size}"
+                    )
+                    lines.append(
+                        f"olist_cdc_file_median_size_bytes{metric_labels} {median_size}"
+                    )
+                cursor.execute(
+                    """
+                    select count(*) from cdc_audit.cdc_dead_letters
+                    where resolution_status = 'OPEN'
+                    """
+                )
+                lines.append(f"olist_cdc_dlq_open_records {cursor.fetchone()[0]}")
+                cursor.execute(
+                    """
+                    select coalesce(sum(rejected_rows), 0)
+                    from cdc_audit.cdc_reconciliation
+                    where created_at >= clock_timestamp() - interval '10 minutes'
+                    """
+                )
+                lines.append(
+                    f"olist_cdc_quarantine_recent_records {cursor.fetchone()[0]}"
+                )
+                cursor.execute(
+                    """
+                    select extract(epoch from max(finished_at))
+                    from cdc_audit.cdc_transform_runs where status = 'SUCCEEDED'
+                    """
+                )
+                transform_success = cursor.fetchone()[0]
+                if transform_success is not None:
+                    lines.append(
+                        "olist_cdc_last_transform_success_timestamp_seconds "
+                        f"{transform_success}"
+                    )
+                cursor.execute(
+                    """
+                    select count(*) from cdc_audit.cdc_transform_runs
+                    where status = 'FAILED'
+                    """
+                )
+                lines.append(
+                    f"olist_cdc_transform_failures_total {cursor.fetchone()[0]}"
+                )
+                cursor.execute(
+                    """
+                    select extract(epoch from finished_at - started_at)
+                    from cdc_audit.cdc_transform_runs
+                    where status = 'SUCCEEDED'
+                    order by finished_at desc limit 1
+                    """
+                )
+                transform_duration = cursor.fetchone()
+                if transform_duration and transform_duration[0] is not None:
+                    lines.append(
+                        "olist_cdc_last_transform_duration_seconds "
+                        f"{transform_duration[0]}"
+                    )
+                cursor.execute(
+                    """
+                    select model_name, extract(epoch from build_time),
+                           latency_seconds
+                    from cdc_audit.cdc_mart_freshness
+                    """
+                )
+                for model, build_time, latency in cursor.fetchall():
+                    metric_labels = labels(environment="local", table=str(model))
+                    lines.append(
+                        f"olist_cdc_mart_build_timestamp_seconds{metric_labels} "
+                        f"{build_time}"
+                    )
+                    if latency is not None:
+                        lines.append(
+                            f"olist_cdc_mart_freshness_latency_seconds{metric_labels} "
+                            f"{latency}"
+                        )
+                lines.extend(render_event_latency_histogram(cursor))
     except Exception:
         lines[0] = "olist_cdc_pipeline_up 0"
     return ("\n".join(lines) + "\n").encode()

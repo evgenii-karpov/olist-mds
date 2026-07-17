@@ -108,7 +108,7 @@ profile combinations.
 - Registry-side compatibility remains mandatory in Phase 2 because the local
   checker is deliberately stricter and is not a substitute for Apicurio's wire
   integration.
-- Existing lint, unit, dbt, DAG-import, and fixture-integration gates remain in
+- Existing lint, unit, dbt, DAG-import, and batch-fixture-idempotency gates remain in
   place.
 
 ## Phase 0 verification record

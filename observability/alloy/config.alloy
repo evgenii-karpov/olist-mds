@@ -1,0 +1,41 @@
+logging {
+	level  = "info"
+	format = "json"
+}
+
+discovery.docker "local" {
+	host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "local_containers" {
+	targets = discovery.docker.local.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_name"]
+		regex         = "/(.*)"
+		target_label  = "service"
+		replacement   = "$1"
+	}
+
+	rule {
+		target_label = "environment"
+		replacement  = "local"
+	}
+}
+
+loki.source.docker "local" {
+	host       = "unix:///var/run/docker.sock"
+	targets    = discovery.relabel.local_containers.output
+	forward_to = [loki.process.local.receiver]
+}
+
+loki.process "local" {
+	stage.docker { }
+	forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}
