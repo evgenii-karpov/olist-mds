@@ -30,7 +30,8 @@ class BatchCdcParityIntegrationTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertIn('cron: "0 2 * * *"', workflow)
+        self.assertNotIn("schedule:", workflow)
+        self.assertNotIn("cron:", workflow)
         self.assertIn("--timeout-seconds 1200", workflow)
         self.assertIn("--poll-seconds 2", workflow)
         self.assertIn("DEFAULT_TIMEOUT_SECONDS = 1200", runner)
