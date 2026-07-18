@@ -66,8 +66,10 @@ Build and start:
 
 ```text
 docker compose --profile realtime-core build minio nifi
-docker compose --profile realtime-core up -d --wait \
-  minio minio-init nifi nifi-bootstrap
+docker compose --profile realtime-core up -d --wait minio
+docker compose --profile realtime-core run --rm --no-deps minio-init
+docker compose --profile realtime-core up -d --wait nifi
+docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 ```
 
 For a deliberate full Kafka replay, stop NiFi, reset only

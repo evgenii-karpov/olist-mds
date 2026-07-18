@@ -20,7 +20,7 @@ runtime acceptance gates remain open under the approved plan amendment.
   alert fire/resolution evidence under ignored `data/reports/`.
 - The benchmark helper encodes the approved 5/s reference, 20/s burst, and
   four-hour soak profiles and produces machine-readable latency/capacity data.
-- The dedicated nightly/manual batch-to-realtime parity workflow and bounded
+- The dedicated manual batch-to-realtime parity workflow and bounded
   report runner now exercise the same small archive through the real batch DAG
   and the Debezium/Kafka/NiFi/MinIO/Airflow realtime path. Its exact claim is
   initial-snapshot business parity for the eight captured source projections,

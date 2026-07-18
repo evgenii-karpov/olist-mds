@@ -1,8 +1,6 @@
 name: CDC implementation — Stage 6 operational drills
 
 on:
-  schedule:
-    - cron: "17 2 * * *"
   workflow_dispatch:
     inputs:
       scenario:
@@ -44,9 +42,20 @@ jobs:
           airflow kafka-connect minio nifi
 
       - name: Start continuous and telemetry stack
-        run: >-
-          docker compose --profile realtime-core --profile observability
-          --profile logs up -d --wait
+        run: |
+          docker compose --profile realtime-core --profile observability --profile logs \
+            up -d --wait \
+            postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry \
+            kafka-connect minio nifi \
+            kafka-exporter postgres-exporter-oltp postgres-exporter-warehouse \
+            statsd-exporter node-exporter cadvisor nifi-metrics-proxy \
+            cdc-component-exporter cdc-pipeline-exporter prometheus alertmanager \
+            grafana loki alloy
+
+      - name: Run realtime bootstrap jobs
+        run: |
+          docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
+          docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 
       - name: Seed source and register Debezium
         run: |

@@ -2,15 +2,15 @@
 
 ## Document Control
 
-| Field            | Value                                                                  |
-| ---------------- | ---------------------------------------------------------------------- |
-| Status           | Implemented                                           |
-| Last updated     | 2026-07-17                                                             |
-| Repository       | `olist-mds`                                                            |
-| Primary audience | AI implementation agents and maintainers                               |
-| Parent plan      | `docs/plans/near-realtime-cdc-implementation-plan.md`                  |
-| Test dataset     | `tests/fixtures/olist_small/olist_small.zip`                           |
-| CI strategy      | Full test nightly and on demand; fast contract checks on pull requests |
+| Field            | Value                                                      |
+| ---------------- | ---------------------------------------------------------- |
+| Status           | Implemented                                                |
+| Last updated     | 2026-07-17                                                 |
+| Repository       | `olist-mds`                                                |
+| Primary audience | AI implementation agents and maintainers                   |
+| Parent plan      | `docs/plans/near-realtime-cdc-implementation-plan.md`      |
+| Test dataset     | `tests/fixtures/olist_small/olist_small.zip`               |
+| CI strategy      | Full test on demand; fast contract checks on pull requests |
 
 ## 1. Purpose
 
@@ -117,10 +117,7 @@ integration tests.
 
 ### 3.2 CI cadence
 
-The complete test must run:
-
-- nightly on GitHub Actions; and
-- through `workflow_dispatch`.
+The complete test must run on demand through `workflow_dispatch`.
 
 It must not be a required pull-request gate. Starting the full Compose stack,
 waiting for the Debezium snapshot, allowing NiFi bins to close, and running
@@ -430,7 +427,6 @@ file contents, or unbounded component logs.
 Add a dedicated GitHub Actions workflow, or a clearly isolated job in the
 existing operational workflow, with:
 
-- nightly schedule;
 - `workflow_dispatch`;
 - job timeout of 30 minutes;
 - `UV_CACHE_DIR` in the workspace;
@@ -444,7 +440,7 @@ The job must:
 3. prepare writable mounted Airflow/dbt/data directories;
 4. build `airflow`, `kafka-connect`, `minio`, and `nifi`;
 5. copy the example local dbt profile and run `dbt deps`;
-6. start a clean stack with the `batch` and `realtime-core` profiles;
+6. start a clean default batch stack with the `realtime-core` profile;
 7. run the parity integration orchestrator;
 8. upload the JSON report on success or failure;
 9. print bounded logs for Airflow, Connect, NiFi, MinIO, and both PostgreSQL
@@ -510,14 +506,14 @@ Implementation is complete only when all of the following are true:
   publication.
 - Existing batch fixture, Stage 2 through Stage 6, Airflow import, and selector
   boundary tests continue to pass.
-- The nightly/manual workflow always publishes a bounded report and cleans up
+- The manual workflow always publishes a bounded report and cleans up
   disposable volumes.
 
 ## 10. Risks and Mitigations
 
 | Risk                                                        | Mitigation                                                                                                 |
 | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Full-stack test is slow or timing-sensitive                 | Keep it nightly/manual and poll observable state with bounded deadlines                                    |
+| Full-stack test is slow or timing-sensitive                 | Keep it manual and poll observable state with bounded deadlines                                            |
 | NiFi small bins are not closed when ingest starts           | Wait for normalized and coverage manifests, not elapsed time                                               |
 | Airflow scheduled timing makes the test nondeterministic    | Trigger ingest explicitly after manifests close, while preserving the Asset-triggered transform            |
 | Simulator workload produces data absent from batch          | Use `seed` only; exclude `run` and `replay`                                                                |
@@ -540,7 +536,7 @@ Implement in this sequence:
 6. Extract reusable batch/Airflow polling helpers without changing existing
    fixture-test defaults.
 7. Implement the full-stack parity orchestrator and JSON report.
-8. Add the nightly/manual workflow and failure artifacts.
+8. Add the manual workflow and failure artifacts.
 9. Update the local CDC validation runbook and Phase 6 implementation record
    with the new command and the exact claim it proves.
 10. Run all existing bounded checks plus one clean full-stack parity execution

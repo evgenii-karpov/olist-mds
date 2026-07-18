@@ -9,7 +9,9 @@ secret mounts outside local development.
 ```powershell
 docker compose build airflow
 docker compose --profile realtime-core up -d --wait `
-  postgres minio minio-init cdc-warehouse-init airflow
+  postgres minio airflow
+docker compose --profile realtime-core run --rm --no-deps minio-init
+docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
 ```
 
 Unpause `olist_cdc_ingest_local` only after NiFi is producing normalized and

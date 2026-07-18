@@ -922,7 +922,7 @@ or handoff.
 - Validate Airflow 3.2.1/Python 3.12 against existing DAGs, scripts, dbt, and CI.
 - Pin Kafka, Debezium, NiFi, registry, exporter, and telemetry images by exact
   version or digest; never use `latest`.
-- Add Compose profiles for batch, realtime core, observability, and logs without
+- Add Compose profiles for realtime core, observability, and logs without
   changing the default batch start behavior.
 - Establish directories for streaming assets, simulator code, observability,
   realtime SQL, and later AWS Terraform.

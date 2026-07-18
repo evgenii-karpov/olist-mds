@@ -13,6 +13,12 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+TRANSIENT_PROCESSOR_VALIDATION_MARKERS = (
+    "initializing runtime environment",
+    "loading processor code",
+    "downloading third-party dependencies",
+)
+
 
 class NifiClient:
     def __init__(self, base_url: str, username: str, password: str) -> None:
@@ -338,7 +344,11 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
             if errors:
                 invalid[name] = errors
                 initializing = initializing or all(
-                    "Initializing runtime environment" in error for error in errors
+                    any(
+                        marker in error.lower()
+                        for marker in TRANSIENT_PROCESSOR_VALIDATION_MARKERS
+                    )
+                    for error in errors
                 )
         if not invalid:
             break

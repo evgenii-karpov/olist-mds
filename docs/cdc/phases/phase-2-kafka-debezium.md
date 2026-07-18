@@ -39,7 +39,10 @@ Start and configure a clean local stack:
 
 ```text
 docker compose --profile realtime-core up -d --wait \
-  oltp-postgres kafka kafka-topics apicurio-registry
+  oltp-postgres kafka
+docker compose --profile realtime-core run --rm --no-deps kafka-topics
+docker compose --profile realtime-core up -d --wait \
+  apicurio-registry
 python scripts/cdc/stage2_admin.py configure-registry
 python -m scripts.simulation seed \
   --archive tests/fixtures/olist_small/olist_small.zip \

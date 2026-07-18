@@ -576,15 +576,6 @@ services:
       loki:
         condition: service_started
 
-  # Phase 0 profile marker. Later phases attach real services to the named
-  # profiles. The marker makes every profile selectable and testable now while
-  # keeping the default batch stack unchanged.
-  cdc-profile-contract:
-    image: alpine:3.23.3
-    profiles: [batch, realtime-core, observability, logs]
-    command: ["/bin/true"]
-    restart: "no"
-
 volumes:
   olist_postgres_data:
   airflow_postgres_data:

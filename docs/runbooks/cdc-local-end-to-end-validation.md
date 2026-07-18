@@ -59,7 +59,16 @@ docker compose `
   --profile realtime-core `
   --profile observability `
   --profile logs `
-  up -d --wait
+  up -d --wait `
+  postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry `
+  kafka-connect minio nifi `
+  kafka-exporter postgres-exporter-oltp postgres-exporter-warehouse `
+  statsd-exporter node-exporter cadvisor nifi-metrics-proxy `
+  cdc-component-exporter cdc-pipeline-exporter prometheus alertmanager `
+  grafana loki alloy
+
+docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
+docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 ```
 
 Inspect all services, including completed bootstrap containers:
@@ -78,7 +87,6 @@ Expected state:
   Grafana, Loki, and exporters are `Up` or `healthy`;
 - `kafka-topics`, `minio-init`, `nifi-bootstrap`, and `cdc-warehouse-init`
   completed with exit code `0`;
-- `cdc-profile-contract` may also be `Exited (0)`.
 
 Inspect bootstrap logs:
 
@@ -468,13 +476,17 @@ ingest/transform runs and data in `raw_cdc`, `realtime_core`, and
 
 ## 17. Batch-to-realtime parity integration
 
-For the defining end-to-end evidence, use the disposable batch plus
+For the defining end-to-end evidence, use the disposable default batch plus
 `realtime-core` stack and the exact committed fixture on both branches:
 
 ```powershell
-docker compose --profile batch --profile realtime-core down -v --remove-orphans
+docker compose --profile realtime-core down -v --remove-orphans
 docker compose --profile realtime-core build airflow kafka-connect minio nifi
-docker compose --profile batch --profile realtime-core up -d --wait
+docker compose --profile realtime-core up -d --wait `
+  postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry `
+  kafka-connect minio nifi
+docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
+docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 docker compose exec -T airflow `
   python scripts/ci/check_batch_cdc_parity_integration.py `
   --archive tests/fixtures/olist_small/olist_small.zip `
@@ -483,7 +495,7 @@ docker compose exec -T airflow `
   --poll-seconds 2 `
   --report data/reports/batch-cdc-parity.json
 Get-Content data/reports/batch-cdc-parity.json
-docker compose --profile batch --profile realtime-core down -v --remove-orphans
+docker compose --profile realtime-core down -v --remove-orphans
 ```
 
 The command runs the real batch DAG and the real Debezium snapshot through
@@ -491,8 +503,8 @@ Kafka, NiFi, MinIO, CDC ingest, the Asset-triggered transform, and realtime
 dbt models. A passing report proves initial-snapshot business parity for all
 eight captured source projections, the item-grain fact, and both marts. It
 does not prove the latency SLO, SCD2 history equality, or CRUD/replay/recovery
-behavior; those remain separate checks. The nightly/manual GitHub Actions
-workflow runs this same command and uploads the bounded JSON report.
+behavior; those remain separate checks. The manual GitHub Actions workflow
+runs this same command and uploads the bounded JSON report.
 
 ## 18. Troubleshooting
 

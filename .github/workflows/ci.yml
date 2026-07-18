@@ -154,14 +154,11 @@ jobs:
         run: |
           docker compose config --quiet
           for profiles in \
-            batch \
             realtime-core \
             observability \
             logs \
-            "batch,realtime-core" \
             "realtime-core,observability" \
-            "realtime-core,observability,logs" \
-            "batch,realtime-core,observability,logs"; do
+            "realtime-core,observability,logs"; do
             profile_args=()
             IFS=',' read -ra profile_names <<< "$profiles"
             for profile_name in "${profile_names[@]}"; do
@@ -241,7 +238,9 @@ jobs:
       - name: Build Connect and start persistent CDC dependencies
         run: |
           docker compose --profile realtime-core build kafka-connect
-          docker compose --profile realtime-core up -d --wait oltp-postgres kafka kafka-topics apicurio-registry
+          docker compose --profile realtime-core up -d --wait oltp-postgres kafka
+          docker compose --profile realtime-core run --rm --no-deps kafka-topics
+          docker compose --profile realtime-core up -d --wait apicurio-registry
 
       - name: Configure registry, seed OLTP, and start connector
         run: |

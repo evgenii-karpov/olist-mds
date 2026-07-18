@@ -72,12 +72,10 @@ References:
 
 ## Compose profiles
 
-The supported profile names are `batch`, `realtime-core`, `observability`, and
-`logs`. Existing batch services intentionally remain unprofiled, so the default
-`docker compose up` behavior is unchanged. A pinned no-op profile contract
-service makes all profile names selectable during Phase 0. Later phases replace
-that marker-only behavior by assigning their real services to the appropriate
-profiles; the default batch services must remain unprofiled.
+The supported profile names are `realtime-core`, `observability`, and `logs`.
+Existing batch services intentionally remain unprofiled, so the default
+`docker compose up` behavior is unchanged. Later phases assign real services to
+the appropriate profiles; the default batch services remain unprofiled.
 
 CI validates the default configuration, every individual profile, and useful
 profile combinations.
