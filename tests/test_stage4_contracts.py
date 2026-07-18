@@ -288,6 +288,14 @@ class Stage4ConfigurationTests(unittest.TestCase):
         self.assertIn("cdc-pipeline-exporter", compose)
         self.assertNotIn("s3:PutObject", policy)
 
+    def test_airflow_image_preserves_project_subdirectories(self) -> None:
+        dockerfile = (ROOT / "docker/airflow/Dockerfile").read_text(encoding="utf-8")
+        for directory in ("docker", "docs", "infra", "scripts"):
+            self.assertIn(
+                f"COPY --chown=airflow:0 {directory} /opt/airflow/project/{directory}",
+                dockerfile,
+            )
+
     def test_airflow_contract_has_scheduled_ingest_and_manual_backfill(self) -> None:
         dag = (ROOT / "airflow/dags/olist_cdc_local.py").read_text(encoding="utf-8")
         self.assertIn('INGEST_DAG_ID = "olist_cdc_ingest_local"', dag)

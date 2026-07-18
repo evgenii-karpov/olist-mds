@@ -2,8 +2,6 @@ name: Batch and CDC parity integration
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 2 * * *"
 
 jobs:
   batch-cdc-parity:

@@ -14,13 +14,11 @@ RUN cd /tmp/project-deps \
 
 WORKDIR /opt/airflow/project
 
-COPY --chown=airflow:0 \
-    pyproject.toml \
-    docker \
-    docs \
-    infra \
-    scripts \
-    /opt/airflow/project/
+COPY --chown=airflow:0 pyproject.toml /opt/airflow/project/pyproject.toml
+COPY --chown=airflow:0 docker /opt/airflow/project/docker
+COPY --chown=airflow:0 docs /opt/airflow/project/docs
+COPY --chown=airflow:0 infra /opt/airflow/project/infra
+COPY --chown=airflow:0 scripts /opt/airflow/project/scripts
 
 COPY --chown=airflow:0 airflow /opt/airflow/project/airflow
 COPY --chown=airflow:0 dbt/olist_analytics /opt/airflow/project/dbt/olist_analytics
