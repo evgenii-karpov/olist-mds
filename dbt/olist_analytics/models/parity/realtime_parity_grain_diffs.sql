@@ -18,8 +18,9 @@ with fact_diff as (
         or batch.product_id is distinct from realtime.product_id
         or batch.seller_id is distinct from realtime.seller_id
         or batch.order_status is distinct from realtime.order_status
-        or batch.order_purchase_timestamp::timestamp
-        is distinct from (realtime.order_purchase_timestamp at time zone 'UTC')::timestamp
+        or batch.order_purchase_timestamp::timestamp is distinct from (
+            realtime.order_purchase_timestamp at time zone 'UTC'
+        )::timestamp
         or batch.price is distinct from realtime.price
         or batch.freight_value is distinct from realtime.freight_value
         or batch.gross_item_amount is distinct from realtime.gross_item_amount
