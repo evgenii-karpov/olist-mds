@@ -572,11 +572,12 @@ def manifest_objects(
     client: Any,
     prefix: str,
     started_at: datetime,
+    suffix: str,
 ) -> list[dict[str, Any]]:
     manifests: list[dict[str, Any]] = []
     for item in list_s3_objects(client, prefix):
         key = str(item.get("Key", ""))
-        if not key.endswith(".manifest.json"):
+        if not key.endswith(suffix):
             continue
         try:
             body = client.get_object(Bucket=MINIO_BUCKET, Key=key)["Body"].read()
@@ -591,8 +592,10 @@ def manifest_objects(
 
 
 def manifest_summary(client: Any, started_at: datetime) -> dict[str, Any]:
-    normalized = manifest_objects(client, NORMALIZED_PREFIX, started_at)
-    coverage = manifest_objects(client, COVERAGE_PREFIX, started_at)
+    normalized = manifest_objects(
+        client, NORMALIZED_PREFIX, started_at, ".manifest.json"
+    )
+    coverage = manifest_objects(client, COVERAGE_PREFIX, started_at, ".coverage.json")
     normalized_by_table: dict[str, int] = {}
     coverage_by_table: dict[str, int] = {}
     for manifest in normalized:
@@ -930,7 +933,10 @@ def batch_reconciliation_summary(
         item["entity_name"]
         for item in values
         if item["status"] != "PASS"
-        or item["raw_loaded_rows"] != expected_counts.get(item["entity_name"])
+        or (
+            item["entity_name"] in expected_counts
+            and item["raw_loaded_rows"] != expected_counts[item["entity_name"]]
+        )
     ]
     return {
         "rows": values[:100],

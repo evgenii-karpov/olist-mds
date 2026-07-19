@@ -12,9 +12,12 @@ RUN apk add --no-cache curl \
        "https://repo.maven.apache.org/maven2/org/apache/nifi/nifi-parquet-nar/${NIFI_VERSION}/nifi-parquet-nar-${NIFI_VERSION}.nar" \
     && echo "${PARQUET_NAR_SHA1}  /nifi-parquet.nar" | sha1sum -c -
 
+FROM python:3.12-slim-bookworm AS nifi-python-runtime
+
 FROM apache/nifi:2.10.0
 
 USER root
+COPY --from=nifi-python-runtime /usr/local /usr/local
 COPY --from=nifi-extensions /nifi-hadoop-libraries.nar /opt/nifi/nifi-current/lib/nifi-hadoop-libraries-nar-2.10.0.nar
 COPY --from=nifi-extensions /nifi-parquet.nar /opt/nifi/nifi-current/lib/nifi-parquet-nar-2.10.0.nar
 COPY streaming/nifi/python /opt/olist/python_extensions/olist_cdc

@@ -37,6 +37,18 @@ class Stage3ConfigurationTests(unittest.TestCase):
         self.assertIn("mc version enable", init)
         self.assertIn("olist_nifi", init)
 
+    def test_nifi_uses_python_312_for_processor_discovery(self) -> None:
+        dockerfile = (ROOT / "streaming/nifi/Dockerfile").read_text(encoding="utf-8")
+        start = (ROOT / "streaming/nifi/start.sh").read_text(encoding="utf-8")
+        self.assertIn(
+            "FROM python:3.12-slim-bookworm AS nifi-python-runtime", dockerfile
+        )
+        self.assertIn(
+            "COPY --from=nifi-python-runtime /usr/local /usr/local", dockerfile
+        )
+        self.assertIn('NIFI_PYTHON_COMMAND="/usr/local/bin/python3.12"', start)
+        self.assertIn("nifi.python.command=${NIFI_PYTHON_COMMAND}", start)
+
     def test_flow_uses_durable_group_and_bounded_bins(self) -> None:
         by_name = {item["name"]: item for item in self.flow["processors"]}
         consume = by_name["Consume Olist CDC"]["properties"]

@@ -1,19 +1,24 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 from scripts.cdc.realtime_transform import parity_status
 from scripts.ci.check_batch_cdc_parity_integration import (
     CAPTURED_TABLES,
+    COVERAGE_PREFIX,
     Deadline,
     acceptance_failures,
+    batch_reconciliation_summary,
     choose_asset_transform_run,
     connector_state_summary,
     kafka_nifi_drained,
+    manifest_summary,
     manifests_complete,
     redact_value,
     validate_same_archive_identity,
@@ -57,6 +62,53 @@ class BatchCdcParityIntegrationTests(unittest.TestCase):
         nifi = {"queued_count": 0, "processor_errors": [], "bulletins": []}
         self.assertTrue(kafka_nifi_drained({"total_lag": 0}, nifi))
         self.assertFalse(kafka_nifi_drained({"total_lag": 1}, nifi))
+
+    def test_coverage_manifest_suffix_is_read(self) -> None:
+        key = (
+            f"{COVERAGE_PREFIX}table=customers/ingest_date=2026-07-19/"
+            "hour=01/customers.coverage.json"
+        )
+        client = Mock()
+        client.get_paginator.return_value.paginate.return_value = [
+            {"Contents": [{"Key": key}]}
+        ]
+        client.get_object.return_value = {
+            "Body": io.BytesIO(
+                json.dumps(
+                    {
+                        "closed_at": "2026-07-19T01:00:00+00:00",
+                        "table": "customers",
+                        "business_event_count": 8,
+                    }
+                ).encode()
+            )
+        }
+
+        observed = manifest_summary(client, datetime(2026, 7, 19, 0, 59, tzinfo=UTC))
+
+        self.assertEqual(1, observed["coverage_manifest_count"])
+        self.assertEqual(["customers"], observed["coverage_tables"])
+        self.assertEqual({"customers": 8}, observed["coverage_business_rows_by_table"])
+
+    def test_batch_reconciliation_allows_passed_entities_without_profile_counts(
+        self,
+    ) -> None:
+        connection = MagicMock()
+        connection.__enter__.return_value = connection
+        cursor = connection.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = [
+            ("customers", 8, 8, "PASS", None),
+            ("customer_profile_changes", 6, 6, "PASS", None),
+        ]
+
+        with patch(
+            "scripts.ci.check_batch_cdc_parity_integration.warehouse_connection",
+            return_value=connection,
+        ):
+            observed = batch_reconciliation_summary("2018-09-01", {"customers": 8})
+
+        self.assertTrue(observed["passed"])
+        self.assertEqual([], observed["failed_entities"])
 
     def test_failed_asset_transform_is_not_treated_as_success(self) -> None:
         with self.assertRaisesRegex(AssertionError, "Asset-triggered transform failed"):
