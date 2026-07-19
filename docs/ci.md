@@ -30,8 +30,9 @@ cdc-stage1-oltp-simulator
      validates deterministic seed, lifecycle, replay, and stop behavior.
 
 cdc-stage2-kafka-debezium
-  -> CDC implementation Stage 2: validates Kafka topics, Apicurio compatibility,
-     Debezium snapshot/CRUD semantics, and connector restart recovery.
+  -> Manual-only CDC implementation Stage 2: validates Kafka topics, Apicurio
+     compatibility, Debezium snapshot/CRUD semantics, and connector restart
+     recovery.
 
 batch-fixture-idempotency
   -> Small fixture end-to-end path through the local Airflow DAG, PostgreSQL,
@@ -62,6 +63,8 @@ python-unit / CDC Stage 6 observability contract
      Destructive or long-running fault/benchmark execution remains manual or
      nightly through `failure_injection.py` and `benchmark_local.py`.
 ```
+
+The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
 
 ## Small Fixture Dataset
 
