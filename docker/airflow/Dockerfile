@@ -20,6 +20,19 @@ COPY --chown=airflow:0 docs /opt/airflow/project/docs
 COPY --chown=airflow:0 infra /opt/airflow/project/infra
 COPY --chown=airflow:0 scripts /opt/airflow/project/scripts
 
+USER root
+
+RUN mkdir -p /opt/airflow/runtime \
+    && chown airflow:0 /opt/airflow/runtime \
+    && chmod 0770 /opt/airflow/runtime
+
+COPY --chown=airflow:0 docker/airflow/simple_auth_manager_passwords.json \
+    /opt/airflow/runtime/simple_auth_manager_passwords.json
+
+RUN chmod 0660 /opt/airflow/runtime/simple_auth_manager_passwords.json
+
+USER airflow
+
 COPY --chown=airflow:0 airflow /opt/airflow/project/airflow
 COPY --chown=airflow:0 dbt/olist_analytics /opt/airflow/project/dbt/olist_analytics
 

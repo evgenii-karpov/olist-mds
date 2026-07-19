@@ -70,7 +70,8 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/project/airflow/simple_auth_manager_passwords.json
+      # Keep the mutable auth-manager state outside the project bind mount.
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/runtime/simple_auth_manager_passwords.json
       AIRFLOW__METRICS__STATSD_ON: "${AIRFLOW_STATSD_ON:-false}"
       AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
       AIRFLOW__METRICS__STATSD_PORT: "9125"
@@ -113,10 +114,10 @@ services:
       - minio_cdc_loader_password
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}" || exit 1',
-        ]
+        - CMD-SHELL
+        - >-
+          airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"
+          && python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v2/monitor/health', timeout=5)"
       interval: 30s
       timeout: 10s
       retries: 5

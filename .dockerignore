@@ -8,13 +8,13 @@
 !docker/airflow/
 !docker/airflow/Dockerfile
 !docker/airflow/load-env-and-run.sh
+!docker/airflow/simple_auth_manager_passwords.json
 
 !airflow/
 !airflow/dags/
 !airflow/dags/**
 !airflow/include/
 !airflow/include/**
-!airflow/simple_auth_manager_passwords.json
 
 !docs/
 !docs/source_profile.json
