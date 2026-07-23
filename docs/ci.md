@@ -45,9 +45,10 @@ batch-fixture-idempotency
      comparison, and incremental replay idempotency.
 
 cdc-stage4-warehouse-ingest
-  -> Builds isolated MinIO/PostgreSQL state and verifies normalized loading,
-     tombstone coverage, gap closure, transient retry, reconciliation, and
-     duplicate-only replay in a disposable database and bucket.
+  -> Builds isolated MinIO, ClickHouse raw CDC, and PostgreSQL control state;
+     verifies normalized loading, tombstone coverage, gap closure, transient
+     retry, reconciliation, and duplicate-only replay in disposable local
+     state.
 
 cdc-stage5-realtime-dbt
   -> Builds three exact-manifest dbt micro-batches in a disposable PostgreSQL

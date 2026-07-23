@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Idempotently load closed normalized CDC objects into PostgreSQL."""
+"""Idempotently load closed normalized CDC objects into the local CDC warehouse."""
 
 from __future__ import annotations
 
@@ -12,8 +12,9 @@ import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -21,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import boto3
+import clickhouse_connect
 import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as parquet
@@ -38,6 +40,11 @@ NORMALIZED_MANIFEST_PREFIX = "manifests/cdc/kind=normalized/"
 COVERAGE_MANIFEST_PREFIX = "manifests/cdc/kind=coverage/"
 CLAIM_TTL = timedelta(minutes=15)
 ALLOWED_OPERATIONS = {"r", "c", "u", "d"}
+RAW_CDC_SCHEMA = "raw_cdc"
+CDC_FAILURE_POINTS = {
+    "after_clickhouse_insert_before_control_commit",
+    "after_clickhouse_insert_acknowledgement_lost",
+}
 
 COMMON_COLUMNS = (
     "_event_id",
@@ -210,6 +217,26 @@ class IngestSummary:
         }
 
 
+class RawCdcSink(Protocol):
+    def insert_file(
+        self, manifest: Manifest, rows: Sequence[dict[str, Any]]
+    ) -> tuple[int, int]: ...
+
+    def source_progress(
+        self, table: str, topic: str, partition: int, contiguous_offset: int
+    ) -> tuple[Any, Any]: ...
+
+    def close(self) -> None: ...
+
+
+class ClickHouseClient(Protocol):
+    def query(self, query: str, *args: Any, **kwargs: Any) -> Any: ...
+
+    def insert(self, *args: Any, **kwargs: Any) -> Any: ...
+
+    def close(self) -> None: ...
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -222,6 +249,29 @@ def read_secret(value: str | None, file_path: str | None) -> str | None:
     return None
 
 
+def clickhouse_password(args: argparse.Namespace) -> str:
+    password = getattr(args, "clickhouse_password", None)
+    if password:
+        return str(password)
+    password_file = getattr(args, "clickhouse_password_file", None) or os.environ.get(
+        "CLICKHOUSE_PASSWORD_FILE"
+    )
+    if password_file:
+        return Path(password_file).read_text(encoding="utf-8").strip()
+    return "olist"
+
+
+def clickhouse_client(args: argparse.Namespace) -> ClickHouseClient:
+    return clickhouse_connect.get_client(
+        host=args.clickhouse_host,
+        port=args.clickhouse_port,
+        username=args.clickhouse_user,
+        password=clickhouse_password(args),
+        database=args.clickhouse_database,
+        secure=args.clickhouse_secure,
+    )
+
+
 def postgres_connection(args: argparse.Namespace) -> PgConnection:
     return psycopg2.connect(
         host=args.host,
@@ -232,6 +282,215 @@ def postgres_connection(args: argparse.Namespace) -> PgConnection:
         connect_timeout=10,
         application_name="olist_cdc_ingest",
     )
+
+
+def ch_identifier(identifier: str) -> str:
+    if "\x00" in identifier:
+        raise ValueError("ClickHouse identifier contains a null byte")
+    return f"`{identifier.replace('`', '``')}`"
+
+
+def ch_string(value: str) -> str:
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def qualified(database: str, table: str) -> str:
+    return f"{ch_identifier(database)}.{ch_identifier(table)}"
+
+
+def offset_range_predicate(ranges: Iterable[tuple[int, int]]) -> str:
+    parts = [f"(_offset BETWEEN {int(start)} AND {int(end)})" for start, end in ranges]
+    if not parts:
+        return "0"
+    return "(" + " OR ".join(parts) + ")"
+
+
+def cdc_insert_token(manifest: Manifest) -> str:
+    identity = {
+        "manifest_uri": manifest.manifest_uri,
+        "manifest_etag": manifest.manifest_etag,
+        "object_uri": manifest.object_uri,
+        "object_etag": manifest.object_etag,
+        "object_sha256": manifest.object_sha256,
+        "topic": manifest.topic,
+        "partition": manifest.partition,
+        "offset_ranges": manifest.offset_ranges,
+    }
+    payload = json.dumps(identity, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def normalize_payload_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        normalized = (
+            value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+        )
+        return normalized.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+def row_identity(row: Mapping[str, Any]) -> tuple[str, int, int]:
+    return (str(row["_topic"]), int(row["_partition"]), int(row["_offset"]))
+
+
+def row_payload(row: Mapping[str, Any], columns: Sequence[str]) -> tuple[Any, ...]:
+    return tuple(normalize_payload_value(row[column]) for column in columns)
+
+
+def cdc_columns(table: str) -> tuple[str, ...]:
+    return BUSINESS_COLUMNS[table] + COMMON_COLUMNS + ("_source_object_uri",)
+
+
+class PostgresRawCdcSink:
+    def __init__(self, connection: PgConnection) -> None:
+        self.connection = connection
+
+    def insert_file(
+        self, manifest: Manifest, rows: Sequence[dict[str, Any]]
+    ) -> tuple[int, int]:
+        columns = cdc_columns(manifest.table)
+        values = [
+            (*tuple(row[column] for column in columns[:-1]), manifest.object_uri)
+            for row in rows
+        ]
+        temp_name = f"cdc_stage_{uuid.uuid4().hex}"
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "create temp table {} (like raw_cdc.{} including defaults) on commit drop"
+                ).format(sql.Identifier(temp_name), sql.Identifier(manifest.table))
+            )
+            insert_stage = sql.SQL("insert into {} ({}) values %s").format(
+                sql.Identifier(temp_name),
+                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
+            )
+            execute_values(
+                cursor, insert_stage.as_string(cursor), values, page_size=1000
+            )
+            insert_target = sql.SQL(
+                "insert into raw_cdc.{} ({}) select {} from {} "
+                "on conflict (_event_id) do nothing"
+            ).format(
+                sql.Identifier(manifest.table),
+                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
+                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
+                sql.Identifier(temp_name),
+            )
+            cursor.execute(insert_target)
+            inserted = cursor.rowcount
+            duplicates = len(rows) - inserted
+        self.connection.commit()
+        return inserted, duplicates
+
+    def source_progress(
+        self, table: str, topic: str, partition: int, contiguous_offset: int
+    ) -> tuple[Any, Any]:
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    """
+                    select _source_lsn, _source_ts
+                    from raw_cdc.{}
+                    where _topic = %s and _partition = %s and _offset <= %s
+                    order by _offset desc limit 1
+                    """
+                ).format(sql.Identifier(table)),
+                (topic, partition, contiguous_offset),
+            )
+            source_row = cursor.fetchone()
+        return (source_row[0], source_row[1]) if source_row else (None, None)
+
+    def close(self) -> None:
+        self.connection.close()
+
+
+class ClickHouseRawCdcSink:
+    def __init__(self, client: ClickHouseClient) -> None:
+        self.client = client
+
+    def _existing_rows(
+        self, manifest: Manifest, columns: Sequence[str]
+    ) -> dict[tuple[str, int, int], tuple[Any, ...]]:
+        rows = self.client.query(
+            "SELECT "
+            + ", ".join(ch_identifier(column) for column in columns)
+            + f" FROM {qualified(RAW_CDC_SCHEMA, manifest.table)} FINAL"
+            + f" WHERE _topic = {ch_string(manifest.topic)}"
+            + f" AND _partition = {int(manifest.partition)}"
+            + f" AND {offset_range_predicate(manifest.offset_ranges)}"
+            + " ORDER BY _offset"
+        ).result_rows
+        result: dict[tuple[str, int, int], tuple[Any, ...]] = {}
+        for item in rows:
+            row = dict(zip(columns, item, strict=True))
+            result[row_identity(row)] = row_payload(row, columns)
+        return result
+
+    def _validate_existing_payloads(
+        self,
+        manifest: Manifest,
+        rows: Sequence[dict[str, Any]],
+        columns: Sequence[str],
+        existing: Mapping[tuple[str, int, int], tuple[Any, ...]],
+    ) -> None:
+        for row in rows:
+            identity = row_identity(row)
+            existing_payload = existing.get(identity)
+            if existing_payload is None:
+                continue
+            expected_row = {**row, "_source_object_uri": manifest.object_uri}
+            if existing_payload != row_payload(expected_row, columns):
+                raise ValueError(
+                    "existing ClickHouse CDC event payload differs for "
+                    f"{identity[0]} partition {identity[1]} offset {identity[2]}"
+                )
+
+    def insert_file(
+        self, manifest: Manifest, rows: Sequence[dict[str, Any]]
+    ) -> tuple[int, int]:
+        columns = cdc_columns(manifest.table)
+        existing = self._existing_rows(manifest, columns)
+        self._validate_existing_payloads(manifest, rows, columns, existing)
+        values = [
+            [*tuple(row[column] for column in columns[:-1]), manifest.object_uri]
+            for row in rows
+        ]
+        self.client.insert(
+            table=manifest.table,
+            database=RAW_CDC_SCHEMA,
+            data=values,
+            column_names=list(columns),
+            settings={
+                "insert_deduplication_token": cdc_insert_token(manifest),
+                "async_insert": 0,
+                "wait_for_async_insert": 1,
+            },
+        )
+        after = self._existing_rows(manifest, columns)
+        self._validate_existing_payloads(manifest, rows, columns, after)
+        inserted = len(after) - len(existing)
+        if inserted < 0 or inserted > len(rows):
+            raise ValueError("ClickHouse logical CDC row count moved unexpectedly")
+        duplicates = len(rows) - inserted
+        return inserted, duplicates
+
+    def source_progress(
+        self, table: str, topic: str, partition: int, contiguous_offset: int
+    ) -> tuple[Any, Any]:
+        row = self.client.query(
+            "SELECT _source_lsn, _source_ts"
+            + f" FROM {qualified(RAW_CDC_SCHEMA, table)} FINAL"
+            + f" WHERE _topic = {ch_string(topic)}"
+            + f" AND _partition = {int(partition)}"
+            + f" AND _offset <= {int(contiguous_offset)}"
+            + " ORDER BY _offset DESC LIMIT 1"
+        ).first_row
+        return (row[0], row[1]) if row else (None, None)
+
+    def close(self) -> None:
+        self.client.close()
 
 
 def s3_client(args: argparse.Namespace):
@@ -1164,7 +1423,7 @@ def missing_ranges(
 
 
 def recompute_watermark(
-    cursor, table: str, topic: str, partition: int
+    cursor, table: str, topic: str, partition: int, sink: RawCdcSink
 ) -> tuple[int, int]:
     cursor.execute(
         """
@@ -1211,20 +1470,7 @@ def recompute_watermark(
     last_seen = max(last_loaded_event, int(last_seen_row[0]))
     gaps = missing_ranges(relevant, first_seen, last_seen)
     contiguous = gaps[0][0] - 1 if gaps else last_seen
-    cursor.execute(
-        sql.SQL(
-            """
-            select _source_lsn, _source_ts
-            from raw_cdc.{}
-            where _topic = %s and _partition = %s and _offset <= %s
-            order by _offset desc limit 1
-            """
-        ).format(sql.Identifier(table)),
-        (topic, partition, contiguous),
-    )
-    source_row = cursor.fetchone()
-    source_lsn = source_row[0] if source_row else None
-    source_ts = source_row[1] if source_row else None
+    source_lsn, source_ts = sink.source_progress(table, topic, partition, contiguous)
     cursor.execute(
         """
         insert into cdc_audit.cdc_partition_watermarks (
@@ -1260,45 +1506,21 @@ def recompute_watermark(
 
 
 def load_claimed_file(
-    warehouse_connection: PgConnection,
+    raw_sink: RawCdcSink,
     control_connection: PgConnection,
     manifest: Manifest,
     attempt_number: int,
     ingest_run_id: str,
     rows: Sequence[dict[str, Any]],
+    inject_failure: str | None = None,
 ) -> tuple[int, int, int]:
-    columns = (
-        BUSINESS_COLUMNS[manifest.table] + COMMON_COLUMNS + ("_source_object_uri",)
-    )
-    values = [
-        (*tuple(row[column] for column in columns[:-1]), manifest.object_uri)
-        for row in rows
-    ]
-    temp_name = f"cdc_stage_{uuid.uuid4().hex}"
-    with warehouse_connection.cursor() as cursor:
-        cursor.execute(
-            sql.SQL(
-                "create temp table {} (like raw_cdc.{} including defaults) on commit drop"
-            ).format(sql.Identifier(temp_name), sql.Identifier(manifest.table))
+    inserted, duplicates = raw_sink.insert_file(manifest, rows)
+    if inject_failure == "after_clickhouse_insert_acknowledgement_lost":
+        raise RuntimeError(
+            "Injected CDC failure: ClickHouse insert acknowledgement lost"
         )
-        insert_stage = sql.SQL("insert into {} ({}) values %s").format(
-            sql.Identifier(temp_name),
-            sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-        )
-        execute_values(cursor, insert_stage.as_string(cursor), values, page_size=1000)
-        insert_target = sql.SQL(
-            "insert into raw_cdc.{} ({}) select {} from {} "
-            "on conflict (_event_id) do nothing"
-        ).format(
-            sql.Identifier(manifest.table),
-            sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-            sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-            sql.Identifier(temp_name),
-        )
-        cursor.execute(insert_target)
-        inserted = cursor.rowcount
-        duplicates = len(rows) - inserted
-    warehouse_connection.commit()
+    if inject_failure == "after_clickhouse_insert_before_control_commit":
+        raise RuntimeError("Injected CDC failure after ClickHouse insert")
 
     with control_connection.cursor() as cursor:
         cursor.execute(
@@ -1325,7 +1547,7 @@ def load_claimed_file(
             ingest_run_id=ingest_run_id,
         )
         _, gaps = recompute_watermark(
-            cursor, manifest.table, manifest.topic, manifest.partition
+            cursor, manifest.table, manifest.topic, manifest.partition, raw_sink
         )
         status = "PASS" if inserted + duplicates == len(rows) else "FAIL"
         cursor.execute(
@@ -1457,7 +1679,7 @@ def finish_run(
 
 
 def ingest(
-    warehouse_connection: PgConnection,
+    raw_sink: RawCdcSink,
     control_connection: PgConnection,
     client,
     bucket: str,
@@ -1467,6 +1689,7 @@ def ingest(
     dag_id: str | None,
     orchestration_run_id: str | None,
     replay_request_id: str | None = None,
+    inject_failure: str | None = None,
 ) -> IngestSummary:
     start_run(
         control_connection,
@@ -1511,7 +1734,7 @@ def ingest(
                     normalized_row = cursor.fetchone()
                     if normalized_row is not None and normalized_row[0]:
                         _, gap_count = recompute_watermark(
-                            cursor, table, topic, partition
+                            cursor, table, topic, partition, raw_sink
                         )
             control_connection.commit()
         while claim := claim_next_file(
@@ -1527,12 +1750,13 @@ def ingest(
             try:
                 rows = read_parquet_object(client, manifest)
                 file_inserted, file_duplicates, gap_count = load_claimed_file(
-                    warehouse_connection,
+                    raw_sink,
                     control_connection,
                     manifest,
                     attempt_number,
                     ingest_run_id,
                     rows,
+                    inject_failure,
                 )
             except Exception as exc:
                 mark_file_failed(
@@ -1754,8 +1978,45 @@ def add_selector_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_clickhouse_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--clickhouse-host",
+        default=os.environ.get("CLICKHOUSE_HOST", "localhost"),
+    )
+    parser.add_argument(
+        "--clickhouse-port",
+        type=int,
+        default=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+    )
+    parser.add_argument(
+        "--clickhouse-user",
+        default=os.environ.get("CLICKHOUSE_USER", "olist"),
+    )
+    parser.add_argument(
+        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD")
+    )
+    parser.add_argument(
+        "--clickhouse-password-file",
+        default=os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
+    )
+    parser.add_argument(
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+    )
+    parser.add_argument(
+        "--clickhouse-secure",
+        action=argparse.BooleanOptionalAction,
+        default=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--warehouse-type",
+        choices=("clickhouse", "postgres"),
+        default=os.environ.get("CDC_WAREHOUSE_TYPE", "clickhouse"),
+    )
     parser.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
     parser.add_argument(
         "--port", type=int, default=int(os.environ.get("POSTGRES_PORT", "5432"))
@@ -1769,6 +2030,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
     add_control_postgres_args(parser)
+    add_clickhouse_args(parser)
     parser.add_argument("--bootstrap-sql-dir", default="infra/postgres")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -1802,6 +2064,11 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_parser.add_argument("--dag-id")
     ingest_parser.add_argument("--orchestration-run-id")
     ingest_parser.add_argument("--replay-request-id")
+    ingest_parser.add_argument(
+        "--inject-failure",
+        choices=sorted(CDC_FAILURE_POINTS),
+        help="Testing hook that raises at a named CDC load boundary.",
+    )
     add_selector_arguments(ingest_parser)
 
     replay_parser = subparsers.add_parser("replay")
@@ -1824,31 +2091,48 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     control_connection = open_control_connection(args)
+    raw_sink: RawCdcSink | None = None
     try:
-        if args.command in {"bootstrap", "ingest"}:
+        if args.command == "bootstrap":
             with postgres_connection(args) as warehouse_connection:
-                return run_command(args, warehouse_connection, control_connection)
-        return run_command(args, None, control_connection)
+                return run_command(
+                    args, PostgresRawCdcSink(warehouse_connection), control_connection
+                )
+        if args.command == "ingest":
+            raw_sink = (
+                ClickHouseRawCdcSink(clickhouse_client(args))
+                if args.warehouse_type == "clickhouse"
+                else PostgresRawCdcSink(postgres_connection(args))
+            )
+        return run_command(args, raw_sink, control_connection)
     finally:
+        if raw_sink is not None:
+            raw_sink.close()
         control_connection.close()
 
 
 def require_warehouse_connection(
-    warehouse_connection: PgConnection | None,
-) -> PgConnection:
-    if warehouse_connection is None:
-        raise ValueError("warehouse connection is required for this command")
-    return warehouse_connection
+    raw_sink: RawCdcSink | None,
+) -> RawCdcSink:
+    if raw_sink is None:
+        raise ValueError("warehouse sink is required for this command")
+    return raw_sink
+
+
+def require_postgres_sink(raw_sink: RawCdcSink | None) -> PostgresRawCdcSink:
+    if not isinstance(raw_sink, PostgresRawCdcSink):
+        raise ValueError("PostgreSQL warehouse sink is required for bootstrap")
+    return raw_sink
 
 
 def run_command(
     args: argparse.Namespace,
-    warehouse_connection: PgConnection | None,
+    raw_sink: RawCdcSink | None,
     control_connection: PgConnection,
 ) -> int:
     if args.command == "bootstrap":
         execute_bootstrap(
-            require_warehouse_connection(warehouse_connection),
+            require_postgres_sink(raw_sink).connection,
             Path(args.bootstrap_sql_dir),
         )
         return 0
@@ -1879,7 +2163,7 @@ def run_command(
         )
         return 0
     summary = ingest(
-        require_warehouse_connection(warehouse_connection),
+        require_warehouse_connection(raw_sink),
         control_connection,
         s3_client(args),
         args.bucket,
@@ -1889,6 +2173,7 @@ def run_command(
         args.dag_id,
         args.orchestration_run_id,
         args.replay_request_id,
+        args.inject_failure,
     )
     print(json.dumps(summary.as_dict(), sort_keys=True))
     return 0

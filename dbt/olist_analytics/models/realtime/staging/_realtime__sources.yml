@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: raw_cdc
     schema: raw_cdc
-    description: Append-only typed Debezium business events committed by Phase 4.
+    description: Typed Debezium business events committed to the local analytical warehouse.
     tables:
       - name: customers
       - name: orders
@@ -24,3 +24,8 @@ sources:
       - name: cdc_reconciliation
       - name: cdc_mart_freshness
       - name: cdc_publication_state
+  - name: pipeline_runtime
+    schema: pipeline_runtime
+    description: Short-lived ClickHouse runtime projections derived from PostgreSQL control state.
+    tables:
+      - name: cdc_transform_run_files

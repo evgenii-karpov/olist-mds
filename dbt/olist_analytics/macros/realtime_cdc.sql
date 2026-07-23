@@ -64,6 +64,10 @@
 {%- endmacro %}
 
 {% macro cdc_selected_file_predicate(alias='') -%}
+    {{ return(adapter.dispatch('cdc_selected_file_predicate', 'olist_analytics')(alias)) }}
+{%- endmacro %}
+
+{% macro default__cdc_selected_file_predicate(alias='') -%}
     {% set transform_run_id = var('cdc_transform_run_id', '') %}
     {% if transform_run_id %}
         exists (
@@ -74,6 +78,21 @@
             where
                 run_files.transform_run_id = '{{ transform_run_id | replace("'", "''") }}'
                 and files.object_uri = {% if alias %}{{ alias }}.{% endif %}_source_object_uri
+        )
+    {% else %}
+        true
+    {% endif %}
+{%- endmacro %}
+
+{% macro clickhouse__cdc_selected_file_predicate(alias='') -%}
+    {% set transform_run_id = var('cdc_transform_run_id', '') %}
+    {% if transform_run_id %}
+        exists (
+            select 1
+            from {{ source('pipeline_runtime', 'cdc_transform_run_files') }} as run_files
+            where
+                run_files.transform_run_id = '{{ transform_run_id | replace("'", "''") }}'
+                and run_files.object_uri = {% if alias %}{{ alias }}.{% endif %}_source_object_uri
         )
     {% else %}
         true

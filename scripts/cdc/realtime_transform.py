@@ -5,11 +5,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
 import sys
 from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import psycopg2
+import clickhouse_connect
 from psycopg2.extensions import connection as PgConnection
 
 from scripts.orchestration.control_postgres import (
@@ -57,6 +60,84 @@ def connect(args: argparse.Namespace) -> PgConnection:
     )
 
 
+def clickhouse_password(args: argparse.Namespace) -> str:
+    if args.clickhouse_password:
+        return args.clickhouse_password
+    if args.clickhouse_password_file:
+        return Path(args.clickhouse_password_file).read_text(encoding="utf-8").strip()
+    return os.environ.get("CLICKHOUSE_PASSWORD", "olist")
+
+
+def clickhouse_client(args: argparse.Namespace):
+    return clickhouse_connect.get_client(
+        host=args.clickhouse_host,
+        port=args.clickhouse_port,
+        username=args.clickhouse_user,
+        password=clickhouse_password(args),
+        database=args.clickhouse_database,
+        secure=args.clickhouse_secure,
+    )
+
+
+def local_dbt_target() -> str:
+    return os.environ.get("DBT_TARGET", "local_pg")
+
+
+def manifest_selection_digest(
+    manifest_uri: str, manifest_etag: str, object_uri: str
+) -> str:
+    payload = json.dumps(
+        {
+            "manifest_uri": manifest_uri,
+            "manifest_etag": manifest_etag,
+            "object_uri": object_uri,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def project_transform_selection(
+    args: argparse.Namespace,
+    transform_run_id: str,
+    selected_files: list[tuple[str, str, str]],
+) -> dict[str, Any]:
+    if local_dbt_target() != "local_clickhouse":
+        return {"runtime_projection": "skipped", "projected_files": 0}
+    client = clickhouse_client(args)
+    try:
+        if selected_files:
+            selected_at = datetime.now(UTC)
+            client.insert(
+                table="cdc_transform_run_files",
+                database="pipeline_runtime",
+                column_names=[
+                    "transform_run_id",
+                    "object_uri",
+                    "manifest_sha256",
+                    "selected_at",
+                ],
+                data=[
+                    [
+                        transform_run_id,
+                        object_uri,
+                        manifest_selection_digest(
+                            manifest_uri, manifest_etag, object_uri
+                        ),
+                        selected_at,
+                    ]
+                    for manifest_uri, manifest_etag, object_uri in selected_files
+                ],
+            )
+        return {
+            "runtime_projection": "clickhouse",
+            "projected_files": len(selected_files),
+        }
+    finally:
+        client.close()
+
+
 def bootstrap(connection: PgConnection) -> None:
     sql = (
         ROOT
@@ -69,6 +150,7 @@ def bootstrap(connection: PgConnection) -> None:
 
 def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
     bootstrap(connection)
+    selected_files: list[tuple[str, str, str]] = []
     with connection, connection.cursor() as cursor:
         cursor.execute(
             "select pg_advisory_xact_lock(hashtext('olist_cdc_transform_prepare'))"
@@ -150,10 +232,28 @@ def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
                 """,
             (files_selected, events_selected, args.transform_run_id),
         )
+        cursor.execute(
+            """
+                select files.manifest_uri, files.manifest_etag, files.object_uri
+                from cdc_audit.cdc_transform_run_files as run_files
+                inner join cdc_audit.cdc_files as files using (manifest_uri)
+                where run_files.transform_run_id = %s
+                order by files.closed_at, files.manifest_uri
+                """,
+            (args.transform_run_id,),
+        )
+        selected_files = [
+            (str(manifest_uri), str(manifest_etag), str(object_uri))
+            for manifest_uri, manifest_etag, object_uri in cursor.fetchall()
+        ]
+    projection = project_transform_selection(
+        args, args.transform_run_id, selected_files
+    )
     return {
         "transform_run_id": args.transform_run_id,
         "files_selected": int(files_selected),
         "events_selected": int(events_selected),
+        **projection,
     }
 
 
@@ -653,6 +753,33 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--password", default=os.environ.get("POSTGRES_PASSWORD"))
     value.add_argument(
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
+    )
+    value.add_argument(
+        "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "localhost")
+    )
+    value.add_argument(
+        "--clickhouse-port",
+        type=int,
+        default=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+    )
+    value.add_argument(
+        "--clickhouse-user", default=os.environ.get("CLICKHOUSE_USER", "olist")
+    )
+    value.add_argument(
+        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD")
+    )
+    value.add_argument(
+        "--clickhouse-password-file",
+        default=os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
+    )
+    value.add_argument(
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+    )
+    value.add_argument(
+        "--clickhouse-secure",
+        action=argparse.BooleanOptionalAction,
+        default=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
     )
     add_control_postgres_args(value)
     commands = value.add_subparsers(dest="command", required=True)

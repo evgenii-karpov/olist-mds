@@ -259,3 +259,15 @@
 {% macro clickhouse__nullable_window_value(expression) -%}
     toNullable({{ expression }})
 {%- endmacro %}
+
+{% macro output_column(expression, column_name) -%}
+    {{ return(adapter.dispatch('output_column', 'olist_analytics')(expression, column_name)) }}
+{%- endmacro %}
+
+{% macro default__output_column(expression, column_name) -%}
+    {{ expression }}
+{%- endmacro %}
+
+{% macro clickhouse__output_column(expression, column_name) -%}
+    {{ expression }} as {{ column_name }}
+{%- endmacro %}

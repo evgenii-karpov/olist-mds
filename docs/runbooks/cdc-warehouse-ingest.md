@@ -9,7 +9,7 @@ secret mounts outside local development.
 ```powershell
 docker compose build airflow
 docker compose --profile realtime-core up -d --wait `
-  postgres minio airflow
+  airflow-postgres control-db-init clickhouse clickhouse-init minio airflow
 docker compose --profile realtime-core run --rm --no-deps minio-init
 docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
 ```
@@ -21,7 +21,8 @@ coverage manifests. The DAG runs every two minutes and has one active run.
 
 ```powershell
 uv run python scripts/cdc/warehouse_ingest.py `
-  --password-file docker/secrets/dev/postgres_password.txt `
+  --warehouse-type clickhouse `
+  --clickhouse-password-file docker/secrets/dev/clickhouse_password.txt `
   ingest `
   --s3-endpoint http://localhost:9000 `
   --s3-secret-file docker/secrets/dev/airflow_api_secret_key.txt `
@@ -35,7 +36,8 @@ Select at least one table, ingest-date, or object substring:
 
 ```powershell
 uv run python scripts/cdc/warehouse_ingest.py `
-  --password-file docker/secrets/dev/postgres_password.txt `
+  --warehouse-type clickhouse `
+  --clickhouse-password-file docker/secrets/dev/clickhouse_password.txt `
   replay `
   --replay-request-id replay_orders_20260716 `
   --requested-by operator `
@@ -48,7 +50,8 @@ Then run ingest with the same selectors and `--run-kind REPLAY`, or trigger
 `olist_cdc_backfill_local`. A CLI replay ingest must also pass the same
 `--replay-request-id`. Replay moves selected files to request-bound
 `REPLAY_REQUESTED`; scheduled runs cannot claim them. It retains raw events and
-verified tombstone coverage and relies on `_event_id` dedupe.
+verified tombstone coverage and relies on deterministic ClickHouse insert
+tokens plus `FINAL` logical readback for topic/partition/offset dedupe.
 
 ## Diagnose gaps
 
@@ -70,7 +73,8 @@ missing immutable object or repair the NiFi publication fault.
 
 A failed file remains `FAILED` with a durable attempt and error. Restore object
 storage or correct the loader, then rerun the DAG. The loader reclaims the file,
-stages it again, and commits without manual table cleanup.
+uses the same deterministic ClickHouse insert token, validates existing logical
+events with `FINAL`, and commits without manual table cleanup.
 
 ## Metrics
 

@@ -55,6 +55,25 @@ class ClickHousePhase4DbtGraphTests(unittest.TestCase):
         self.assertIn("drop partition id", macro_sql.lower())
         self.assertIn("replace partition id", macro_sql.lower())
 
+    def test_fact_order_items_uses_dispatched_output_column_aliases(self) -> None:
+        sql = (ROOT / "dbt/olist_analytics/models/core/fact_order_items.sql").read_text(
+            encoding="utf-8"
+        )
+        macro_sql = (
+            ROOT / "dbt/olist_analytics/macros/warehouse_compat.sql"
+        ).read_text(encoding="utf-8")
+        for column in (
+            "customer_unique_id",
+            "product_id",
+            "seller_id",
+            "order_status",
+            "_loaded_at",
+        ):
+            self.assertIn(f"output_column('fact_base.{column}', '{column}')", sql)
+        self.assertNotIn("noqa: disable=AL09", sql)
+        self.assertIn("macro clickhouse__output_column", macro_sql)
+        self.assertIn("{{ expression }} as {{ column_name }}", macro_sql)
+
     def test_dim_date_clickhouse_semantics_match_postgres_contract(self) -> None:
         macro_sql = (
             ROOT / "dbt/olist_analytics/macros/warehouse_compat.sql"

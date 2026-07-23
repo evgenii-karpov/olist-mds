@@ -261,25 +261,19 @@ services:
     container_name: olist-cdc-warehouse-init
     restart: "no"
     depends_on:
-      postgres:
-        condition: service_healthy
       control-db-init:
         condition: service_completed_successfully
-    entrypoint: ["python", "/opt/airflow/project/scripts/cdc/warehouse_ingest.py"]
-    command: ["--bootstrap-sql-dir", "infra/postgres", "bootstrap"]
+      clickhouse-init:
+        condition: service_completed_successfully
+    entrypoint: ["python", "-c"]
+    command: ["print('ClickHouse raw CDC and PostgreSQL control schemas are initialized')"]
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
-      POSTGRES_USER: "${POSTGRES_USER:-olist}"
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       CONTROL_POSTGRES_HOST: airflow-postgres
       CONTROL_POSTGRES_PORT: "5432"
       CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
       CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
       CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
-      - postgres_password
       - control_postgres_password
 
   kafka:

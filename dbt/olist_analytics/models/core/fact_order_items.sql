@@ -188,7 +188,6 @@ order_items as (
         on order_items.order_id = orders.order_id
 ),
 
--- noqa: disable=AL09
 fact_base as (
     select
         {{
@@ -197,21 +196,51 @@ fact_base as (
                 ~ cast_string('order_items.order_item_id')
             )
         }} as order_item_key,
-        order_items.order_id as order_id,
-        order_items.order_item_id as order_item_id,
-        orders.customer_id as customer_id,
-        customers.customer_unique_id as customer_unique_id,
-        order_items.product_id as product_id,
-        order_items.seller_id as seller_id,
-        orders.order_status as order_status,
-        orders.order_purchase_timestamp as order_purchase_timestamp,
-        orders.order_approved_at as order_approved_at,
-        orders.order_delivered_carrier_date as order_delivered_carrier_date,
-        orders.order_delivered_customer_date as order_delivered_customer_date,
-        orders.order_estimated_delivery_date as order_estimated_delivery_date,
-        order_items.shipping_limit_date as shipping_limit_date,
-        order_items.price as price,
-        order_items.freight_value as freight_value,
+        {{ output_column('order_items.order_id', 'order_id') }},
+        {{ output_column('order_items.order_item_id', 'order_item_id') }},
+        {{ output_column('orders.customer_id', 'customer_id') }},
+        {{
+            output_column(
+                'customers.customer_unique_id',
+                'customer_unique_id'
+            )
+        }},
+        {{ output_column('order_items.product_id', 'product_id') }},
+        {{ output_column('order_items.seller_id', 'seller_id') }},
+        {{ output_column('orders.order_status', 'order_status') }},
+        {{
+            output_column(
+                'orders.order_purchase_timestamp',
+                'order_purchase_timestamp'
+            )
+        }},
+        {{ output_column('orders.order_approved_at', 'order_approved_at') }},
+        {{
+            output_column(
+                'orders.order_delivered_carrier_date',
+                'order_delivered_carrier_date'
+            )
+        }},
+        {{
+            output_column(
+                'orders.order_delivered_customer_date',
+                'order_delivered_customer_date'
+            )
+        }},
+        {{
+            output_column(
+                'orders.order_estimated_delivery_date',
+                'order_estimated_delivery_date'
+            )
+        }},
+        {{
+            output_column(
+                'order_items.shipping_limit_date',
+                'shipping_limit_date'
+            )
+        }},
+        {{ output_column('order_items.price', 'price') }},
+        {{ output_column('order_items.freight_value', 'freight_value') }},
         {{
             cast_decimal(
                 'order_items.price + order_items.freight_value',
@@ -219,7 +248,12 @@ fact_base as (
                 2
             )
         }} as gross_item_amount,
-        payment_allocations.allocated_payment_value as allocated_payment_value,
+        {{
+            output_column(
+                'payment_allocations.allocated_payment_value',
+                'allocated_payment_value'
+            )
+        }},
         {{ days_between(
             'orders.order_purchase_timestamp',
             'orders.order_delivered_customer_date'
@@ -233,7 +267,7 @@ fact_base as (
             > orders.order_estimated_delivery_date,
             false
         ) as is_delivered_late,
-        orders._batch_id as _batch_id,
+        {{ output_column('orders._batch_id', '_batch_id') }},
         greatest(orders._loaded_at, order_items._loaded_at) as _loaded_at
     from order_items
     inner join orders
@@ -245,7 +279,6 @@ fact_base as (
             order_items.order_id = payment_allocations.order_id
             and order_items.order_item_id = payment_allocations.order_item_id
 )
--- noqa: enable=AL09
 
 select
     fact_base.order_item_key,
@@ -259,26 +292,51 @@ select
     approved_date.date_key as order_approved_date_key,
     delivered_date.date_key as order_delivered_customer_date_key,
     estimated_delivery_date.date_key as order_estimated_delivery_date_key,
-    fact_base.customer_id,
-    fact_base.customer_unique_id,
-    fact_base.product_id,
-    fact_base.seller_id,
-    fact_base.order_status,
-    fact_base.order_purchase_timestamp,
-    fact_base.order_approved_at,
-    fact_base.order_delivered_carrier_date,
-    fact_base.order_delivered_customer_date,
-    fact_base.order_estimated_delivery_date,
-    fact_base.shipping_limit_date,
-    fact_base.price,
-    fact_base.freight_value,
-    fact_base.gross_item_amount,
-    fact_base.allocated_payment_value,
-    fact_base.delivery_days,
-    fact_base.delivery_delay_days,
-    fact_base.is_delivered_late,
-    fact_base._batch_id,
-    fact_base._loaded_at
+    {{ output_column('fact_base.customer_id', 'customer_id') }},
+    {{ output_column('fact_base.customer_unique_id', 'customer_unique_id') }},
+    {{ output_column('fact_base.product_id', 'product_id') }},
+    {{ output_column('fact_base.seller_id', 'seller_id') }},
+    {{ output_column('fact_base.order_status', 'order_status') }},
+    {{
+        output_column(
+            'fact_base.order_purchase_timestamp',
+            'order_purchase_timestamp'
+        )
+    }},
+    {{ output_column('fact_base.order_approved_at', 'order_approved_at') }},
+    {{
+        output_column(
+            'fact_base.order_delivered_carrier_date',
+            'order_delivered_carrier_date'
+        )
+    }},
+    {{
+        output_column(
+            'fact_base.order_delivered_customer_date',
+            'order_delivered_customer_date'
+        )
+    }},
+    {{
+        output_column(
+            'fact_base.order_estimated_delivery_date',
+            'order_estimated_delivery_date'
+        )
+    }},
+    {{ output_column('fact_base.shipping_limit_date', 'shipping_limit_date') }},
+    {{ output_column('fact_base.price', 'price') }},
+    {{ output_column('fact_base.freight_value', 'freight_value') }},
+    {{ output_column('fact_base.gross_item_amount', 'gross_item_amount') }},
+    {{
+        output_column(
+            'fact_base.allocated_payment_value',
+            'allocated_payment_value'
+        )
+    }},
+    {{ output_column('fact_base.delivery_days', 'delivery_days') }},
+    {{ output_column('fact_base.delivery_delay_days', 'delivery_delay_days') }},
+    {{ output_column('fact_base.is_delivered_late', 'is_delivered_late') }},
+    {{ output_column('fact_base._batch_id', '_batch_id') }},
+    {{ output_column('fact_base._loaded_at', '_loaded_at') }}
 from fact_base
 left join customer_dim
     on
