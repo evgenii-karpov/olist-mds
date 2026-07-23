@@ -7,8 +7,8 @@
 
 {% else %}
 
-select *
-from {{ source('cdc_audit', 'cdc_partition_watermarks') }}
-where gap_count <> 0
+    select *
+    from {{ source('cdc_audit', 'cdc_partition_watermarks') }}
+    where gap_count <> 0
 
 {% endif %}

@@ -9,7 +9,8 @@
 
 with item_facts as (
     select
-        {{ cast_date('facts.order_purchase_timestamp') }} as order_purchase_date,
+        {{ cast_date('facts.order_purchase_timestamp') }}
+            as order_purchase_date,
         facts.order_id,
         facts.order_item_key,
         facts.customer_unique_id,

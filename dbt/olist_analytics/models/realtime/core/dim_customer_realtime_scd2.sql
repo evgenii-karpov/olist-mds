@@ -17,11 +17,21 @@ with ordered as (
             ~ " || '|' || "
             ~ cast_string('events._offset')
         ) }} as customer_key,
-        events.customer_id as customer_id,
-        events.customer_unique_id as customer_unique_id,
-        events.customer_zip_code_prefix as customer_zip_code_prefix,
-        events.customer_city as customer_city,
-        events.customer_state as customer_state,
+        {{ output_column('events.customer_id', 'customer_id') }},
+        {{
+            output_column(
+                'events.customer_unique_id',
+                'customer_unique_id'
+            )
+        }},
+        {{
+            output_column(
+                'events.customer_zip_code_prefix',
+                'customer_zip_code_prefix'
+            )
+        }},
+        {{ output_column('events.customer_city', 'customer_city') }},
+        {{ output_column('events.customer_state', 'customer_state') }},
         events._source_ts as valid_from,
         lead(events._source_ts) over (
             partition by events.customer_unique_id
@@ -33,10 +43,10 @@ with ordered as (
             ~ ') = 1'
         ) }} as is_current,
         {{ bool_value("events._op = 'd'") }} as is_deleted,
-        events._source_lsn as _source_lsn,
-        events._tx_order as _tx_order,
-        events._partition as _partition,
-        events._offset as _offset
+        {{ output_column('events._source_lsn', '_source_lsn') }},
+        {{ output_column('events._tx_order', '_tx_order') }},
+        {{ output_column('events._partition', '_partition') }},
+        {{ output_column('events._offset', '_offset') }}
     from {{ ref('stg_cdc__customers_events') }} as events
 )
 

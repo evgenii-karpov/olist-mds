@@ -5,67 +5,181 @@ with
 entity_counts as (
     select
         'customers_current_count' as metric_name,
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__customers') ~ ')', 18, 2) }}
-            as batch_value,
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__customers_current') ~ ')', 18, 2) }}
-            as realtime_value,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__customers') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__customers_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
         {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'orders_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__orders') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__orders_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'orders_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__orders') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__orders_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'order_items_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__order_items') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__order_items_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'order_items_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__order_items') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__order_items_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'order_payments_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__order_payments') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__order_payments_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'order_payments_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_olist__order_payments')
+                ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__order_payments_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'order_reviews_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__order_reviews') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__order_reviews_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'order_reviews_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__order_reviews') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__order_reviews_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'products_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__products') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__products_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'products_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__products') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__products_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'sellers_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__sellers') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__sellers_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'sellers_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('stg_olist__sellers') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__sellers_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'product_category_translation_current_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_olist__product_category_translation') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('stg_cdc__product_category_translation_current') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'product_category_translation_current_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_olist__product_category_translation')
+                ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('stg_cdc__product_category_translation_current')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 ),
 
 fact_business_mismatches as (
@@ -110,34 +224,96 @@ business_metrics as (
     union all
 
     select
-        'fact_order_item_count',
-        {{ cast_decimal('(select count(*) from ' ~ ref('fact_order_items') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select count(*) from ' ~ ref('fact_order_items_realtime') ~ ')', 18, 2) }},
-        {{ decimal_zero() }}
+        'fact_order_item_count' as metric_name,
+        {{
+            cast_decimal(
+                '(select count(*) from ' ~ ref('fact_order_items') ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select count(*) from '
+                ~ ref('fact_order_items_realtime')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_zero() }} as tolerance
 
     union all
 
     select
-        'fact_allocated_payment_total',
-        {{ cast_decimal('(select coalesce(sum(allocated_payment_value), 0) from ' ~ ref('fact_order_items') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select coalesce(sum(allocated_payment_value), 0) from ' ~ ref('fact_order_items_realtime') ~ ')', 18, 2) }},
-        {{ decimal_literal('0.01') }}
+        'fact_allocated_payment_total' as metric_name,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(allocated_payment_value), 0) from '
+                ~ ref('fact_order_items')
+                ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(allocated_payment_value), 0) from '
+                ~ ref('fact_order_items_realtime')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_literal('0.01') }} as tolerance
 
     union all
 
     select
-        'daily_gross_revenue_total',
-        {{ cast_decimal('(select coalesce(sum(gross_revenue), 0) from ' ~ ref('mart_daily_revenue') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select coalesce(sum(gross_revenue), 0) from ' ~ ref('mart_daily_revenue_realtime') ~ ')', 18, 2) }},
-        {{ decimal_literal('0.01') }}
+        'daily_gross_revenue_total' as metric_name,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(gross_revenue), 0) from '
+                ~ ref('mart_daily_revenue')
+                ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(gross_revenue), 0) from '
+                ~ ref('mart_daily_revenue_realtime')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_literal('0.01') }} as tolerance
 
     union all
 
     select
-        'monthly_revenue_total',
-        {{ cast_decimal('(select coalesce(sum(total_revenue), 0) from ' ~ ref('mart_monthly_arpu') ~ ')', 18, 2) }},
-        {{ cast_decimal('(select coalesce(sum(total_revenue), 0) from ' ~ ref('mart_monthly_arpu_realtime') ~ ')', 18, 2) }},
-        {{ decimal_literal('0.01') }}
+        'monthly_revenue_total' as metric_name,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(total_revenue), 0) from '
+                ~ ref('mart_monthly_arpu')
+                ~ ')',
+                18,
+                2
+            )
+        }} as batch_value,
+        {{
+            cast_decimal(
+                '(select coalesce(sum(total_revenue), 0) from '
+                ~ ref('mart_monthly_arpu_realtime')
+                ~ ')',
+                18,
+                2
+            )
+        }} as realtime_value,
+        {{ decimal_literal('0.01') }} as tolerance
 ),
 
 metrics as (

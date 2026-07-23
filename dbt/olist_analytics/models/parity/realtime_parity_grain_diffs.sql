@@ -54,10 +54,19 @@ daily_diff as (
             'batch.allocated_payment_revenue',
             'realtime.allocated_payment_revenue'
         ) }}
-        or {{ is_distinct('batch.product_revenue', 'realtime.product_revenue') }}
-        or {{ is_distinct('batch.freight_revenue', 'realtime.freight_revenue') }}
+        or {{ is_distinct(
+            'batch.product_revenue',
+            'realtime.product_revenue'
+        ) }}
+        or {{ is_distinct(
+            'batch.freight_revenue',
+            'realtime.freight_revenue'
+        ) }}
         or {{ is_distinct('batch.orders_count', 'realtime.orders_count') }}
-        or {{ is_distinct('batch.customers_count', 'realtime.customers_count') }}
+        or {{ is_distinct(
+            'batch.customers_count',
+            'realtime.customers_count'
+        ) }}
         or {{ is_distinct('batch.items_count', 'realtime.items_count') }}
         or {{ is_distinct(
             'batch.average_order_value',
@@ -88,7 +97,10 @@ monthly_diff as (
     where
         batch.order_month is null
         or realtime.order_month is null
-        or {{ is_distinct('batch.active_customers', 'realtime.active_customers') }}
+        or {{ is_distinct(
+            'batch.active_customers',
+            'realtime.active_customers'
+        ) }}
         or {{ is_distinct('batch.total_revenue', 'realtime.total_revenue') }}
         or {{ is_distinct('batch.arpu', 'realtime.arpu') }}
         or {{ is_distinct('batch.orders_count', 'realtime.orders_count') }}

@@ -7,22 +7,62 @@
 
 with product_driven_ranked as (
     select
-        products.product_id as product_id,
-        products.product_category_name as product_category_name,
-        products.product_name_lenght as product_name_lenght,
-        products.product_description_lenght as product_description_lenght,
-        products.product_photos_qty as product_photos_qty,
-        products.product_weight_g as product_weight_g,
-        products.product_length_cm as product_length_cm,
-        products.product_height_cm as product_height_cm,
-        products.product_width_cm as product_width_cm,
-        products._event_id as _event_id,
-        products._op as _op,
-        products._source_ts as _source_ts,
-        products._source_lsn as _source_lsn,
-        products._tx_order as _tx_order,
-        products._partition as _partition,
-        products._offset as _offset,
+        {{ output_column('products.product_id', 'product_id') }},
+        {{
+            output_column(
+                'products.product_category_name',
+                'product_category_name'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_name_lenght',
+                'product_name_lenght'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_description_lenght',
+                'product_description_lenght'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_photos_qty',
+                'product_photos_qty'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_weight_g',
+                'product_weight_g'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_length_cm',
+                'product_length_cm'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_height_cm',
+                'product_height_cm'
+            )
+        }},
+        {{
+            output_column(
+                'products.product_width_cm',
+                'product_width_cm'
+            )
+        }},
+        {{ output_column('products._event_id', '_event_id') }},
+        {{ output_column('products._op', '_op') }},
+        {{ output_column('products._source_ts', '_source_ts') }},
+        {{ output_column('products._source_lsn', '_source_lsn') }},
+        {{ output_column('products._tx_order', '_tx_order') }},
+        {{ output_column('products._partition', '_partition') }},
+        {{ output_column('products._offset', '_offset') }},
         translations.product_category_name_english,
         translations._op as translation_op,
         row_number() over (
@@ -37,7 +77,7 @@ with product_driven_ranked as (
             products.product_category_name
             = translations.product_category_name
             and {{ cdc_order_value('translations') }}
-                <= {{ cdc_order_value('products') }}
+            <= {{ cdc_order_value('products') }}
 ),
 
 product_driven as (
@@ -65,8 +105,13 @@ product_driven as (
 
 translation_driven_ranked as (
     select
-        products.product_id as product_id,
-        products.product_category_name as product_category_name,
+        {{ output_column('products.product_id', 'product_id') }},
+        {{
+            output_column(
+                'products.product_category_name',
+                'product_category_name'
+            )
+        }},
         translations.product_category_name as translation_category_name,
         translations.product_category_name_english,
         products.product_weight_g,
