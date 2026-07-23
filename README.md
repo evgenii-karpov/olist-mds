@@ -1,26 +1,38 @@
 # Olist Modern Data Stack
 
 Data engineering project built around the Olist Brazilian e-commerce dataset.
-The default development path uses Python ingestion, a filesystem raw zone with
-S3-style paths, PostgreSQL in Docker, Apache Airflow, and dbt. An AWS path is
-also available with S3-backed raw files and Redshift as the warehouse target.
+The local stack is moving from PostgreSQL to ClickHouse as the analytical
+warehouse. The migration plan is tracked in
+[Local PostgreSQL-to-ClickHouse Warehouse Migration Plan](docs/plans/local-clickhouse-warehouse-migration-plan.md).
 
-The project is fully reviewable without cloud access, while also supporting an
-AWS/Redshift execution path when cloud infrastructure is available.
+The project remains fully reviewable without cloud access. PostgreSQL is still
+used locally where transactional semantics are required: Airflow metadata, the
+OLTP source captured by Debezium, and the `olist_control` pipeline-control
+database. During the migration, PostgreSQL also remains available as the local
+analytical oracle for parity checks. The AWS path remains a batch-oriented
+S3/Redshift path; local CDC has been implemented with Docker Compose services
+and is not currently implemented for AWS.
 
 ## What It Demonstrates
 
 - End-to-end batch pipeline from CSV archive to analytics marts.
 - Deterministic raw-zone contract that can map to local files or object
   storage.
-- Parallel Airflow DAG variants for local PostgreSQL and AWS Redshift runs.
+- Local ClickHouse analytical warehouse migration with PostgreSQL retained as a
+  temporary oracle during parity validation.
+- Parallel Airflow DAG variants for local warehouse runs and AWS Redshift batch
+  runs.
 - Row-level validation, dead-letter files, threshold checks, and replay support.
-- Warehouse audit tables for batch state, raw load attempts, reconciliation,
-  dead-letter events, and replays.
+- PostgreSQL control-plane tables for batch state, raw load attempts,
+  reconciliation, CDC claims, watermarks, transform state, dead-letter events,
+  and replays.
 - Airflow orchestration with clear task boundaries and parameterized batch
   runs.
 - dbt layers for staging, intermediate logic, snapshots, core dimensions/facts,
   and business marts.
+- Local CDC pipeline with OLTP PostgreSQL, Debezium/Kafka, Apicurio, MinIO,
+  NiFi, typed warehouse ingestion, realtime dbt transforms, quality gates, and
+  observability scaffolding.
 - Elementary data observability with collected dbt artifacts, test results, and
   an automated observability report after dbt builds.
 - SCD Type 2 customer and product dimensions using deterministic correction
@@ -35,17 +47,28 @@ AWS/Redshift execution path when cloud infrastructure is available.
 Olist CSV archive
   -> Python ingestion and validation
   -> raw and dead-letter zones on local storage or S3
-  -> PostgreSQL or Redshift raw and audit schemas
+  -> ClickHouse raw_data locally, or Redshift raw schemas on AWS
   -> dbt staging, intermediate, snapshots, core, and marts
   -> Elementary observability schema and report
   -> Airflow-controlled quality gates
+```
+
+```text
+Local OLTP PostgreSQL
+  -> Debezium, Kafka, and Apicurio
+  -> MinIO CDC landing objects
+  -> NiFi normalization and manifest publication
+  -> ClickHouse raw_cdc locally
+  -> dbt realtime transforms and parity checks
+  -> PostgreSQL olist_control state transitions
 ```
 
 ## Repository Layout
 
 ```text
 airflow/
-  dags/                 Local and AWS Airflow DAGs with separate dbt targets.
+  dags/                 Local and AWS Airflow DAGs with warehouse-specific
+                        dbt targets and CDC orchestration.
 
 dbt/
   olist_analytics/      dbt project: sources, models, snapshots, tests,
@@ -53,6 +76,7 @@ dbt/
 
 docker/
   airflow/              Airflow image and container entrypoint for local and AWS runs.
+  clickhouse/           Local ClickHouse server configuration.
 
 docs/
   architecture.md       System design, orchestration, audit, and reliability.
@@ -64,14 +88,24 @@ docs/
   runbook_windows.md    Windows local setup and execution commands.
 
 infra/
+  clickhouse/           ClickHouse local database, raw, CDC, and runtime DDL.
+  control-postgres/     PostgreSQL control-plane DDL for Airflow-hosted
+                        olist_control.
   postgres/             PostgreSQL warehouse DDL for schemas, raw tables, audit,
-                        and correction tables.
+                        and correction tables during the oracle period.
   redshift/             Redshift warehouse DDL and COPY templates.
 
+observability/          Local Prometheus, Grafana, Alertmanager, Loki, and
+                        dashboard/rule configuration.
+
 scripts/
+  cdc/                  CDC control, warehouse ingest, realtime transform, and
+                        operational helpers.
   ingestion/            Source validation, raw file preparation, corrections.
-  loading/              PostgreSQL/Redshift raw load and dead-letter replay.
+  loading/              PostgreSQL, ClickHouse, and Redshift raw load helpers.
   orchestration/        Batch-control helpers.
+  parity/               Cross-engine oracle/candidate manifest export and
+                        comparison utilities.
   quality/              Reconciliation checks.
   testing/              Fixture generation.
   utilities/            Profiling, validation, and helper scripts.
@@ -84,19 +118,27 @@ tests/
 
 ## Main Design Choices
 
-- The local pipeline is the default path, but the AWS/Redshift path is also supported.
+- The local analytical warehouse is migrating to ClickHouse. PostgreSQL is
+  temporarily retained as the analytical oracle until the ClickHouse cutover is
+  complete.
+- PostgreSQL remains the right local store for Airflow metadata, the Debezium
+  OLTP source, and transactional pipeline-control state.
+- The AWS/Redshift path is batch-oriented and remains supported separately from
+  the local ClickHouse migration.
+- CDC is implemented for the local Docker Compose stack only. AWS CDC is not a
+  current supported path.
 - Raw files are immutable and partitioned by entity, batch date, and run id.
 - Structural source-contract failures fail fast, while record-level failures
   are isolated in the dead-letter zone.
-- Batch lifecycle is stored in warehouse audit tables instead of relying only
-  on Airflow UI state.
+- Batch and CDC lifecycle state is stored in PostgreSQL control tables instead
+  of relying only on Airflow UI state.
 - Reconciliation runs before dbt so silent data loss or duplicate raw loads stop
   the pipeline early.
 - dbt owns analytical modeling and data quality checks after the raw load.
 - Elementary adds dbt observability while keeping dependencies pinned and
   resolved before Airflow runs.
-- CI intentionally stays on the local PostgreSQL path so pull-request checks
-  remain reproducible, self-contained, and fast.
+- CI uses local, self-contained services so pull-request checks remain
+  reproducible and independent of cloud infrastructure.
 - CI uses a small deterministic fixture while still covering the real
   ingestion, loading, reconciliation, and dbt path.
 
@@ -108,7 +150,9 @@ Use the OS-specific runbook:
 - [macOS runbook](docs/runbook_macos.md)
 
 Both runbooks cover dependency setup, Docker Compose, manual smoke runs, the
-Airflow DAG, dbt execution, CI-style fixture validation, and cleanup.
+Airflow DAG, dbt execution, CI-style fixture validation, and cleanup. The
+ClickHouse migration plan documents the staged local warehouse cutover and the
+local-only CDC scope.
 
 Local Docker runs use committed development-only Docker secret files by
 default, so `docker compose up -d` works without creating a `.env` file. Copy
