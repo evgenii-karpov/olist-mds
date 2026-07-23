@@ -17,7 +17,7 @@ from typing import Any
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Param, dag, get_current_context, task, task_group
-from airflow.sdk.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException, AirflowSkipException
 
 DAG_ID = "olist_modern_data_stack_local"
 DEFAULT_SOURCE_ARCHIVE = "olist.zip"
@@ -72,6 +72,17 @@ def default_args() -> dict[str, Any]:
 
 def dag_params() -> dict[str, Param]:
     return {
+        "warehouse_target": Param(
+            "postgres",
+            type="string",
+            enum=["postgres", "clickhouse"],
+            description="Raw warehouse target for the local batch candidate run.",
+        ),
+        "run_dbt": Param(
+            True,
+            type="boolean",
+            description="Run dbt after raw reconciliation. Disable for ClickHouse raw-load candidate runs until Phase 4.",
+        ),
         "batch_date": Param(
             DEFAULT_DEMO_BATCH_DATE,
             type="string",
@@ -318,10 +329,28 @@ def olist_modern_data_stack_local():
     @task_group(group_id="raw_load_quality")
     def raw_load_quality():
         @task
-        def load_raw_files_to_postgres() -> None:
+        def load_raw_files() -> None:
             params, batch_date, run_id = current_batch_identifiers()
-            run_project_command(
-                [
+            warehouse_target = str(params["warehouse_target"])
+            if warehouse_target == "clickhouse":
+                command = [
+                    python_bin(),
+                    "scripts/loading/load_raw_to_clickhouse.py",
+                    "--raw-dir",
+                    str(params["raw_dir"]),
+                    "--profile",
+                    str(params["source_profile"]),
+                    "--batch-date",
+                    batch_date,
+                    "--batch-id",
+                    batch_date,
+                    "--run-id",
+                    run_id,
+                    "--dag-id",
+                    DAG_ID,
+                ]
+            else:
+                command = [
                     python_bin(),
                     "scripts/loading/load_raw_to_postgres.py",
                     "--raw-dir",
@@ -339,36 +368,44 @@ def olist_modern_data_stack_local():
                     "--dag-id",
                     DAG_ID,
                 ]
-            )
+            run_project_command(command)
 
         @task
         def reconcile_raw_load() -> None:
             params, batch_date, run_id = current_batch_identifiers()
-            run_project_command(
-                [
-                    python_bin(),
-                    "scripts/quality/reconcile_batch.py",
-                    "--raw-dir",
-                    str(params["raw_dir"]),
-                    "--profile",
-                    str(params["source_profile"]),
-                    "--bootstrap-sql-dir",
-                    POSTGRES_SQL_DIR,
-                    "--batch-date",
-                    batch_date,
-                    "--batch-id",
-                    batch_date,
-                    "--run-id",
-                    run_id,
-                    "--dag-id",
-                    DAG_ID,
-                ]
-            )
+            warehouse_target = str(params["warehouse_target"])
+            command = [
+                python_bin(),
+                "scripts/quality/reconcile_batch.py",
+                "--raw-dir",
+                str(params["raw_dir"]),
+                "--profile",
+                str(params["source_profile"]),
+                "--warehouse-type",
+                warehouse_target,
+                "--batch-date",
+                batch_date,
+                "--batch-id",
+                batch_date,
+                "--run-id",
+                run_id,
+                "--dag-id",
+                DAG_ID,
+            ]
+            if warehouse_target == "postgres":
+                command.extend(["--bootstrap-sql-dir", POSTGRES_SQL_DIR])
+            run_project_command(command)
 
-        _ = load_raw_files_to_postgres() >> reconcile_raw_load()
+        _ = load_raw_files() >> reconcile_raw_load()
 
     @task_group(group_id="dbt_transformations")
     def dbt_transformations():
+        @task
+        def require_dbt_enabled() -> None:
+            params, _, _ = current_batch_identifiers()
+            if not bool(params["run_dbt"]):
+                raise AirflowSkipException("dbt disabled for this candidate run")
+
         dbt_build_command = (
             "dbt build --selector batch --vars "
             "'{batch_date: \"{{ params.batch_date }}\", lookback_days: {{ params.lookback_days }}}'"
@@ -406,7 +443,7 @@ def olist_modern_data_stack_local():
             "DBT_BUILT"
         )
 
-        _ = dbt_build >> elementary_report >> mark_dbt_built
+        _ = require_dbt_enabled() >> dbt_build >> elementary_report >> mark_dbt_built
 
     end = EmptyOperator(task_id="end")
 
