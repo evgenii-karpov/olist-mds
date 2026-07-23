@@ -1,4 +1,4 @@
-FROM quay.io/debezium/connect@sha256:d574a7c9575ed78e2349a034ebdf57a99c516771b3dddb7bbeeb44f912a36e22
+FROM quay.io/debezium/connect:3.6.0.Final
 
 # Debezium 3.6 already ships the Apicurio converter. Assert the exact primary
 # artifacts at build time so a changed upstream image cannot silently alter the
