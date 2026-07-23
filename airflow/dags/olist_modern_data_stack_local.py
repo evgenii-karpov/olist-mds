@@ -25,6 +25,7 @@ DEFAULT_SOURCE_PROFILE = "docs/source_profile.json"
 DEFAULT_LOCAL_RAW_DIR = "data/raw/olist"
 POSTGRES_SQL_DIR = "infra/postgres"
 DEFAULT_DBT_TARGET = "local_pg"
+CLICKHOUSE_DBT_TARGET = "local_clickhouse"
 # Runtime default for manual/demo runs. It is after all generated correction
 # feed effective dates, so one batch sees the complete synthetic SCD2 scenario.
 DEFAULT_DEMO_BATCH_DATE = "2018-09-01"
@@ -81,7 +82,7 @@ def dag_params() -> dict[str, Param]:
         "run_dbt": Param(
             True,
             type="boolean",
-            description="Run dbt after raw reconciliation. Disable for ClickHouse raw-load candidate runs until Phase 4.",
+            description="Run dbt after raw reconciliation.",
         ),
         "batch_date": Param(
             DEFAULT_DEMO_BATCH_DATE,
@@ -215,13 +216,13 @@ def mark_batch_failed(context: dict) -> None:
 
 @dag(
     dag_id=DAG_ID,
-    description="Olist batch pipeline: local raw files, PostgreSQL load, and dbt transformations.",
+    description="Olist batch pipeline: local raw files, warehouse load, and dbt transformations.",
     default_args=default_args(),
     start_date=datetime(2016, 9, 1),
     schedule=None,
     catchup=False,
     max_active_runs=1,
-    tags=["olist", "local", "postgres", "dbt"],
+    tags=["olist", "local", "warehouse", "dbt"],
     params=dag_params(),
 )
 def olist_modern_data_stack_local():
@@ -410,11 +411,18 @@ def olist_modern_data_stack_local():
             "dbt build --selector batch --vars "
             "'{batch_date: \"{{ params.batch_date }}\", lookback_days: {{ params.lookback_days }}}'"
         )
+        dbt_target = (
+            "{{ '"
+            + CLICKHOUSE_DBT_TARGET
+            + "' if params.warehouse_target == 'clickhouse' else '"
+            + DEFAULT_DBT_TARGET
+            + "' }}"
+        )
 
         dbt_build = BashOperator(
             task_id="dbt_build",
             cwd=str(dbt_project_dir()),
-            env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
+            env={**os.environ, "DBT_TARGET": dbt_target},
             bash_command=(
                 "{% if params.full_refresh %}"
                 + dbt_build_command
@@ -428,11 +436,11 @@ def olist_modern_data_stack_local():
         elementary_report = BashOperator(
             task_id="elementary_report",
             cwd=str(dbt_project_dir()),
-            env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
+            env={**os.environ, "DBT_TARGET": dbt_target},
             bash_command=(
                 "mkdir -p target/edr && "
                 "edr report --env prod --profiles-dir . "
-                f"--profile-target {DEFAULT_DBT_TARGET} "
+                f"--profile-target {dbt_target} "
                 '--target-path "$PWD/target/edr" '
                 '--file-path "$PWD/target/edr/elementary_report.html" '
                 "--open-browser false"

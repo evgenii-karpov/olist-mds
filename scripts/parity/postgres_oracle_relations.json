@@ -2,6 +2,7 @@
   "format_version": 1,
   "dataset": "olist_small",
   "relations": [
+    {"schema": "core", "name": "dim_date", "grain": ["date_key"]},
     {"schema": "core", "name": "dim_customer_scd2", "grain": ["customer_key"], "exclude_columns": ["snapshot_valid_from", "snapshot_valid_to"]},
     {"schema": "core", "name": "dim_product_scd2", "grain": ["product_key"], "exclude_columns": ["snapshot_valid_from", "snapshot_valid_to"]},
     {"schema": "core", "name": "dim_seller", "grain": ["seller_id"]},

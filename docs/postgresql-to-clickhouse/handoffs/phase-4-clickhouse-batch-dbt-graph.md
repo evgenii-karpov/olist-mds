@@ -38,7 +38,10 @@ tuning until semantic parity is proven.
 - Do not move CDC raw event writes or realtime dbt models to ClickHouse in
   Phase 4.
 - Do not query `olist_control` from ClickHouse or dbt.
-- Keep `fact_order_items` as a full table until parity is proven.
+- Keep `fact_order_items` as a full table only for the first parity pass. Once
+  parity is proven, complete Phase 4 by moving it to ClickHouse
+  `insert_overwrite` partition replacement with explicit empty affected
+  partition cleanup.
 - Avoid ClickHouse-specific performance features such as projections, codecs,
   materialized views, or denormalized tables unless the migration plan is
   amended.
@@ -59,8 +62,15 @@ tuning until semantic parity is proven.
 - Keep ClickHouse operational checks in Python when they need control state;
   dbt models and tests should read ClickHouse analytical relations only.
 - Compare ClickHouse batch leaf outputs against PostgreSQL oracle outputs with
-  row counts, grain-key checks, and canonical hashes before changing
-  materialization strategies.
+  row counts, semantic column contracts, grain-key checks, and canonical hashes
+  before changing materialization strategies.
+- After parity is proven, replace the temporary full-table ClickHouse
+  `fact_order_items` materialization with incremental `insert_overwrite` and
+  verify repeated incremental reruns.
+- Add the destructive local ClickHouse
+  `scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py` fixture to the
+  regular CI workflow as a focused PR/push gate for moved keys, stale row
+  cleanup, and affected partitions that become empty.
 - Once the graph builds, update the local DAG so `warehouse_target=clickhouse`
   can run dbt with `DBT_TARGET=local_clickhouse` instead of requiring
   `run_dbt=false`.
@@ -88,8 +98,10 @@ the batch leaf outputs before broadening the fixture scope.
 - Batch-selected dbt models, snapshots, unit tests, data tests, and Elementary
   run against ClickHouse.
 - PostgreSQL oracle batch outputs and ClickHouse candidate batch outputs match
-  on row counts, grain keys, and canonical hashes.
+  on row counts, semantic column contracts, grain keys, and canonical hashes.
 - Repeated ClickHouse batch builds are stable.
-- `fact_order_items` remains a full table unless the plan's monthly
-  `insert_overwrite` validation is complete.
+- `fact_order_items` uses ClickHouse incremental `insert_overwrite` partition
+  replacement after the first parity pass.
+- Regular CI runs the ClickHouse incremental edge fixture against an isolated
+  local ClickHouse service.
 - Redshift parse/compile remains green.

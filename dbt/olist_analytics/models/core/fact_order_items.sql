@@ -1,11 +1,32 @@
-{{
-    config(
-        materialized='incremental',
-        unique_key='order_item_key',
-        incremental_strategy='delete+insert',
-        pre_hook="{{ delete_stale_fact_order_items() }}"
-    )
-}}
+{% if target.type == 'clickhouse' %}
+    {{
+        config(
+            materialized='incremental',
+            incremental_strategy='insert_overwrite',
+            partition_by="toYYYYMM(coalesce(toDate(order_purchase_timestamp), toDate('1900-01-01')))",
+            order_by=[
+                'order_purchase_timestamp',
+                'order_id',
+                'order_item_id'
+            ],
+            clickhouse_drop_empty_partitions=true,
+            pre_hook=[
+                "{{ clickhouse_drop_fact_order_items_affected_partitions() }}",
+                "{{ clickhouse_prepare_fact_order_items_affected_partitions() }}"
+            ],
+            post_hook="{{ clickhouse_drop_fact_order_items_affected_partitions() }}"
+        )
+    }}
+{% else %}
+    {{
+        config(
+            materialized='incremental',
+            unique_key='order_item_key',
+            incremental_strategy='delete+insert',
+            pre_hook="{{ delete_stale_fact_order_items() }}"
+        )
+    }}
+{% endif %}
 
 {% if target.type == 'redshift' %}
     {{
@@ -37,47 +58,53 @@ source_order_items as (
 
 {% if is_incremental() %}
 
-    incremental_reprocess_boundaries as (
-        select
-            coalesce(
-            {{ dateadd_days(
-                'max(order_purchase_timestamp)',
-                lookback_days * -1
-            ) }},
-                '1900-01-01'::timestamp
-            ) as reprocess_from
-        from {{ this }}
+    {% if target.type != 'clickhouse' %}
 
-        union all
+        incremental_reprocess_boundaries as (
+            select
+                coalesce(
+                {{ dateadd_days(
+                    'max(order_purchase_timestamp)',
+                    lookback_days * -1
+                ) }},
+                    {{ timestamp_literal('1900-01-01') }}
+                ) as reprocess_from
+            from {{ this }}
 
-        select min(effective_at) as reprocess_from
-        from {{ ref('stg_olist__customer_profile_changes') }}
+            union all
 
-        union all
+            select min(effective_at) as reprocess_from
+            from {{ ref('stg_olist__customer_profile_changes') }}
 
-        select min(effective_at) as reprocess_from
-        from {{ ref('stg_olist__product_attribute_changes') }}
+            union all
 
-        union all
+            select min(effective_at) as reprocess_from
+            from {{ ref('stg_olist__product_attribute_changes') }}
 
-        select min(source_orders.order_purchase_timestamp) as reprocess_from
-        from source_order_items
-        inner join source_orders
-            on source_order_items.order_id = source_orders.order_id
-        left join {{ this }} as existing_fact
-            on
-                md5(
-                    source_order_items.order_id || '|'
-                    || source_order_items.order_item_id::varchar
-                ) = existing_fact.order_item_key
-        where existing_fact.order_item_key is null
-    ),
+            union all
 
-    incremental_reprocess_window as (
-        select min(reprocess_from) as reprocess_from
-        from incremental_reprocess_boundaries
-        where reprocess_from is not null
-    ),
+            select min(source_orders.order_purchase_timestamp) as reprocess_from
+            from source_order_items
+            inner join source_orders
+                on source_order_items.order_id = source_orders.order_id
+            left join {{ this }} as existing_fact
+                on
+                    {{
+                        hash_key(
+                            "source_order_items.order_id || '|' || "
+                            ~ cast_string('source_order_items.order_item_id')
+                        )
+                    }} = existing_fact.order_item_key
+            where existing_fact.order_item_key is null
+        ),
+
+        incremental_reprocess_window as (
+            select min(reprocess_from) as reprocess_from
+            from incremental_reprocess_boundaries
+            where reprocess_from is not null
+        ),
+
+    {% endif %}
 
 {% endif %}
 
@@ -86,10 +113,17 @@ orders as (
     from source_orders
 
     {% if is_incremental() %}
-        where order_purchase_timestamp >= (
-            select incremental_reprocess_window.reprocess_from
-            from incremental_reprocess_window
-        )
+        {% if target.type == 'clickhouse' %}
+            where {{ fact_order_items_purchase_partition_id('order_purchase_timestamp') }} in (
+                select partition_id
+                from {{ fact_order_items_affected_partitions_relation() }}
+            )
+        {% else %}
+            where order_purchase_timestamp >= (
+                select incremental_reprocess_window.reprocess_from
+                from incremental_reprocess_window
+            )
+        {% endif %}
     {% endif %}
 ),
 
@@ -156,27 +190,30 @@ order_items as (
 
 fact_base as (
     select
-        md5(
-            order_items.order_id || '|'
-            || order_items.order_item_id::varchar
-        ) as order_item_key,
-        order_items.order_id,
-        order_items.order_item_id,
-        orders.customer_id,
-        customers.customer_unique_id,
-        order_items.product_id,
-        order_items.seller_id,
-        orders.order_status,
-        orders.order_purchase_timestamp,
-        orders.order_approved_at,
-        orders.order_delivered_carrier_date,
-        orders.order_delivered_customer_date,
-        orders.order_estimated_delivery_date,
-        order_items.shipping_limit_date,
-        order_items.price,
-        order_items.freight_value,
-        order_items.price + order_items.freight_value as gross_item_amount,
-        payment_allocations.allocated_payment_value,
+        {{
+            hash_key(
+                "order_items.order_id || '|' || "
+                ~ cast_string('order_items.order_item_id')
+            )
+        }} as order_item_key,
+        order_items.order_id as order_id,
+        order_items.order_item_id as order_item_id,
+        orders.customer_id as customer_id,
+        customers.customer_unique_id as customer_unique_id,
+        order_items.product_id as product_id,
+        order_items.seller_id as seller_id,
+        orders.order_status as order_status,
+        orders.order_purchase_timestamp as order_purchase_timestamp,
+        orders.order_approved_at as order_approved_at,
+        orders.order_delivered_carrier_date as order_delivered_carrier_date,
+        orders.order_delivered_customer_date as order_delivered_customer_date,
+        orders.order_estimated_delivery_date as order_estimated_delivery_date,
+        order_items.shipping_limit_date as shipping_limit_date,
+        order_items.price as price,
+        order_items.freight_value as freight_value,
+        {{ cast_decimal('order_items.price + order_items.freight_value', 18, 2) }}
+            as gross_item_amount,
+        payment_allocations.allocated_payment_value as allocated_payment_value,
         {{ days_between(
             'orders.order_purchase_timestamp',
             'orders.order_delivered_customer_date'
@@ -190,7 +227,7 @@ fact_base as (
             > orders.order_estimated_delivery_date,
             false
         ) as is_delivered_late,
-        orders._batch_id,
+        orders._batch_id as _batch_id,
         greatest(orders._loaded_at, order_items._loaded_at) as _loaded_at
     from order_items
     inner join orders
@@ -215,50 +252,52 @@ select
     approved_date.date_key as order_approved_date_key,
     delivered_date.date_key as order_delivered_customer_date_key,
     estimated_delivery_date.date_key as order_estimated_delivery_date_key,
-    fact_base.customer_id,
-    fact_base.customer_unique_id,
-    fact_base.product_id,
-    fact_base.seller_id,
-    fact_base.order_status,
-    fact_base.order_purchase_timestamp,
-    fact_base.order_approved_at,
-    fact_base.order_delivered_carrier_date,
-    fact_base.order_delivered_customer_date,
-    fact_base.order_estimated_delivery_date,
-    fact_base.shipping_limit_date,
-    fact_base.price,
-    fact_base.freight_value,
-    fact_base.gross_item_amount,
-    fact_base.allocated_payment_value,
-    fact_base.delivery_days,
-    fact_base.delivery_delay_days,
-    fact_base.is_delivered_late,
-    fact_base._batch_id,
-    fact_base._loaded_at
+    fact_base.customer_id as customer_id,
+    fact_base.customer_unique_id as customer_unique_id,
+    fact_base.product_id as product_id,
+    fact_base.seller_id as seller_id,
+    fact_base.order_status as order_status,
+    fact_base.order_purchase_timestamp as order_purchase_timestamp,
+    fact_base.order_approved_at as order_approved_at,
+    fact_base.order_delivered_carrier_date as order_delivered_carrier_date,
+    fact_base.order_delivered_customer_date as order_delivered_customer_date,
+    fact_base.order_estimated_delivery_date as order_estimated_delivery_date,
+    fact_base.shipping_limit_date as shipping_limit_date,
+    fact_base.price as price,
+    fact_base.freight_value as freight_value,
+    fact_base.gross_item_amount as gross_item_amount,
+    fact_base.allocated_payment_value as allocated_payment_value,
+    fact_base.delivery_days as delivery_days,
+    fact_base.delivery_delay_days as delivery_delay_days,
+    fact_base.is_delivered_late as is_delivered_late,
+    fact_base._batch_id as _batch_id,
+    fact_base._loaded_at as _loaded_at
 from fact_base
 left join customer_dim
     on
         fact_base.customer_unique_id = customer_dim.customer_unique_id
         and fact_base.order_purchase_timestamp >= customer_dim.valid_from
         and fact_base.order_purchase_timestamp
-        < coalesce(customer_dim.valid_to, '9999-12-31'::timestamp)
+        < coalesce(customer_dim.valid_to, {{ max_valid_timestamp() }})
 left join product_dim
     on
         fact_base.product_id = product_dim.product_id
         and fact_base.order_purchase_timestamp >= product_dim.valid_from
         and fact_base.order_purchase_timestamp
-        < coalesce(product_dim.valid_to, '9999-12-31'::timestamp)
+        < coalesce(product_dim.valid_to, {{ max_valid_timestamp() }})
 left join seller_dim
     on fact_base.seller_id = seller_dim.seller_id
 left join order_status_dim
     on fact_base.order_status = order_status_dim.order_status
 left join dates as purchase_date
-    on fact_base.order_purchase_timestamp::date = purchase_date.date_day
+    on {{ cast_date('fact_base.order_purchase_timestamp') }} = purchase_date.date_day
 left join dates as approved_date
-    on fact_base.order_approved_at::date = approved_date.date_day
+    on {{ cast_date('fact_base.order_approved_at') }} = approved_date.date_day
 left join dates as delivered_date
-    on fact_base.order_delivered_customer_date::date = delivered_date.date_day
+    on
+        {{ cast_date('fact_base.order_delivered_customer_date') }}
+        = delivered_date.date_day
 left join dates as estimated_delivery_date
     on
-        fact_base.order_estimated_delivery_date::date
+        {{ cast_date('fact_base.order_estimated_delivery_date') }}
         = estimated_delivery_date.date_day

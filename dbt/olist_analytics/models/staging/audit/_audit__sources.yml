@@ -4,7 +4,6 @@ sources:
   - name: pipeline_audit
     description: >
       Pipeline control and observability tables populated outside dbt.
-    database: "{{ target.database }}"
     schema: audit
     tables:
       - name: batch_runs

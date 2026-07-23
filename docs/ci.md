@@ -3,10 +3,10 @@
 The GitHub Actions workflow is split into focused jobs so a failing check points
 to a useful layer instead of one opaque pipeline failure.
 
-CI intentionally runs only the local PostgreSQL execution path. The AWS/S3/
-Redshift path is available for manual validation, but pull-request checks stay
-local so they remain reproducible, self-contained, and independent of cloud
-credentials or infrastructure availability.
+CI intentionally runs only local, self-contained services. The AWS/S3/Redshift
+path is available for manual validation, but pull-request checks stay local so
+they remain reproducible and independent of cloud credentials or infrastructure
+availability.
 
 ## Workflow
 
@@ -24,6 +24,11 @@ dbt-static
 airflow-imports
   -> Docker Compose validation, Airflow image build, metadata database startup,
      and isolated DAG imports.
+
+clickhouse-incremental-edges
+  -> Starts isolated ClickHouse services and verifies the Phase 4
+     `fact_order_items` incremental `insert_overwrite` edge fixture for moved
+     keys, stale fact row removal, and affected partitions that become empty.
 
 cdc-stage1-oltp-simulator
   -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
@@ -101,6 +106,8 @@ Happy path:
 - dbt tests.
 - incremental replay of the same fixture batch through Airflow with stable raw
   file and analytical output fingerprints.
+- ClickHouse `fact_order_items` incremental partition replacement with moved
+  keys, stale row cleanup, and empty affected partition drop.
 
 Failure modes:
 

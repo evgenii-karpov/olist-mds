@@ -1,5 +1,5 @@
 select
-    md5(order_status) as order_status_key,
+    {{ hash_key('order_status') }} as order_status_key,
     order_status,
     coalesce(order_status = 'delivered', false) as is_successful_status,
     coalesce(

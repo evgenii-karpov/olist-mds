@@ -24,12 +24,14 @@ select
     order_payments.order_payment_value,
     case
         when order_item_amounts.order_gross_amount > 0
-            then round(
-                order_payments.order_payment_value
-                * order_item_amounts.item_gross_amount
-                / order_item_amounts.order_gross_amount,
+            then {{ cast_decimal(
+                "round("
+                ~ "order_payments.order_payment_value "
+                ~ "* order_item_amounts.item_gross_amount "
+                ~ "/ order_item_amounts.order_gross_amount, 2)",
+                18,
                 2
-            )
+            ) }}
     end as allocated_payment_value
 from order_item_amounts
 left join order_payments using (order_id)

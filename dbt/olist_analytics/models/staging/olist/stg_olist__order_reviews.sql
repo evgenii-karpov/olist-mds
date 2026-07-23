@@ -1,18 +1,14 @@
 with ranked as (
     select
-        review_id::varchar(256) as review_id,
-        order_id::varchar(256) as order_id,
-        review_score::integer as review_score,
-        nullif(
-            trim(review_comment_title),
-            ''
-        )::varchar(1024) as review_comment_title,
-        nullif(
-            trim(review_comment_message),
-            ''
-        )::varchar(65535) as review_comment_message,
-        review_creation_date::timestamp as review_creation_date,
-        review_answer_timestamp::timestamp as review_answer_timestamp,
+        {{ cast_string('review_id', 256) }} as review_id,
+        {{ cast_string('order_id', 256) }} as order_id,
+        {{ cast_int('review_score') }} as review_score,
+        {{ cast_string("nullif(trim(review_comment_title), '')", 1024) }}
+            as review_comment_title,
+        {{ cast_string("nullif(trim(review_comment_message), '')", 65535) }}
+            as review_comment_message,
+        {{ cast_timestamp('review_creation_date') }} as review_creation_date,
+        {{ cast_timestamp('review_answer_timestamp') }} as review_answer_timestamp,
         _batch_id,
         _loaded_at,
         _source_file,

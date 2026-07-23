@@ -2,10 +2,12 @@
 
 with expected_items as (
     select
-        md5(
-            order_items.order_id || '|'
-            || order_items.order_item_id::varchar
-        ) as order_item_key,
+        {{
+            hash_key(
+                "order_items.order_id || '|' || "
+                ~ cast_string('order_items.order_item_id')
+            )
+        }} as order_item_key,
         order_items.order_id,
         order_items.order_item_id
     from {{ ref('stg_olist__order_items') }} as order_items
