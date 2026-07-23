@@ -16,10 +16,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import clickhouse_connect
 import psycopg2
 from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 
+from scripts.loading.load_raw_to_clickhouse import (
+    add_clickhouse_args,
+    ch_string,
+    qualified,
+)
 from scripts.loading.load_raw_to_postgres import (
     RAW_SCHEMA,
     RawLoadSpec,
@@ -29,6 +35,10 @@ from scripts.loading.load_raw_to_postgres import (
     load_specs,
 )
 from scripts.orchestration.batch_control import BatchRunContext, mark_batch_status
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
 
 
 class RawLoadSpecLike(Protocol):
@@ -83,6 +93,28 @@ def warehouse_connection(args: argparse.Namespace) -> PgConnection:
     )
 
 
+def clickhouse_password() -> str:
+    if password := os.environ.get("CLICKHOUSE_PASSWORD"):
+        return password
+
+    password_file = os.environ.get("CLICKHOUSE_PASSWORD_FILE")
+    if not password_file:
+        return "olist"
+
+    return Path(password_file).read_text(encoding="utf-8").rstrip("\r\n")
+
+
+def clickhouse_connection(args: argparse.Namespace):
+    return clickhouse_connect.get_client(
+        host=args.clickhouse_host,
+        port=args.clickhouse_port,
+        username=args.clickhouse_user,
+        password=args.clickhouse_password or clickhouse_password(),
+        database=args.clickhouse_database,
+        secure=args.clickhouse_secure,
+    )
+
+
 def load_expected_source_rows(profile_path: Path) -> dict[str, int]:
     profile = json.loads(profile_path.read_text(encoding="utf-8"))
     return {entity["entity_name"]: int(entity["row_count"]) for entity in profile}
@@ -101,12 +133,27 @@ def count_raw_rows(
         return int(fetch_one(cursor)[0])
 
 
+def count_clickhouse_raw_rows(
+    connection,
+    spec: RawLoadSpec,
+    batch_id: str,
+) -> int:
+    row = connection.query(
+        "SELECT count() "
+        f"FROM {qualified(RAW_SCHEMA, spec.entity_name)} "
+        f"WHERE _batch_id = {ch_string(batch_id)}"
+    ).first_row
+    if row is None:
+        raise ValueError("Expected ClickHouse query to return exactly one row")
+    return int(row[0])
+
+
 def count_replayed_rows(
-    connection: PgConnection,
+    control_pg_connection: PgConnection,
     entity_name: str,
     batch_id: str,
 ) -> int:
-    with connection.cursor() as cursor:
+    with control_pg_connection.cursor() as cursor:
         cursor.execute(
             """
             select coalesce(sum(rows_replayed), 0)
@@ -283,7 +330,8 @@ def fail_if_mismatched(results: list[ReconciliationResult]) -> None:
 
 
 def reconcile_batch(
-    connection: PgConnection,
+    warehouse_pg_connection: PgConnection,
+    control_pg_connection: PgConnection,
     profile_path: Path,
     raw_dir: Path,
     batch_id: str,
@@ -292,10 +340,42 @@ def reconcile_batch(
     manifest_entries = load_dead_letter_manifest_entries(raw_dir)
     expected_source_rows = load_expected_source_rows(profile_path)
     raw_counts = {
-        spec.entity_name: count_raw_rows(connection, spec, batch_id) for spec in specs
+        spec.entity_name: count_raw_rows(warehouse_pg_connection, spec, batch_id)
+        for spec in specs
     }
     replay_counts = {
-        spec.entity_name: count_replayed_rows(connection, spec.entity_name, batch_id)
+        spec.entity_name: count_replayed_rows(
+            control_pg_connection, spec.entity_name, batch_id
+        )
+        for spec in specs
+    }
+    return build_reconciliation_results(
+        specs=specs,
+        expected_source_rows=expected_source_rows,
+        manifest_entries=manifest_entries,
+        raw_loaded_rows=raw_counts,
+        replayed_rows=replay_counts,
+    )
+
+
+def reconcile_batch_clickhouse(
+    clickhouse_client,
+    control_pg_connection: PgConnection,
+    profile_path: Path,
+    raw_dir: Path,
+    batch_id: str,
+) -> list[ReconciliationResult]:
+    specs = load_specs(profile_path)
+    manifest_entries = load_dead_letter_manifest_entries(raw_dir)
+    expected_source_rows = load_expected_source_rows(profile_path)
+    raw_counts = {
+        spec.entity_name: count_clickhouse_raw_rows(clickhouse_client, spec, batch_id)
+        for spec in specs
+    }
+    replay_counts = {
+        spec.entity_name: count_replayed_rows(
+            control_pg_connection, spec.entity_name, batch_id
+        )
         for spec in specs
     }
     return build_reconciliation_results(
@@ -316,6 +396,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-id")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--dag-id")
+    parser.add_argument(
+        "--warehouse-type",
+        choices=["postgres", "clickhouse"],
+        default=os.environ.get("WAREHOUSE_TYPE", "postgres"),
+    )
     parser.add_argument("--no-fail-on-mismatch", action="store_true")
     parser.add_argument("--disable-batch-control", action="store_true")
     parser.add_argument(
@@ -339,6 +424,8 @@ def parse_args() -> argparse.Namespace:
         "--password",
         default=warehouse_env("WAREHOUSE_PASSWORD", "POSTGRES_PASSWORD", "olist"),
     )
+    add_clickhouse_args(parser)
+    add_control_postgres_args(parser)
     return parser.parse_args()
 
 
@@ -346,18 +433,37 @@ def main() -> None:
     args = parse_args()
     batch_id = args.batch_id or args.batch_date
     raw_dir = Path(args.raw_dir)
-    connection = warehouse_connection(args)
+    warehouse_pg_connection = (
+        warehouse_connection(args) if args.warehouse_type == "postgres" else None
+    )
+    warehouse_clickhouse_connection = (
+        clickhouse_connection(args) if args.warehouse_type == "clickhouse" else None
+    )
+    control_pg_connection = control_connection(args)
     try:
-        if args.bootstrap_sql_dir:
-            execute_sql_files(connection, Path(args.bootstrap_sql_dir))
+        if args.bootstrap_sql_dir and warehouse_pg_connection is not None:
+            execute_sql_files(warehouse_pg_connection, Path(args.bootstrap_sql_dir))
 
-        results = reconcile_batch(
-            connection=connection,
-            profile_path=Path(args.profile),
-            raw_dir=raw_dir,
-            batch_id=batch_id,
+        if warehouse_clickhouse_connection is not None:
+            results = reconcile_batch_clickhouse(
+                clickhouse_client=warehouse_clickhouse_connection,
+                control_pg_connection=control_pg_connection,
+                profile_path=Path(args.profile),
+                raw_dir=raw_dir,
+                batch_id=batch_id,
+            )
+        else:
+            assert warehouse_pg_connection is not None
+            results = reconcile_batch(
+                warehouse_pg_connection=warehouse_pg_connection,
+                control_pg_connection=control_pg_connection,
+                profile_path=Path(args.profile),
+                raw_dir=raw_dir,
+                batch_id=batch_id,
+            )
+        record_reconciliation_results(
+            control_pg_connection, batch_id, args.run_id, results
         )
-        record_reconciliation_results(connection, batch_id, args.run_id, results)
 
         batch_context = BatchRunContext(
             batch_id=batch_id,
@@ -371,7 +477,7 @@ def main() -> None:
 
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "RAW_RECONCILED",
                     raw_dir=raw_dir,
@@ -379,7 +485,7 @@ def main() -> None:
         except Exception as exc:
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "FAILED",
                     raw_dir=raw_dir,
@@ -387,7 +493,11 @@ def main() -> None:
                 )
             raise
     finally:
-        connection.close()
+        if warehouse_pg_connection is not None:
+            warehouse_pg_connection.close()
+        if warehouse_clickhouse_connection is not None:
+            warehouse_clickhouse_connection.close()
+        control_pg_connection.close()
 
     passed = sum(1 for result in results if result.status == "PASS")
     print(f"Reconciled batch {batch_id}: {passed}/{len(results)} entities passed")

@@ -1,14 +1,12 @@
 {{
     config(
-        materialized='incremental',
-        unique_key='seller_id',
-        incremental_strategy='merge',
+        materialized='table',
         tags=['realtime_transform', 'realtime_quality']
     )
 }}
 
 select
-    md5(seller_id) as seller_key,
+    {{ hash_key('seller_id') }} as seller_key,
     seller_id,
     seller_zip_code_prefix,
     seller_city,

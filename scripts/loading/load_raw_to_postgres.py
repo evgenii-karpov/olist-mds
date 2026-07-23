@@ -25,6 +25,10 @@ from psycopg2.extensions import cursor as PgCursor
 from scripts.ingestion.correction_specs import CORRECTION_FEEDS
 from scripts.ingestion.raw_files import load_source_entities, raw_file_path
 from scripts.orchestration.batch_control import BatchRunContext, mark_batch_status
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
 
 RAW_SCHEMA = "raw_data"
 
@@ -152,19 +156,21 @@ def copy_file_to_raw_table(
 
 
 def record_success(
-    connection: PgConnection,
+    warehouse_connection: PgConnection,
+    control_connection: PgConnection,
     spec: RawLoadSpec,
     batch_id: str,
     run_id: str,
     source_path: Path,
     started_at: datetime,
 ) -> None:
-    with connection.cursor() as cursor:
+    with warehouse_connection.cursor() as cursor:
         count_statement = sql.SQL(
             "select count(*) from {}.{} where _batch_id = %s"
         ).format(sql.Identifier(RAW_SCHEMA), sql.Identifier(spec.entity_name))
         cursor.execute(count_statement, (batch_id,))
         rows_loaded = fetch_one(cursor)[0]
+    with control_connection.cursor() as cursor:
         cursor.execute(
             """
             insert into audit.load_runs (
@@ -194,13 +200,13 @@ def record_success(
 
 
 def record_dead_letter_event(
-    connection: PgConnection,
+    control_connection: PgConnection,
     spec: RawLoadSpec,
     batch_id: str,
     run_id: str,
     manifest_entry: DeadLetterManifestEntry | None,
 ) -> None:
-    with connection.cursor() as cursor:
+    with control_connection.cursor() as cursor:
         cursor.execute(
             """
             delete from audit.dead_letter_events
@@ -250,7 +256,7 @@ def record_dead_letter_event(
 
 
 def record_failure(
-    connection: PgConnection,
+    control_connection: PgConnection,
     spec: RawLoadSpec,
     batch_id: str,
     run_id: str,
@@ -258,7 +264,7 @@ def record_failure(
     started_at: datetime,
     error: Exception,
 ) -> None:
-    with connection.cursor() as cursor:
+    with control_connection.cursor() as cursor:
         cursor.execute(
             """
             delete from audit.load_runs
@@ -303,11 +309,12 @@ def record_failure(
                 str(error)[:65535],
             ),
         )
-    connection.commit()
+    control_connection.commit()
 
 
 def load_one_spec(
-    connection: PgConnection,
+    warehouse_connection: PgConnection,
+    control_connection: PgConnection,
     spec: RawLoadSpec,
     raw_dir: Path,
     batch_date: str,
@@ -320,11 +327,12 @@ def load_one_spec(
     )
     started_at = utc_now()
     try:
-        with connection.cursor() as cursor:
+        with warehouse_connection.cursor() as cursor:
             delete_statement = sql.SQL("delete from {}.{} where _batch_id = %s").format(
                 sql.Identifier(RAW_SCHEMA), sql.Identifier(spec.entity_name)
             )
             cursor.execute(delete_statement, (batch_id,))
+        with control_connection.cursor() as cursor:
             cursor.execute(
                 """
                 delete from audit.load_runs
@@ -335,7 +343,7 @@ def load_one_spec(
             )
 
         record_dead_letter_event(
-            connection=connection,
+            control_connection=control_connection,
             spec=spec,
             batch_id=batch_id,
             run_id=run_id,
@@ -345,18 +353,31 @@ def load_one_spec(
         if not source_path.exists():
             raise FileNotFoundError(f"Missing prepared raw file: {source_path}")
 
-        copy_file_to_raw_table(connection, spec, source_path)
-        record_success(connection, spec, batch_id, run_id, source_path, started_at)
-        connection.commit()
+        copy_file_to_raw_table(warehouse_connection, spec, source_path)
+        record_success(
+            warehouse_connection,
+            control_connection,
+            spec,
+            batch_id,
+            run_id,
+            source_path,
+            started_at,
+        )
+        warehouse_connection.commit()
+        control_connection.commit()
         print(f"Loaded {spec.entity_name} from {source_path}")
     except Exception as exc:
-        connection.rollback()
-        record_failure(connection, spec, batch_id, run_id, source_path, started_at, exc)
+        warehouse_connection.rollback()
+        control_connection.rollback()
+        record_failure(
+            control_connection, spec, batch_id, run_id, source_path, started_at, exc
+        )
         raise
 
 
 def load_all(
-    connection: PgConnection,
+    warehouse_connection: PgConnection,
+    control_connection: PgConnection,
     specs: Iterable[RawLoadSpec],
     raw_dir: Path,
     batch_date: str,
@@ -366,7 +387,8 @@ def load_all(
 ) -> None:
     for spec in specs:
         load_one_spec(
-            connection,
+            warehouse_connection,
+            control_connection,
             spec,
             raw_dir,
             batch_date,
@@ -397,16 +419,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--password", default=os.environ.get("POSTGRES_PASSWORD", "olist")
     )
+    add_control_postgres_args(parser)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     batch_id = args.batch_id or args.batch_date
-    connection = postgres_connection(args)
+    warehouse_connection = postgres_connection(args)
+    control_pg_connection = control_connection(args)
     try:
         if args.bootstrap_sql_dir:
-            execute_sql_files(connection, Path(args.bootstrap_sql_dir))
+            execute_sql_files(warehouse_connection, Path(args.bootstrap_sql_dir))
 
         raw_dir = Path(args.raw_dir)
         batch_context = BatchRunContext(
@@ -417,7 +441,8 @@ def main() -> None:
         )
         try:
             load_all(
-                connection=connection,
+                warehouse_connection=warehouse_connection,
+                control_connection=control_pg_connection,
                 specs=load_specs(Path(args.profile)),
                 raw_dir=raw_dir,
                 batch_date=args.batch_date,
@@ -427,7 +452,7 @@ def main() -> None:
             )
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "RAW_LOADED",
                     raw_dir=raw_dir,
@@ -435,7 +460,7 @@ def main() -> None:
         except Exception as exc:
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "FAILED",
                     raw_dir=raw_dir,
@@ -443,7 +468,8 @@ def main() -> None:
                 )
             raise
     finally:
-        connection.close()
+        warehouse_connection.close()
+        control_pg_connection.close()
 
 
 if __name__ == "__main__":

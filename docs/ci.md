@@ -3,10 +3,10 @@
 The GitHub Actions workflow is split into focused jobs so a failing check points
 to a useful layer instead of one opaque pipeline failure.
 
-CI intentionally runs only the local PostgreSQL execution path. The AWS/S3/
-Redshift path is available for manual validation, but pull-request checks stay
-local so they remain reproducible, self-contained, and independent of cloud
-credentials or infrastructure availability.
+CI intentionally runs only local, self-contained services. The AWS/S3/Redshift
+path is available for manual validation, but pull-request checks stay local so
+they remain reproducible and independent of cloud credentials or infrastructure
+availability.
 
 ## Workflow
 
@@ -25,6 +25,17 @@ airflow-imports
   -> Docker Compose validation, Airflow image build, metadata database startup,
      and isolated DAG imports.
 
+clickhouse-incremental-edges
+  -> Starts isolated ClickHouse services and verifies the Phase 4
+     `fact_order_items` incremental `insert_overwrite` edge fixture for moved
+     keys, stale fact row removal, and affected partitions that become empty.
+
+clickhouse-candidate-static
+  -> Starts isolated ClickHouse, validates the local ClickHouse connection,
+     compiles the batch, realtime transform, and realtime parity selectors for
+     `local_clickhouse`, and exercises the canonical manifest comparator
+     artifact contract.
+
 cdc-stage1-oltp-simulator
   -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
      validates deterministic seed, lifecycle, replay, and stop behavior.
@@ -40,9 +51,10 @@ batch-fixture-idempotency
      comparison, and incremental replay idempotency.
 
 cdc-stage4-warehouse-ingest
-  -> Builds isolated MinIO/PostgreSQL state and verifies normalized loading,
-     tombstone coverage, gap closure, transient retry, reconciliation, and
-     duplicate-only replay in a disposable database and bucket.
+  -> Builds isolated MinIO, ClickHouse raw CDC, and PostgreSQL control state;
+     verifies normalized loading, tombstone coverage, gap closure, transient
+     retry, reconciliation, and duplicate-only replay in disposable local
+     state.
 
 cdc-stage5-realtime-dbt
   -> Builds three exact-manifest dbt micro-batches in a disposable PostgreSQL
@@ -58,10 +70,11 @@ dbt-selector-boundaries
      workflows.
 
 python-unit / CDC Stage 6 observability contract
-  -> Validates real Loki/Alloy services, six dashboard domains, the complete
-     alert inventory, runbook links, retention, and low-cardinality log labels.
-     Destructive or long-running fault/benchmark execution remains manual or
-     nightly through `failure_injection.py` and `benchmark_local.py`.
+  -> Validates real Loki/Alloy services, ClickHouse warehouse metrics, six
+     dashboard domains, the complete alert inventory, runbook links, retention,
+     and low-cardinality log labels. Destructive or long-running
+     fault/benchmark execution remains manual or nightly through
+     `failure_injection.py` and `benchmark_local.py`.
 ```
 
 The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
@@ -101,6 +114,10 @@ Happy path:
 - dbt tests.
 - incremental replay of the same fixture batch through Airflow with stable raw
   file and analytical output fingerprints.
+- ClickHouse `fact_order_items` incremental partition replacement with moved
+  keys, stale row cleanup, and empty affected partition drop.
+- ClickHouse candidate dbt selector compilation and canonical manifest
+  comparator artifact generation.
 
 Failure modes:
 

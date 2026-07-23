@@ -1,8 +1,6 @@
 {{
     config(
-        unique_key='order_purchase_date',
-        incremental_strategy='merge',
-        pre_hook="{{ delete_impacted_periods('order_purchase_date', 'int_cdc__changed_periods', 'order_purchase_date') }}",
+        materialized='table',
         tags=['realtime_transform', 'realtime_quality']
     )
 }}
@@ -11,7 +9,8 @@
 
 with item_facts as (
     select
-        facts.order_purchase_timestamp::date as order_purchase_date,
+        {{ cast_date('facts.order_purchase_timestamp') }}
+            as order_purchase_date,
         facts.order_id,
         facts.order_item_key,
         facts.customer_unique_id,
@@ -26,7 +25,7 @@ with item_facts as (
     {% if is_incremental() %}
         inner join {{ ref('int_cdc__changed_periods') }} as changed
             on
-                facts.order_purchase_timestamp::date
+                {{ cast_date('facts.order_purchase_timestamp') }}
                 = changed.order_purchase_date
     {% endif %}
     where

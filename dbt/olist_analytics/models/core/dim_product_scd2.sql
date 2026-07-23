@@ -25,11 +25,11 @@ base_rows as (
         products.product_length_cm,
         products.product_height_cm,
         products.product_width_cm,
-        null::timestamp as latest_correction_effective_at,
-        null::varchar(256) as latest_change_reason,
-        '1900-01-01'::timestamp as valid_from,
-        null::timestamp as dbt_valid_from,
-        null::timestamp as dbt_valid_to,
+        {{ null_timestamp() }} as latest_correction_effective_at,
+        {{ null_string(256) }} as latest_change_reason,
+        {{ timestamp_literal('1900-01-01') }} as valid_from,
+        {{ null_timestamp() }} as dbt_valid_from,
+        {{ null_timestamp() }} as dbt_valid_to,
         0 as source_priority
     from products
     left join product_category_translations
@@ -51,7 +51,7 @@ snapshot_rows as (
         latest_change_reason,
         coalesce(
             latest_correction_effective_at,
-            '1900-01-01'::timestamp
+            {{ timestamp_literal('1900-01-01') }}
         ) as valid_from,
         dbt_valid_from,
         dbt_valid_to,
@@ -85,7 +85,7 @@ deduplicated_rows as (
 scd2_windows as (
     select
         *,
-        lead(valid_from) over (
+        lead({{ nullable_window_value('valid_from') }}) over (
             partition by product_id
             order by valid_from, dbt_valid_from
         ) as next_valid_from
@@ -94,7 +94,8 @@ scd2_windows as (
 )
 
 select
-    md5(product_id || '|' || valid_from::varchar) as product_key,
+    {{ hash_key("product_id || '|' || " ~ timestamp_key_string('valid_from')) }}
+        as product_key,
     product_id,
     product_category_name,
     product_category_name_english,

@@ -44,6 +44,82 @@ services:
       retries: 5
       start_period: 20s
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    container_name: olist-clickhouse
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      CLICKHOUSE_DB: "${CLICKHOUSE_DATABASE:-analytics}"
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "${CLICKHOUSE_HTTP_HOST_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_HOST_PORT:-19000}:9000"
+    volumes:
+      - olist_clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+      - ./docker/clickhouse/users.d/local.xml:/etc/clickhouse-server/users.d/local.xml:ro
+    secrets:
+      - clickhouse_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          clickhouse-client
+          --host 127.0.0.1
+          --user "$${CLICKHOUSE_USER:-olist}"
+          --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)"
+          --query "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
+  clickhouse-init:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    container_name: olist-clickhouse-init
+    restart: "no"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - for file in /opt/olist/clickhouse/initdb/*.sql; do clickhouse-client --host clickhouse --port 9000 --user "$${CLICKHOUSE_USER:-olist}" --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)" --multiquery < "$${file}"; done
+    environment:
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+    volumes:
+      - ./infra/clickhouse/initdb:/opt/olist/clickhouse/initdb:ro
+    secrets:
+      - clickhouse_password
+
+  control-db-init:
+    image: postgres:17.10
+    container_name: olist-control-db-init
+    restart: "no"
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    entrypoint: ["bash", "/opt/olist/control-postgres/init-control-db.sh"]
+    environment:
+      AIRFLOW_POSTGRES_HOST: airflow-postgres
+      AIRFLOW_POSTGRES_PORT: "5432"
+      AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
+      AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
+      AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
+    volumes:
+      - ./infra/control-postgres:/opt/olist/control-postgres:ro
+    secrets:
+      - airflow_postgres_password
+      - control_postgres_password
+
   airflow:
     build:
       context: .
@@ -57,6 +133,10 @@ services:
         condition: service_healthy
       airflow-postgres:
         condition: service_healthy
+      control-db-init:
+        condition: service_completed_successfully
+      clickhouse-init:
+        condition: service_completed_successfully
     command:
       - bash
       - /opt/airflow/project/docker/airflow/load-env-and-run.sh
@@ -87,11 +167,22 @@ services:
       POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
       POSTGRES_USER: "${POSTGRES_USER:-olist}"
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-analytics}"
+      CLICKHOUSE_SECURE: "${CLICKHOUSE_SECURE:-false}"
       AIRFLOW_POSTGRES_HOST: airflow-postgres
       AIRFLOW_POSTGRES_PORT: "5432"
       AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
       AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
       AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
       AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
       AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
@@ -108,7 +199,9 @@ services:
       - ./airflow/plugins:/opt/airflow/plugins
     secrets:
       - postgres_password
+      - clickhouse_password
       - airflow_postgres_password
+      - control_postgres_password
       - airflow_api_secret_key
       - redshift_password
       - minio_cdc_loader_password
@@ -168,18 +261,20 @@ services:
     container_name: olist-cdc-warehouse-init
     restart: "no"
     depends_on:
-      postgres:
-        condition: service_healthy
-    entrypoint: ["python", "/opt/airflow/project/scripts/cdc/warehouse_ingest.py"]
-    command: ["--bootstrap-sql-dir", "infra/postgres", "bootstrap"]
+      control-db-init:
+        condition: service_completed_successfully
+      clickhouse-init:
+        condition: service_completed_successfully
+    entrypoint: ["python", "-c"]
+    command: ["print('ClickHouse raw CDC and PostgreSQL control schemas are initialized')"]
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
-      POSTGRES_USER: "${POSTGRES_USER:-olist}"
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
-      - postgres_password
+      - control_postgres_password
 
   kafka:
     image: apache/kafka:4.3.1
@@ -414,18 +509,6 @@ services:
     secrets:
       - oltp_cdc_reader_password
 
-  postgres-exporter-warehouse:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.18.1
-    profiles: [observability]
-    container_name: olist-postgres-exporter-warehouse
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_URI: postgres:5432/${POSTGRES_DB:-olist_analytics}?sslmode=disable
-      DATA_SOURCE_USER: ${POSTGRES_USER:-olist}
-      DATA_SOURCE_PASS_FILE: /run/secrets/postgres_password
-    secrets:
-      - postgres_password
-
   statsd-exporter:
     image: prom/statsd-exporter:v0.29.0
     profiles: [observability]
@@ -485,18 +568,33 @@ services:
     container_name: olist-cdc-pipeline-exporter
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
+      control-db-init:
+        condition: service_completed_successfully
+      clickhouse-init:
+        condition: service_completed_successfully
     entrypoint: ["python", "/opt/airflow/project/scripts/cdc/pipeline_metrics.py"]
-    command: ["--listen-port", "9107"]
+    command: ["--listen-port", "9107", "--warehouse-type", "${CDC_WAREHOUSE_TYPE:-clickhouse}"]
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
       POSTGRES_USER: "${POSTGRES_USER:-olist}"
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-analytics}"
+      CLICKHOUSE_SECURE: "${CLICKHOUSE_SECURE:-false}"
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
       - postgres_password
+      - clickhouse_password
+      - control_postgres_password
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9107/-/healthy', timeout=3)\""]
       interval: 10s
@@ -580,6 +678,7 @@ services:
 volumes:
   olist_postgres_data:
   airflow_postgres_data:
+  olist_clickhouse_data:
   olist_oltp_data:
   olist_kafka_data:
   olist_minio_data:
@@ -598,8 +697,12 @@ volumes:
 secrets:
   postgres_password:
     file: ${POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+  clickhouse_password:
+    file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_postgres_password:
     file: ${AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_postgres_password.txt}
+  control_postgres_password:
+    file: ${CONTROL_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/control_postgres_password.txt}
   airflow_api_secret_key:
     file: ${AIRFLOW_API_SECRET_KEY_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
   redshift_password:

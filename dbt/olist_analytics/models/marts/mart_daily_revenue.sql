@@ -1,6 +1,6 @@
 with item_facts as (
     select
-        order_purchase_timestamp::date as order_purchase_date,
+        {{ cast_date('order_purchase_timestamp') }} as order_purchase_date,
         order_id,
         order_item_key,
         customer_unique_id,

@@ -180,6 +180,143 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  clickhouse-incremental-edges:
+    name: "ClickHouse batch fact insert_overwrite edges"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+
+      - name: Prepare dbt profile
+        run: cp profiles.yml.example profiles.yml
+        working-directory: dbt/olist_analytics
+
+      - name: Install dbt packages
+        run: uv run dbt deps
+        working-directory: dbt/olist_analytics
+
+      - name: Start isolated ClickHouse service
+        run: docker compose up -d --wait clickhouse
+
+      - name: Initialize ClickHouse databases
+        run: docker compose run --rm clickhouse-init
+
+      - name: Verify ClickHouse incremental fact partition replacement edges
+        run: uv run python scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py
+
+      - name: Dump ClickHouse diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail=500 clickhouse clickhouse-init
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down -v
+
+  clickhouse-candidate-static:
+    name: "ClickHouse candidate: dbt compile and comparator contract"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_analytics
+      DBT_TARGET: local_clickhouse
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
+      CLICKHOUSE_DATABASE: analytics
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and runtime dependencies
+        run: |
+          uv python install
+          uv sync --locked --no-dev
+
+      - name: Prepare dbt profile
+        run: cp profiles.yml.example profiles.yml
+        working-directory: dbt/olist_analytics
+
+      - name: Install dbt packages
+        run: uv run dbt deps
+        working-directory: dbt/olist_analytics
+
+      - name: Start isolated ClickHouse service
+        run: docker compose up -d --wait clickhouse
+
+      - name: Initialize ClickHouse databases
+        run: docker compose run --rm clickhouse-init
+
+      - name: Verify ClickHouse connection
+        run: uv run python scripts/ci/check_clickhouse_smoke.py
+
+      - name: Compile ClickHouse batch selector
+        run: >-
+          uv run dbt compile --target local_clickhouse --selector batch
+          --no-partial-parse --quiet
+          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+        working-directory: dbt/olist_analytics
+
+      - name: Compile ClickHouse realtime transform selector
+        run: >-
+          uv run dbt compile --target local_clickhouse --selector realtime_transform
+          --no-partial-parse --quiet
+          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+        working-directory: dbt/olist_analytics
+
+      - name: Compile ClickHouse realtime parity selector
+        run: >-
+          uv run dbt compile --target local_clickhouse --selector realtime_parity
+          --no-partial-parse --quiet
+          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+        working-directory: dbt/olist_analytics
+
+      - name: Validate canonical comparator contract
+        run: >-
+          uv run python scripts/parity/compare_manifests.py
+          --oracle tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
+          --candidate tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
+          --output data/reports/clickhouse-comparator-contract.json
+
+      - name: Upload ClickHouse candidate static artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clickhouse-candidate-static
+          path: |
+            data/reports/clickhouse-comparator-contract.json
+            dbt/olist_analytics/target/manifest.json
+            dbt/olist_analytics/target/run_results.json
+          if-no-files-found: warn
+
+      - name: Dump ClickHouse diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail=500 clickhouse clickhouse-init
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down -v
+
   cdc-stage1-oltp-simulator:
     name: "CDC implementation — Stage 1: OLTP simulator"
     runs-on: ubuntu-latest

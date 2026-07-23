@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "command": "dbt ls --resource-type model snapshot test --output json",
+  "before_phase_0": {
+    "project_models": 64,
+    "project_snapshots": 2,
+    "project_data_tests": 274,
+    "project_unit_tests": 4,
+    "terminal_models": 13,
+    "terminal_snapshots": 2,
+    "terminal_relations": 15
+  },
+  "after_phase_0": {
+    "project_models": 64,
+    "project_snapshots": 2,
+    "project_data_tests": 274,
+    "project_unit_tests": 21,
+    "terminal_models": 13,
+    "terminal_snapshots": 2,
+    "terminal_relations": 15
+  },
+  "terminal_models": [
+    "hist_cdc__customers",
+    "hist_cdc__order_payments",
+    "hist_cdc__order_reviews",
+    "hist_cdc__product_category_translation",
+    "hist_cdc__sellers",
+    "realtime_parity_checksums",
+    "realtime_parity_daily_revenue_batch",
+    "realtime_parity_daily_revenue_realtime",
+    "realtime_parity_grain_diffs",
+    "realtime_parity_monthly_arpu_batch",
+    "realtime_parity_monthly_arpu_realtime",
+    "realtime_parity_report",
+    "stg_olist__geolocation"
+  ],
+  "terminal_snapshots": [
+    "snap_customers",
+    "snap_products"
+  ]
+}

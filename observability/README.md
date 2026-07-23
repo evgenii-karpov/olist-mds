@@ -1,9 +1,9 @@
 # Realtime observability assets
 
-This directory owns the complete local Phase 6 telemetry stack: Prometheus,
-Alertmanager, Grafana, PostgreSQL/Kafka/NiFi/pipeline exporters, node exporter,
-cAdvisor, Airflow StatsD, Loki, and Alloy. Runtime image versions are pinned in
-`streaming/runtime-versions.json`.
+This directory owns the complete local CDC telemetry stack: Prometheus,
+Alertmanager, Grafana, ClickHouse metrics, the OLTP PostgreSQL exporter,
+Kafka/NiFi/pipeline exporters, node exporter, cAdvisor, Airflow StatsD, Loki,
+and Alloy. Runtime image versions are pinned in `streaming/runtime-versions.json`.
 
 The local stack uses stable committed development-only Docker secrets. Build
 the custom runtime images and start the three explicit profiles:
@@ -19,6 +19,11 @@ Alertmanager on `http://localhost:9093`, and Loki on `http://localhost:3100`.
 Grafana credentials come from the local Docker secret contract. Loki retains local logs
 for seven days. Alloy labels only `environment` and `service`; correlation IDs
 remain in log bodies to avoid unbounded cardinality.
+
+Prometheus scrapes ClickHouse directly at `clickhouse:9363`. The warehouse
+PostgreSQL exporter is intentionally absent from the ClickHouse candidate path;
+the OLTP PostgreSQL exporter remains because Debezium source health still
+depends on the local OLTP database.
 
 Run `uv run python scripts/ci/validate_stage6_configuration.py` after changing
 dashboards, alerts, log labels, retention, or runbook links.

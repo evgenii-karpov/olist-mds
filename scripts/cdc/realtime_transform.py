@@ -1,20 +1,33 @@
 """Durable orchestration for Phase 5 dbt micro-batches and publication."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
 import sys
 from contextlib import suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import psycopg2
+import clickhouse_connect
 from psycopg2.extensions import connection as PgConnection
 
-ROOT = Path(__file__).resolve().parents[2]
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
+
 DBT_PROJECT = ROOT / "dbt" / "olist_analytics"
 PARITY_REPORTS = (
     "realtime_parity_report",
@@ -47,10 +60,93 @@ def connect(args: argparse.Namespace) -> PgConnection:
     )
 
 
-def bootstrap(connection: PgConnection) -> None:
-    sql = (ROOT / "infra/postgres/007_create_cdc_transform_audit.sql").read_text(
-        encoding="utf-8"
+def clickhouse_password(args: argparse.Namespace) -> str:
+    if args.clickhouse_password:
+        return args.clickhouse_password
+    if args.clickhouse_password_file:
+        return Path(args.clickhouse_password_file).read_text(encoding="utf-8").strip()
+    return os.environ.get("CLICKHOUSE_PASSWORD", "olist")
+
+
+def clickhouse_client(args: argparse.Namespace):
+    return clickhouse_connect.get_client(
+        host=args.clickhouse_host,
+        port=args.clickhouse_port,
+        username=args.clickhouse_user,
+        password=clickhouse_password(args),
+        database=args.clickhouse_database,
+        secure=args.clickhouse_secure,
     )
+
+
+def use_clickhouse_warehouse() -> bool:
+    return local_dbt_target() == "local_clickhouse"
+
+
+def local_dbt_target() -> str:
+    return os.environ.get("DBT_TARGET", "local_pg")
+
+
+def manifest_selection_digest(
+    manifest_uri: str, manifest_etag: str, object_uri: str
+) -> str:
+    payload = json.dumps(
+        {
+            "manifest_uri": manifest_uri,
+            "manifest_etag": manifest_etag,
+            "object_uri": object_uri,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def project_transform_selection(
+    args: argparse.Namespace,
+    transform_run_id: str,
+    selected_files: list[tuple[str, str, str]],
+) -> dict[str, Any]:
+    if local_dbt_target() != "local_clickhouse":
+        return {"runtime_projection": "skipped", "projected_files": 0}
+    client = clickhouse_client(args)
+    try:
+        if selected_files:
+            selected_at = datetime.now(UTC)
+            client.insert(
+                table="cdc_transform_run_files",
+                database="pipeline_runtime",
+                column_names=[
+                    "transform_run_id",
+                    "object_uri",
+                    "manifest_sha256",
+                    "selected_at",
+                ],
+                data=[
+                    [
+                        transform_run_id,
+                        object_uri,
+                        manifest_selection_digest(
+                            manifest_uri, manifest_etag, object_uri
+                        ),
+                        selected_at,
+                    ]
+                    for manifest_uri, manifest_etag, object_uri in selected_files
+                ],
+            )
+        return {
+            "runtime_projection": "clickhouse",
+            "projected_files": len(selected_files),
+        }
+    finally:
+        client.close()
+
+
+def bootstrap(connection: PgConnection) -> None:
+    sql = (
+        ROOT
+        / "infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql"
+    ).read_text(encoding="utf-8-sig")
     with connection.cursor() as cursor:
         cursor.execute(sql)
     connection.commit()
@@ -58,6 +154,7 @@ def bootstrap(connection: PgConnection) -> None:
 
 def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
     bootstrap(connection)
+    selected_files: list[tuple[str, str, str]] = []
     with connection, connection.cursor() as cursor:
         cursor.execute(
             "select pg_advisory_xact_lock(hashtext('olist_cdc_transform_prepare'))"
@@ -139,10 +236,28 @@ def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
                 """,
             (files_selected, events_selected, args.transform_run_id),
         )
+        cursor.execute(
+            """
+                select files.manifest_uri, files.manifest_etag, files.object_uri
+                from cdc_audit.cdc_transform_run_files as run_files
+                inner join cdc_audit.cdc_files as files using (manifest_uri)
+                where run_files.transform_run_id = %s
+                order by files.closed_at, files.manifest_uri
+                """,
+            (args.transform_run_id,),
+        )
+        selected_files = [
+            (str(manifest_uri), str(manifest_etag), str(object_uri))
+            for manifest_uri, manifest_etag, object_uri in cursor.fetchall()
+        ]
+    projection = project_transform_selection(
+        args, args.transform_run_id, selected_files
+    )
     return {
         "transform_run_id": args.transform_run_id,
         "files_selected": int(files_selected),
         "events_selected": int(events_selected),
+        **projection,
     }
 
 
@@ -223,7 +338,7 @@ def dbt_utils_error_results(message: str) -> list[dict[str, Any]]:
     ]
 
 
-def read_custom_parity_results(
+def read_custom_parity_results_postgres(
     connection: PgConnection,
 ) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
     results: dict[str, list[dict[str, str]]] = {}
@@ -267,6 +382,61 @@ def read_custom_parity_results(
         connection.rollback()
         raise
     return results, failed_metrics
+
+
+def read_custom_parity_results_clickhouse(
+    args: argparse.Namespace,
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    results: dict[str, list[dict[str, str]]] = {}
+    failed_metrics: list[str] = []
+    client = clickhouse_client(args)
+    try:
+        for report in PARITY_REPORTS:
+            if report == "realtime_parity_grain_diffs":
+                rows = client.query(
+                    """
+                    select metric_name, grain_key
+                    from cdc_audit.realtime_parity_grain_diffs
+                    order by metric_name, grain_key
+                    limit 1000
+                    """
+                ).result_rows
+                parsed_rows = [
+                    {"metric_name": str(metric), "grain_key": str(grain)}
+                    for metric, grain in rows
+                ]
+                results[report] = parsed_rows
+                failed_metrics.extend(
+                    f"{row['metric_name']}:{row['grain_key']}" for row in parsed_rows
+                )
+                continue
+
+            rows = client.query(
+                f"""
+                select metric_name, status
+                from cdc_audit.{report}
+                where status <> 'PASS'
+                order by metric_name
+                limit 1000
+                """
+            ).result_rows
+            parsed_rows = [
+                {"metric_name": str(metric), "status": str(status)}
+                for metric, status in rows
+            ]
+            results[report] = parsed_rows
+            failed_metrics.extend(str(row["metric_name"]) for row in parsed_rows)
+    finally:
+        client.close()
+    return results, failed_metrics
+
+
+def read_custom_parity_results(
+    args: argparse.Namespace,
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    if use_clickhouse_warehouse():
+        return read_custom_parity_results_clickhouse(args)
+    return read_custom_parity_results_postgres(args.warehouse_connection)
 
 
 def parity_status(
@@ -326,7 +496,7 @@ def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[st
     custom_results: dict[str, list[dict[str, str]]]
     custom_failed_metrics: list[str]
     try:
-        custom_results, custom_failed_metrics = read_custom_parity_results(connection)
+        custom_results, custom_failed_metrics = read_custom_parity_results(args)
     except Exception as exc:
         custom_results = {
             report: [
@@ -527,7 +697,138 @@ def fail(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
     return {"transform_run_id": args.transform_run_id, "status": "FAILED"}
 
 
-def quality(args: argparse.Namespace) -> dict[str, Any]:
+def control_quality_checks(
+    connection: PgConnection, freshness_slo_seconds: int
+) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            with ranked as (
+                select
+                    reconciliation.source_table,
+                    reconciliation.status,
+                    reconciliation.reconciliation_id,
+                    row_number() over (
+                        partition by reconciliation.source_table
+                        order by
+                            reconciliation.created_at desc,
+                            reconciliation.reconciliation_id desc
+                    ) as row_number
+                from cdc_audit.cdc_reconciliation as reconciliation
+            )
+            select source_table, status, reconciliation_id
+            from ranked
+            where row_number = 1 and status <> 'PASS'
+            order by source_table
+            """
+        )
+        failures.extend(
+            {
+                "check": "latest_reconciliation",
+                "source_table": str(source_table),
+                "status": str(status),
+                "reconciliation_id": str(reconciliation_id),
+            }
+            for source_table, status, reconciliation_id in cursor.fetchall()
+        )
+
+        cursor.execute(
+            """
+            select topic, partition, gap_count
+            from cdc_audit.cdc_partition_watermarks
+            where gap_count <> 0
+            order by topic, partition
+            """
+        )
+        failures.extend(
+            {
+                "check": "offset_continuity",
+                "topic": str(topic),
+                "partition": int(partition),
+                "gap_count": int(gap_count),
+            }
+            for topic, partition, gap_count in cursor.fetchall()
+        )
+
+        cursor.execute(
+            """
+            with expected_models as (
+                select 'mart_daily_revenue_realtime' as model_name
+                union all
+                select 'mart_monthly_arpu_realtime' as model_name
+            ),
+            raw_horizon as (
+                select
+                    max(source_ts_max) as max_source_ts,
+                    max(loaded_at) as max_loaded_at
+                from cdc_audit.cdc_files
+                where status = 'LOADED'
+            )
+            select
+                expected_models.model_name,
+                freshness.max_source_ts,
+                freshness.build_time,
+                raw_horizon.max_source_ts as raw_max_source_ts,
+                raw_horizon.max_loaded_at
+            from expected_models
+            cross join raw_horizon
+            left join cdc_audit.cdc_mart_freshness as freshness
+                on expected_models.model_name = freshness.model_name
+            where
+                freshness.model_name is null
+                or freshness.max_source_ts is null
+                or freshness.build_time is null
+                or (
+                    freshness.build_time < raw_horizon.max_loaded_at
+                    and extract(epoch from clock_timestamp() - raw_horizon.max_loaded_at)
+                        > %s
+                )
+                or (
+                    freshness.max_source_ts < raw_horizon.max_source_ts
+                    and extract(epoch from clock_timestamp() - raw_horizon.max_loaded_at)
+                        > %s
+                )
+            order by expected_models.model_name
+            """,
+            (freshness_slo_seconds, freshness_slo_seconds),
+        )
+        failures.extend(
+            {
+                "check": "mart_freshness",
+                "model_name": str(model_name),
+                "max_source_ts": str(max_source_ts),
+                "build_time": str(build_time),
+                "raw_max_source_ts": str(raw_max_source_ts),
+                "max_loaded_at": str(max_loaded_at),
+            }
+            for (
+                model_name,
+                max_source_ts,
+                build_time,
+                raw_max_source_ts,
+                max_loaded_at,
+            ) in cursor.fetchall()
+        )
+    return failures
+
+
+def quality(
+    connection: PgConnection | None, args: argparse.Namespace
+) -> dict[str, Any]:
+    control_failures: list[dict[str, Any]] = []
+    if use_clickhouse_warehouse():
+        if connection is None:
+            raise ValueError("control PostgreSQL connection is required for quality")
+        control_failures = control_quality_checks(
+            connection,
+            args.freshness_slo_seconds,
+        )
+        if control_failures:
+            raise ValueError(
+                "realtime control quality checks failed: "
+                + json.dumps(control_failures[:100], default=str, sort_keys=True)
+            )
     run_dbt(
         [
             "test",
@@ -561,7 +862,85 @@ def quality(args: argparse.Namespace) -> dict[str, Any]:
             cwd=DBT_PROJECT,
             check=True,
         )
-    return {"quality_status": "success", "full": bool(args.full)}
+    return {
+        "quality_status": "success",
+        "full": bool(args.full),
+        "control_quality_failures": len(control_failures),
+    }
+
+
+def publish_clickhouse_views(args: argparse.Namespace, target: str) -> None:
+    targets = {
+        "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
+        "realtime": (
+            "realtime_marts.mart_daily_revenue_realtime",
+            "realtime_marts.mart_monthly_arpu_realtime",
+        ),
+    }
+    daily, monthly = targets[target]
+    client = clickhouse_client(args)
+    try:
+        client.command(
+            f"""
+            create or replace view analytics.mart_daily_revenue as
+            select
+                order_purchase_date, gross_revenue,
+                allocated_payment_revenue, product_revenue, freight_revenue,
+                orders_count, customers_count, items_count,
+                average_order_value, average_paid_order_value,
+                average_delivery_days, late_deliveries_count
+            from {daily}
+            """
+        )
+        client.command(
+            f"""
+            create or replace view analytics.mart_monthly_arpu as
+            select
+                order_month, active_customers, total_revenue, arpu,
+                orders_count, orders_per_customer, average_order_value,
+                repeat_customer_rate
+            from {monthly}
+            """
+        )
+    finally:
+        client.close()
+
+
+def publish_postgres_views(args: argparse.Namespace, target: str) -> None:
+    targets = {
+        "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
+        "realtime": (
+            "realtime_marts.mart_daily_revenue_realtime",
+            "realtime_marts.mart_monthly_arpu_realtime",
+        ),
+    }
+    daily, monthly = targets[target]
+    with (
+        args.warehouse_connection,
+        args.warehouse_connection.cursor() as warehouse_cursor,
+    ):
+        warehouse_cursor.execute(
+            f"""
+        create or replace view analytics.mart_daily_revenue as
+        select
+            order_purchase_date, gross_revenue,
+            allocated_payment_revenue, product_revenue, freight_revenue,
+            orders_count, customers_count, items_count,
+            average_order_value, average_paid_order_value,
+            average_delivery_days, late_deliveries_count
+        from {daily}
+        """
+        )
+        warehouse_cursor.execute(
+            f"""
+        create or replace view analytics.mart_monthly_arpu as
+        select
+            order_month, active_customers, total_revenue, arpu,
+            orders_count, orders_per_customer, average_order_value,
+            repeat_customer_rate
+        from {monthly}
+        """
+        )
 
 
 def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
@@ -581,36 +960,10 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
         parity_status = row[0]
         if args.target == "realtime" and parity_status != "PASS":
             raise ValueError("realtime publication requires recorded parity PASS")
-        targets = {
-            "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
-            "realtime": (
-                "realtime_marts.mart_daily_revenue_realtime",
-                "realtime_marts.mart_monthly_arpu_realtime",
-            ),
-        }
-        daily, monthly = targets[args.target]
-        cursor.execute(
-            f"""
-            create or replace view analytics.mart_daily_revenue as
-            select
-                order_purchase_date, gross_revenue,
-                allocated_payment_revenue, product_revenue, freight_revenue,
-                orders_count, customers_count, items_count,
-                average_order_value, average_paid_order_value,
-                average_delivery_days, late_deliveries_count
-            from {daily}
-            """
-        )
-        cursor.execute(
-            f"""
-            create or replace view analytics.mart_monthly_arpu as
-            select
-                order_month, active_customers, total_revenue, arpu,
-                orders_count, orders_per_customer, average_order_value,
-                repeat_customer_rate
-            from {monthly}
-            """
-        )
+        if use_clickhouse_warehouse():
+            publish_clickhouse_views(args, args.target)
+        else:
+            publish_postgres_views(args, args.target)
         cursor.execute(
             """
                 update cdc_audit.cdc_publication_state
@@ -637,6 +990,34 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument(
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
+    value.add_argument(
+        "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "localhost")
+    )
+    value.add_argument(
+        "--clickhouse-port",
+        type=int,
+        default=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+    )
+    value.add_argument(
+        "--clickhouse-user", default=os.environ.get("CLICKHOUSE_USER", "olist")
+    )
+    value.add_argument(
+        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD")
+    )
+    value.add_argument(
+        "--clickhouse-password-file",
+        default=os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
+    )
+    value.add_argument(
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+    )
+    value.add_argument(
+        "--clickhouse-secure",
+        action=argparse.BooleanOptionalAction,
+        default=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
+    )
+    add_control_postgres_args(value)
     commands = value.add_subparsers(dest="command", required=True)
     for name in ("prepare", "finish", "fail"):
         command = commands.add_parser(name)
@@ -650,6 +1031,11 @@ def parser() -> argparse.ArgumentParser:
     build_command.add_argument("--transform-run-id", required=True)
     quality_command = commands.add_parser("quality")
     quality_command.add_argument("--full", action="store_true")
+    quality_command.add_argument(
+        "--freshness-slo-seconds",
+        type=int,
+        default=int(os.environ.get("REALTIME_FRESHNESS_SLO_SECONDS", "300")),
+    )
     publish_command = commands.add_parser("publish")
     publish_command.add_argument(
         "--target", choices=("batch", "realtime"), required=True
@@ -661,11 +1047,22 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
-    if args.command == "quality":
-        result = quality(args)
-    else:
-        connection = connect(args)
-        try:
+    connection = None
+    warehouse_connection = None
+    try:
+        if args.command != "quality" or use_clickhouse_warehouse():
+            connection = control_connection(args)
+        if (
+            args.command in {"publish", "record-parity"}
+            and not use_clickhouse_warehouse()
+        ):
+            warehouse_connection = connect(args)
+            args.warehouse_connection = warehouse_connection
+        if args.command == "quality":
+            result = quality(connection, args)
+        else:
+            if connection is None:
+                raise ValueError("control PostgreSQL connection is required")
             result = {
                 "prepare": prepare,
                 "build": build,
@@ -674,8 +1071,11 @@ def main() -> None:
                 "publish": publish,
                 "record-parity": record_parity,
             }[args.command](connection, args)
-        finally:
+    finally:
+        if connection is not None:
             connection.close()
+        if warehouse_connection is not None:
+            warehouse_connection.close()
     print(json.dumps(result, default=str, sort_keys=True))
     if args.command == "record-parity" and result.get("parity_status") != "PASS":
         raise SystemExit(1)

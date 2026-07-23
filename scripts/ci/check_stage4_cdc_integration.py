@@ -23,6 +23,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from psycopg2 import sql
 from scripts.cdc.warehouse_ingest import (
+    PostgresRawCdcSink,
     Selector,
     execute_bootstrap,
     ingest,
@@ -330,10 +331,12 @@ def main() -> int:
         )
         try:
             execute_bootstrap(connection, PROJECT_ROOT / "infra/postgres")
+            raw_sink = PostgresRawCdcSink(connection)
             base = datetime(2026, 7, 16, 10, 1, tzinfo=UTC)
             put_closed_object(client, bucket, [0, 1], suffix="low", closed_at=base)
             put_closed_object(client, bucket, [4, 5], suffix="high", closed_at=base)
             first = ingest(
+                raw_sink,
                 connection,
                 client,
                 bucket,
@@ -360,6 +363,7 @@ def main() -> int:
                 closed_at=base + timedelta(minutes=1),
             )
             second = ingest(
+                raw_sink,
                 connection,
                 client,
                 bucket,
@@ -387,6 +391,7 @@ def main() -> int:
                 closed_at=base + timedelta(minutes=2),
             )
             expected_tail = ingest(
+                raw_sink,
                 connection,
                 client,
                 bucket,
@@ -413,6 +418,7 @@ def main() -> int:
             )
             try:
                 ingest(
+                    raw_sink,
                     connection,
                     FailOnceOnParquet(client),
                     bucket,
@@ -433,6 +439,7 @@ def main() -> int:
             )
             assert failed == ("FAILED", 1), failed
             recovered = ingest(
+                raw_sink,
                 connection,
                 client,
                 bucket,
@@ -459,6 +466,7 @@ def main() -> int:
             )
             assert repeated_selected == selected
             replay = ingest(
+                raw_sink,
                 connection,
                 client,
                 bucket,

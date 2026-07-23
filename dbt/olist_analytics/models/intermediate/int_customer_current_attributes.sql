@@ -37,7 +37,8 @@ corrections_ranked as (
             order by effective_at desc, _loaded_at desc
         ) as row_number
     from {{ ref('stg_olist__customer_profile_changes') }}
-    where effective_at <= '{{ var("batch_date", "9999-12-31") }}'::timestamp
+    where
+        effective_at <= {{ timestamp_literal(var("batch_date", "9999-12-31")) }}
 ),
 
 latest_corrections as (

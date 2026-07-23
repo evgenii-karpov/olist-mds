@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +16,10 @@ import psycopg2
 from psycopg2 import sql
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
+from scripts.parity.export_postgres_oracle import export_manifest, load_contract
+
 PREFIX = "olist_cdc_phase5_test_"
 
 
@@ -116,7 +120,7 @@ def add_event(
     object_uri: str,
 ) -> None:
     topic = f"olist_cdc.public.{table}"
-    now = datetime.now(UTC)
+    now = datetime(2026, 7, 16, tzinfo=UTC) + timedelta(seconds=offset)
     values = {
         **business,
         "_event_id": f"{topic}:0:{offset}",
@@ -166,6 +170,11 @@ def run_transform(args: argparse.Namespace, database: str, run_id: str) -> None:
         "POSTGRES_DB": database,
         "POSTGRES_USER": args.user,
         "POSTGRES_PASSWORD": password(args),
+        "CONTROL_POSTGRES_HOST": args.host,
+        "CONTROL_POSTGRES_PORT": str(args.port),
+        "CONTROL_POSTGRES_DB": database,
+        "CONTROL_POSTGRES_USER": args.user,
+        "CONTROL_POSTGRES_PASSWORD": password(args),
         "DBT_PROFILES_DIR": str(ROOT / "dbt/olist_analytics"),
         "PYTHONUTF8": "1",
     }
@@ -240,6 +249,7 @@ def verify_publication_round_trip(
         subprocess.run(
             [*base, "publish", "--target", target, "--approved-by", "integration"],
             cwd=ROOT,
+            env=dbt_environment(args, database),
             check=True,
         )
         connection.commit()
@@ -274,6 +284,11 @@ def dbt_environment(args: argparse.Namespace, database: str) -> dict[str, str]:
         "POSTGRES_DB": database,
         "POSTGRES_USER": args.user,
         "POSTGRES_PASSWORD": password(args),
+        "CONTROL_POSTGRES_HOST": args.host,
+        "CONTROL_POSTGRES_PORT": str(args.port),
+        "CONTROL_POSTGRES_DB": database,
+        "CONTROL_POSTGRES_USER": args.user,
+        "CONTROL_POSTGRES_PASSWORD": password(args),
         "DBT_PROFILES_DIR": str(ROOT / "dbt/olist_analytics"),
         "PYTHONUTF8": "1",
     }
@@ -539,6 +554,16 @@ def verify(args: argparse.Namespace, database: str) -> dict[str, object]:
         parity_sensitivity = verify_parity_comparator_sensitivity(
             args, database, connection
         )
+        if args.oracle_output:
+            contract = load_contract(
+                ROOT / "scripts/parity/postgres_stage5_oracle_relations.json"
+            )
+            manifest = export_manifest(connection, contract)
+            args.oracle_output.parent.mkdir(parents=True, exist_ok=True)
+            args.oracle_output.write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
 
         order_business = {
             "order_id": "o1",
@@ -652,6 +677,7 @@ def main() -> None:
     parser.add_argument("--user", default="olist")
     parser.add_argument("--password")
     parser.add_argument("--password-file")
+    parser.add_argument("--oracle-output", type=Path)
     args = parser.parse_args()
     database = f"{PREFIX}{uuid.uuid4().hex[:10]}"
     maintenance = maintenance_connection(args)

@@ -24,12 +24,14 @@ select
     order_payments.order_payment_value,
     case
         when order_item_amounts.order_gross_amount > 0
-            then round(
-                order_payments.order_payment_value
-                * order_item_amounts.item_gross_amount
-                / order_item_amounts.order_gross_amount,
+            then {{ cast_decimal(
+                "round("
+                ~ "order_payments.order_payment_value "
+                ~ "* order_item_amounts.item_gross_amount "
+                ~ "/ order_item_amounts.order_gross_amount, 2)",
+                18,
                 2
-            )
+            ) }}
     end as allocated_payment_value
 from order_item_amounts
 left join order_payments using (order_id)
@@ -38,22 +40,34 @@ left join order_payments using (order_id)
 {% macro parity_checksum_row(metric_name, batch_model, realtime_model, batch_key, realtime_key) -%}
 select
     '{{ metric_name }}' as metric_name,
-    (select md5(string_agg({{ batch_key }}, ',' order by {{ batch_key }}))
+    (select {{ ordered_string_checksum(batch_key) }}
         from {{ ref(batch_model) }}) as batch_checksum,
-    (select md5(string_agg({{ realtime_key }}, ',' order by {{ realtime_key }}))
+    (select {{ ordered_string_checksum(realtime_key) }}
         from {{ ref(realtime_model) }}) as realtime_checksum,
     case
         when
             coalesce(
-                (select md5(string_agg({{ batch_key }}, ',' order by {{ batch_key }}))
+                (select {{ ordered_string_checksum(batch_key) }}
                     from {{ ref(batch_model) }}),
                 ''
             ) = coalesce(
-                (select md5(string_agg({{ realtime_key }}, ',' order by {{ realtime_key }}))
+                (select {{ ordered_string_checksum(realtime_key) }}
                     from {{ ref(realtime_model) }}),
                 ''
             )
             then 'PASS'
         else 'FAIL'
     end as status
+{%- endmacro %}
+
+{% macro ordered_string_checksum(expression) -%}
+    {{ return(adapter.dispatch('ordered_string_checksum', 'olist_analytics')(expression)) }}
+{%- endmacro %}
+
+{% macro default__ordered_string_checksum(expression) -%}
+    md5(string_agg({{ expression }}, ',' order by {{ expression }}))
+{%- endmacro %}
+
+{% macro clickhouse__ordered_string_checksum(expression) -%}
+    lower(hex(MD5(arrayStringConcat(arraySort(groupArray({{ expression }})), ','))))
 {%- endmacro %}

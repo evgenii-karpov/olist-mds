@@ -1,6 +1,6 @@
 with item_facts as (
     select
-        date_trunc('month', order_purchase_timestamp)::date as order_month,
+        {{ month_start('order_purchase_timestamp') }} as order_month,
         order_id,
         customer_unique_id,
         coalesce(allocated_payment_value, gross_item_amount) as revenue_amount
@@ -27,7 +27,7 @@ monthly as (
         order_month,
         count(distinct customer_unique_id) as active_customers,
         sum(customer_revenue) as total_revenue,
-        sum(customer_orders_count) as orders_count,
+        {{ cast_bigint('sum(customer_orders_count)') }} as orders_count,
         avg(customer_orders_count) as orders_per_customer,
         sum(
             case when customer_orders_count > 1 then 1 else 0 end
@@ -54,7 +54,7 @@ select
         when active_customers > 0
             then {{
                 round_two_decimals(
-                    'repeat_customers::decimal(18, 6) / active_customers'
+                    cast_decimal('repeat_customers', 18, 6) ~ ' / active_customers'
                 )
             }}
     end as repeat_customer_rate

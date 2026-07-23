@@ -1,0 +1,15 @@
+{
+  "format_version": 1,
+  "dataset": "olist_small",
+  "relations": [
+    {"schema": "core", "name": "dim_date", "grain": ["date_key"]},
+    {"schema": "core", "name": "dim_customer_scd2", "grain": ["customer_key"], "exclude_columns": ["snapshot_valid_from", "snapshot_valid_to"]},
+    {"schema": "core", "name": "dim_product_scd2", "grain": ["product_key"], "exclude_columns": ["snapshot_valid_from", "snapshot_valid_to"]},
+    {"schema": "core", "name": "dim_seller", "grain": ["seller_id"]},
+    {"schema": "core", "name": "fact_order_items", "grain": ["order_id", "order_item_id"], "exclude_columns": ["_batch_id", "_loaded_at"], "measures": ["price", "freight_value", "gross_item_amount", "allocated_payment_value"], "distinct_counts": ["order_id", "customer_unique_id", "product_id", "seller_id"]},
+    {"schema": "marts", "name": "mart_daily_revenue", "grain": ["order_purchase_date"], "measures": ["gross_revenue", "allocated_payment_revenue", "product_revenue", "freight_revenue", "orders_count", "customers_count", "items_count", "late_deliveries_count"]},
+    {"schema": "marts", "name": "mart_monthly_arpu", "grain": ["order_month"], "measures": ["active_customers", "total_revenue", "orders_count"]},
+    {"schema": "snapshots", "name": "snap_customers", "grain": ["customer_unique_id", "latest_correction_effective_at"], "exclude_columns": ["_loaded_at", "dbt_scd_id", "dbt_updated_at", "dbt_valid_from", "dbt_valid_to"], "snapshot": {"business_key": "customer_unique_id", "version_column": "latest_correction_effective_at"}},
+    {"schema": "snapshots", "name": "snap_products", "grain": ["product_id", "latest_correction_effective_at"], "exclude_columns": ["_loaded_at", "dbt_scd_id", "dbt_updated_at", "dbt_valid_from", "dbt_valid_to"], "snapshot": {"business_key": "product_id", "version_column": "latest_correction_effective_at"}}
+  ]
+}

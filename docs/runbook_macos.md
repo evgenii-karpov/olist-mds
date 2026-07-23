@@ -76,6 +76,19 @@ The check resets the local analytical schemas and fixture raw directory before
 the first Airflow DAG run, so use it for validation runs rather than
 exploratory local tables.
 
+Run ClickHouse candidate compile and smoke checks:
+
+```bash
+docker compose up -d --wait clickhouse
+docker compose run --rm clickhouse-init
+export DBT_PROFILES_DIR="$PWD/dbt/olist_analytics"
+export DBT_TARGET="local_clickhouse"
+uv run python scripts/ci/check_clickhouse_smoke.py
+uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target local_clickhouse --selector batch --no-partial-parse --quiet
+uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target local_clickhouse --selector realtime_transform --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target local_clickhouse --selector realtime_parity --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+```
+
 ## Full Manual Run
 
 Validate the full source archive:
@@ -177,6 +190,31 @@ full_refresh: false
 dead_letter_max_rows: 10
 dead_letter_max_rate: 0.001
 ```
+
+For a ClickHouse candidate batch run, keep the same parameters but set:
+
+```text
+warehouse_target: clickhouse
+full_refresh: true
+```
+
+The temporary PostgreSQL analytical oracle remains available with
+`warehouse_target: postgres` until the Phase 8 cutover.
+
+## Observability
+
+Start the local CDC telemetry stack:
+
+```bash
+export AIRFLOW_STATSD_ON="true"
+export CDC_WAREHOUSE_TYPE="clickhouse"
+docker compose --profile realtime-core build airflow kafka-connect minio nifi
+docker compose --profile realtime-core --profile observability --profile logs up -d --wait
+```
+
+Prometheus scrapes ClickHouse at `clickhouse:9363` and keeps the OLTP
+PostgreSQL exporter. There is no warehouse PostgreSQL exporter in the
+ClickHouse candidate path.
 
 ## AWS / Redshift Path
 

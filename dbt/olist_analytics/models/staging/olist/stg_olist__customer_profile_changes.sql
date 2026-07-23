@@ -1,11 +1,12 @@
 with ranked as (
     select
-        customer_unique_id::varchar(256) as customer_unique_id,
-        effective_at::timestamp as effective_at,
-        customer_zip_code_prefix::varchar(16) as customer_zip_code_prefix,
-        lower(trim(customer_city))::varchar(256) as customer_city,
-        upper(trim(customer_state))::varchar(2) as customer_state,
-        lower(trim(change_reason))::varchar(256) as change_reason,
+        {{ cast_string('customer_unique_id', 256) }} as customer_unique_id,
+        {{ cast_timestamp('effective_at') }} as effective_at,
+        {{ cast_string('customer_zip_code_prefix', 16) }}
+            as customer_zip_code_prefix,
+        {{ cast_string('lower(trim(customer_city))', 256) }} as customer_city,
+        {{ cast_string('upper(trim(customer_state))', 2) }} as customer_state,
+        {{ cast_string('lower(trim(change_reason))', 256) }} as change_reason,
         _batch_id,
         _loaded_at,
         _source_file,

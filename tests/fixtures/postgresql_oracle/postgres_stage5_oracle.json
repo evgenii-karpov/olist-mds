@@ -1,0 +1,1269 @@
+{
+  "canonicalization": {
+    "hash": "sha256",
+    "null": {
+      "$null": true
+    },
+    "row_order": "declared grain",
+    "timestamp": "UTC with six fractional digits"
+  },
+  "dataset": "synthetic_stage5_initial_parity",
+  "format_version": 1,
+  "relations": [
+    {
+      "aggregate_hash": "f2e8234f7ca431d43411f6ed7ad248372b99125e7375b830cf6980478498322d",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "customer_key"
+      ],
+      "grain_keys": [
+        [
+          "564504d3f75f6418da01c77afad51dbc"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {},
+        "null_counts": {
+          "_offset": 0,
+          "_partition": 0,
+          "_source_lsn": 0,
+          "_tx_order": 0,
+          "customer_city": 0,
+          "customer_id": 0,
+          "customer_key": 0,
+          "customer_state": 0,
+          "customer_unique_id": 0,
+          "customer_zip_code_prefix": 0,
+          "is_current": 0,
+          "is_deleted": 0,
+          "valid_from": 0,
+          "valid_to": 1
+        },
+        "temporal_bounds": {
+          "valid_from": {
+            "max": "2026-07-16T00:00:01.000000Z",
+            "min": "2026-07-16T00:00:01.000000Z"
+          },
+          "valid_to": {
+            "max": {
+              "$null": true
+            },
+            "min": {
+              "$null": true
+            }
+          }
+        }
+      },
+      "name": "realtime_core.dim_customer_realtime_scd2",
+      "row_count": 1,
+      "rows": [
+        {
+          "grain": [
+            "564504d3f75f6418da01c77afad51dbc"
+          ],
+          "hash": "77495d276b89db89ed7dacf51c05f60e2b9b0ef5e390164867043710c52b980b"
+        }
+      ],
+      "semantic_columns": {
+        "_offset": {
+          "type": "integer"
+        },
+        "_partition": {
+          "type": "integer"
+        },
+        "_source_lsn": {
+          "type": "integer"
+        },
+        "_tx_order": {
+          "type": "integer"
+        },
+        "customer_city": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "customer_key": {
+          "type": "string"
+        },
+        "customer_state": {
+          "type": "string"
+        },
+        "customer_unique_id": {
+          "type": "string"
+        },
+        "customer_zip_code_prefix": {
+          "type": "string"
+        },
+        "is_current": {
+          "type": "boolean"
+        },
+        "is_deleted": {
+          "type": "boolean"
+        },
+        "valid_from": {
+          "type": "timestamp"
+        },
+        "valid_to": {
+          "type": "timestamp"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "60f11edd1ea0d0047bd333c6d1d39bb01b8ea9527a2a90735d71110018ab3bcc",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "product_key"
+      ],
+      "grain_keys": [
+        [
+          "6b5843fdfed76862a978e146fcd14074"
+        ],
+        [
+          "f1be16ccd0a1748eebe86732539149f4"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {},
+        "null_counts": {
+          "_offset": 0,
+          "_partition": 0,
+          "_source_lsn": 0,
+          "_tx_order": 0,
+          "is_current": 0,
+          "is_deleted": 0,
+          "product_category_name": 0,
+          "product_category_name_english": 1,
+          "product_height_cm": 0,
+          "product_id": 0,
+          "product_key": 0,
+          "product_length_cm": 0,
+          "product_weight_g": 0,
+          "product_width_cm": 0,
+          "valid_from": 0,
+          "valid_to": 1
+        },
+        "temporal_bounds": {
+          "valid_from": {
+            "max": "2026-07-16T00:00:07.000000Z",
+            "min": "2026-07-16T00:00:05.000000Z"
+          },
+          "valid_to": {
+            "max": "2026-07-16T00:00:07.000000Z",
+            "min": "2026-07-16T00:00:07.000000Z"
+          }
+        }
+      },
+      "name": "realtime_core.dim_product_realtime_scd2",
+      "row_count": 2,
+      "rows": [
+        {
+          "grain": [
+            "6b5843fdfed76862a978e146fcd14074"
+          ],
+          "hash": "31749df9c89f486d96061a5298a266faf8caf29c928c73b67dcb26386f1970fe"
+        },
+        {
+          "grain": [
+            "f1be16ccd0a1748eebe86732539149f4"
+          ],
+          "hash": "8e831f959d01397f0e4ec3ca372dd325c066394b87774e50a7f0ed1534927856"
+        }
+      ],
+      "semantic_columns": {
+        "_offset": {
+          "type": "integer"
+        },
+        "_partition": {
+          "type": "integer"
+        },
+        "_source_lsn": {
+          "type": "integer"
+        },
+        "_tx_order": {
+          "type": "integer"
+        },
+        "is_current": {
+          "type": "boolean"
+        },
+        "is_deleted": {
+          "type": "boolean"
+        },
+        "product_category_name": {
+          "type": "string"
+        },
+        "product_category_name_english": {
+          "type": "string"
+        },
+        "product_height_cm": {
+          "type": "integer"
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "product_key": {
+          "type": "string"
+        },
+        "product_length_cm": {
+          "type": "integer"
+        },
+        "product_weight_g": {
+          "type": "integer"
+        },
+        "product_width_cm": {
+          "type": "integer"
+        },
+        "valid_from": {
+          "type": "timestamp"
+        },
+        "valid_to": {
+          "type": "timestamp"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "dd2b7fbebf8eb1e6f50876e180de597d3bb06056be0786130246d45336ddba48",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "seller_id"
+      ],
+      "grain_keys": [
+        [
+          "s1"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {},
+        "null_counts": {
+          "_offset": 0,
+          "_partition": 0,
+          "_source_lsn": 0,
+          "_source_ts": 0,
+          "_tx_order": 0,
+          "seller_city": 0,
+          "seller_id": 0,
+          "seller_key": 0,
+          "seller_state": 0,
+          "seller_zip_code_prefix": 0
+        },
+        "temporal_bounds": {
+          "_source_ts": {
+            "max": "2026-07-16T00:00:06.000000Z",
+            "min": "2026-07-16T00:00:06.000000Z"
+          }
+        }
+      },
+      "name": "realtime_core.dim_seller_realtime",
+      "row_count": 1,
+      "rows": [
+        {
+          "grain": [
+            "s1"
+          ],
+          "hash": "52ba01d96fed5df3703e6e99cb1bf30bd570ee284bc53f4caa2b72f3417a60bd"
+        }
+      ],
+      "semantic_columns": {
+        "_offset": {
+          "type": "integer"
+        },
+        "_partition": {
+          "type": "integer"
+        },
+        "_source_lsn": {
+          "type": "integer"
+        },
+        "_source_ts": {
+          "type": "timestamp"
+        },
+        "_tx_order": {
+          "type": "integer"
+        },
+        "seller_city": {
+          "type": "string"
+        },
+        "seller_id": {
+          "type": "string"
+        },
+        "seller_key": {
+          "type": "string"
+        },
+        "seller_state": {
+          "type": "string"
+        },
+        "seller_zip_code_prefix": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "c5fdf9ff4216987f2f43cbc77c61e5a4977212dbe2fce193757b657f161d9e78",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_id",
+        "order_item_id"
+      ],
+      "grain_keys": [
+        [
+          "o1",
+          "1"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {
+          "customer_unique_id": 1,
+          "order_id": 1,
+          "product_id": 1,
+          "seller_id": 1
+        },
+        "measure_totals": {
+          "allocated_payment_value": "110.00",
+          "freight_value": "10.00",
+          "gross_item_amount": "110.00",
+          "price": "100.00"
+        },
+        "null_counts": {
+          "allocated_payment_value": 0,
+          "customer_id": 0,
+          "customer_key": 0,
+          "customer_unique_id": 0,
+          "delivery_days": 1,
+          "delivery_delay_days": 1,
+          "freight_value": 0,
+          "gross_item_amount": 0,
+          "is_delivered_late": 0,
+          "max_source_lsn": 0,
+          "max_source_ts": 0,
+          "order_approved_at": 1,
+          "order_delivered_carrier_date": 1,
+          "order_delivered_customer_date": 1,
+          "order_estimated_delivery_date": 0,
+          "order_id": 0,
+          "order_item_id": 0,
+          "order_item_key": 0,
+          "order_purchase_date_key": 0,
+          "order_purchase_timestamp": 0,
+          "order_status": 0,
+          "order_status_key": 0,
+          "price": 0,
+          "product_id": 0,
+          "product_key": 0,
+          "seller_id": 0,
+          "seller_key": 0,
+          "shipping_limit_date": 0
+        },
+        "temporal_bounds": {
+          "max_source_ts": {
+            "max": "2026-07-16T00:00:03.000000Z",
+            "min": "2026-07-16T00:00:03.000000Z"
+          },
+          "order_approved_at": {
+            "max": {
+              "$null": true
+            },
+            "min": {
+              "$null": true
+            }
+          },
+          "order_delivered_carrier_date": {
+            "max": {
+              "$null": true
+            },
+            "min": {
+              "$null": true
+            }
+          },
+          "order_delivered_customer_date": {
+            "max": {
+              "$null": true
+            },
+            "min": {
+              "$null": true
+            }
+          },
+          "order_estimated_delivery_date": {
+            "max": "2018-01-10T00:00:00.000000Z",
+            "min": "2018-01-10T00:00:00.000000Z"
+          },
+          "order_purchase_timestamp": {
+            "max": "2018-01-01T10:00:00.000000Z",
+            "min": "2018-01-01T10:00:00.000000Z"
+          },
+          "shipping_limit_date": {
+            "max": "2018-01-03T00:00:00.000000Z",
+            "min": "2018-01-03T00:00:00.000000Z"
+          }
+        }
+      },
+      "name": "realtime_core.fact_order_items_realtime",
+      "row_count": 1,
+      "rows": [
+        {
+          "grain": [
+            "o1",
+            "1"
+          ],
+          "hash": "186284366eb5610cffe25c32b3e465937dee2c1d6f0971760e9cafd9705f7344"
+        }
+      ],
+      "semantic_columns": {
+        "allocated_payment_value": {
+          "type": "decimal"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "customer_key": {
+          "type": "string"
+        },
+        "customer_unique_id": {
+          "type": "string"
+        },
+        "delivery_days": {
+          "type": "integer"
+        },
+        "delivery_delay_days": {
+          "type": "integer"
+        },
+        "freight_value": {
+          "scale": 2,
+          "type": "decimal"
+        },
+        "gross_item_amount": {
+          "type": "decimal"
+        },
+        "is_delivered_late": {
+          "type": "boolean"
+        },
+        "max_source_lsn": {
+          "type": "integer"
+        },
+        "max_source_ts": {
+          "type": "timestamp"
+        },
+        "order_approved_at": {
+          "type": "timestamp"
+        },
+        "order_delivered_carrier_date": {
+          "type": "timestamp"
+        },
+        "order_delivered_customer_date": {
+          "type": "timestamp"
+        },
+        "order_estimated_delivery_date": {
+          "type": "timestamp"
+        },
+        "order_id": {
+          "type": "string"
+        },
+        "order_item_id": {
+          "type": "integer"
+        },
+        "order_item_key": {
+          "type": "string"
+        },
+        "order_purchase_date_key": {
+          "type": "integer"
+        },
+        "order_purchase_timestamp": {
+          "type": "timestamp"
+        },
+        "order_status": {
+          "type": "string"
+        },
+        "order_status_key": {
+          "type": "string"
+        },
+        "price": {
+          "scale": 2,
+          "type": "decimal"
+        },
+        "product_id": {
+          "type": "string"
+        },
+        "product_key": {
+          "type": "string"
+        },
+        "seller_id": {
+          "type": "string"
+        },
+        "seller_key": {
+          "type": "string"
+        },
+        "shipping_limit_date": {
+          "type": "timestamp"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "82f52300a3871db78274726ef66eea3ed88dc013cd165a3afb2226c970c12a92",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_purchase_date"
+      ],
+      "grain_keys": [
+        [
+          "2018-01-01"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {
+          "allocated_payment_revenue": "110.00",
+          "customers_count": "1",
+          "freight_revenue": "10.00",
+          "gross_revenue": "110.00",
+          "items_count": "1",
+          "late_deliveries_count": "0",
+          "orders_count": "1",
+          "product_revenue": "100.00"
+        },
+        "null_counts": {
+          "allocated_payment_revenue": 0,
+          "average_delivery_days": 1,
+          "average_order_value": 0,
+          "average_paid_order_value": 0,
+          "customers_count": 0,
+          "freight_revenue": 0,
+          "gross_revenue": 0,
+          "items_count": 0,
+          "late_deliveries_count": 0,
+          "max_source_ts": 0,
+          "order_purchase_date": 0,
+          "orders_count": 0,
+          "product_revenue": 0
+        },
+        "temporal_bounds": {
+          "max_source_ts": {
+            "max": "2026-07-16T00:00:03.000000Z",
+            "min": "2026-07-16T00:00:03.000000Z"
+          },
+          "order_purchase_date": {
+            "max": "2018-01-01",
+            "min": "2018-01-01"
+          }
+        }
+      },
+      "name": "realtime_marts.mart_daily_revenue_realtime",
+      "row_count": 1,
+      "rows": [
+        {
+          "grain": [
+            "2018-01-01"
+          ],
+          "hash": "17961882efdac44d315d18ff69d44f90dbcdedb9c069270b34efce26ce9b5936"
+        }
+      ],
+      "semantic_columns": {
+        "allocated_payment_revenue": {
+          "type": "decimal"
+        },
+        "average_delivery_days": {
+          "type": "decimal"
+        },
+        "average_order_value": {
+          "type": "decimal"
+        },
+        "average_paid_order_value": {
+          "type": "decimal"
+        },
+        "customers_count": {
+          "type": "integer"
+        },
+        "freight_revenue": {
+          "type": "decimal"
+        },
+        "gross_revenue": {
+          "type": "decimal"
+        },
+        "items_count": {
+          "type": "integer"
+        },
+        "late_deliveries_count": {
+          "type": "integer"
+        },
+        "max_source_ts": {
+          "type": "timestamp"
+        },
+        "order_purchase_date": {
+          "type": "date"
+        },
+        "orders_count": {
+          "type": "integer"
+        },
+        "product_revenue": {
+          "type": "decimal"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "089a35f707ef906897f811eebd6f36d459269e4bdca40aa0b5ab85297bbe94dd",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_month"
+      ],
+      "grain_keys": [
+        [
+          "2018-01-01"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {
+          "active_customers": "1",
+          "orders_count": "1",
+          "total_revenue": "110.00"
+        },
+        "null_counts": {
+          "active_customers": 0,
+          "arpu": 0,
+          "average_order_value": 0,
+          "max_source_ts": 0,
+          "order_month": 0,
+          "orders_count": 0,
+          "orders_per_customer": 0,
+          "repeat_customer_rate": 0,
+          "total_revenue": 0
+        },
+        "temporal_bounds": {
+          "max_source_ts": {
+            "max": "2026-07-16T00:00:03.000000Z",
+            "min": "2026-07-16T00:00:03.000000Z"
+          },
+          "order_month": {
+            "max": "2018-01-01",
+            "min": "2018-01-01"
+          }
+        }
+      },
+      "name": "realtime_marts.mart_monthly_arpu_realtime",
+      "row_count": 1,
+      "rows": [
+        {
+          "grain": [
+            "2018-01-01"
+          ],
+          "hash": "03b8fd06bc3fe7f414b6d44b121f0094dadc3be11a70a65fa9d61d99ba6fae2a"
+        }
+      ],
+      "semantic_columns": {
+        "active_customers": {
+          "type": "integer"
+        },
+        "arpu": {
+          "type": "decimal"
+        },
+        "average_order_value": {
+          "type": "decimal"
+        },
+        "max_source_ts": {
+          "type": "timestamp"
+        },
+        "order_month": {
+          "type": "date"
+        },
+        "orders_count": {
+          "type": "decimal"
+        },
+        "orders_per_customer": {
+          "type": "decimal"
+        },
+        "repeat_customer_rate": {
+          "type": "decimal"
+        },
+        "total_revenue": {
+          "type": "decimal"
+        }
+      }
+    },
+    {
+      "aggregate_hash": "581d65231bf34ed053ec305737b13b6ba3761224397fefc110c91bf009b7755f",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "metric_name"
+      ],
+      "grain_keys": [
+        [
+          "customers.customer_city"
+        ],
+        [
+          "customers.customer_id"
+        ],
+        [
+          "customers.customer_state"
+        ],
+        [
+          "customers.customer_unique_id"
+        ],
+        [
+          "customers.customer_zip_code_prefix"
+        ],
+        [
+          "customers_current_count"
+        ],
+        [
+          "daily_gross_revenue_total"
+        ],
+        [
+          "fact_allocated_payment_total"
+        ],
+        [
+          "fact_order_item_count"
+        ],
+        [
+          "fact_order_items_business_mismatches"
+        ],
+        [
+          "monthly_revenue_total"
+        ],
+        [
+          "order_items.freight_value"
+        ],
+        [
+          "order_items.order_id"
+        ],
+        [
+          "order_items.order_item_id"
+        ],
+        [
+          "order_items.price"
+        ],
+        [
+          "order_items.product_id"
+        ],
+        [
+          "order_items.seller_id"
+        ],
+        [
+          "order_items.shipping_limit_date"
+        ],
+        [
+          "order_items_current_count"
+        ],
+        [
+          "order_payments.order_id"
+        ],
+        [
+          "order_payments.payment_installments"
+        ],
+        [
+          "order_payments.payment_sequential"
+        ],
+        [
+          "order_payments.payment_type"
+        ],
+        [
+          "order_payments.payment_value"
+        ],
+        [
+          "order_payments_current_count"
+        ],
+        [
+          "order_reviews.order_id"
+        ],
+        [
+          "order_reviews.review_answer_timestamp"
+        ],
+        [
+          "order_reviews.review_comment_message"
+        ],
+        [
+          "order_reviews.review_comment_title"
+        ],
+        [
+          "order_reviews.review_creation_date"
+        ],
+        [
+          "order_reviews.review_id"
+        ],
+        [
+          "order_reviews.review_score"
+        ],
+        [
+          "order_reviews_current_count"
+        ],
+        [
+          "orders.customer_id"
+        ],
+        [
+          "orders.order_approved_at"
+        ],
+        [
+          "orders.order_delivered_carrier_date"
+        ],
+        [
+          "orders.order_delivered_customer_date"
+        ],
+        [
+          "orders.order_estimated_delivery_date"
+        ],
+        [
+          "orders.order_id"
+        ],
+        [
+          "orders.order_purchase_timestamp"
+        ],
+        [
+          "orders.order_status"
+        ],
+        [
+          "orders_current_count"
+        ],
+        [
+          "product_category_translation.product_category_name"
+        ],
+        [
+          "product_category_translation.product_category_name_english"
+        ],
+        [
+          "product_category_translation_current_count"
+        ],
+        [
+          "products.product_category_name"
+        ],
+        [
+          "products.product_description_length"
+        ],
+        [
+          "products.product_height_cm"
+        ],
+        [
+          "products.product_id"
+        ],
+        [
+          "products.product_length_cm"
+        ],
+        [
+          "products.product_name_length"
+        ],
+        [
+          "products.product_photos_qty"
+        ],
+        [
+          "products.product_weight_g"
+        ],
+        [
+          "products.product_width_cm"
+        ],
+        [
+          "products_current_count"
+        ],
+        [
+          "sellers.seller_city"
+        ],
+        [
+          "sellers.seller_id"
+        ],
+        [
+          "sellers.seller_state"
+        ],
+        [
+          "sellers.seller_zip_code_prefix"
+        ],
+        [
+          "sellers_current_count"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {},
+        "null_counts": {
+          "batch_value": 0,
+          "difference": 0,
+          "metric_name": 0,
+          "realtime_value": 0,
+          "status": 0,
+          "tolerance": 0
+        },
+        "temporal_bounds": {}
+      },
+      "name": "cdc_audit.realtime_parity_report",
+      "row_count": 60,
+      "rows": [
+        {
+          "grain": [
+            "customers.customer_city"
+          ],
+          "hash": "20f8b6bbe218457af65a0fc42ae8ac4639ff2e57836bb282a20441f0b3dbb023"
+        },
+        {
+          "grain": [
+            "customers.customer_id"
+          ],
+          "hash": "8ca22951883e5c13016189fb5db2b6879f9a8432b136d612207bbfb5b7fa7296"
+        },
+        {
+          "grain": [
+            "customers.customer_state"
+          ],
+          "hash": "e4e4b11f89e9a718e210ce7ffc631b55d71d391fb87e303efef2f8cf8256f992"
+        },
+        {
+          "grain": [
+            "customers.customer_unique_id"
+          ],
+          "hash": "dbbda03602a3c78f8640740fa51bc740f5f7090a0e5454a03fcf39e0d1d3a9dd"
+        },
+        {
+          "grain": [
+            "customers.customer_zip_code_prefix"
+          ],
+          "hash": "2b1ad3b3df93fe916355e8f9fbfbe092f0c9f9b909e493b7ce20a0468c06faa7"
+        },
+        {
+          "grain": [
+            "customers_current_count"
+          ],
+          "hash": "965026f590914c5b7740763ee7b2c7c70c62523ec5c4a874fbee2cb386132156"
+        },
+        {
+          "grain": [
+            "daily_gross_revenue_total"
+          ],
+          "hash": "d7c4a1e934d64fb2938888f61c6f73b5eaf0c5da47185b606b05a4a93eb7bb90"
+        },
+        {
+          "grain": [
+            "fact_allocated_payment_total"
+          ],
+          "hash": "f9407660ba027f6a50a25efd919701ba8104a245eff14f9e6dcbaaaf5d4c5a6b"
+        },
+        {
+          "grain": [
+            "fact_order_item_count"
+          ],
+          "hash": "0ba54d66dde759f875e7f3a3af11f4184df89a69d017b8978fde04b0dcf92417"
+        },
+        {
+          "grain": [
+            "fact_order_items_business_mismatches"
+          ],
+          "hash": "1527aa0aaceba8fab0c4472be12d99713a759d17a826c405126a1630352cf98a"
+        },
+        {
+          "grain": [
+            "monthly_revenue_total"
+          ],
+          "hash": "b70b62f9e18fe9b7e56c3ca274fd312f70d8a11a17b0d1f18c2b7ae8942cfded"
+        },
+        {
+          "grain": [
+            "order_items.freight_value"
+          ],
+          "hash": "6ef1c47cbbad8927ee7a971ff88522decd18385fbe39789419d2a65dd8717c1f"
+        },
+        {
+          "grain": [
+            "order_items.order_id"
+          ],
+          "hash": "e5860bf8a571561e60e65e8652983bc075786ddf2d6e88fc5df992201c916588"
+        },
+        {
+          "grain": [
+            "order_items.order_item_id"
+          ],
+          "hash": "c517db821dc7e7f5c1b5269478b83e4c0497be9dfb0efe7084ae66ada17fca9d"
+        },
+        {
+          "grain": [
+            "order_items.price"
+          ],
+          "hash": "67132fc5bf916b9efd0c6b3b3baecc758250edad1b2d9e2410cf40f0b51c3cd7"
+        },
+        {
+          "grain": [
+            "order_items.product_id"
+          ],
+          "hash": "b6be7f80de09ecdd027fb4c51057fd101ef1b20b6144992bf827769b5f404418"
+        },
+        {
+          "grain": [
+            "order_items.seller_id"
+          ],
+          "hash": "5dcd5fb73249216ca16d3cbc611f637abef77e332ecb1fcd5fb062524c75a77f"
+        },
+        {
+          "grain": [
+            "order_items.shipping_limit_date"
+          ],
+          "hash": "5dd56444624828f2a9aff76e4f34ec85bdbaed80b52625267b7e89eb4dc32f54"
+        },
+        {
+          "grain": [
+            "order_items_current_count"
+          ],
+          "hash": "d66eec5109a45114f3b6b7c6d6586737c64b2d1c2d3bb575992c811eedbcd51e"
+        },
+        {
+          "grain": [
+            "order_payments.order_id"
+          ],
+          "hash": "ebd6f99d596c98866a71c2a9c768353f65bc43772bc2737e0341c70ddeac9030"
+        },
+        {
+          "grain": [
+            "order_payments.payment_installments"
+          ],
+          "hash": "627cb0b693bdb02a47d270af2d9d2f58ab2786e8bbf1546af95058f2f6c9480a"
+        },
+        {
+          "grain": [
+            "order_payments.payment_sequential"
+          ],
+          "hash": "6cf1de0603b2b5ef04a8a6011cc14d9d49eb17fff1338f7bd4f8640870dcec52"
+        },
+        {
+          "grain": [
+            "order_payments.payment_type"
+          ],
+          "hash": "d938ad00a9001f6dc3509b5381084bd8495ee502a6e74f6050c7f6e130e8ec9a"
+        },
+        {
+          "grain": [
+            "order_payments.payment_value"
+          ],
+          "hash": "c1de542b2db25167e6528b84e9d529a7744ec3af54922bde5464c87596da9478"
+        },
+        {
+          "grain": [
+            "order_payments_current_count"
+          ],
+          "hash": "b588af87e7ef79620f22c8e9a284d2f7a227a774ba9bbeb301b4599db428a972"
+        },
+        {
+          "grain": [
+            "order_reviews.order_id"
+          ],
+          "hash": "f626072f2e799a57e1c5398828586207b97f2188fbf573e7b9d18cbd6db07f69"
+        },
+        {
+          "grain": [
+            "order_reviews.review_answer_timestamp"
+          ],
+          "hash": "ec9d8715c173696ec5997baa1226d6e52059138c87d1a3f8c33a8ac699d6daab"
+        },
+        {
+          "grain": [
+            "order_reviews.review_comment_message"
+          ],
+          "hash": "4e99a002f625c40951f084356d81ebef6e89bd2b9386253b5873b88b02882be5"
+        },
+        {
+          "grain": [
+            "order_reviews.review_comment_title"
+          ],
+          "hash": "58263f7c1a9a678f7e426a7f74781c82e2ec5f9f83e86871ea8b24e8147fd0d6"
+        },
+        {
+          "grain": [
+            "order_reviews.review_creation_date"
+          ],
+          "hash": "3ab4113edecf9f5150831af8fdb2079a48ff0dbdfc75756d530f51b611fd1a4d"
+        },
+        {
+          "grain": [
+            "order_reviews.review_id"
+          ],
+          "hash": "db3bd07d45ed6bc627af89756d5406ad5b42448531b5b83387140211c9f551c9"
+        },
+        {
+          "grain": [
+            "order_reviews.review_score"
+          ],
+          "hash": "fb8915f8fb9f09981638b5a6a4cde92b765d160496eeda9a411f6335329adfb0"
+        },
+        {
+          "grain": [
+            "order_reviews_current_count"
+          ],
+          "hash": "3636355770bca116718c24505c296938617c4e21cf3ddefd258375247d83366b"
+        },
+        {
+          "grain": [
+            "orders.customer_id"
+          ],
+          "hash": "9735d6981d5cbcac37be274a58921d7fd4fd2eccde6af523ee1264e922b62909"
+        },
+        {
+          "grain": [
+            "orders.order_approved_at"
+          ],
+          "hash": "5277191f120bd32db4d5381b69efe8e0e1fdf6e424aeb67971b4ab29acb2731f"
+        },
+        {
+          "grain": [
+            "orders.order_delivered_carrier_date"
+          ],
+          "hash": "c0f940a4e6f7c84f89c857382cfe270495d370cc76a3cdc42d06c02ab0522016"
+        },
+        {
+          "grain": [
+            "orders.order_delivered_customer_date"
+          ],
+          "hash": "89f2d186ce73f9ac886929da02439aae793610b5ea3891e96d0ba2435ed160be"
+        },
+        {
+          "grain": [
+            "orders.order_estimated_delivery_date"
+          ],
+          "hash": "ddf9720a057002a6c6f6a9923589e7669030666210f4e2d2b7b9a1856c47a2f8"
+        },
+        {
+          "grain": [
+            "orders.order_id"
+          ],
+          "hash": "b6fa3c9f2001610dd6eb374aee29ff2c2b2b01f65b598ca86c40bdd2a38412a2"
+        },
+        {
+          "grain": [
+            "orders.order_purchase_timestamp"
+          ],
+          "hash": "73b2a6f454a13ec6557568d7336839f09d28fb136799699dd14768e81573b9ff"
+        },
+        {
+          "grain": [
+            "orders.order_status"
+          ],
+          "hash": "3d98183dd430b456746763fb2ff73a65a330d4fb267042e0307e113fd1ef1327"
+        },
+        {
+          "grain": [
+            "orders_current_count"
+          ],
+          "hash": "e767867aacb9a13a9465e382ace7a2cd8f34421d5ebf4ebd7883363e1517c699"
+        },
+        {
+          "grain": [
+            "product_category_translation.product_category_name"
+          ],
+          "hash": "f8f90c53ca001374940ff5d999675da37a9b4d46e814e7cd867980491a845251"
+        },
+        {
+          "grain": [
+            "product_category_translation.product_category_name_english"
+          ],
+          "hash": "5fc8de8b25769fdd71366f4e54fca79f336c9f11da439b1fabb918b53915934d"
+        },
+        {
+          "grain": [
+            "product_category_translation_current_count"
+          ],
+          "hash": "ee8d26c8eec2e6a7dd6c47accf3f8205707ac8342ffa7835fc108c52d8c77f8b"
+        },
+        {
+          "grain": [
+            "products.product_category_name"
+          ],
+          "hash": "925249f30b2de5f08340667a106a777f15fb1c3b03ae8372e41ed9032cdfa9b0"
+        },
+        {
+          "grain": [
+            "products.product_description_length"
+          ],
+          "hash": "d549b4cc47c5b8f2358190460c9ca026000377da6d6479cd31c24b25cdc301ea"
+        },
+        {
+          "grain": [
+            "products.product_height_cm"
+          ],
+          "hash": "11ee7425fe186d0a96ebc82934192dac307eb3c1f00ff6d8240c8c763e90eaf5"
+        },
+        {
+          "grain": [
+            "products.product_id"
+          ],
+          "hash": "31f53f617b692b315f0fe3c5e1a003c91f7918c2bc506a39547dfdc6d96c4614"
+        },
+        {
+          "grain": [
+            "products.product_length_cm"
+          ],
+          "hash": "418e2eabb749238b39f647bfff9384335d7d2e46c1629bc2f54a89e369619ea1"
+        },
+        {
+          "grain": [
+            "products.product_name_length"
+          ],
+          "hash": "d817d1723e1c2729abeb9dff679155f7d9e60a96e237af9d2f95f74e103774b6"
+        },
+        {
+          "grain": [
+            "products.product_photos_qty"
+          ],
+          "hash": "24eca1bbbb441c6883364d85fa6b07dad5672c8f9efb5441a7dec5d2f9a9ac17"
+        },
+        {
+          "grain": [
+            "products.product_weight_g"
+          ],
+          "hash": "7bf3ef9fc1011ebc3f5e6933921e1c5a65808bd1a177e2c0c92ac2d042da9423"
+        },
+        {
+          "grain": [
+            "products.product_width_cm"
+          ],
+          "hash": "da5ce0e90364f80649201fb5b0c04651e6ab437d72bc5bfb464e8ad122b4b7ec"
+        },
+        {
+          "grain": [
+            "products_current_count"
+          ],
+          "hash": "46d48de1b1ac39d4cd86470e2c058bdaf2b2f5988124feb1a8ccfa370292f13c"
+        },
+        {
+          "grain": [
+            "sellers.seller_city"
+          ],
+          "hash": "fec522560270f6fca0566ce3b400ec3bfdc6fb42a3ef4b10ccc797000c8add90"
+        },
+        {
+          "grain": [
+            "sellers.seller_id"
+          ],
+          "hash": "4e49e9434c70def151789975f78ceeb21938359a2ec709e9be7d9ed301b48fd7"
+        },
+        {
+          "grain": [
+            "sellers.seller_state"
+          ],
+          "hash": "9a654001e374b6354eb4732793682c138f27636420abdaef07c72f97087f71d9"
+        },
+        {
+          "grain": [
+            "sellers.seller_zip_code_prefix"
+          ],
+          "hash": "3cdcef403ced336a15e44c18483fd18e4e686d5854ba5ec2d56779ea8bca7182"
+        },
+        {
+          "grain": [
+            "sellers_current_count"
+          ],
+          "hash": "ea35a6ef2bb84d679047077d7676af5946096467a388c33bd375d46f04e6ede7"
+        }
+      ],
+      "semantic_columns": {
+        "batch_value": {
+          "type": "decimal"
+        },
+        "difference": {
+          "type": "decimal"
+        },
+        "metric_name": {
+          "type": "string"
+        },
+        "realtime_value": {
+          "type": "decimal"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tolerance": {
+          "type": "decimal"
+        }
+      }
+    }
+  ]
+}

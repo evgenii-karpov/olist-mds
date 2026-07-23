@@ -13,15 +13,15 @@ union all
 {{ parity_checksum_row(
     'order_items_primary_keys', 'stg_olist__order_items',
     'stg_cdc__order_items_current',
-    "order_id || '|' || order_item_id::varchar",
-    "order_id || '|' || order_item_id::varchar"
+    "order_id || '|' || " ~ cast_string('order_item_id'),
+    "order_id || '|' || " ~ cast_string('order_item_id')
 ) }}
 union all
 {{ parity_checksum_row(
     'order_payments_primary_keys', 'stg_olist__order_payments',
     'stg_cdc__order_payments_current',
-    "order_id || '|' || payment_sequential::varchar",
-    "order_id || '|' || payment_sequential::varchar"
+    "order_id || '|' || " ~ cast_string('payment_sequential'),
+    "order_id || '|' || " ~ cast_string('payment_sequential')
 ) }}
 union all
 {{ parity_checksum_row(

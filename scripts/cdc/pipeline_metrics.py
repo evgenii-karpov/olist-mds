@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -13,8 +14,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+import clickhouse_connect
 import psycopg2
-from psycopg2 import sql
 from scripts.cdc.warehouse_ingest import BUSINESS_COLUMNS, read_secret
 
 LATENCY_BUCKETS = (15, 30, 60, 120, 180, 300, 600, 1800)
@@ -28,50 +29,180 @@ def labels(**values: str) -> str:
     return "{" + rendered + "}"
 
 
-def render_event_latency_histogram(cursor) -> list[str]:
-    """Render a rolling event-level histogram from immutable transform membership."""
-    bucket_counts = {bucket: 0 for bucket in LATENCY_BUCKETS}
-    total_count = 0
-    total_sum = 0.0
-    for table in BUSINESS_COLUMNS:
-        aggregates: list[sql.Composable] = [
-            sql.SQL("count(*) filter (where latency_seconds <= {})").format(
-                sql.Literal(bucket)
+def timestamp_seconds(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.timestamp()
+    if isinstance(value, int | float | str):
+        return float(value)
+    raise TypeError(f"Unsupported timestamp value type: {type(value).__name__}")
+
+
+def render_raw_metrics_postgres(connection_factory) -> list[str]:
+    lines: list[str] = []
+    with connection_factory() as connection:
+        connection.set_session(readonly=True, autocommit=False)
+        with connection.cursor() as cursor:
+            for table in BUSINESS_COLUMNS:
+                cursor.execute(
+                    f"""
+                    select _op, count(*),
+                           extract(epoch from max(_source_ts)),
+                           extract(epoch from clock_timestamp() - max(_source_ts))
+                    from raw_cdc.{table} group by _op
+                    """
+                )
+                for operation, count, source_timestamp, age in cursor.fetchall():
+                    lines.append(
+                        "olist_cdc_raw_events_total"
+                        f"{labels(environment='local', table=table, operation=str(operation))} {count}"
+                    )
+                    if source_timestamp is not None:
+                        lines.append(
+                            "olist_cdc_raw_max_source_timestamp_seconds"
+                            f"{labels(environment='local', table=table)} {source_timestamp}"
+                        )
+                        lines.append(
+                            "olist_cdc_raw_freshness_seconds"
+                            f"{labels(environment='local', table=table)} {age}"
+                        )
+    return lines
+
+
+def render_raw_metrics_clickhouse(client_factory) -> list[str]:
+    lines: list[str] = []
+    client = client_factory()
+    try:
+        for table in BUSINESS_COLUMNS:
+            rows = client.query(
+                f"""
+                SELECT _op, count(), max(_source_ts),
+                       dateDiff('second', max(_source_ts), now64(6, 'UTC'))
+                FROM raw_cdc.`{table}` FINAL
+                GROUP BY _op
+                """
+            ).result_rows
+            max_timestamp = None
+            freshness = None
+            for operation, count, source_timestamp, age in rows:
+                lines.append(
+                    "olist_cdc_raw_events_total"
+                    f"{labels(environment='local', table=table, operation=str(operation))} {count}"
+                )
+                source_seconds = timestamp_seconds(source_timestamp)
+                if source_seconds is not None and (
+                    max_timestamp is None or source_seconds > max_timestamp
+                ):
+                    max_timestamp = source_seconds
+                    freshness = age
+            if max_timestamp is not None:
+                lines.append(
+                    "olist_cdc_raw_max_source_timestamp_seconds"
+                    f"{labels(environment='local', table=table)} {max_timestamp}"
+                )
+                lines.append(
+                    "olist_cdc_raw_freshness_seconds"
+                    f"{labels(environment='local', table=table)} {freshness}"
+                )
+    finally:
+        client.close()
+    return lines
+
+
+def transform_finish_by_object(cursor) -> dict[str, datetime]:
+    cursor.execute(
+        """
+        select f.object_uri, min(t.finished_at)
+        from cdc_audit.cdc_files f
+        join cdc_audit.cdc_transform_run_files rf
+          on rf.manifest_uri = f.manifest_uri
+        join cdc_audit.cdc_transform_runs t
+          on t.transform_run_id = rf.transform_run_id
+         and t.status = 'SUCCEEDED'
+        where t.finished_at >= clock_timestamp() - interval '10 minutes'
+        group by f.object_uri
+        """
+    )
+    return {
+        str(object_uri): finished_at for object_uri, finished_at in cursor.fetchall()
+    }
+
+
+def raw_event_rows_postgres(connection_factory) -> list[tuple[str, datetime, str]]:
+    rows: list[tuple[str, datetime, str]] = []
+    with connection_factory() as connection:
+        connection.set_session(readonly=True, autocommit=False)
+        with connection.cursor() as cursor:
+            for table in BUSINESS_COLUMNS:
+                cursor.execute(
+                    f"""
+                    select _event_id, _source_ts, _source_object_uri
+                    from raw_cdc.{table}
+                    where _source_ts is not null
+                    """
+                )
+                rows.extend(cursor.fetchall())
+    return rows
+
+
+def raw_event_rows_clickhouse(client_factory) -> list[tuple[str, datetime, str]]:
+    rows: list[tuple[str, datetime, str]] = []
+    client = client_factory()
+    try:
+        for table in BUSINESS_COLUMNS:
+            rows.extend(
+                client.query(
+                    f"""
+                    SELECT _event_id, _source_ts, _source_object_uri
+                    FROM raw_cdc.`{table}` FINAL
+                    WHERE _source_ts IS NOT NULL
+                    """
+                ).result_rows
             )
+    finally:
+        client.close()
+    return rows
+
+
+def render_event_latency_histogram(
+    cursor,
+    raw_connection_factory,
+    warehouse_type: str,
+) -> list[str]:
+    """Render a rolling event-level histogram from immutable transform membership."""
+    finished_by_object = transform_finish_by_object(cursor)
+    if not finished_by_object:
+        total_count = 0
+        total_sum = 0.0
+        bucket_counts = {bucket: 0 for bucket in LATENCY_BUCKETS}
+    else:
+        raw_rows = (
+            raw_event_rows_clickhouse(raw_connection_factory)
+            if warehouse_type == "clickhouse"
+            else raw_event_rows_postgres(raw_connection_factory)
+        )
+        event_latencies: dict[str, float] = {}
+        for event_id, source_ts, object_uri in raw_rows:
+            finished_at = finished_by_object.get(str(object_uri))
+            if finished_at is None:
+                continue
+            source_seconds = timestamp_seconds(source_ts)
+            finished_seconds = timestamp_seconds(finished_at)
+            if source_seconds is None or finished_seconds is None:
+                continue
+            latency = max(0.0, finished_seconds - source_seconds)
+            current = event_latencies.get(str(event_id))
+            if current is None or latency < current:
+                event_latencies[str(event_id)] = latency
+        bucket_counts = {
+            bucket: sum(latency <= bucket for latency in event_latencies.values())
             for bucket in LATENCY_BUCKETS
-        ]
-        aggregates.extend(
-            [
-                sql.SQL("count(*)"),
-                sql.SQL("coalesce(sum(latency_seconds), 0)"),
-            ]
-        )
-        cursor.execute(
-            sql.SQL(
-                """
-                select {} from (
-                    select extract(epoch from min(t.finished_at) - r._source_ts)
-                           as latency_seconds
-                    from raw_cdc.{} r
-                    join cdc_audit.cdc_files f
-                      on f.object_uri = r._source_object_uri
-                    join cdc_audit.cdc_transform_run_files rf
-                      on rf.manifest_uri = f.manifest_uri
-                    join cdc_audit.cdc_transform_runs t
-                      on t.transform_run_id = rf.transform_run_id
-                     and t.status = 'SUCCEEDED'
-                    where t.finished_at >= clock_timestamp() - interval '10 minutes'
-                      and r._source_ts is not null
-                    group by r._event_id, r._source_ts
-                ) event_latency
-                """
-            ).format(sql.SQL(", ").join(aggregates), sql.Identifier(table))
-        )
-        row = cursor.fetchone()
-        for index, bucket in enumerate(LATENCY_BUCKETS):
-            bucket_counts[bucket] += int(row[index])
-        total_count += int(row[-2])
-        total_sum += float(row[-1])
+        }
+        total_count = len(event_latencies)
+        total_sum = sum(event_latencies.values())
     result = [
         "olist_cdc_event_commit_to_mart_latency_seconds_bucket"
         f"{labels(environment='local', le=str(bucket))} {bucket_counts[bucket]}"
@@ -90,45 +221,20 @@ def render_event_latency_histogram(cursor) -> list[str]:
     return result
 
 
-def render_metrics(connection_factory) -> bytes:
+def render_metrics(
+    control_connection_factory,
+    raw_connection_factory,
+    warehouse_type: str,
+) -> bytes:
     lines = ["olist_cdc_pipeline_up 1"]
     try:
-        with connection_factory() as connection:
+        if warehouse_type == "clickhouse":
+            lines.extend(render_raw_metrics_clickhouse(raw_connection_factory))
+        else:
+            lines.extend(render_raw_metrics_postgres(raw_connection_factory))
+        with control_connection_factory() as connection:
             connection.set_session(readonly=True, autocommit=False)
             with connection.cursor() as cursor:
-                for table in BUSINESS_COLUMNS:
-                    cursor.execute(
-                        sql.SQL(
-                            """
-                            select _op, count(*),
-                                   extract(epoch from max(_source_ts)),
-                                   extract(epoch from clock_timestamp() - max(_source_ts))
-                            from raw_cdc.{} group by _op
-                            """
-                        ).format(sql.Identifier(table))
-                    )
-                    rows = cursor.fetchall()
-                    max_timestamp = None
-                    freshness = None
-                    for operation, count, source_timestamp, age in rows:
-                        lines.append(
-                            "olist_cdc_raw_events_total"
-                            f"{labels(environment='local', table=table, operation=str(operation))} {count}"
-                        )
-                        if source_timestamp is not None and (
-                            max_timestamp is None or source_timestamp > max_timestamp
-                        ):
-                            max_timestamp = source_timestamp
-                            freshness = age
-                    if max_timestamp is not None:
-                        lines.append(
-                            "olist_cdc_raw_max_source_timestamp_seconds"
-                            f"{labels(environment='local', table=table)} {max_timestamp}"
-                        )
-                        lines.append(
-                            "olist_cdc_raw_freshness_seconds"
-                            f"{labels(environment='local', table=table)} {freshness}"
-                        )
                 cursor.execute(
                     """
                     select source_table, status, count(*)
@@ -331,13 +437,17 @@ def render_metrics(connection_factory) -> bytes:
                             f"olist_cdc_mart_freshness_latency_seconds{metric_labels} "
                             f"{latency}"
                         )
-                lines.extend(render_event_latency_histogram(cursor))
+                lines.extend(
+                    render_event_latency_histogram(
+                        cursor, raw_connection_factory, warehouse_type
+                    )
+                )
     except Exception:
         lines[0] = "olist_cdc_pipeline_up 0"
     return ("\n".join(lines) + "\n").encode()
 
 
-def handler(connection_factory):
+def handler(control_connection_factory, raw_connection_factory, warehouse_type: str):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path not in {"/metrics", "/-/healthy"}:
@@ -346,7 +456,9 @@ def handler(connection_factory):
             body = (
                 b"ok\n"
                 if self.path == "/-/healthy"
-                else render_metrics(connection_factory)
+                else render_metrics(
+                    control_connection_factory, raw_connection_factory, warehouse_type
+                )
             )
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; version=0.0.4")
@@ -362,6 +474,11 @@ def handler(connection_factory):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--warehouse-type",
+        choices=["postgres", "clickhouse"],
+        default=os.environ.get("CDC_WAREHOUSE_TYPE", "clickhouse"),
+    )
     parser.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
     parser.add_argument(
         "--port", type=int, default=int(os.environ.get("POSTGRES_PORT", "5432"))
@@ -374,10 +491,60 @@ def main() -> int:
     parser.add_argument(
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
+    parser.add_argument(
+        "--control-host", default=os.environ.get("CONTROL_POSTGRES_HOST", "localhost")
+    )
+    parser.add_argument(
+        "--control-port",
+        type=int,
+        default=int(os.environ.get("CONTROL_POSTGRES_PORT", "5432")),
+    )
+    parser.add_argument(
+        "--control-database",
+        default=os.environ.get("CONTROL_POSTGRES_DB", "olist_control"),
+    )
+    parser.add_argument(
+        "--control-user",
+        default=os.environ.get("CONTROL_POSTGRES_USER", "olist_control"),
+    )
+    parser.add_argument(
+        "--control-password", default=os.environ.get("CONTROL_POSTGRES_PASSWORD")
+    )
+    parser.add_argument(
+        "--control-password-file",
+        default=os.environ.get("CONTROL_POSTGRES_PASSWORD_FILE"),
+    )
+    parser.add_argument(
+        "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "localhost")
+    )
+    parser.add_argument(
+        "--clickhouse-port",
+        type=int,
+        default=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+    )
+    parser.add_argument(
+        "--clickhouse-user", default=os.environ.get("CLICKHOUSE_USER", "olist")
+    )
+    parser.add_argument(
+        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD")
+    )
+    parser.add_argument(
+        "--clickhouse-password-file",
+        default=os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
+    )
+    parser.add_argument(
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+    )
+    parser.add_argument(
+        "--clickhouse-secure",
+        action="store_true",
+        default=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
+    )
     parser.add_argument("--listen-port", type=int, default=9107)
     args = parser.parse_args()
 
-    def connect():
+    def connect_postgres_raw():
         return psycopg2.connect(
             host=args.host,
             port=args.port,
@@ -388,7 +555,39 @@ def main() -> int:
             application_name="olist_cdc_metrics_readonly",
         )
 
-    ThreadingHTTPServer(("0.0.0.0", args.listen_port), handler(connect)).serve_forever()
+    def connect_control():
+        return psycopg2.connect(
+            host=args.control_host,
+            port=args.control_port,
+            dbname=args.control_database,
+            user=args.control_user,
+            password=read_secret(args.control_password, args.control_password_file),
+            connect_timeout=5,
+            application_name="olist_cdc_control_metrics_readonly",
+        )
+
+    def connect_clickhouse_raw():
+        return clickhouse_connect.get_client(
+            host=args.clickhouse_host,
+            port=args.clickhouse_port,
+            username=args.clickhouse_user,
+            password=read_secret(
+                args.clickhouse_password, args.clickhouse_password_file
+            )
+            or "olist",
+            database=args.clickhouse_database,
+            secure=args.clickhouse_secure,
+        )
+
+    raw_connection_factory = (
+        connect_clickhouse_raw
+        if args.warehouse_type == "clickhouse"
+        else connect_postgres_raw
+    )
+    ThreadingHTTPServer(
+        ("0.0.0.0", args.listen_port),
+        handler(connect_control, raw_connection_factory, args.warehouse_type),
+    ).serve_forever()
     return 0
 
 

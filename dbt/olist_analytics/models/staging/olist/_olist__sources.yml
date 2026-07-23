@@ -4,7 +4,6 @@ sources:
   - name: olist
     description: >
       Raw Olist source tables loaded into the active warehouse target.
-    database: "{{ target.database }}"
     schema: raw_data
     config:
       loaded_at_field: _loaded_at

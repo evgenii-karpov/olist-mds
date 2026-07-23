@@ -1,8 +1,6 @@
 {{
     config(
-        unique_key='order_month',
-        incremental_strategy='merge',
-        pre_hook="{{ delete_impacted_periods('order_month', 'int_cdc__changed_periods', 'order_month') }}",
+        materialized='table',
         tags=['realtime_transform', 'realtime_quality']
     )
 }}
@@ -11,9 +9,7 @@
 
 with item_facts as (
     select
-        date_trunc(
-            'month', facts.order_purchase_timestamp
-        )::date as order_month,
+        {{ month_start('facts.order_purchase_timestamp') }} as order_month,
         facts.order_id,
         facts.customer_unique_id,
         coalesce(
@@ -24,7 +20,7 @@ with item_facts as (
     {% if is_incremental() %}
         inner join {{ ref('int_cdc__changed_periods') }} as changed
             on
-                date_trunc('month', facts.order_purchase_timestamp)::date
+                {{ month_start('facts.order_purchase_timestamp') }}
                 = changed.order_month
     {% endif %}
     where
@@ -78,7 +74,7 @@ select
         when active_customers > 0
             then
                 {{ round_two_decimals(
-                    'repeat_customers::decimal(18, 6) / active_customers'
+                    cast_decimal('repeat_customers', 18, 6) ~ ' / active_customers'
                 ) }}
     end as repeat_customer_rate,
     max_source_ts

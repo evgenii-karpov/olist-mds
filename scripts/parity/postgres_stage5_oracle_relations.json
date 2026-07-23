@@ -1,0 +1,13 @@
+{
+  "format_version": 1,
+  "dataset": "synthetic_stage5_initial_parity",
+  "relations": [
+    {"schema": "realtime_core", "name": "dim_customer_realtime_scd2", "grain": ["customer_key"]},
+    {"schema": "realtime_core", "name": "dim_product_realtime_scd2", "grain": ["product_key"]},
+    {"schema": "realtime_core", "name": "dim_seller_realtime", "grain": ["seller_id"]},
+    {"schema": "realtime_core", "name": "fact_order_items_realtime", "grain": ["order_id", "order_item_id"], "measures": ["price", "freight_value", "gross_item_amount", "allocated_payment_value"], "distinct_counts": ["order_id", "customer_unique_id", "product_id", "seller_id"]},
+    {"schema": "realtime_marts", "name": "mart_daily_revenue_realtime", "grain": ["order_purchase_date"], "measures": ["gross_revenue", "allocated_payment_revenue", "product_revenue", "freight_revenue", "orders_count", "customers_count", "items_count", "late_deliveries_count"]},
+    {"schema": "realtime_marts", "name": "mart_monthly_arpu_realtime", "grain": ["order_month"], "measures": ["active_customers", "total_revenue", "orders_count"]},
+    {"schema": "cdc_audit", "name": "realtime_parity_report", "grain": ["metric_name"]}
+  ]
+}

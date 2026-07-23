@@ -21,6 +21,8 @@ jobs:
     env:
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
       AIRFLOW_STATSD_ON: "true"
+      DBT_TARGET: local_clickhouse
+      CDC_WAREHOUSE_TYPE: clickhouse
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -47,13 +49,14 @@ jobs:
             up -d --wait \
             postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry \
             kafka-connect minio nifi \
-            kafka-exporter postgres-exporter-oltp postgres-exporter-warehouse \
+            clickhouse kafka-exporter postgres-exporter-oltp \
             statsd-exporter node-exporter cadvisor nifi-metrics-proxy \
             cdc-component-exporter cdc-pipeline-exporter prometheus alertmanager \
             grafana loki alloy
 
       - name: Run realtime bootstrap jobs
         run: |
+          docker compose --profile realtime-core run --rm clickhouse-init
           docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
           docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 

@@ -18,11 +18,11 @@ base_rows as (
         customer_zip_code_prefix,
         customer_city,
         customer_state,
-        null::timestamp as latest_correction_effective_at,
-        null::varchar(256) as latest_change_reason,
-        '1900-01-01'::timestamp as valid_from,
-        null::timestamp as dbt_valid_from,
-        null::timestamp as dbt_valid_to,
+        {{ null_timestamp() }} as latest_correction_effective_at,
+        {{ null_string(256) }} as latest_change_reason,
+        {{ timestamp_literal('1900-01-01') }} as valid_from,
+        {{ null_timestamp() }} as dbt_valid_from,
+        {{ null_timestamp() }} as dbt_valid_to,
         0 as source_priority
     from base_customers_ranked
     where row_number = 1
@@ -38,7 +38,7 @@ snapshot_rows as (
         latest_change_reason,
         coalesce(
             latest_correction_effective_at,
-            '1900-01-01'::timestamp
+            {{ timestamp_literal('1900-01-01') }}
         ) as valid_from,
         dbt_valid_from,
         dbt_valid_to,
@@ -72,7 +72,7 @@ deduplicated_rows as (
 scd2_windows as (
     select
         *,
-        lead(valid_from) over (
+        lead({{ nullable_window_value('valid_from') }}) over (
             partition by customer_unique_id
             order by valid_from, dbt_valid_from
         ) as next_valid_from
@@ -81,7 +81,12 @@ scd2_windows as (
 )
 
 select
-    md5(customer_unique_id || '|' || valid_from::varchar) as customer_key,
+    {{
+        hash_key(
+            "customer_unique_id || '|' || "
+            ~ timestamp_key_string('valid_from')
+        )
+    }} as customer_key,
     customer_unique_id,
     customer_zip_code_prefix,
     customer_city,

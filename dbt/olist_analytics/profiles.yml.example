@@ -12,6 +12,24 @@ olist_analytics:
       threads: 4
       connect_timeout: 10
 
+    local_clickhouse:
+      type: clickhouse
+      driver: http
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', 8123) | as_number }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'olist') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', 'olist') }}"
+      schema: "{{ env_var('CLICKHOUSE_DATABASE', 'analytics') }}"
+      secure: false
+      verify: false
+      threads: 4
+      connect_timeout: 10
+      send_receive_timeout: 300
+      use_lw_deletes: false
+      check_exchange: true
+      custom_settings:
+        join_use_nulls: 1
+
     redshift:
       type: redshift
       host: "{{ env_var('REDSHIFT_HOST') }}"
@@ -37,6 +55,24 @@ elementary:
       schema: elementary
       threads: 4
       connect_timeout: 10
+
+    local_clickhouse:
+      type: clickhouse
+      driver: http
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', 8123) | as_number }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'olist') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', 'olist') }}"
+      schema: elementary
+      secure: false
+      verify: false
+      threads: 4
+      connect_timeout: 10
+      send_receive_timeout: 300
+      use_lw_deletes: false
+      check_exchange: true
+      custom_settings:
+        join_use_nulls: 1
 
     redshift:
       type: redshift
