@@ -1,0 +1,333 @@
+version: 2
+
+unit_tests:
+  # Focused mid-graph contracts frozen before the ClickHouse SQL port.
+  - name: batch_latest_source_row_wins
+    model: stg_olist__customers
+    given:
+      - input: source('olist', 'customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: Old City, customer_state: rj, _batch_id: old, _loaded_at: '2026-01-01 00:00:00', _source_file: old.csv, _source_system: fixture}
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00200', customer_city: New City, customer_state: sp, _batch_id: new, _loaded_at: '2026-01-02 00:00:00', _source_file: new.csv, _source_system: fixture}
+    expect:
+      rows:
+        - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00200', customer_city: new city, customer_state: SP, _batch_id: new}
+
+  - name: batch_correction_precedence_uses_latest_effective_row
+    model: int_customer_current_attributes
+    given:
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: base, customer_state: RJ, _loaded_at: '2018-01-01 00:00:00'}
+      - input: ref('stg_olist__customer_profile_changes')
+        rows:
+          - {customer_unique_id: u1, effective_at: '2018-07-01 00:00:00', customer_zip_code_prefix: '00200', customer_city: older, customer_state: MG, change_reason: older, _loaded_at: '2018-07-01 01:00:00'}
+          - {customer_unique_id: u1, effective_at: '2018-08-01 00:00:00', customer_zip_code_prefix: '00300', customer_city: chosen, customer_state: SP, change_reason: chosen, _loaded_at: '2018-08-01 01:00:00'}
+          - {customer_unique_id: u1, effective_at: '2018-10-01 00:00:00', customer_zip_code_prefix: '00400', customer_city: future, customer_state: BA, change_reason: future, _loaded_at: '2018-10-01 01:00:00'}
+    expect:
+      rows:
+        - {customer_unique_id: u1, customer_zip_code_prefix: '00300', customer_city: chosen, customer_state: SP, latest_correction_effective_at: '2018-08-01 00:00:00', latest_change_reason: chosen}
+
+  - name: batch_payment_allocation_is_proportional_and_balanced
+    model: int_order_payment_allocations
+    given:
+      - input: ref('stg_olist__order_items')
+        format: sql
+        rows: |
+          select 'o1'::text as order_id, 1 as order_item_id,
+                 20.00::numeric(18, 2) as price,
+                 10.00::numeric(18, 2) as freight_value
+          union all
+          select 'o1'::text, 2, 60.00::numeric(18, 2), 10.00::numeric(18, 2)
+      - input: ref('stg_olist__order_payments')
+        format: sql
+        rows: |
+          select 'o1'::text as order_id, 100.00::numeric(18, 2) as payment_value
+          union all
+          select 'o1'::text, 20.00::numeric(18, 2)
+    expect:
+      format: sql
+      rows: |
+        select 'o1'::text as order_id, 1 as order_item_id,
+               30.00::numeric(18, 2) as item_gross_amount,
+               100.00::numeric(18, 2) as order_gross_amount,
+               120.00::numeric(18, 2) as order_payment_value,
+               36.00::numeric(18, 2) as allocated_payment_value
+        union all
+        select 'o1'::text, 2, 70.00::numeric(18, 2), 100.00::numeric(18, 2),
+               120.00::numeric(18, 2), 84.00::numeric(18, 2)
+
+  - name: batch_customer_scd2_constructs_non_overlapping_windows
+    model: dim_customer_scd2
+    given:
+      - input: ref('stg_olist__customers')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: base, customer_state: RJ, _loaded_at: '2018-01-01 00:00:00'}
+      - input: ref('snap_customers')
+        rows:
+          - {customer_unique_id: u1, customer_zip_code_prefix: '00200', customer_city: first, customer_state: SP, latest_correction_effective_at: '2018-03-01 00:00:00', latest_change_reason: first, dbt_valid_from: '2018-03-01 01:00:00', dbt_valid_to: '2018-06-01 01:00:00'}
+          - {customer_unique_id: u1, customer_zip_code_prefix: '00300', customer_city: second, customer_state: MG, latest_correction_effective_at: '2018-06-01 00:00:00', latest_change_reason: second, dbt_valid_from: '2018-06-01 01:00:00', dbt_valid_to: null}
+    expect:
+      rows:
+        - {customer_unique_id: u1, customer_city: base, valid_from: '1900-01-01 00:00:00', valid_to: '2018-03-01 00:00:00', is_current: false}
+        - {customer_unique_id: u1, customer_city: first, valid_from: '2018-03-01 00:00:00', valid_to: '2018-06-01 00:00:00', is_current: false}
+        - {customer_unique_id: u1, customer_city: second, valid_from: '2018-06-01 00:00:00', valid_to: null, is_current: true}
+
+  - name: changed_orders_propagate_related_entity_changes
+    model: int_cdc__changed_order_ids
+    given:
+      - input: ref('stg_cdc__orders_events')
+        rows: []
+      - input: ref('stg_cdc__order_items_events')
+        rows: []
+      - input: ref('stg_cdc__order_payments_events')
+        rows: []
+      - input: ref('stg_cdc__customers_events')
+        rows: [{customer_id: c1}]
+      - input: ref('stg_cdc__products_events')
+        rows: [{product_id: p2}]
+      - input: ref('stg_cdc__sellers_events')
+        rows: [{seller_id: s3}]
+      - input: ref('stg_cdc__product_category_translation_events')
+        rows: [{product_category_name: cat4}]
+      - input: ref('hist_cdc__orders')
+        rows:
+          - {order_id: o1, customer_id: c1}
+          - {order_id: o2, customer_id: c2}
+          - {order_id: o3, customer_id: c3}
+          - {order_id: o4, customer_id: c4}
+      - input: ref('hist_cdc__order_items')
+        rows:
+          - {order_id: o2, product_id: p2, seller_id: s2}
+          - {order_id: o3, product_id: p3, seller_id: s3}
+          - {order_id: o4, product_id: p4, seller_id: s4}
+      - input: ref('hist_cdc__products')
+        rows: [{product_id: p4, product_category_name: cat4}]
+    expect:
+      rows: [{order_id: o1}, {order_id: o2}, {order_id: o3}, {order_id: o4}]
+
+  # Technical relation leaves. Empty-input tests still freeze output shape and
+  # ensure adapter ports preserve terminal-node semantics.
+  - name: leaf_stg_geolocation_keeps_distinct_normalized_points
+    model: stg_olist__geolocation
+    given:
+      - input: source('olist', 'geolocation')
+        rows:
+          - {geolocation_zip_code_prefix: '00100', geolocation_lat: -1.25, geolocation_lng: -2.50, geolocation_city: City, geolocation_state: sp, _batch_id: b1, _loaded_at: '2026-01-01 00:00:00', _source_file: geo.csv, _source_system: fixture}
+    expect:
+      rows:
+        - {geolocation_zip_code_prefix: '00100', geolocation_lat: -1.25, geolocation_lng: -2.50, geolocation_city: city, geolocation_state: SP}
+
+  - name: leaf_payment_history_preserves_delete
+    model: hist_cdc__order_payments
+    given:
+      - input: ref('stg_cdc__order_payments_events')
+        rows:
+          - {order_id: o1, payment_sequential: 1, payment_value: 10, _op: c, _source_ts: '2026-01-01 00:00:00+00', _source_lsn: 1, _tx_order: 1, _partition: 0, _offset: 1}
+          - {order_id: o1, payment_sequential: 1, payment_value: 10, _op: d, _source_ts: '2026-01-02 00:00:00+00', _source_lsn: 2, _tx_order: 1, _partition: 0, _offset: 2}
+    expect:
+      rows:
+        - {order_id: o1, payment_sequential: 1, _offset: 1, is_current: false, is_deleted: false}
+        - {order_id: o1, payment_sequential: 1, _offset: 2, is_current: true, is_deleted: true}
+
+  - name: leaf_review_history_uses_composite_grain
+    model: hist_cdc__order_reviews
+    given:
+      - input: ref('stg_cdc__order_reviews_events')
+        rows:
+          - {review_id: r1, order_id: o1, review_score: 4, _op: c, _source_ts: '2026-01-01 00:00:00+00', _source_lsn: 1, _tx_order: 1, _partition: 0, _offset: 1}
+    expect:
+      rows: [{review_id: r1, order_id: o1, review_score: 4, is_current: true, is_deleted: false}]
+
+  - name: leaf_translation_history_orders_versions
+    model: hist_cdc__product_category_translation
+    given:
+      - input: ref('stg_cdc__product_category_translation_events')
+        rows:
+          - {product_category_name: cat, product_category_name_english: old, _op: c, _source_ts: '2026-01-01 00:00:00+00', _source_lsn: 1, _tx_order: 1, _partition: 0, _offset: 1}
+          - {product_category_name: cat, product_category_name_english: new, _op: u, _source_ts: '2026-01-02 00:00:00+00', _source_lsn: 2, _tx_order: 1, _partition: 0, _offset: 2}
+    expect:
+      rows:
+        - {product_category_name: cat, product_category_name_english: old, is_current: false}
+        - {product_category_name: cat, product_category_name_english: new, is_current: true}
+
+  - name: leaf_seller_history_preserves_current_version
+    model: hist_cdc__sellers
+    given:
+      - input: ref('stg_cdc__sellers_events')
+        rows:
+          - {seller_id: s1, seller_city: city, _op: c, _source_ts: '2026-01-01 00:00:00+00', _source_lsn: 1, _tx_order: 1, _partition: 0, _offset: 1}
+    expect:
+      rows: [{seller_id: s1, seller_city: city, is_current: true, is_deleted: false}]
+
+  - name: leaf_daily_batch_projection_preserves_canonical_types
+    model: realtime_parity_daily_revenue_batch
+    given:
+      - input: ref('mart_daily_revenue')
+        rows:
+          - {order_purchase_date: '2018-01-01', gross_revenue: 110, allocated_payment_revenue: 110, product_revenue: 100, freight_revenue: 10, orders_count: 1, customers_count: 1, items_count: 1, average_order_value: 110, average_paid_order_value: 110, average_delivery_days: 2, late_deliveries_count: 0}
+    expect:
+      rows: [{order_purchase_date: '2018-01-01', gross_revenue: 110.00, orders_count: 1}]
+
+  - name: leaf_daily_realtime_projection_preserves_canonical_types
+    model: realtime_parity_daily_revenue_realtime
+    given:
+      - input: ref('mart_daily_revenue_realtime')
+        rows:
+          - {order_purchase_date: '2018-01-01', gross_revenue: 110, allocated_payment_revenue: 110, product_revenue: 100, freight_revenue: 10, orders_count: 1, customers_count: 1, items_count: 1, average_order_value: 110, average_paid_order_value: 110, average_delivery_days: 2, late_deliveries_count: 0}
+    expect:
+      rows: [{order_purchase_date: '2018-01-01', gross_revenue: 110.00, orders_count: 1}]
+
+  - name: leaf_monthly_batch_projection_preserves_canonical_types
+    model: realtime_parity_monthly_arpu_batch
+    given:
+      - input: ref('mart_monthly_arpu')
+        rows:
+          - {order_month: '2018-01-01', active_customers: 1, total_revenue: 110, arpu: 110, orders_count: 1, orders_per_customer: 1, average_order_value: 110, repeat_customer_rate: 0}
+    expect:
+      rows: [{order_month: '2018-01-01', active_customers: 1, total_revenue: 110.00}]
+
+  - name: leaf_monthly_realtime_projection_preserves_canonical_types
+    model: realtime_parity_monthly_arpu_realtime
+    given:
+      - input: ref('mart_monthly_arpu_realtime')
+        rows:
+          - {order_month: '2018-01-01', active_customers: 1, total_revenue: 110, arpu: 110, orders_count: 1, orders_per_customer: 1, average_order_value: 110, repeat_customer_rate: 0}
+    expect:
+      rows: [{order_month: '2018-01-01', active_customers: 1, total_revenue: 110.00}]
+
+  - name: leaf_grain_diff_is_empty_for_equal_outputs
+    model: realtime_parity_grain_diffs
+    given:
+      - input: ref('fact_order_items')
+        rows: []
+      - input: ref('fact_order_items_realtime')
+        rows: []
+      - input: ref('mart_daily_revenue')
+        rows: []
+      - input: ref('mart_daily_revenue_realtime')
+        rows: []
+      - input: ref('mart_monthly_arpu')
+        rows: []
+      - input: ref('mart_monthly_arpu_realtime')
+        rows: []
+    expect:
+      rows: []
+
+  - name: leaf_checksums_pass_for_empty_equivalent_inputs
+    model: realtime_parity_checksums
+    given:
+      - {input: ref('stg_olist__customers'), rows: []}
+      - {input: ref('stg_cdc__customers_current'), rows: []}
+      - {input: ref('stg_olist__orders'), rows: []}
+      - {input: ref('stg_cdc__orders_current'), rows: []}
+      - {input: ref('stg_olist__order_items'), rows: []}
+      - {input: ref('stg_cdc__order_items_current'), rows: []}
+      - {input: ref('stg_olist__order_payments'), rows: []}
+      - {input: ref('stg_cdc__order_payments_current'), rows: []}
+      - {input: ref('stg_olist__order_reviews'), rows: []}
+      - {input: ref('stg_cdc__order_reviews_current'), rows: []}
+      - {input: ref('stg_olist__products'), rows: []}
+      - {input: ref('stg_cdc__products_current'), rows: []}
+      - {input: ref('stg_olist__sellers'), rows: []}
+      - {input: ref('stg_cdc__sellers_current'), rows: []}
+      - {input: ref('stg_olist__product_category_translation'), rows: []}
+      - {input: ref('stg_cdc__product_category_translation_current'), rows: []}
+    expect:
+      rows:
+        - {metric_name: customers_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: orders_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: order_items_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: order_payments_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: order_reviews_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: products_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: sellers_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+        - {metric_name: translations_primary_keys, batch_checksum: null, realtime_checksum: null, status: PASS}
+
+  - name: leaf_parity_report_has_complete_zero_input_metric_contract
+    model: realtime_parity_report
+    given:
+      - {input: ref('stg_olist__customers'), rows: []}
+      - {input: ref('stg_cdc__customers_current'), rows: []}
+      - {input: ref('stg_olist__orders'), rows: []}
+      - {input: ref('stg_cdc__orders_current'), rows: []}
+      - {input: ref('stg_olist__order_items'), rows: []}
+      - {input: ref('stg_cdc__order_items_current'), rows: []}
+      - {input: ref('stg_olist__order_payments'), rows: []}
+      - {input: ref('stg_cdc__order_payments_current'), rows: []}
+      - {input: ref('stg_olist__order_reviews'), rows: []}
+      - {input: ref('stg_cdc__order_reviews_current'), rows: []}
+      - {input: ref('stg_olist__products'), rows: []}
+      - {input: ref('stg_cdc__products_current'), rows: []}
+      - {input: ref('stg_olist__sellers'), rows: []}
+      - {input: ref('stg_cdc__sellers_current'), rows: []}
+      - {input: ref('stg_olist__product_category_translation'), rows: []}
+      - {input: ref('stg_cdc__product_category_translation_current'), rows: []}
+      - {input: ref('fact_order_items'), rows: []}
+      - {input: ref('fact_order_items_realtime'), rows: []}
+      - {input: ref('mart_daily_revenue'), rows: []}
+      - {input: ref('mart_daily_revenue_realtime'), rows: []}
+      - {input: ref('mart_monthly_arpu'), rows: []}
+      - {input: ref('mart_monthly_arpu_realtime'), rows: []}
+    expect:
+      rows:
+        - {metric_name: customers_current_count}
+        - {metric_name: customers.customer_id}
+        - {metric_name: customers.customer_unique_id}
+        - {metric_name: customers.customer_zip_code_prefix}
+        - {metric_name: customers.customer_city}
+        - {metric_name: customers.customer_state}
+        - {metric_name: orders_current_count}
+        - {metric_name: orders.order_id}
+        - {metric_name: orders.customer_id}
+        - {metric_name: orders.order_status}
+        - {metric_name: orders.order_purchase_timestamp}
+        - {metric_name: orders.order_approved_at}
+        - {metric_name: orders.order_delivered_carrier_date}
+        - {metric_name: orders.order_delivered_customer_date}
+        - {metric_name: orders.order_estimated_delivery_date}
+        - {metric_name: order_items_current_count}
+        - {metric_name: order_items.order_id}
+        - {metric_name: order_items.order_item_id}
+        - {metric_name: order_items.product_id}
+        - {metric_name: order_items.seller_id}
+        - {metric_name: order_items.shipping_limit_date}
+        - {metric_name: order_items.price}
+        - {metric_name: order_items.freight_value}
+        - {metric_name: order_payments_current_count}
+        - {metric_name: order_payments.order_id}
+        - {metric_name: order_payments.payment_sequential}
+        - {metric_name: order_payments.payment_type}
+        - {metric_name: order_payments.payment_installments}
+        - {metric_name: order_payments.payment_value}
+        - {metric_name: order_reviews_current_count}
+        - {metric_name: order_reviews.review_id}
+        - {metric_name: order_reviews.order_id}
+        - {metric_name: order_reviews.review_score}
+        - {metric_name: order_reviews.review_comment_title}
+        - {metric_name: order_reviews.review_comment_message}
+        - {metric_name: order_reviews.review_creation_date}
+        - {metric_name: order_reviews.review_answer_timestamp}
+        - {metric_name: products_current_count}
+        - {metric_name: products.product_id}
+        - {metric_name: products.product_category_name}
+        - {metric_name: products.product_name_length}
+        - {metric_name: products.product_description_length}
+        - {metric_name: products.product_photos_qty}
+        - {metric_name: products.product_weight_g}
+        - {metric_name: products.product_length_cm}
+        - {metric_name: products.product_height_cm}
+        - {metric_name: products.product_width_cm}
+        - {metric_name: sellers_current_count}
+        - {metric_name: sellers.seller_id}
+        - {metric_name: sellers.seller_zip_code_prefix}
+        - {metric_name: sellers.seller_city}
+        - {metric_name: sellers.seller_state}
+        - {metric_name: product_category_translation_current_count}
+        - {metric_name: product_category_translation.product_category_name}
+        - {metric_name: product_category_translation.product_category_name_english}
+        - {metric_name: fact_order_item_count}
+        - {metric_name: fact_order_items_business_mismatches}
+        - {metric_name: fact_allocated_payment_total}
+        - {metric_name: daily_gross_revenue_total}
+        - {metric_name: monthly_revenue_total}
