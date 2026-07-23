@@ -335,6 +335,7 @@ def main() -> int:
             put_closed_object(client, bucket, [4, 5], suffix="high", closed_at=base)
             first = ingest(
                 connection,
+                connection,
                 client,
                 bucket,
                 Selector(table=TABLE),
@@ -360,6 +361,7 @@ def main() -> int:
                 closed_at=base + timedelta(minutes=1),
             )
             second = ingest(
+                connection,
                 connection,
                 client,
                 bucket,
@@ -388,6 +390,7 @@ def main() -> int:
             )
             expected_tail = ingest(
                 connection,
+                connection,
                 client,
                 bucket,
                 Selector(table=TABLE),
@@ -414,6 +417,7 @@ def main() -> int:
             try:
                 ingest(
                     connection,
+                    connection,
                     FailOnceOnParquet(client),
                     bucket,
                     Selector(table=TABLE),
@@ -433,6 +437,7 @@ def main() -> int:
             )
             assert failed == ("FAILED", 1), failed
             recovered = ingest(
+                connection,
                 connection,
                 client,
                 bucket,
@@ -459,6 +464,7 @@ def main() -> int:
             )
             assert repeated_selected == selected
             replay = ingest(
+                connection,
                 connection,
                 client,
                 bucket,

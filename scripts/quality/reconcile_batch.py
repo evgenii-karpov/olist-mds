@@ -29,6 +29,10 @@ from scripts.loading.load_raw_to_postgres import (
     load_specs,
 )
 from scripts.orchestration.batch_control import BatchRunContext, mark_batch_status
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
 
 
 class RawLoadSpecLike(Protocol):
@@ -102,11 +106,11 @@ def count_raw_rows(
 
 
 def count_replayed_rows(
-    connection: PgConnection,
+    control_pg_connection: PgConnection,
     entity_name: str,
     batch_id: str,
 ) -> int:
-    with connection.cursor() as cursor:
+    with control_pg_connection.cursor() as cursor:
         cursor.execute(
             """
             select coalesce(sum(rows_replayed), 0)
@@ -283,7 +287,8 @@ def fail_if_mismatched(results: list[ReconciliationResult]) -> None:
 
 
 def reconcile_batch(
-    connection: PgConnection,
+    warehouse_pg_connection: PgConnection,
+    control_pg_connection: PgConnection,
     profile_path: Path,
     raw_dir: Path,
     batch_id: str,
@@ -292,10 +297,13 @@ def reconcile_batch(
     manifest_entries = load_dead_letter_manifest_entries(raw_dir)
     expected_source_rows = load_expected_source_rows(profile_path)
     raw_counts = {
-        spec.entity_name: count_raw_rows(connection, spec, batch_id) for spec in specs
+        spec.entity_name: count_raw_rows(warehouse_pg_connection, spec, batch_id)
+        for spec in specs
     }
     replay_counts = {
-        spec.entity_name: count_replayed_rows(connection, spec.entity_name, batch_id)
+        spec.entity_name: count_replayed_rows(
+            control_pg_connection, spec.entity_name, batch_id
+        )
         for spec in specs
     }
     return build_reconciliation_results(
@@ -339,6 +347,7 @@ def parse_args() -> argparse.Namespace:
         "--password",
         default=warehouse_env("WAREHOUSE_PASSWORD", "POSTGRES_PASSWORD", "olist"),
     )
+    add_control_postgres_args(parser)
     return parser.parse_args()
 
 
@@ -346,18 +355,22 @@ def main() -> None:
     args = parse_args()
     batch_id = args.batch_id or args.batch_date
     raw_dir = Path(args.raw_dir)
-    connection = warehouse_connection(args)
+    warehouse_pg_connection = warehouse_connection(args)
+    control_pg_connection = control_connection(args)
     try:
         if args.bootstrap_sql_dir:
-            execute_sql_files(connection, Path(args.bootstrap_sql_dir))
+            execute_sql_files(warehouse_pg_connection, Path(args.bootstrap_sql_dir))
 
         results = reconcile_batch(
-            connection=connection,
+            warehouse_pg_connection=warehouse_pg_connection,
+            control_pg_connection=control_pg_connection,
             profile_path=Path(args.profile),
             raw_dir=raw_dir,
             batch_id=batch_id,
         )
-        record_reconciliation_results(connection, batch_id, args.run_id, results)
+        record_reconciliation_results(
+            control_pg_connection, batch_id, args.run_id, results
+        )
 
         batch_context = BatchRunContext(
             batch_id=batch_id,
@@ -371,7 +384,7 @@ def main() -> None:
 
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "RAW_RECONCILED",
                     raw_dir=raw_dir,
@@ -379,7 +392,7 @@ def main() -> None:
         except Exception as exc:
             if not args.disable_batch_control:
                 mark_batch_status(
-                    connection,
+                    control_pg_connection,
                     batch_context,
                     "FAILED",
                     raw_dir=raw_dir,
@@ -387,7 +400,8 @@ def main() -> None:
                 )
             raise
     finally:
-        connection.close()
+        warehouse_pg_connection.close()
+        control_pg_connection.close()
 
     passed = sum(1 for result in results if result.status == "PASS")
     print(f"Reconciled batch {batch_id}: {passed}/{len(results)} entities passed")

@@ -27,6 +27,12 @@ import pyarrow.parquet as parquet
 from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 from psycopg2.extras import Json, execute_values
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+)
+from scripts.orchestration.control_postgres import (
+    control_connection as open_control_connection,
+)
 
 NORMALIZED_MANIFEST_PREFIX = "manifests/cdc/kind=normalized/"
 COVERAGE_MANIFEST_PREFIX = "manifests/cdc/kind=coverage/"
@@ -1254,7 +1260,8 @@ def recompute_watermark(
 
 
 def load_claimed_file(
-    connection: PgConnection,
+    warehouse_connection: PgConnection,
+    control_connection: PgConnection,
     manifest: Manifest,
     attempt_number: int,
     ingest_run_id: str,
@@ -1268,7 +1275,7 @@ def load_claimed_file(
         for row in rows
     ]
     temp_name = f"cdc_stage_{uuid.uuid4().hex}"
-    with connection.cursor() as cursor:
+    with warehouse_connection.cursor() as cursor:
         cursor.execute(
             sql.SQL(
                 "create temp table {} (like raw_cdc.{} including defaults) on commit drop"
@@ -1291,6 +1298,9 @@ def load_claimed_file(
         cursor.execute(insert_target)
         inserted = cursor.rowcount
         duplicates = len(rows) - inserted
+    warehouse_connection.commit()
+
+    with control_connection.cursor() as cursor:
         cursor.execute(
             """
             update cdc_audit.cdc_files
@@ -1348,7 +1358,7 @@ def load_claimed_file(
             """,
             (len(rows), inserted, duplicates, manifest.manifest_uri, attempt_number),
         )
-    connection.commit()
+    control_connection.commit()
     return inserted, duplicates, gaps
 
 
@@ -1447,7 +1457,8 @@ def finish_run(
 
 
 def ingest(
-    connection: PgConnection,
+    warehouse_connection: PgConnection,
+    control_connection: PgConnection,
     client,
     bucket: str,
     selector: Selector,
@@ -1458,7 +1469,7 @@ def ingest(
     replay_request_id: str | None = None,
 ) -> IngestSummary:
     start_run(
-        connection,
+        control_connection,
         ingest_run_id,
         run_kind,
         dag_id,
@@ -1467,7 +1478,7 @@ def ingest(
     )
     claimed = loaded = object_rows = inserted = duplicates = gap_count = 0
     try:
-        known_manifests, known_coverage = known_immutable_etags(connection)
+        known_manifests, known_coverage = known_immutable_etags(control_connection)
         manifests = discover_manifests(
             client, bucket, selector, known_etags=known_manifests
         )
@@ -1475,17 +1486,17 @@ def ingest(
             client, bucket, selector, known_etags=known_coverage
         )
         update_discovery_counts(
-            connection,
+            control_connection,
             ingest_run_id,
             len(manifests),
             len(coverage_manifests),
         )
-        register_manifests(connection, manifests)
+        register_manifests(control_connection, manifests)
         affected = register_coverage_manifests(
-            connection, coverage_manifests, ingest_run_id
+            control_connection, coverage_manifests, ingest_run_id
         )
         if affected:
-            with connection.cursor() as cursor:
+            with control_connection.cursor() as cursor:
                 for table, topic, partition in affected:
                     cursor.execute(
                         """
@@ -1502,9 +1513,9 @@ def ingest(
                         _, gap_count = recompute_watermark(
                             cursor, table, topic, partition
                         )
-            connection.commit()
+            control_connection.commit()
         while claim := claim_next_file(
-            connection,
+            control_connection,
             ingest_run_id,
             selector,
             run_kind,
@@ -1512,15 +1523,24 @@ def ingest(
         ):
             manifest_uri, attempt_number = claim
             claimed += 1
-            manifest = fetch_registered_manifest(connection, manifest_uri)
+            manifest = fetch_registered_manifest(control_connection, manifest_uri)
             try:
                 rows = read_parquet_object(client, manifest)
                 file_inserted, file_duplicates, gap_count = load_claimed_file(
-                    connection, manifest, attempt_number, ingest_run_id, rows
+                    warehouse_connection,
+                    control_connection,
+                    manifest,
+                    attempt_number,
+                    ingest_run_id,
+                    rows,
                 )
             except Exception as exc:
                 mark_file_failed(
-                    connection, manifest_uri, attempt_number, ingest_run_id, exc
+                    control_connection,
+                    manifest_uri,
+                    attempt_number,
+                    ingest_run_id,
+                    exc,
                 )
                 raise
             loaded += 1
@@ -1528,7 +1548,7 @@ def ingest(
             inserted += file_inserted
             duplicates += file_duplicates
         finish_run(
-            connection,
+            control_connection,
             ingest_run_id,
             "SUCCEEDED",
             files_claimed=claimed,
@@ -1540,7 +1560,7 @@ def ingest(
         )
     except Exception as exc:
         finish_run(
-            connection,
+            control_connection,
             ingest_run_id,
             "FAILED",
             files_claimed=claimed,
@@ -1552,7 +1572,7 @@ def ingest(
             failure=f"{type(exc).__name__}: {exc}"[:65535],
         )
         raise
-    return IngestSummary(*fetch_run_summary(connection, ingest_run_id))
+    return IngestSummary(*fetch_run_summary(control_connection, ingest_run_id))
 
 
 def fetch_run_summary(
@@ -1748,6 +1768,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
+    add_control_postgres_args(parser)
     parser.add_argument("--bootstrap-sql-dir", default="infra/postgres")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -1802,45 +1823,74 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
-    with postgres_connection(args) as connection:
-        if args.command == "bootstrap":
-            execute_bootstrap(connection, Path(args.bootstrap_sql_dir))
-            return 0
-        if args.command == "record-failure":
-            record_orchestration_failure(
-                connection,
-                args.ingest_run_id,
-                args.dag_id,
-                args.orchestration_run_id,
-                args.failure_summary,
-            )
-            return 0
-        selector = selector_from_args(args)
-        if args.command == "replay":
-            selected = request_replay(
-                connection, args.replay_request_id, args.requested_by, selector
-            )
-            print(
-                json.dumps(
-                    {
-                        "replay_request_id": args.replay_request_id,
-                        "selected_files": selected,
-                    }
-                )
-            )
-            return 0
-        summary = ingest(
-            connection,
-            s3_client(args),
-            args.bucket,
-            selector,
+    control_connection = open_control_connection(args)
+    try:
+        if args.command in {"bootstrap", "ingest"}:
+            with postgres_connection(args) as warehouse_connection:
+                return run_command(args, warehouse_connection, control_connection)
+        return run_command(args, None, control_connection)
+    finally:
+        control_connection.close()
+
+
+def require_warehouse_connection(
+    warehouse_connection: PgConnection | None,
+) -> PgConnection:
+    if warehouse_connection is None:
+        raise ValueError("warehouse connection is required for this command")
+    return warehouse_connection
+
+
+def run_command(
+    args: argparse.Namespace,
+    warehouse_connection: PgConnection | None,
+    control_connection: PgConnection,
+) -> int:
+    if args.command == "bootstrap":
+        execute_bootstrap(
+            require_warehouse_connection(warehouse_connection),
+            Path(args.bootstrap_sql_dir),
+        )
+        return 0
+    if args.command == "record-failure":
+        record_orchestration_failure(
+            control_connection,
             args.ingest_run_id,
-            args.run_kind,
             args.dag_id,
             args.orchestration_run_id,
-            args.replay_request_id,
+            args.failure_summary,
         )
-        print(json.dumps(summary.as_dict(), sort_keys=True))
+        return 0
+    selector = selector_from_args(args)
+    if args.command == "replay":
+        selected = request_replay(
+            control_connection,
+            args.replay_request_id,
+            args.requested_by,
+            selector,
+        )
+        print(
+            json.dumps(
+                {
+                    "replay_request_id": args.replay_request_id,
+                    "selected_files": selected,
+                }
+            )
+        )
+        return 0
+    summary = ingest(
+        require_warehouse_connection(warehouse_connection),
+        control_connection,
+        s3_client(args),
+        args.bucket,
+        selector,
+        args.ingest_run_id,
+        args.run_kind,
+        args.dag_id,
+        args.orchestration_run_id,
+        args.replay_request_id,
+    )
+    print(json.dumps(summary.as_dict(), sort_keys=True))
     return 0
 
 

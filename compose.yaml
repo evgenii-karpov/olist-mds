@@ -97,6 +97,29 @@ services:
     secrets:
       - clickhouse_password
 
+  control-db-init:
+    image: postgres:17.10
+    container_name: olist-control-db-init
+    restart: "no"
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    entrypoint: ["bash", "/opt/olist/control-postgres/init-control-db.sh"]
+    environment:
+      AIRFLOW_POSTGRES_HOST: airflow-postgres
+      AIRFLOW_POSTGRES_PORT: "5432"
+      AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
+      AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
+      AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
+    volumes:
+      - ./infra/control-postgres:/opt/olist/control-postgres:ro
+    secrets:
+      - airflow_postgres_password
+      - control_postgres_password
+
   airflow:
     build:
       context: .
@@ -110,6 +133,8 @@ services:
         condition: service_healthy
       airflow-postgres:
         condition: service_healthy
+      control-db-init:
+        condition: service_completed_successfully
       clickhouse-init:
         condition: service_completed_successfully
     command:
@@ -153,6 +178,11 @@ services:
       AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
       AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
       AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
       AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
       AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
@@ -171,6 +201,7 @@ services:
       - postgres_password
       - clickhouse_password
       - airflow_postgres_password
+      - control_postgres_password
       - airflow_api_secret_key
       - redshift_password
       - minio_cdc_loader_password
@@ -232,6 +263,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      control-db-init:
+        condition: service_completed_successfully
     entrypoint: ["python", "/opt/airflow/project/scripts/cdc/warehouse_ingest.py"]
     command: ["--bootstrap-sql-dir", "infra/postgres", "bootstrap"]
     environment:
@@ -240,8 +273,14 @@ services:
       POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
       POSTGRES_USER: "${POSTGRES_USER:-olist}"
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
       - postgres_password
+      - control_postgres_password
 
   kafka:
     image: apache/kafka:4.3.1
@@ -547,6 +586,8 @@ services:
     container_name: olist-cdc-pipeline-exporter
     restart: unless-stopped
     depends_on:
+      control-db-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     entrypoint: ["python", "/opt/airflow/project/scripts/cdc/pipeline_metrics.py"]
@@ -557,8 +598,14 @@ services:
       POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
       POSTGRES_USER: "${POSTGRES_USER:-olist}"
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CONTROL_POSTGRES_HOST: airflow-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
+      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
       - postgres_password
+      - control_postgres_password
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9107/-/healthy', timeout=3)\""]
       interval: 10s
@@ -665,6 +712,8 @@ secrets:
     file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_postgres_password:
     file: ${AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_postgres_password.txt}
+  control_postgres_password:
+    file: ${CONTROL_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/control_postgres_password.txt}
   airflow_api_secret_key:
     file: ${AIRFLOW_API_SECRET_KEY_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
   redshift_password:

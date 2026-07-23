@@ -1,5 +1,7 @@
 """Durable orchestration for Phase 5 dbt micro-batches and publication."""
 
+# ruff: noqa: I001
+
 from __future__ import annotations
 
 import argparse
@@ -11,10 +13,18 @@ from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import psycopg2
 from psycopg2.extensions import connection as PgConnection
 
-ROOT = Path(__file__).resolve().parents[2]
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
+
 DBT_PROJECT = ROOT / "dbt" / "olist_analytics"
 PARITY_REPORTS = (
     "realtime_parity_report",
@@ -48,9 +58,10 @@ def connect(args: argparse.Namespace) -> PgConnection:
 
 
 def bootstrap(connection: PgConnection) -> None:
-    sql = (ROOT / "infra/postgres/007_create_cdc_transform_audit.sql").read_text(
-        encoding="utf-8"
-    )
+    sql = (
+        ROOT
+        / "infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql"
+    ).read_text(encoding="utf-8-sig")
     with connection.cursor() as cursor:
         cursor.execute(sql)
     connection.commit()
@@ -326,7 +337,9 @@ def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[st
     custom_results: dict[str, list[dict[str, str]]]
     custom_failed_metrics: list[str]
     try:
-        custom_results, custom_failed_metrics = read_custom_parity_results(connection)
+        custom_results, custom_failed_metrics = read_custom_parity_results(
+            args.warehouse_connection
+        )
     except Exception as exc:
         custom_results = {
             report: [
@@ -589,8 +602,12 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
             ),
         }
         daily, monthly = targets[args.target]
-        cursor.execute(
-            f"""
+        with (
+            args.warehouse_connection,
+            args.warehouse_connection.cursor() as warehouse_cursor,
+        ):
+            warehouse_cursor.execute(
+                f"""
             create or replace view analytics.mart_daily_revenue as
             select
                 order_purchase_date, gross_revenue,
@@ -600,9 +617,9 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
                 average_delivery_days, late_deliveries_count
             from {daily}
             """
-        )
-        cursor.execute(
-            f"""
+            )
+            warehouse_cursor.execute(
+                f"""
             create or replace view analytics.mart_monthly_arpu as
             select
                 order_month, active_customers, total_revenue, arpu,
@@ -610,7 +627,7 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
                 repeat_customer_rate
             from {monthly}
             """
-        )
+            )
         cursor.execute(
             """
                 update cdc_audit.cdc_publication_state
@@ -637,6 +654,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument(
         "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
+    add_control_postgres_args(value)
     commands = value.add_subparsers(dest="command", required=True)
     for name in ("prepare", "finish", "fail"):
         command = commands.add_parser(name)
@@ -664,8 +682,12 @@ def main() -> None:
     if args.command == "quality":
         result = quality(args)
     else:
-        connection = connect(args)
+        connection = control_connection(args)
+        warehouse_connection = None
         try:
+            if args.command in {"publish", "record-parity"}:
+                warehouse_connection = connect(args)
+                args.warehouse_connection = warehouse_connection
             result = {
                 "prepare": prepare,
                 "build": build,
@@ -676,6 +698,8 @@ def main() -> None:
             }[args.command](connection, args)
         finally:
             connection.close()
+            if warehouse_connection is not None:
+                warehouse_connection.close()
     print(json.dumps(result, default=str, sort_keys=True))
     if args.command == "record-parity" and result.get("parity_status") != "PASS":
         raise SystemExit(1)

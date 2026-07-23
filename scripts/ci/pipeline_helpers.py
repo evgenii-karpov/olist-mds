@@ -146,6 +146,16 @@ def airflow_metadata_connection() -> PgConnection:
     )
 
 
+def control_postgres_connection() -> PgConnection:
+    return psycopg2.connect(
+        host=os.environ.get("CONTROL_POSTGRES_HOST", "airflow-postgres"),
+        port=int(os.environ.get("CONTROL_POSTGRES_PORT", "5432")),
+        dbname=os.environ.get("CONTROL_POSTGRES_DB", "olist_control"),
+        user=os.environ.get("CONTROL_POSTGRES_USER", "olist_control"),
+        password=os.environ.get("CONTROL_POSTGRES_PASSWORD", "olist_control"),
+    )
+
+
 def fetch_dag_run_state(dag_id: str, run_id: str) -> str | None:
     with airflow_metadata_connection() as connection, connection.cursor() as cursor:
         cursor.execute(

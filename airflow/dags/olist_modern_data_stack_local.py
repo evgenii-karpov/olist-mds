@@ -165,8 +165,6 @@ def batch_control_args(
         "--raw-dir",
         raw_dir,
     ]
-    if command == "start":
-        args.extend(["--bootstrap-sql-dir", POSTGRES_SQL_DIR])
     if status:
         args.extend(["--status", status])
     return args
@@ -196,8 +194,6 @@ def mark_batch_failed(context: dict) -> None:
             DAG_ID,
             "--raw-dir",
             raw_dir,
-            "--bootstrap-sql-dir",
-            POSTGRES_SQL_DIR,
             "--error-message",
             error_message,
         ],

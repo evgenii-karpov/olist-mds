@@ -170,6 +170,11 @@ def run_transform(args: argparse.Namespace, database: str, run_id: str) -> None:
         "POSTGRES_DB": database,
         "POSTGRES_USER": args.user,
         "POSTGRES_PASSWORD": password(args),
+        "CONTROL_POSTGRES_HOST": args.host,
+        "CONTROL_POSTGRES_PORT": str(args.port),
+        "CONTROL_POSTGRES_DB": database,
+        "CONTROL_POSTGRES_USER": args.user,
+        "CONTROL_POSTGRES_PASSWORD": password(args),
         "DBT_PROFILES_DIR": str(ROOT / "dbt/olist_analytics"),
         "PYTHONUTF8": "1",
     }
@@ -244,6 +249,7 @@ def verify_publication_round_trip(
         subprocess.run(
             [*base, "publish", "--target", target, "--approved-by", "integration"],
             cwd=ROOT,
+            env=dbt_environment(args, database),
             check=True,
         )
         connection.commit()
@@ -278,6 +284,11 @@ def dbt_environment(args: argparse.Namespace, database: str) -> dict[str, str]:
         "POSTGRES_DB": database,
         "POSTGRES_USER": args.user,
         "POSTGRES_PASSWORD": password(args),
+        "CONTROL_POSTGRES_HOST": args.host,
+        "CONTROL_POSTGRES_PORT": str(args.port),
+        "CONTROL_POSTGRES_DB": database,
+        "CONTROL_POSTGRES_USER": args.user,
+        "CONTROL_POSTGRES_PASSWORD": password(args),
         "DBT_PROFILES_DIR": str(ROOT / "dbt/olist_analytics"),
         "PYTHONUTF8": "1",
     }
