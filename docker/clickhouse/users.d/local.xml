@@ -1,0 +1,7 @@
+<clickhouse>
+    <profiles>
+        <olist>
+            <join_use_nulls>1</join_use_nulls>
+        </olist>
+    </profiles>
+</clickhouse>

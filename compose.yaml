@@ -44,6 +44,59 @@ services:
       retries: 5
       start_period: 20s
 
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    container_name: olist-clickhouse
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    environment:
+      CLICKHOUSE_DB: "${CLICKHOUSE_DATABASE:-analytics}"
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "${CLICKHOUSE_HTTP_HOST_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_HOST_PORT:-19000}:9000"
+    volumes:
+      - olist_clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+      - ./docker/clickhouse/users.d/local.xml:/etc/clickhouse-server/users.d/local.xml:ro
+    secrets:
+      - clickhouse_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          clickhouse-client
+          --host 127.0.0.1
+          --user "$${CLICKHOUSE_USER:-olist}"
+          --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)"
+          --query "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 45s
+
+  clickhouse-init:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    container_name: olist-clickhouse-init
+    restart: "no"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-ec"]
+    command:
+      - for file in /opt/olist/clickhouse/initdb/*.sql; do clickhouse-client --host clickhouse --port 9000 --user "$${CLICKHOUSE_USER:-olist}" --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)" --multiquery < "$${file}"; done
+    environment:
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+    volumes:
+      - ./infra/clickhouse/initdb:/opt/olist/clickhouse/initdb:ro
+    secrets:
+      - clickhouse_password
+
   airflow:
     build:
       context: .
@@ -57,6 +110,8 @@ services:
         condition: service_healthy
       airflow-postgres:
         condition: service_healthy
+      clickhouse-init:
+        condition: service_completed_successfully
     command:
       - bash
       - /opt/airflow/project/docker/airflow/load-env-and-run.sh
@@ -87,6 +142,12 @@ services:
       POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
       POSTGRES_USER: "${POSTGRES_USER:-olist}"
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-analytics}"
+      CLICKHOUSE_SECURE: "${CLICKHOUSE_SECURE:-false}"
       AIRFLOW_POSTGRES_HOST: airflow-postgres
       AIRFLOW_POSTGRES_PORT: "5432"
       AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
@@ -108,6 +169,7 @@ services:
       - ./airflow/plugins:/opt/airflow/plugins
     secrets:
       - postgres_password
+      - clickhouse_password
       - airflow_postgres_password
       - airflow_api_secret_key
       - redshift_password
@@ -580,6 +642,7 @@ services:
 volumes:
   olist_postgres_data:
   airflow_postgres_data:
+  olist_clickhouse_data:
   olist_oltp_data:
   olist_kafka_data:
   olist_minio_data:
@@ -598,6 +661,8 @@ volumes:
 secrets:
   postgres_password:
     file: ${POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+  clickhouse_password:
+    file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_postgres_password:
     file: ${AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_postgres_password.txt}
   airflow_api_secret_key:
