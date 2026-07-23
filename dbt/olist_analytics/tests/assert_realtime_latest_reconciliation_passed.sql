@@ -1,5 +1,12 @@
 {{ config(tags=['realtime_quality']) }}
 
+{% if target.name == 'local_clickhouse' %}
+
+    select 'realtime_transform.py validates control reconciliation' as reason
+    where 1 = 0
+
+{% else %}
+
 with ranked as (
     select
         reconciliation.*,
@@ -15,3 +22,5 @@ with ranked as (
 select *
 from ranked
 where row_number = 1 and status <> 'PASS'
+
+{% endif %}

@@ -271,3 +271,59 @@
 {% macro clickhouse__output_column(expression, column_name) -%}
     {{ expression }} as {{ column_name }}
 {%- endmacro %}
+
+{% macro count_where(predicate) -%}
+    {{ return(adapter.dispatch('count_where', 'olist_analytics')(predicate)) }}
+{%- endmacro %}
+
+{% macro default__count_where(predicate) -%}
+    count(*) filter (where {{ predicate }})
+{%- endmacro %}
+
+{% macro clickhouse__count_where(predicate) -%}
+    countIf({{ predicate }})
+{%- endmacro %}
+
+{% macro is_distinct(left_expression, right_expression) -%}
+    {{ return(adapter.dispatch('is_distinct', 'olist_analytics')(left_expression, right_expression)) }}
+{%- endmacro %}
+
+{% macro default__is_distinct(left_expression, right_expression) -%}
+    {{ left_expression }} is distinct from {{ right_expression }}
+{%- endmacro %}
+
+{% macro clickhouse__is_distinct(left_expression, right_expression) -%}
+    ifNull({{ left_expression }} != {{ right_expression }}, isNull({{ left_expression }}) != isNull({{ right_expression }}))
+{%- endmacro %}
+
+{% macro utc_timestamp(expression) -%}
+    {{ return(adapter.dispatch('utc_timestamp', 'olist_analytics')(expression)) }}
+{%- endmacro %}
+
+{% macro default__utc_timestamp(expression) -%}
+    cast({{ expression }} as timestamp)
+{%- endmacro %}
+
+{% macro clickhouse__utc_timestamp(expression) -%}
+    {{ cast_timestamp(expression) }}
+{%- endmacro %}
+
+{% macro decimal_literal(value, precision=18, scale=2) -%}
+    {{ cast_decimal(value, precision, scale) }}
+{%- endmacro %}
+
+{% macro decimal_zero(precision=18, scale=2) -%}
+    {{ decimal_literal('0', precision, scale) }}
+{%- endmacro %}
+
+{% macro bool_value(expression) -%}
+    {{ return(adapter.dispatch('bool_value', 'olist_analytics')(expression)) }}
+{%- endmacro %}
+
+{% macro default__bool_value(expression) -%}
+    {{ expression }}
+{%- endmacro %}
+
+{% macro clickhouse__bool_value(expression) -%}
+    multiIf({{ expression }}, toUInt8(1), toUInt8(0))
+{%- endmacro %}

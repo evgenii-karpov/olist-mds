@@ -5,6 +5,28 @@
     {{ alias }}._offset {{ direction }}
 {%- endmacro %}
 
+{% macro cdc_order_value(alias) -%}
+    {{ return(adapter.dispatch('cdc_order_value', 'olist_analytics')(alias)) }}
+{%- endmacro %}
+
+{% macro default__cdc_order_value(alias) -%}
+    (
+        {{ alias }}._source_lsn,
+        coalesce({{ alias }}._tx_order, 0),
+        {{ alias }}._partition,
+        {{ alias }}._offset
+    )
+{%- endmacro %}
+
+{% macro clickhouse__cdc_order_value(alias) -%}
+    tuple(
+        {{ alias }}._source_lsn,
+        coalesce({{ alias }}._tx_order, 0),
+        {{ alias }}._partition,
+        {{ alias }}._offset
+    )
+{%- endmacro %}
+
 {% macro cdc_key_match(left_alias, right_alias, key_columns) -%}
     {% for key in key_columns -%}
         {{ left_alias }}.{{ key }} = {{ right_alias }}.{{ key }}
@@ -26,11 +48,8 @@
             from events as newer_event
             where
                 {{ cdc_key_match('newer_event', 'current_event', key_columns) }}
-                and (
-                    {{ cdc_order_by('newer_event') }}
-                ) > (
-                    {{ cdc_order_by('current_event') }}
-                )
+                and {{ cdc_order_value('newer_event') }}
+                    > {{ cdc_order_value('current_event') }}
         )
 {%- endmacro %}
 
@@ -58,8 +77,8 @@
     select
         ordered.*,
         _source_ts as valid_from,
-        reverse_row_number = 1 as is_current,
-        _op = 'd' as is_deleted
+        {{ bool_value('reverse_row_number = 1') }} as is_current,
+        {{ bool_value("_op = 'd'") }} as is_deleted
     from ordered
 {%- endmacro %}
 

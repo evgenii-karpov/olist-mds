@@ -79,6 +79,10 @@ def clickhouse_client(args: argparse.Namespace):
     )
 
 
+def use_clickhouse_warehouse() -> bool:
+    return local_dbt_target() == "local_clickhouse"
+
+
 def local_dbt_target() -> str:
     return os.environ.get("DBT_TARGET", "local_pg")
 
@@ -334,7 +338,7 @@ def dbt_utils_error_results(message: str) -> list[dict[str, Any]]:
     ]
 
 
-def read_custom_parity_results(
+def read_custom_parity_results_postgres(
     connection: PgConnection,
 ) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
     results: dict[str, list[dict[str, str]]] = {}
@@ -378,6 +382,61 @@ def read_custom_parity_results(
         connection.rollback()
         raise
     return results, failed_metrics
+
+
+def read_custom_parity_results_clickhouse(
+    args: argparse.Namespace,
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    results: dict[str, list[dict[str, str]]] = {}
+    failed_metrics: list[str] = []
+    client = clickhouse_client(args)
+    try:
+        for report in PARITY_REPORTS:
+            if report == "realtime_parity_grain_diffs":
+                rows = client.query(
+                    """
+                    select metric_name, grain_key
+                    from cdc_audit.realtime_parity_grain_diffs
+                    order by metric_name, grain_key
+                    limit 1000
+                    """
+                ).result_rows
+                parsed_rows = [
+                    {"metric_name": str(metric), "grain_key": str(grain)}
+                    for metric, grain in rows
+                ]
+                results[report] = parsed_rows
+                failed_metrics.extend(
+                    f"{row['metric_name']}:{row['grain_key']}" for row in parsed_rows
+                )
+                continue
+
+            rows = client.query(
+                f"""
+                select metric_name, status
+                from cdc_audit.{report}
+                where status <> 'PASS'
+                order by metric_name
+                limit 1000
+                """
+            ).result_rows
+            parsed_rows = [
+                {"metric_name": str(metric), "status": str(status)}
+                for metric, status in rows
+            ]
+            results[report] = parsed_rows
+            failed_metrics.extend(str(row["metric_name"]) for row in parsed_rows)
+    finally:
+        client.close()
+    return results, failed_metrics
+
+
+def read_custom_parity_results(
+    args: argparse.Namespace,
+) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
+    if use_clickhouse_warehouse():
+        return read_custom_parity_results_clickhouse(args)
+    return read_custom_parity_results_postgres(args.warehouse_connection)
 
 
 def parity_status(
@@ -437,9 +496,7 @@ def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[st
     custom_results: dict[str, list[dict[str, str]]]
     custom_failed_metrics: list[str]
     try:
-        custom_results, custom_failed_metrics = read_custom_parity_results(
-            args.warehouse_connection
-        )
+        custom_results, custom_failed_metrics = read_custom_parity_results(args)
     except Exception as exc:
         custom_results = {
             report: [
@@ -640,7 +697,138 @@ def fail(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
     return {"transform_run_id": args.transform_run_id, "status": "FAILED"}
 
 
-def quality(args: argparse.Namespace) -> dict[str, Any]:
+def control_quality_checks(
+    connection: PgConnection, freshness_slo_seconds: int
+) -> list[dict[str, Any]]:
+    failures: list[dict[str, Any]] = []
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            with ranked as (
+                select
+                    reconciliation.source_table,
+                    reconciliation.status,
+                    reconciliation.reconciliation_id,
+                    row_number() over (
+                        partition by reconciliation.source_table
+                        order by
+                            reconciliation.created_at desc,
+                            reconciliation.reconciliation_id desc
+                    ) as row_number
+                from cdc_audit.cdc_reconciliation as reconciliation
+            )
+            select source_table, status, reconciliation_id
+            from ranked
+            where row_number = 1 and status <> 'PASS'
+            order by source_table
+            """
+        )
+        failures.extend(
+            {
+                "check": "latest_reconciliation",
+                "source_table": str(source_table),
+                "status": str(status),
+                "reconciliation_id": str(reconciliation_id),
+            }
+            for source_table, status, reconciliation_id in cursor.fetchall()
+        )
+
+        cursor.execute(
+            """
+            select topic, partition, gap_count
+            from cdc_audit.cdc_partition_watermarks
+            where gap_count <> 0
+            order by topic, partition
+            """
+        )
+        failures.extend(
+            {
+                "check": "offset_continuity",
+                "topic": str(topic),
+                "partition": int(partition),
+                "gap_count": int(gap_count),
+            }
+            for topic, partition, gap_count in cursor.fetchall()
+        )
+
+        cursor.execute(
+            """
+            with expected_models as (
+                select 'mart_daily_revenue_realtime' as model_name
+                union all
+                select 'mart_monthly_arpu_realtime' as model_name
+            ),
+            raw_horizon as (
+                select
+                    max(source_ts_max) as max_source_ts,
+                    max(loaded_at) as max_loaded_at
+                from cdc_audit.cdc_files
+                where status = 'LOADED'
+            )
+            select
+                expected_models.model_name,
+                freshness.max_source_ts,
+                freshness.build_time,
+                raw_horizon.max_source_ts as raw_max_source_ts,
+                raw_horizon.max_loaded_at
+            from expected_models
+            cross join raw_horizon
+            left join cdc_audit.cdc_mart_freshness as freshness
+                on expected_models.model_name = freshness.model_name
+            where
+                freshness.model_name is null
+                or freshness.max_source_ts is null
+                or freshness.build_time is null
+                or (
+                    freshness.build_time < raw_horizon.max_loaded_at
+                    and extract(epoch from clock_timestamp() - raw_horizon.max_loaded_at)
+                        > %s
+                )
+                or (
+                    freshness.max_source_ts < raw_horizon.max_source_ts
+                    and extract(epoch from clock_timestamp() - raw_horizon.max_loaded_at)
+                        > %s
+                )
+            order by expected_models.model_name
+            """,
+            (freshness_slo_seconds, freshness_slo_seconds),
+        )
+        failures.extend(
+            {
+                "check": "mart_freshness",
+                "model_name": str(model_name),
+                "max_source_ts": str(max_source_ts),
+                "build_time": str(build_time),
+                "raw_max_source_ts": str(raw_max_source_ts),
+                "max_loaded_at": str(max_loaded_at),
+            }
+            for (
+                model_name,
+                max_source_ts,
+                build_time,
+                raw_max_source_ts,
+                max_loaded_at,
+            ) in cursor.fetchall()
+        )
+    return failures
+
+
+def quality(
+    connection: PgConnection | None, args: argparse.Namespace
+) -> dict[str, Any]:
+    control_failures: list[dict[str, Any]] = []
+    if use_clickhouse_warehouse():
+        if connection is None:
+            raise ValueError("control PostgreSQL connection is required for quality")
+        control_failures = control_quality_checks(
+            connection,
+            args.freshness_slo_seconds,
+        )
+        if control_failures:
+            raise ValueError(
+                "realtime control quality checks failed: "
+                + json.dumps(control_failures[:100], default=str, sort_keys=True)
+            )
     run_dbt(
         [
             "test",
@@ -674,7 +862,85 @@ def quality(args: argparse.Namespace) -> dict[str, Any]:
             cwd=DBT_PROJECT,
             check=True,
         )
-    return {"quality_status": "success", "full": bool(args.full)}
+    return {
+        "quality_status": "success",
+        "full": bool(args.full),
+        "control_quality_failures": len(control_failures),
+    }
+
+
+def publish_clickhouse_views(args: argparse.Namespace, target: str) -> None:
+    targets = {
+        "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
+        "realtime": (
+            "realtime_marts.mart_daily_revenue_realtime",
+            "realtime_marts.mart_monthly_arpu_realtime",
+        ),
+    }
+    daily, monthly = targets[target]
+    client = clickhouse_client(args)
+    try:
+        client.command(
+            f"""
+            create or replace view analytics.mart_daily_revenue as
+            select
+                order_purchase_date, gross_revenue,
+                allocated_payment_revenue, product_revenue, freight_revenue,
+                orders_count, customers_count, items_count,
+                average_order_value, average_paid_order_value,
+                average_delivery_days, late_deliveries_count
+            from {daily}
+            """
+        )
+        client.command(
+            f"""
+            create or replace view analytics.mart_monthly_arpu as
+            select
+                order_month, active_customers, total_revenue, arpu,
+                orders_count, orders_per_customer, average_order_value,
+                repeat_customer_rate
+            from {monthly}
+            """
+        )
+    finally:
+        client.close()
+
+
+def publish_postgres_views(args: argparse.Namespace, target: str) -> None:
+    targets = {
+        "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
+        "realtime": (
+            "realtime_marts.mart_daily_revenue_realtime",
+            "realtime_marts.mart_monthly_arpu_realtime",
+        ),
+    }
+    daily, monthly = targets[target]
+    with (
+        args.warehouse_connection,
+        args.warehouse_connection.cursor() as warehouse_cursor,
+    ):
+        warehouse_cursor.execute(
+            f"""
+        create or replace view analytics.mart_daily_revenue as
+        select
+            order_purchase_date, gross_revenue,
+            allocated_payment_revenue, product_revenue, freight_revenue,
+            orders_count, customers_count, items_count,
+            average_order_value, average_paid_order_value,
+            average_delivery_days, late_deliveries_count
+        from {daily}
+        """
+        )
+        warehouse_cursor.execute(
+            f"""
+        create or replace view analytics.mart_monthly_arpu as
+        select
+            order_month, active_customers, total_revenue, arpu,
+            orders_count, orders_per_customer, average_order_value,
+            repeat_customer_rate
+        from {monthly}
+        """
+        )
 
 
 def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
@@ -694,40 +960,10 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
         parity_status = row[0]
         if args.target == "realtime" and parity_status != "PASS":
             raise ValueError("realtime publication requires recorded parity PASS")
-        targets = {
-            "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
-            "realtime": (
-                "realtime_marts.mart_daily_revenue_realtime",
-                "realtime_marts.mart_monthly_arpu_realtime",
-            ),
-        }
-        daily, monthly = targets[args.target]
-        with (
-            args.warehouse_connection,
-            args.warehouse_connection.cursor() as warehouse_cursor,
-        ):
-            warehouse_cursor.execute(
-                f"""
-            create or replace view analytics.mart_daily_revenue as
-            select
-                order_purchase_date, gross_revenue,
-                allocated_payment_revenue, product_revenue, freight_revenue,
-                orders_count, customers_count, items_count,
-                average_order_value, average_paid_order_value,
-                average_delivery_days, late_deliveries_count
-            from {daily}
-            """
-            )
-            warehouse_cursor.execute(
-                f"""
-            create or replace view analytics.mart_monthly_arpu as
-            select
-                order_month, active_customers, total_revenue, arpu,
-                orders_count, orders_per_customer, average_order_value,
-                repeat_customer_rate
-            from {monthly}
-            """
-            )
+        if use_clickhouse_warehouse():
+            publish_clickhouse_views(args, args.target)
+        else:
+            publish_postgres_views(args, args.target)
         cursor.execute(
             """
                 update cdc_audit.cdc_publication_state
@@ -795,6 +1031,11 @@ def parser() -> argparse.ArgumentParser:
     build_command.add_argument("--transform-run-id", required=True)
     quality_command = commands.add_parser("quality")
     quality_command.add_argument("--full", action="store_true")
+    quality_command.add_argument(
+        "--freshness-slo-seconds",
+        type=int,
+        default=int(os.environ.get("REALTIME_FRESHNESS_SLO_SECONDS", "300")),
+    )
     publish_command = commands.add_parser("publish")
     publish_command.add_argument(
         "--target", choices=("batch", "realtime"), required=True
@@ -806,15 +1047,22 @@ def parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = parser().parse_args()
-    if args.command == "quality":
-        result = quality(args)
-    else:
-        connection = control_connection(args)
-        warehouse_connection = None
-        try:
-            if args.command in {"publish", "record-parity"}:
-                warehouse_connection = connect(args)
-                args.warehouse_connection = warehouse_connection
+    connection = None
+    warehouse_connection = None
+    try:
+        if args.command != "quality" or use_clickhouse_warehouse():
+            connection = control_connection(args)
+        if (
+            args.command in {"publish", "record-parity"}
+            and not use_clickhouse_warehouse()
+        ):
+            warehouse_connection = connect(args)
+            args.warehouse_connection = warehouse_connection
+        if args.command == "quality":
+            result = quality(connection, args)
+        else:
+            if connection is None:
+                raise ValueError("control PostgreSQL connection is required")
             result = {
                 "prepare": prepare,
                 "build": build,
@@ -823,10 +1071,11 @@ def main() -> None:
                 "publish": publish,
                 "record-parity": record_parity,
             }[args.command](connection, args)
-        finally:
+    finally:
+        if connection is not None:
             connection.close()
-            if warehouse_connection is not None:
-                warehouse_connection.close()
+        if warehouse_connection is not None:
+            warehouse_connection.close()
     print(json.dumps(result, default=str, sort_keys=True))
     if args.command == "record-parity" and result.get("parity_status") != "PASS":
         raise SystemExit(1)

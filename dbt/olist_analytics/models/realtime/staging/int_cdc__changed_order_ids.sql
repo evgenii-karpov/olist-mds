@@ -5,13 +5,13 @@ with direct_order_events as (
     from {{ ref('stg_cdc__orders_events') }}
     where {{ cdc_selected_file_predicate() }}
 
-    union
+    union distinct
 
     select order_id
     from {{ ref('stg_cdc__order_items_events') }}
     where {{ cdc_selected_file_predicate() }}
 
-    union
+    union distinct
 
     select order_id
     from {{ ref('stg_cdc__order_payments_events') }}
@@ -48,7 +48,7 @@ related_orders as (
     inner join changed_customers
         on orders.customer_id = changed_customers.customer_id
 
-    union
+    union distinct
 
     select items.order_id
     from {{ ref('hist_cdc__order_items') }} as items
@@ -56,13 +56,13 @@ related_orders as (
         changed_products
         on items.product_id = changed_products.product_id
 
-    union
+    union distinct
 
     select items.order_id
     from {{ ref('hist_cdc__order_items') }} as items
     inner join changed_sellers on items.seller_id = changed_sellers.seller_id
 
-    union
+    union distinct
 
     select items.order_id
     from {{ ref('hist_cdc__order_items') }} as items

@@ -1,15 +1,28 @@
 {{
     config(
-        materialized='incremental',
-        unique_key='product_key',
-        incremental_strategy='merge',
+        materialized='table',
         tags=['realtime_transform', 'realtime_quality']
     )
 }}
 
 with product_driven_ranked as (
     select
-        products.*,
+        products.product_id as product_id,
+        products.product_category_name as product_category_name,
+        products.product_name_lenght as product_name_lenght,
+        products.product_description_lenght as product_description_lenght,
+        products.product_photos_qty as product_photos_qty,
+        products.product_weight_g as product_weight_g,
+        products.product_length_cm as product_length_cm,
+        products.product_height_cm as product_height_cm,
+        products.product_width_cm as product_width_cm,
+        products._event_id as _event_id,
+        products._op as _op,
+        products._source_ts as _source_ts,
+        products._source_lsn as _source_lsn,
+        products._tx_order as _tx_order,
+        products._partition as _partition,
+        products._offset as _offset,
         translations.product_category_name_english,
         translations._op as translation_op,
         row_number() over (
@@ -23,11 +36,8 @@ with product_driven_ranked as (
         on
             products.product_category_name
             = translations.product_category_name
-            and (
-                {{ cdc_order_by('translations') }}
-            ) <= (
-                {{ cdc_order_by('products') }}
-            )
+            and {{ cdc_order_value('translations') }}
+                <= {{ cdc_order_value('products') }}
 ),
 
 product_driven as (
@@ -48,15 +58,15 @@ product_driven as (
         _tx_order,
         _partition,
         _offset,
-        _op = 'd' as is_deleted
+        {{ bool_value("_op = 'd'") }} as is_deleted
     from product_driven_ranked
     where translation_row_number = 1
 ),
 
 translation_driven_ranked as (
     select
-        products.product_id,
-        products.product_category_name,
+        products.product_id as product_id,
+        products.product_category_name as product_category_name,
         translations.product_category_name as translation_category_name,
         translations.product_category_name_english,
         products.product_weight_g,
@@ -80,8 +90,8 @@ translation_driven_ranked as (
             as translations
     inner join {{ ref('stg_cdc__products_events') }} as products
         on
-            ({{ cdc_order_by('products') }})
-            <= ({{ cdc_order_by('translations') }})
+            {{ cdc_order_value('products') }}
+            <= {{ cdc_order_value('translations') }}
 ),
 
 translation_driven as (
@@ -102,7 +112,7 @@ translation_driven as (
         _tx_order,
         _partition,
         _offset,
-        false as is_deleted
+        {{ bool_value('false') }} as is_deleted
     from translation_driven_ranked
     where
         product_row_number = 1
@@ -123,15 +133,16 @@ windowed as (
             partition by versions.product_id
             order by {{ cdc_order_by('versions') }}
         ) as valid_to,
-        row_number() over (
-            partition by versions.product_id
-            order by {{ cdc_order_by('versions', 'desc') }}
-        ) = 1 as is_current
+        {{ bool_value(
+            'row_number() over (partition by versions.product_id order by '
+            ~ cdc_order_by('versions', 'desc')
+            ~ ') = 1'
+        ) }} as is_current
     from versions
 )
 
 select
-    md5(product_id || '|' || version_event_id) as product_key,
+    {{ hash_key("product_id || '|' || version_event_id") }} as product_key,
     product_id,
     product_category_name,
     product_category_name_english,
