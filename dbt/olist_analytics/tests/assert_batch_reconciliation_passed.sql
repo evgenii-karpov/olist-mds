@@ -2,8 +2,8 @@
 
 {% if target.name in ['local_pg', 'local_clickhouse'] %}
 
-select 'batch reconciliation is validated by scripts/quality/reconcile_batch.py' as reason
-where 1 = 0
+    select 'reconcile_batch.py validates batch reconciliation' as reason
+    where 1 = 0
 
 {% else %}
 

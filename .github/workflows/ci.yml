@@ -208,8 +208,11 @@ jobs:
         run: uv run dbt deps
         working-directory: dbt/olist_analytics
 
-      - name: Start isolated ClickHouse services
-        run: docker compose up -d --wait clickhouse clickhouse-init
+      - name: Start isolated ClickHouse service
+        run: docker compose up -d --wait clickhouse
+
+      - name: Initialize ClickHouse databases
+        run: docker compose run --rm clickhouse-init
 
       - name: Verify ClickHouse incremental fact partition replacement edges
         run: uv run python scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py

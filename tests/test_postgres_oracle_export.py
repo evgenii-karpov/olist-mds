@@ -63,14 +63,14 @@ class PostgresOracleExportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsafe SQL identifier"):
                 load_contract(path)
 
-    def test_repository_contracts_declare_fifteen_oracle_relations(self) -> None:
+    def test_repository_contracts_declare_sixteen_oracle_relations(self) -> None:
         batch = load_contract(Path("scripts/parity/postgres_oracle_relations.json"))
         stage5 = load_contract(
             Path("scripts/parity/postgres_stage5_oracle_relations.json")
         )
         self.assertEqual("olist_small", batch["dataset"])
         self.assertEqual("synthetic_stage5_initial_parity", stage5["dataset"])
-        self.assertEqual(15, len(batch["relations"]) + len(stage5["relations"]))
+        self.assertEqual(16, len(batch["relations"]) + len(stage5["relations"]))
 
     def test_every_terminal_model_has_unit_test_coverage(self) -> None:
         inventory = json.loads(

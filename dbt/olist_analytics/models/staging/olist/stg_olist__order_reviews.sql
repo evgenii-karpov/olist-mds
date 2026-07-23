@@ -8,7 +8,8 @@ with ranked as (
         {{ cast_string("nullif(trim(review_comment_message), '')", 65535) }}
             as review_comment_message,
         {{ cast_timestamp('review_creation_date') }} as review_creation_date,
-        {{ cast_timestamp('review_answer_timestamp') }} as review_answer_timestamp,
+        {{ cast_timestamp('review_answer_timestamp') }}
+            as review_answer_timestamp,
         _batch_id,
         _loaded_at,
         _source_file,

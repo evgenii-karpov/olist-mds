@@ -81,8 +81,12 @@ scd2_windows as (
 )
 
 select
-    {{ hash_key("customer_unique_id || '|' || " ~ timestamp_key_string('valid_from')) }}
-        as customer_key,
+    {{
+        hash_key(
+            "customer_unique_id || '|' || "
+            ~ timestamp_key_string('valid_from')
+        )
+    }} as customer_key,
     customer_unique_id,
     customer_zip_code_prefix,
     customer_city,

@@ -188,6 +188,7 @@ order_items as (
         on order_items.order_id = orders.order_id
 ),
 
+-- noqa: disable=AL09
 fact_base as (
     select
         {{
@@ -211,8 +212,13 @@ fact_base as (
         order_items.shipping_limit_date as shipping_limit_date,
         order_items.price as price,
         order_items.freight_value as freight_value,
-        {{ cast_decimal('order_items.price + order_items.freight_value', 18, 2) }}
-            as gross_item_amount,
+        {{
+            cast_decimal(
+                'order_items.price + order_items.freight_value',
+                18,
+                2
+            )
+        }} as gross_item_amount,
         payment_allocations.allocated_payment_value as allocated_payment_value,
         {{ days_between(
             'orders.order_purchase_timestamp',
@@ -239,6 +245,7 @@ fact_base as (
             order_items.order_id = payment_allocations.order_id
             and order_items.order_item_id = payment_allocations.order_item_id
 )
+-- noqa: enable=AL09
 
 select
     fact_base.order_item_key,
@@ -252,26 +259,26 @@ select
     approved_date.date_key as order_approved_date_key,
     delivered_date.date_key as order_delivered_customer_date_key,
     estimated_delivery_date.date_key as order_estimated_delivery_date_key,
-    fact_base.customer_id as customer_id,
-    fact_base.customer_unique_id as customer_unique_id,
-    fact_base.product_id as product_id,
-    fact_base.seller_id as seller_id,
-    fact_base.order_status as order_status,
-    fact_base.order_purchase_timestamp as order_purchase_timestamp,
-    fact_base.order_approved_at as order_approved_at,
-    fact_base.order_delivered_carrier_date as order_delivered_carrier_date,
-    fact_base.order_delivered_customer_date as order_delivered_customer_date,
-    fact_base.order_estimated_delivery_date as order_estimated_delivery_date,
-    fact_base.shipping_limit_date as shipping_limit_date,
-    fact_base.price as price,
-    fact_base.freight_value as freight_value,
-    fact_base.gross_item_amount as gross_item_amount,
-    fact_base.allocated_payment_value as allocated_payment_value,
-    fact_base.delivery_days as delivery_days,
-    fact_base.delivery_delay_days as delivery_delay_days,
-    fact_base.is_delivered_late as is_delivered_late,
-    fact_base._batch_id as _batch_id,
-    fact_base._loaded_at as _loaded_at
+    fact_base.customer_id,
+    fact_base.customer_unique_id,
+    fact_base.product_id,
+    fact_base.seller_id,
+    fact_base.order_status,
+    fact_base.order_purchase_timestamp,
+    fact_base.order_approved_at,
+    fact_base.order_delivered_carrier_date,
+    fact_base.order_delivered_customer_date,
+    fact_base.order_estimated_delivery_date,
+    fact_base.shipping_limit_date,
+    fact_base.price,
+    fact_base.freight_value,
+    fact_base.gross_item_amount,
+    fact_base.allocated_payment_value,
+    fact_base.delivery_days,
+    fact_base.delivery_delay_days,
+    fact_base.is_delivered_late,
+    fact_base._batch_id,
+    fact_base._loaded_at
 from fact_base
 left join customer_dim
     on
@@ -290,7 +297,9 @@ left join seller_dim
 left join order_status_dim
     on fact_base.order_status = order_status_dim.order_status
 left join dates as purchase_date
-    on {{ cast_date('fact_base.order_purchase_timestamp') }} = purchase_date.date_day
+    on
+        {{ cast_date('fact_base.order_purchase_timestamp') }}
+        = purchase_date.date_day
 left join dates as approved_date
     on {{ cast_date('fact_base.order_approved_at') }} = approved_date.date_day
 left join dates as delivered_date
