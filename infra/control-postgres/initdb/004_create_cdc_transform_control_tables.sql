@@ -15,9 +15,6 @@ create table if not exists cdc_audit.cdc_transform_runs (
     failure_summary text
 );
 
-alter table cdc_audit.cdc_transform_runs
-    add column if not exists dbt_completed_at timestamptz;
-
 create table if not exists cdc_audit.cdc_transform_run_files (
     transform_run_id varchar(256) not null references
         cdc_audit.cdc_transform_runs(transform_run_id),
