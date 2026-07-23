@@ -32,7 +32,7 @@ and is not currently implemented for AWS.
   and business marts.
 - Local CDC pipeline with OLTP PostgreSQL, Debezium/Kafka, Apicurio, MinIO,
   NiFi, typed warehouse ingestion, realtime dbt transforms, quality gates, and
-  observability scaffolding.
+  ClickHouse-backed observability scaffolding.
 - Elementary data observability with collected dbt artifacts, test results, and
   an automated observability report after dbt builds.
 - SCD Type 2 customer and product dimensions using deterministic correction
@@ -141,6 +141,9 @@ tests/
   reproducible and independent of cloud infrastructure.
 - CI uses a small deterministic fixture while still covering the real
   ingestion, loading, reconciliation, and dbt path.
+- Phase 7 CI also compiles ClickHouse candidate selectors, uploads
+  oracle/candidate comparator artifacts, and validates ClickHouse Prometheus
+  coverage while preserving the PostgreSQL oracle until cutover.
 
 ## Running Locally
 

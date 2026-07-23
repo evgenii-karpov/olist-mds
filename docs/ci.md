@@ -30,6 +30,12 @@ clickhouse-incremental-edges
      `fact_order_items` incremental `insert_overwrite` edge fixture for moved
      keys, stale fact row removal, and affected partitions that become empty.
 
+clickhouse-candidate-static
+  -> Starts isolated ClickHouse, validates the local ClickHouse connection,
+     compiles the batch, realtime transform, and realtime parity selectors for
+     `local_clickhouse`, and exercises the canonical manifest comparator
+     artifact contract.
+
 cdc-stage1-oltp-simulator
   -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
      validates deterministic seed, lifecycle, replay, and stop behavior.
@@ -64,10 +70,11 @@ dbt-selector-boundaries
      workflows.
 
 python-unit / CDC Stage 6 observability contract
-  -> Validates real Loki/Alloy services, six dashboard domains, the complete
-     alert inventory, runbook links, retention, and low-cardinality log labels.
-     Destructive or long-running fault/benchmark execution remains manual or
-     nightly through `failure_injection.py` and `benchmark_local.py`.
+  -> Validates real Loki/Alloy services, ClickHouse warehouse metrics, six
+     dashboard domains, the complete alert inventory, runbook links, retention,
+     and low-cardinality log labels. Destructive or long-running
+     fault/benchmark execution remains manual or nightly through
+     `failure_injection.py` and `benchmark_local.py`.
 ```
 
 The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
@@ -109,6 +116,8 @@ Happy path:
   file and analytical output fingerprints.
 - ClickHouse `fact_order_items` incremental partition replacement with moved
   keys, stale row cleanup, and empty affected partition drop.
+- ClickHouse candidate dbt selector compilation and canonical manifest
+  comparator artifact generation.
 
 Failure modes:
 

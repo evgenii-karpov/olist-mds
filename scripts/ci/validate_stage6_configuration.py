@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the version-controlled Phase 6 observability and recovery contract."""
+"""Validate the version-controlled CDC observability and recovery contract."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ REQUIRED_SERVICES = {
     "cadvisor",
     "statsd-exporter",
     "postgres-exporter-oltp",
-    "postgres-exporter-warehouse",
+    "clickhouse",
     "cdc-pipeline-exporter",
 }
 REQUIRED_ALERTS = {
@@ -28,6 +28,7 @@ REQUIRED_ALERTS = {
     "CdcConnectorTaskNotRunning",
     "CdcHeartbeatMissing",
     "CdcRetainedWalHighAndGrowing",
+    "CdcClickHouseUnavailable",
     "CdcWarehouseOffsetGap",
     "CdcDlqOrQuarantineRecords",
     "CdcNifiBackpressureHigh",
@@ -130,12 +131,12 @@ def main() -> int:
         errors.append("Loki retention_period is not configured")
 
     if errors:
-        print("Phase 6 configuration validation failed:")
+        print("CDC observability configuration validation failed:")
         for error in errors:
             print(f"- {error}")
         return 1
     print(
-        "Phase 6 observability contract is valid: "
+        "CDC observability contract is valid: "
         f"{len(REQUIRED_DASHBOARDS)} dashboards, {len(REQUIRED_ALERTS)} alerts, "
         f"{len(REQUIRED_RUNBOOKS)} recovery runbooks."
     )

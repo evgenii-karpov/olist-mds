@@ -78,8 +78,15 @@ events with `FINAL`, and commits without manual table cleanup.
 
 ## Metrics
 
-Prometheus scrapes `cdc-pipeline-exporter:9107`. Important metrics include
-`olist_cdc_pipeline_up`, `olist_cdc_offset_gaps`,
+Prometheus scrapes ClickHouse directly at `clickhouse:9363` and the custom
+pipeline exporter at `cdc-pipeline-exporter:9107`. Important metrics include
+`up{job="clickhouse"}`, `ClickHouseAsyncMetrics_Uptime`,
+`ClickHouseProfileEvents_FailedQuery`, `olist_cdc_pipeline_up`,
+`olist_cdc_offset_gaps`,
 `olist_cdc_offset_coverage_ranges`, `olist_cdc_last_contiguous_offset`,
 `olist_cdc_last_loaded_event_offset`, raw freshness, duplicates, reconciliation,
 and last successful ingest time.
+
+The pipeline exporter reads raw CDC freshness and event counts from ClickHouse
+when `CDC_WAREHOUSE_TYPE=clickhouse`, while claims, watermarks,
+reconciliations, and publication state remain in PostgreSQL `olist_control`.
