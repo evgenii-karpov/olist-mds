@@ -11,6 +11,473 @@
   "format_version": 1,
   "relations": [
     {
+      "aggregate_hash": "674904f80704e93bf27c7662decba75a5e8f7daffa0bf1d59b367136af2c312c",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "date_key"
+      ],
+      "grain_keys": [
+        [
+          "20180104"
+        ],
+        [
+          "20180105"
+        ],
+        [
+          "20180110"
+        ],
+        [
+          "20180111"
+        ],
+        [
+          "20180113"
+        ],
+        [
+          "20180116"
+        ],
+        [
+          "20180119"
+        ],
+        [
+          "20180205"
+        ],
+        [
+          "20180206"
+        ],
+        [
+          "20180211"
+        ],
+        [
+          "20180212"
+        ],
+        [
+          "20180214"
+        ],
+        [
+          "20180218"
+        ],
+        [
+          "20180220"
+        ],
+        [
+          "20180306"
+        ],
+        [
+          "20180307"
+        ],
+        [
+          "20180311"
+        ],
+        [
+          "20180312"
+        ],
+        [
+          "20180313"
+        ],
+        [
+          "20180315"
+        ],
+        [
+          "20180317"
+        ],
+        [
+          "20180321"
+        ],
+        [
+          "20180407"
+        ],
+        [
+          "20180408"
+        ],
+        [
+          "20180413"
+        ],
+        [
+          "20180414"
+        ],
+        [
+          "20180416"
+        ],
+        [
+          "20180419"
+        ],
+        [
+          "20180422"
+        ],
+        [
+          "20180508"
+        ],
+        [
+          "20180509"
+        ],
+        [
+          "20180514"
+        ],
+        [
+          "20180515"
+        ],
+        [
+          "20180517"
+        ],
+        [
+          "20180521"
+        ],
+        [
+          "20180523"
+        ],
+        [
+          "20180609"
+        ],
+        [
+          "20180610"
+        ],
+        [
+          "20180614"
+        ],
+        [
+          "20180615"
+        ],
+        [
+          "20180616"
+        ],
+        [
+          "20180618"
+        ],
+        [
+          "20180620"
+        ],
+        [
+          "20180624"
+        ]
+      ],
+      "metrics": {
+        "distinct_counts": {},
+        "measure_totals": {},
+        "null_counts": {
+          "date_day": 0,
+          "date_key": 0,
+          "day_number": 0,
+          "day_of_week_number": 0,
+          "is_weekend": 0,
+          "month_name": 0,
+          "month_number": 0,
+          "quarter_number": 0,
+          "week_number": 0,
+          "year_month": 0,
+          "year_number": 0
+        },
+        "temporal_bounds": {
+          "date_day": {
+            "max": "2018-06-24",
+            "min": "2018-01-04"
+          }
+        }
+      },
+      "name": "core.dim_date",
+      "row_count": 44,
+      "rows": [
+        {
+          "grain": [
+            "20180104"
+          ],
+          "hash": "26f5a5fcdd24d6d52268038669abd237238b588a3dc76c935682f68509048fdd"
+        },
+        {
+          "grain": [
+            "20180105"
+          ],
+          "hash": "79eedeb650e26020b60bc37c37fec64b0a6703f1463a53e80e3ae986a29794d1"
+        },
+        {
+          "grain": [
+            "20180110"
+          ],
+          "hash": "aa4ee094f37fdec2691e3d656ace04050f23005c18e4c42cdaa1cbc78db9d8fa"
+        },
+        {
+          "grain": [
+            "20180111"
+          ],
+          "hash": "f621ce5ab6aaf54e5878219dc6b7d6571872a874e9e1bd949a3657e6e25a5099"
+        },
+        {
+          "grain": [
+            "20180113"
+          ],
+          "hash": "9ccfa585319c6bdc4787f8f4d4a527eef6d5f921878fb8fb2514e73a1961ab73"
+        },
+        {
+          "grain": [
+            "20180116"
+          ],
+          "hash": "f59901e24e1d078de93858f85d91438548bf8fdf6a70b23a7431e74beb8d02ec"
+        },
+        {
+          "grain": [
+            "20180119"
+          ],
+          "hash": "aac3f7b3d33eb482c0f8d856bd03acd1d808930d719af7591a687556ec11fd52"
+        },
+        {
+          "grain": [
+            "20180205"
+          ],
+          "hash": "65d3f9c23e30cfa40d3e8ae42ffdce4c8b901bebd6e601c766f9edb591412cb6"
+        },
+        {
+          "grain": [
+            "20180206"
+          ],
+          "hash": "546fc978fc585caa54fea310df61d87a0b1042874f3c797e0295985385f0c046"
+        },
+        {
+          "grain": [
+            "20180211"
+          ],
+          "hash": "739efd84c94053ffb8d954574f7a33247a62ea238f60e46ed43e45cb4bb18fc1"
+        },
+        {
+          "grain": [
+            "20180212"
+          ],
+          "hash": "7a55e9c56fdad9ed21b4376c802f1e7e438fb14160fa6ec5723376592c301142"
+        },
+        {
+          "grain": [
+            "20180214"
+          ],
+          "hash": "479a2795040669f5d39236875f7b25744361bb98cdf3d11b88147eb1cdf4e94e"
+        },
+        {
+          "grain": [
+            "20180218"
+          ],
+          "hash": "f7e3325a81c1b128e4d43f9d25f32c0f5908da13f766b4f1751af0fef59911fd"
+        },
+        {
+          "grain": [
+            "20180220"
+          ],
+          "hash": "63f351b92540ce36e57cd5208ad0acfadd0374dd2bca34ef7e084e48b7ffb16e"
+        },
+        {
+          "grain": [
+            "20180306"
+          ],
+          "hash": "7c9dace71da6c3a20376aca67581798f5b03bb7cd1558016981b92d4c20596a1"
+        },
+        {
+          "grain": [
+            "20180307"
+          ],
+          "hash": "0b2400d02edb63612d64da787621aa6b527ff56a668850af88bc6942de068adb"
+        },
+        {
+          "grain": [
+            "20180311"
+          ],
+          "hash": "923c55ed1a0efb4cc892116bbce967bae862868af4e48fe03bae8df9fed334da"
+        },
+        {
+          "grain": [
+            "20180312"
+          ],
+          "hash": "fff1b3dfb1e048ca9fd71989fd7675bfda69ad0459bde8d2550579cbc3bd025a"
+        },
+        {
+          "grain": [
+            "20180313"
+          ],
+          "hash": "4295d724f740d830d1f85ad4ea5266fd38026b40ec0f4d7e889aa30348890239"
+        },
+        {
+          "grain": [
+            "20180315"
+          ],
+          "hash": "6b8ef33c7009d8b9b7826d3bbd5ed6cad41b780a72f9f764d0b6be84a9cf6387"
+        },
+        {
+          "grain": [
+            "20180317"
+          ],
+          "hash": "be49152ad85dd07b5794a5dd72971174ef428762da1f0bc8415562be68b2808d"
+        },
+        {
+          "grain": [
+            "20180321"
+          ],
+          "hash": "371d8dd0506d090b72c03fb86d382d8ced95d14644c8bdba15cbcaddd9fc8baa"
+        },
+        {
+          "grain": [
+            "20180407"
+          ],
+          "hash": "fea9c639476eda14436d080185b401e919ff0eebaea7b1c6d47fb3ba1c8825d4"
+        },
+        {
+          "grain": [
+            "20180408"
+          ],
+          "hash": "59b5883551ba928d50d075070c8980cf6c8e0ffe269fe7f50656966854815073"
+        },
+        {
+          "grain": [
+            "20180413"
+          ],
+          "hash": "0ab7dc9194adec870581088e90eb4eacaf88831c8f3a9a05ab4cc82711b55903"
+        },
+        {
+          "grain": [
+            "20180414"
+          ],
+          "hash": "94673f2fcd43442851452f4ea90dd0cc75800305f9d5b10169f2ae209f38dded"
+        },
+        {
+          "grain": [
+            "20180416"
+          ],
+          "hash": "e6ad69f60ca059235a60a7a14aa2f1caf54bcd98615039f00caaa6f906f8c01c"
+        },
+        {
+          "grain": [
+            "20180419"
+          ],
+          "hash": "76795cee9f59f249dfb3b8e5032a0d58729daa75550a1ae5cf6f9c7164efbecc"
+        },
+        {
+          "grain": [
+            "20180422"
+          ],
+          "hash": "b05335767a462f566b7375cb4fdc2de301aabafdb0640449d7a9e9cba6cc30d0"
+        },
+        {
+          "grain": [
+            "20180508"
+          ],
+          "hash": "92c0d5e6f262eae333260526879a19aca0a3aea49deef5d179a1863ccdd644be"
+        },
+        {
+          "grain": [
+            "20180509"
+          ],
+          "hash": "96dd87f00dbf43837dc0550cbf0887ba7ba84556bcbbc11cb541c0662b0e78ea"
+        },
+        {
+          "grain": [
+            "20180514"
+          ],
+          "hash": "78a5f07434f5bf5ba2fc6f2956213742f63ce48106ca6966e41308402e5e9cd4"
+        },
+        {
+          "grain": [
+            "20180515"
+          ],
+          "hash": "68104b3d2df55ad97086a9c01135fa98e66b289aeca6ecf27108725857ba89cb"
+        },
+        {
+          "grain": [
+            "20180517"
+          ],
+          "hash": "adf60dc16ada7d4edfd570bc815ad7965b4ee7b83e0323a57bc847dd7300261b"
+        },
+        {
+          "grain": [
+            "20180521"
+          ],
+          "hash": "3c670a2aea7c587de8a47b7d1cb37d41f8f61067d33f1f8893827e41239b3a72"
+        },
+        {
+          "grain": [
+            "20180523"
+          ],
+          "hash": "77e44de2448a25a8a2bf3d3862a9e1d91efdd7e2646d0426ae681d4c88807ae6"
+        },
+        {
+          "grain": [
+            "20180609"
+          ],
+          "hash": "a76c2a1b13530d221dc93e14c89e0fb698a6df48548b9057e8b9f419a386d2f3"
+        },
+        {
+          "grain": [
+            "20180610"
+          ],
+          "hash": "45831f282f1fbf66c29b0f10e2a92cb5536c76508dc66783a1173014d08236c8"
+        },
+        {
+          "grain": [
+            "20180614"
+          ],
+          "hash": "726e2c56b8bd339c0d37a26928c0d499f25089b0bb4b806a3cb2b782150c614b"
+        },
+        {
+          "grain": [
+            "20180615"
+          ],
+          "hash": "fc819b94d8346ae7d60bc70235a056312f34064361ee7d6472db46f733630855"
+        },
+        {
+          "grain": [
+            "20180616"
+          ],
+          "hash": "9c72833f7883d51bbdf3d5503f91c655d6ee156cb0d63f353b76ec44b6a869b3"
+        },
+        {
+          "grain": [
+            "20180618"
+          ],
+          "hash": "f9d678f18d5bee4942966f3beea5edd814606467e0f4da3e2a2b9fa017057a3f"
+        },
+        {
+          "grain": [
+            "20180620"
+          ],
+          "hash": "811a25fd8cf90a32938dd2cffc5feef8ca5b212aeba108387bea93eaf4a47fc2"
+        },
+        {
+          "grain": [
+            "20180624"
+          ],
+          "hash": "1d2529ecc52aa621dbaf98fab21dbba12549d18572f36cf0141e54e3ea1d661b"
+        }
+      ],
+      "semantic_columns": {
+        "date_day": {
+          "type": "date"
+        },
+        "date_key": {
+          "type": "integer"
+        },
+        "day_number": {
+          "type": "integer"
+        },
+        "day_of_week_number": {
+          "type": "integer"
+        },
+        "is_weekend": {
+          "type": "boolean"
+        },
+        "month_name": {
+          "type": "string"
+        },
+        "month_number": {
+          "type": "integer"
+        },
+        "quarter_number": {
+          "type": "integer"
+        },
+        "week_number": {
+          "type": "integer"
+        },
+        "year_month": {
+          "type": "string"
+        },
+        "year_number": {
+          "type": "integer"
+        }
+      }
+    },
+    {
       "aggregate_hash": "4ae76f07bc3d2662191682ad1be0d2fd5cb72420fea0e87bc79de58e00d32f79",
       "duplicate_grain_count": 0,
       "grain": [
@@ -786,6 +1253,7 @@
           "type": "decimal"
         },
         "gross_item_amount": {
+          "scale": 2,
           "type": "decimal"
         },
         "is_delivered_late": {
@@ -1009,24 +1477,30 @@
       ],
       "semantic_columns": {
         "allocated_payment_revenue": {
+          "scale": 2,
           "type": "decimal"
         },
         "average_delivery_days": {
+          "scale": 2,
           "type": "decimal"
         },
         "average_order_value": {
+          "scale": 2,
           "type": "decimal"
         },
         "average_paid_order_value": {
+          "scale": 2,
           "type": "decimal"
         },
         "customers_count": {
           "type": "integer"
         },
         "freight_revenue": {
+          "scale": 2,
           "type": "decimal"
         },
         "gross_revenue": {
+          "scale": 2,
           "type": "decimal"
         },
         "items_count": {
@@ -1042,6 +1516,7 @@
           "type": "integer"
         },
         "product_revenue": {
+          "scale": 2,
           "type": "decimal"
         }
       }
@@ -1150,15 +1625,17 @@
           "type": "date"
         },
         "orders_count": {
-          "type": "decimal"
+          "type": "integer"
         },
         "orders_per_customer": {
+          "scale": 2,
           "type": "decimal"
         },
         "repeat_customer_rate": {
           "type": "decimal"
         },
         "total_revenue": {
+          "scale": 2,
           "type": "decimal"
         }
       }
