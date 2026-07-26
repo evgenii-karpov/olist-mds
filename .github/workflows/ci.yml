@@ -9,7 +9,7 @@ on:
 
 jobs:
   static-analysis:
-    name: Lint, type check, and dbt static validation
+    name: Lint, type check, and ClickHouse dbt validation
     runs-on: ubuntu-latest
 
     env:
@@ -62,6 +62,12 @@ jobs:
       - name: Run Pyright
         run: uv run pyright
 
+      - name: Start ClickHouse
+        run: docker compose up -d --wait clickhouse
+
+      - name: Initialize ClickHouse schemas
+        run: docker compose run --rm clickhouse-init
+
       - name: Parse dbt project
         run: uv run dbt parse --no-partial-parse --show-all-deprecations
         working-directory: dbt/olist_analytics
@@ -81,6 +87,10 @@ jobs:
           dbt/olist_analytics/tests
           dbt/olist_analytics/analyses
           dbt/olist_analytics/macros
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down -v
 
   python-unit:
     name: Python unit and fixture contract

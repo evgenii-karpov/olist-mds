@@ -40,24 +40,21 @@ left join order_payments using (order_id)
 {% macro parity_checksum_row(metric_name, batch_model, realtime_model, batch_key, realtime_key) -%}
 select
     '{{ metric_name }}' as metric_name,
-    (select {{ ordered_string_checksum(batch_key) }}
-        from {{ ref(batch_model) }}) as batch_checksum,
-    (select {{ ordered_string_checksum(realtime_key) }}
-        from {{ ref(realtime_model) }}) as realtime_checksum,
+    batch.checksum as batch_checksum,
+    realtime.checksum as realtime_checksum,
     case
-        when
-            coalesce(
-                (select {{ ordered_string_checksum(batch_key) }}
-                    from {{ ref(batch_model) }}),
-                ''
-            ) = coalesce(
-                (select {{ ordered_string_checksum(realtime_key) }}
-                    from {{ ref(realtime_model) }}),
-                ''
-            )
+        when coalesce(batch.checksum, '') = coalesce(realtime.checksum, '')
             then 'PASS'
         else 'FAIL'
     end as status
+from (
+    select {{ ordered_string_checksum(batch_key) }} as checksum
+    from {{ ref(batch_model) }}
+) as batch
+cross join (
+    select {{ ordered_string_checksum(realtime_key) }} as checksum
+    from {{ ref(realtime_model) }}
+) as realtime
 {%- endmacro %}
 
 {% macro ordered_string_checksum(expression) -%}

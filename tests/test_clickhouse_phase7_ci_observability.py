@@ -89,9 +89,17 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         stage6 = (ROOT / ".github/workflows/cdc-stage6-operations.yml").read_text(
             encoding="utf-8"
         )
+        sqlfluff = (ROOT / ".sqlfluff").read_text(encoding="utf-8")
         removed_exporter = "postgres-exporter-" + "warehouse"
 
         self.assertIn("local_clickhouse", ci)
+        self.assertIn("docker compose up -d --wait clickhouse", ci)
+        self.assertIn("docker compose run --rm clickhouse-init", ci)
+        self.assertIn("uv run dbt parse --no-partial-parse", ci)
+        self.assertIn("uv run dbt compile --no-partial-parse", ci)
+        self.assertIn("dialect = clickhouse", sqlfluff)
+        self.assertIn("target = local_clickhouse", sqlfluff)
+        self.assertNotIn("target = local_pg", sqlfluff)
         self.assertIn("clickhouse-runtime-contract", ci)
         self.assertIn("cdc-clickhouse-ingest-resilience", ci)
         self.assertIn("check_clickhouse_cdc_ingest_resilience.py", ci)

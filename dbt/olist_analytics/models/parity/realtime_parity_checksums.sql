@@ -1,5 +1,6 @@
 {{ config(materialized='view', schema='cdc_audit', tags=['realtime_parity']) }}
 
+-- noqa: disable=PRS
 {{ parity_checksum_row(
     'customers_primary_keys', 'stg_olist__customers',
     'stg_cdc__customers_current', 'customer_id', 'customer_id'

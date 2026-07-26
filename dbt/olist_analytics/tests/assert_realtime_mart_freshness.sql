@@ -38,10 +38,10 @@ where
         and extract(epoch from current_timestamp - raw_horizon.max_loaded_at)
         > {{ var('realtime_freshness_slo_seconds', 300) }}
     )
-
-{% endif %}
     or (
         freshness.max_source_ts < raw_horizon.max_source_ts
         and extract(epoch from current_timestamp - raw_horizon.max_loaded_at)
         > {{ var('realtime_freshness_slo_seconds', 300) }}
     )
+
+{% endif %}
