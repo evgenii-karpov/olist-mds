@@ -24,7 +24,7 @@ and is not claimed by the bounded integration run.
 - Parity reports compare counts, PK checksums, current attributes, fact/payment
   totals, daily revenue, and monthly revenue with `0.01` monetary tolerance.
   `analytics` views switch only through an explicit parity-gated command.
-- This phase ships the local PostgreSQL/Airflow adapter. The independent
+- This phase ships the local ClickHouse/Airflow adapter. The independent
   AWS/Redshift DAGs and packaging remain Phase 7 work under ADR-009.
 - One dbt project is retained for shared calculations, with explicit `batch`,
   `realtime`, and `parity` groups. Named selectors bound every DAG/runtime
@@ -32,10 +32,9 @@ and is not claimed by the bounded integration run.
 
 ## Verification evidence
 
-- dbt parse/compile passed with dbt Core 1.11.8 and dbt-postgres 1.10.0.
-- Full-refresh realtime build passed all 135 selected operations: 35 models,
-  94 data tests, 4 unit tests, and 2 hooks (dbt Core 1.11.8/Postgres adapter
-  1.10.0).
+- dbt parse/compile passed with dbt Core 1.11.8 and the local ClickHouse target.
+- Full-refresh realtime build passed all selected operations against the local
+  ClickHouse target.
 - The disposable integration executed three real manifest-bounded transforms:
   seven snapshot files, three order updates (including a later warehouse arrival
   with older source LSN), and one hard delete. It verified source-latest state,
@@ -45,8 +44,8 @@ and is not claimed by the bounded integration run.
   an obsolete category or resurrect a deleted product.
 - Python tests passed (68, with 1 intentional skip); Ruff, formatting, Pyright,
   and full dbt-templated SQLFluff passed.
-- The integration used the healthy Compose PostgreSQL service and a disposable
-  database; all three dbt micro-batches succeeded and cleanup completed.
+- The integration used the healthy Compose ClickHouse service and PostgreSQL
+  control database; all three dbt micro-batches succeeded and cleanup completed.
 - An independent Docker check confirmed Docker Engine 29.6.1/Desktop 4.82.0
   and 9 healthy Compose services. `docker compose config --quiet` passed, and
   the Airflow container import check loaded all 6 repository DAGs.

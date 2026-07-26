@@ -17,10 +17,11 @@ is established, and CI includes configuration and Avro compatibility gates.
 ## Disposable local state
 
 The user explicitly does not need any current local data preserved. The local
-PostgreSQL 18.4 analytics volume and Airflow metadata volume are disposable;
-Stage 1 may run `docker compose down -v` whenever a clean compatibility or
-integration baseline is needed. Do not implement a migration from Airflow 3.3.0
-metadata and do not spend effort retaining existing local warehouse rows.
+ClickHouse analytics volume and local PostgreSQL metadata/control/OLTP volumes
+are disposable; Stage 1 may run `docker compose down -v` whenever a clean
+compatibility or integration baseline is needed. Do not implement a migration
+from Airflow 3.3.0 metadata and do not spend effort retaining existing local
+warehouse rows.
 
 The new OLTP source created by Stage 1 is also a reproducible local lab service:
 its contents must be recreatable through `seed`, and its local volume may be
@@ -48,14 +49,15 @@ Read these files completely before editing:
 - `compose.yaml`: add the isolated OLTP service to `realtime-core` only.
 - `.env.example`, `.gitignore`, CI, and docs only as required by this stage.
 
-Do not put OLTP objects under `infra/postgres/realtime/`; that directory is the
-Phase 4 analytical warehouse adapter.
+Do not put OLTP objects under `infra/clickhouse/` or
+`infra/control-postgres/`; those directories are the local warehouse and
+control-plane adapters.
 
 ## Required source design
 
-Create a database/service distinct from analytical PostgreSQL and Airflow
-metadata. Use the original source columns and OLTP-appropriate types. Preserve
-zip prefixes as strings.
+Create a database/service distinct from ClickHouse analytics and Airflow
+metadata/control PostgreSQL. Use the original source columns and
+OLTP-appropriate types. Preserve zip prefixes as strings.
 
 Required keys:
 

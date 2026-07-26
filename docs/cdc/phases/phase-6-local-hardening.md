@@ -1,14 +1,17 @@
 # Phase 6: Local hardening, observability, and recovery
 
-Status: observability implementation delivered on 2026-07-17; security and
-runtime acceptance gates remain open under the approved plan amendment.
+Status: local observability, parity, and operational-drill evidence are
+implemented and verified as of 2026-07-26. AWS CDC remains Phase 7 work. The
+formal benchmark/SLO evidence and the deferred local security migration remain
+separate gates.
 
 ## Delivered contract
 
 - Grafana provisions six focused dashboards instead of one mixed component
   board. The views cover the complete local dashboard list from section 11.2.
-- Prometheus scrapes the CDC components, both PostgreSQL databases, Airflow
-  StatsD, host/container capacity, MinIO, NiFi, and the warehouse audit exporter.
+- Prometheus scrapes the CDC components, OLTP/control PostgreSQL, ClickHouse,
+  Airflow StatsD, host/container capacity, MinIO, NiFi, and the warehouse audit
+  exporter.
 - Pipeline metrics now include ingest/transform success and duration, mart
   latency/build time, file count/size distribution, DLQ, and quarantine state.
 - Recording rules expose p95 commit-to-mart latency, ten-minute error-budget burn,
@@ -44,24 +47,23 @@ Passed:
   Grafana logs confirmed Loki/Prometheus datasource insertion and completed
   file-dashboard provisioning;
 - Loki/Alloy Compose smoke: both services started, Loki became ready, and a
-  Loki query returned the Alloy stream with low-cardinality labels.
+  Loki query returned the Alloy stream with low-cardinality labels;
+- the manual `Batch and CDC parity integration` workflow completed cleanly and
+  uploaded its `batch-cdc-parity-report` artifact;
+- the manual `CDC operational drills` workflow completed cleanly and uploaded
+  `stage6-operational-drill` evidence for bounded alert fire/recovery.
 
 The first log smoke used host port 13100 because port 3100 was reserved on the
 workstation. This changes no container endpoint or committed default.
 
-## Open evidence
+## AWS handoff notes
 
-- Kafka TLS/authentication and separate NiFi metrics authorization were not a
-  low-risk isolated change. They are deferred as one coordinated migration.
-- The fault helper has not yet been run for every alert against the complete
-  continuous stack, so no comprehensive fire-and-resolve matrix is claimed.
-- Connect/WAL recovery, NiFi backlog drain, and a clean warehouse rebuild still
-  require disposable full-stack drills.
-- A clean full-stack execution of the new batch-to-realtime parity workflow and
-  its uploaded report remains required evidence before marking that acceptance
-  criterion complete.
-- Reference, burst, and soak benchmark profiles have not been executed. The
-  p95 five-minute SLO remains unproven.
+- The independent AWS implementation must not depend on local service endpoints,
+  local volumes, local Kafka listener assumptions, or local NiFi authorization.
+- AWS must provide its own Terraform state, secrets, IAM boundaries,
+  observability wiring, and validation reports.
+- Do not claim the five-minute p95 SLO until the reference, burst, and soak
+  benchmark profiles have passing evidence.
 
 ## Commands
 
@@ -72,3 +74,5 @@ uv run python scripts/cdc/benchmark_local.py --profile reference
 ```
 
 Add `--execute` to the last two commands only against a disposable full stack.
+The operational-drill workflow runs `failure_injection.py --execute` and stores
+the report as a GitHub artifact.

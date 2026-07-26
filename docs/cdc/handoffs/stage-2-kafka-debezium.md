@@ -63,10 +63,10 @@ does not yet have logical-replication privileges. There is no publication,
 replication slot, Kafka service, registry service, Connect worker, or CDC topic.
 
 The OLTP service currently initializes through a reproducible local volume.
-Stage 2 may reset that volume during integration tests. Existing batch
-PostgreSQL and Airflow metadata state are also disposable in this workspace.
-This permission does not extend to future immutable object storage, AWS state,
-or an environment later designated non-disposable.
+Stage 2 may reset that volume during integration tests. Existing local
+ClickHouse analytics and PostgreSQL metadata/control state are also disposable
+in this workspace. This permission does not extend to future immutable object
+storage, AWS state, or an environment later designated non-disposable.
 
 ## Owned paths
 
@@ -148,7 +148,8 @@ through the Connect REST API before connector registration.
 Configure the OLTP service for `pgoutput` logical decoding with explicit,
 documented values for `wal_level`, replication slots, WAL senders, and any WAL
 retention setting required by the bounded tests. Do not weaken OLTP table
-constraints or reuse the analytical PostgreSQL service.
+constraints or reuse the ClickHouse analytics service or Airflow/control
+PostgreSQL service.
 
 Apply these database rules idempotently:
 
@@ -183,7 +184,7 @@ Explicitly exclude:
 
 - `public.geolocation` — seeded reference data outside initial CDC scope;
 - every table in `simulator_control` — operational state, never business CDC;
-- the analytical PostgreSQL and Airflow metadata databases.
+- the ClickHouse analytics service and Airflow/control PostgreSQL databases.
 
 Use the committed development-only Docker secret as the stable local default.
 Connector templates must contain placeholders, not resolved values, and

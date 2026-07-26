@@ -2,11 +2,12 @@
 
 ## Goal
 
-Provide a production-like batch analytics pipeline that can be run and reviewed
-locally or against AWS infrastructure. The default workflow uses Python, local
-files, ClickHouse, Airflow, PostgreSQL control state, and dbt. An alternate
-workflow stages raw files in S3 and loads them into Redshift before running the
-same dbt project on the Redshift target.
+Provide a production-like analytics pipeline that can be run and reviewed
+locally, with a separate AWS batch path. The default local workflow uses Python,
+local files, ClickHouse, Airflow, PostgreSQL control state, and dbt. The AWS
+batch workflow stages raw files in S3 and loads them into Redshift before
+running the same dbt project on the Redshift target. The near-realtime CDC path
+is implemented for the local Docker Compose stack only.
 
 ## Near-realtime transformation boundary
 
@@ -91,11 +92,11 @@ marts
 
 Raw files are loaded into ClickHouse `raw_data` locally or Redshift `raw_data`
 on AWS. Local `audit` and `cdc_audit` control schemas live in PostgreSQL
-`olist_control`; ClickHouse `cdc_audit` stores analytical parity relations.
+`olist_control`; ClickHouse stores analytical `cdc_audit` parity relations.
 
 ### Airflow
 
-Airflow exposes two DAGs:
+Airflow exposes batch DAGs for both execution modes:
 
 - `olist_modern_data_stack_local` for filesystem raw files plus ClickHouse
 - `olist_modern_data_stack_aws` for S3 raw files plus Redshift
@@ -113,6 +114,11 @@ dbt_build
 
 Airflow handles orchestration, retries, parameters, and failure callbacks. The
 control database remains the durable source of batch status.
+
+Local CDC is orchestrated by dedicated finite DAGs for ingest, replay,
+transform, quality, and publication. Continuous services such as PostgreSQL
+OLTP, Debezium/Kafka, Apicurio, MinIO, NiFi, and telemetry are managed by Docker
+Compose rather than supervised by Airflow.
 
 ### dbt
 
@@ -179,10 +185,16 @@ A mismatch fails the DAG before dbt builds snapshots, facts, or marts.
 
 ## Execution Modes
 
-The local workflow is still the default development entrypoint because it is
-self-contained and easier to run in CI and on a laptop. The AWS workflow is now
-also supported for manual runs with S3 and Redshift credentials. Both paths
+The local batch workflow is the default development entrypoint because it is
+self-contained and easier to run in CI and on a laptop. The AWS batch workflow
+is supported for manual runs with S3 and Redshift credentials. Both batch paths
 share the same source contract, raw-zone partitioning, audit patterns, and dbt
-models while varying only the storage and warehouse targets. CI intentionally
-stays on the local PostgreSQL path so checks remain reproducible, self-contained,
-and independent of cloud credentials or infrastructure availability.
+models while varying only the storage and warehouse targets.
+
+The local CDC workflow is a separate execution mode. It starts from the
+PostgreSQL OLTP simulator, lands immutable CDC objects through Kafka and NiFi,
+loads them into ClickHouse `raw_cdc`, and builds realtime dbt models that are
+compared with batch outputs before publication.
+
+CI intentionally stays local so checks remain reproducible, self-contained, and
+independent of cloud credentials or infrastructure availability.

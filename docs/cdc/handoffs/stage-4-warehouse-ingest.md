@@ -3,9 +3,9 @@
 ## Mission
 
 Implement Phase 4 from the approved CDC plan. Load only closed normalized
-Parquet objects whose immutable manifests exist into PostgreSQL `raw_cdc`, and
+Parquet objects whose immutable manifests exist into ClickHouse `raw_cdc`, and
 record every claim, attempt, reconciliation result, offset interval, watermark,
-and replay request in `cdc_audit`.
+and replay request in PostgreSQL `olist_control` `cdc_audit`.
 
 ## Upstream contract
 
@@ -33,7 +33,7 @@ and table/date/object replay. Do not build realtime dbt models in this stage.
 Warehouse continuity is strictly
 `NORMALIZED_LOADED union TOMBSTONE_AUDITED`. Coverage business ranges never
 advance a raw watermark until the matching normalized records commit to
-PostgreSQL.
+ClickHouse and the control ledger commit succeeds.
 Persist consumed source ranges separately so missing business events are
 visible even at the current tail. Replay claims must remain bound to their
 idempotent request ID and unavailable to scheduled claims.

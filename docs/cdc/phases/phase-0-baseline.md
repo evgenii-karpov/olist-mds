@@ -19,10 +19,10 @@ ADR-010 amendment is required because the verified target is the version
 already selected by the accepted ADR.
 
 Airflow metadata created by 3.3.0 cannot be downgraded to the 3.2.1 migration
-chain. The user has designated both the local PostgreSQL 18.4 analytics volume
-and Airflow metadata volume as disposable, so the accepted transition is
-`docker compose down -v` followed by a clean start. No data or metadata
-migration is required for this workspace.
+chain. The user has designated the local ClickHouse analytics volume and local
+PostgreSQL metadata/control/OLTP volumes as disposable, so the accepted
+transition is `docker compose down -v` followed by a clean start. No data or
+metadata migration is required for this workspace.
 
 Authoritative references:
 
@@ -37,12 +37,12 @@ Every image reference uses an exact release tag; CI rejects `latest` and
 
 | Capability | Version | Image |
 | --- | --- | --- |
-| PostgreSQL analytics | 18.4 | `postgres:18.4` |
+| ClickHouse analytics | pinned in `compose.yaml` | `clickhouse/clickhouse-server` |
 | PostgreSQL Airflow metadata | 17.10 | `postgres:17.10` |
 | Python | 3.12 | Shared local/MWAA runtime |
 | Airflow | 3.2.1 / Python 3.12 | `apache/airflow:slim-3.2.1-python3.12` |
 | dbt Core | 1.11.8 | Locked Python package |
-| dbt PostgreSQL adapter | 1.10.0 | Locked Python package |
+| dbt ClickHouse adapter | 1.10.1 | Locked Python package |
 | dbt Redshift adapter | 1.10.1 | Locked Python package |
 | Kafka | 4.3.1 | `apache/kafka:4.3.1` |
 | Debezium Connect | 3.6.0.Final | `quay.io/debezium/connect:3.6.0.Final` |
@@ -91,7 +91,8 @@ profile combinations.
 | `streaming/schemas/` | Shared reviewed Avro schemas and compatibility policy |
 | `streaming/nifi/` | Phase 3 NiFi flow and parameter contexts |
 | `observability/` | Phase 3 metrics and Phase 6 logs |
-| `infra/postgres/realtime/` | Phase 4 local warehouse CDC SQL |
+| `infra/clickhouse/` | Phase 4 local warehouse CDC SQL |
+| `infra/control-postgres/` | Phase 4 local CDC control-state SQL |
 | `infra/redshift/realtime/` | Phase 7 Redshift CDC SQL |
 | `scripts/cdc/` | Phase 4+ shared loader, audit, replay, and metrics logic |
 | `infra/aws/realtime/` | Phase 7 independent Terraform root |
@@ -111,8 +112,8 @@ profile combinations.
 
 ## Phase 0 verification record
 
-Verification completed on 2026-07-16 from a clean local PostgreSQL analytics
-and Airflow metadata volume:
+Verification completed on 2026-07-16 from clean local analytics and Airflow
+metadata volumes:
 
 | Gate | Result |
 | --- | --- |
@@ -128,5 +129,5 @@ and Airflow metadata volume:
 
 The first attempted local start correctly exposed incompatible metadata left by
 Airflow 3.3.0 (`Can't locate revision identified by 'd2f4e1b3c5a7'`). Per the
-explicit disposable-state rule, `docker compose down -v` reset both databases;
-the clean 3.2.1 initialization and full fixture replay then passed.
+explicit disposable-state rule, `docker compose down -v` reset local state; the
+clean 3.2.1 initialization and full fixture replay then passed.

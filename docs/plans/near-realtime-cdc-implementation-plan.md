@@ -4,8 +4,8 @@
 
 | Field             | Value                                                             |
 | ----------------- | ----------------------------------------------------------------- |
-| Status            | Approved implementation plan                                      |
-| Last updated      | 2026-07-17                                                        |
+| Status            | Implemented locally through Phase 6; AWS Phase 7 not implemented  |
+| Last updated      | 2026-07-26                                                        |
 | Repository        | `olist-mds`                                                       |
 | Primary audience  | AI implementation agents and maintainers                          |
 | Delivery strategy | Complete the local path first, then build an independent AWS path |
@@ -24,8 +24,9 @@ validated, published, operated, and compared.
 ## 1. Executive Summary
 
 The project currently implements on-demand batch ingestion of the static Olist
-dataset into PostgreSQL locally or S3 and Redshift on AWS, followed by dbt. The
-new capability will add a production-oriented change data capture path:
+dataset into ClickHouse locally or S3 and Redshift on AWS, followed by dbt. The
+local implementation also includes a production-oriented change data capture
+path:
 
 1. A dedicated PostgreSQL OLTP database contains Olist-shaped tables.
 2. A deterministic workload simulator seeds the database and generates inserts,
@@ -35,27 +36,30 @@ new capability will add a production-oriented change data capture path:
 5. Apache NiFi continuously consumes Kafka, validates and batches events, and
    writes immutable Avro, normalized Parquet, and explicit offset-coverage
    manifests that classify business and tombstone records.
-6. Airflow loads closed Parquet objects into an append-only warehouse CDC layer
+6. Airflow loads closed Parquet objects into an append-only ClickHouse CDC layer
    every two minutes.
 7. An Airflow Asset event triggers incremental dbt current-state, history, fact,
    and mart models.
-8. Prometheus and Grafana expose component health and end-to-end data latency.
-   Loki is added after the metrics baseline. Tempo is a later learning exercise,
-   not a core acceptance requirement.
+8. Prometheus and Grafana expose component health and end-to-end data latency;
+   Loki and Alloy provide local log collection. Tempo is a later learning
+   exercise, not a core acceptance requirement.
 
 The local and AWS deployments must never depend on one another. They share
 source code and logical contracts, but not databases, buckets, topics, secrets,
-state, or runtime services.
+state, or runtime services. As of this update, Phases 1-6 are implemented for
+the local Docker Compose stack; the independent AWS CDC implementation starts in
+Phase 7.
 
 ## 2. Current Repository Baseline
 
 Implementation must preserve these existing behaviors unless a phase explicitly
 changes them:
 
-- `compose.yaml` runs PostgreSQL for the local warehouse, a separate Airflow
-  metadata PostgreSQL database, and Airflow with LocalExecutor.
+- `compose.yaml` runs ClickHouse for the local analytical warehouse,
+  PostgreSQL for Airflow metadata and `olist_control`, a dedicated PostgreSQL
+  OLTP CDC source, and Airflow with LocalExecutor.
 - `airflow/dags/olist_modern_data_stack_local.py` is a manual batch DAG for local
-  files, PostgreSQL, dbt, and Elementary.
+  files, ClickHouse, dbt, and Elementary.
 - `airflow/dags/olist_modern_data_stack_aws.py` is a manual batch DAG for S3,
   Redshift, dbt, and Elementary.
 - Existing raw data is append-only and identified by `_batch_id`, `_loaded_at`,
@@ -66,9 +70,10 @@ changes them:
 - Existing marts are `mart_daily_revenue` and `mart_monthly_arpu`.
 - Existing CI runs lint, Python tests, dbt parsing, Airflow import checks, and a
   local fixture integration pipeline.
-- The repository has SQL bootstrap directories for PostgreSQL and Redshift but
-  no Terraform infrastructure and no Kafka, Debezium, NiFi, MinIO, Prometheus,
-  Grafana, Loki, or workload simulator.
+- The repository has SQL bootstrap directories for ClickHouse,
+  `control-postgres`, OLTP PostgreSQL, and Redshift, plus local Kafka,
+  Debezium, NiFi, MinIO, Prometheus, Grafana, Loki, Alloy, and workload
+  simulator assets.
 
 Existing batch schemas remain unchanged:
 
@@ -163,7 +168,7 @@ orchestrates finite, idempotent micro-batches after NiFi has closed object files
 | Schema registry  | Apicurio Registry with Confluent-compatible wire format | AWS Glue Schema Registry                             |
 | NiFi             | One Docker container with persistent volumes            | One private EC2 instance with persistent EBS         |
 | Object storage   | MinIO                                                   | Amazon S3                                            |
-| Warehouse        | Existing local PostgreSQL, separate CDC schemas         | Amazon Redshift Serverless                           |
+| Warehouse        | Local ClickHouse, separate CDC schemas                  | Amazon Redshift Serverless                           |
 | Orchestration    | Docker Compose Airflow                                  | Amazon MWAA                                          |
 | Metrics          | Prometheus, Alertmanager, Grafana                       | CloudWatch plus Grafana Cloud                        |
 | Collection agent | Grafana Alloy where needed                              | Alloy on the NiFi EC2 host                           |
@@ -203,7 +208,7 @@ newer releases during later phases.
 | Apache Airflow                   | 3.2.1 for local and MWAA parity                                                           |
 | Python                           | 3.12 for the shared Airflow/runtime package                                               |
 | dbt Core                         | Existing 1.11.x line, initially 1.11.8                                                    |
-| dbt PostgreSQL/Redshift adapters | Existing compatible 1.10.x lines                                                          |
+| dbt ClickHouse/Redshift adapters | Existing compatible adapter lines                                                          |
 | MSK Connect worker               | AWS-supported Kafka Connect 3.7.x worker, validated against the Debezium plugin           |
 
 If a baseline combination proves incompatible, amend the relevant ADR with the
@@ -407,20 +412,21 @@ record an ADR amendment and use one version in both local and MWAA.
 
 **Consequences:** Runtime parity is prioritized over using the newest local
 Airflow release. The existing batch pipeline must pass before the version change
-is accepted. For this implementation workspace, the current local PostgreSQL
-18.4 analytics volume and Airflow metadata volume are disposable and may be
-deleted when changing the shared runtime or resetting integration tests. No
+is accepted. For this implementation workspace, the local ClickHouse analytics
+volume and local PostgreSQL metadata/control/OLTP volumes are disposable and may
+be deleted when changing the shared runtime or resetting integration tests. No
 existing local rows or Airflow history need to be migrated or preserved. This
-permission does not extend to future immutable CDC landing objects, AWS state,
-or any environment explicitly designated as non-disposable.
+permission does not extend to immutable CDC landing objects, AWS state, or any
+environment explicitly designated as non-disposable.
 
 ## 6. Source OLTP Contract
 
 ### 6.1 Database isolation
 
 The OLTP source must be a distinct PostgreSQL database or service from both the
-local analytics warehouse and Airflow metadata database. Reusing the warehouse
-would create a feedback loop and invalidate CDC lineage.
+local ClickHouse analytics warehouse and the Airflow metadata/control database.
+Reusing another runtime database would create a feedback loop and invalidate CDC
+lineage.
 
 Use business columns from `docs/source_contract.md`, but apply OLTP-appropriate
 types, primary keys, foreign keys, and indexes. Preserve leading-zero zip prefixes
@@ -706,8 +712,9 @@ retryable.
 unproven business offsets, including a missing tail offset, remain explicit
 gaps until matching normalized rows commit.
 
-The local adapter loads Parquet records into PostgreSQL staging tables and then
-performs the transactional ledger/deduplication step. The AWS adapter creates an
+The local adapter loads Parquet records into ClickHouse staging tables, inserts
+deduplicated events into `raw_cdc`, and records the transactional
+ledger/watermark state in PostgreSQL `olist_control`. The AWS adapter creates an
 immutable S3 manifest and uses Redshift `COPY` from Parquet into temporary or
 run-scoped staging tables before the same logical ledger/deduplication step.
 Redshift `COPY JOB` and Auto Copy are not part of the primary implementation;
@@ -774,7 +781,8 @@ Prometheus must scrape:
 
 - Kafka broker JMX exporter;
 - Kafka Connect and Debezium JMX metrics;
-- source and warehouse PostgreSQL exporters;
+- source PostgreSQL exporter, ClickHouse warehouse metrics, and control-plane
+  PostgreSQL metrics where needed;
 - NiFi 2 REST metrics endpoint at `/nifi-api/flow/metrics/prometheus` using a
   read-only service identity;
 - Airflow StatsD through `statsd_exporter`;
@@ -845,7 +853,8 @@ boundaries.
 
 - Use stable committed development-only Docker secret files for the local lab;
   allow ignored overrides for custom environments.
-- Use a dedicated PostgreSQL replication account and separate warehouse account.
+- Use a dedicated PostgreSQL replication account, separate ClickHouse warehouse
+  access, and separate PostgreSQL control-plane access.
 - Enable Kafka authentication/TLS and NiFi HTTPS during the hardening phase.
 - Protect NiFi metrics and administration APIs with separate least-privilege
   identities.
@@ -1049,7 +1058,7 @@ or handoff.
 
 **Objectives**
 
-- Load normalized CDC into PostgreSQL with durable control state.
+- Load normalized CDC into ClickHouse with durable PostgreSQL control state.
 
 **Required work**
 
@@ -1099,7 +1108,7 @@ or handoff.
 - Implement focused per-micro-batch tests and nightly full tests/Elementary.
 - Implement parity reports and reversible `analytics` publication views.
 
-Phase 5 delivers the local PostgreSQL/Airflow adapters first, following
+Phase 5 delivers the local ClickHouse/Airflow adapters first, following
 ADR-009. AWS/Redshift transform and quality DAGs are Phase 7 work and must reuse
 the same logical ordering, checkpoint, parity, and publication contracts.
 
@@ -1117,10 +1126,9 @@ the same logical ordering, checkpoint, parity, and publication contracts.
 - p95 commit-to-realtime-mart latency is at most 5 minutes under reference load.
 - Realtime marts are safely publishable through `analytics` views.
 
-Implementation status on 2026-07-16: the functional and publication criteria
-are implemented and verified locally. The formal 30-minute reference/burst
-latency benchmark remains open and is carried into Phase 6 hardening; Phase 5
-does not claim the p95 SLO from the bounded integration fixture.
+Implementation status on 2026-07-26: the functional and publication criteria
+are implemented and verified locally. Phase 6 adds the local observability,
+benchmark, alerting, and recovery surface around this path.
 
 ### Phase 6: Local hardening, logs, alerts, and recovery
 
@@ -1148,16 +1156,15 @@ Grafana dashboards, logs, alerts, and recovery tooling are the immediate
 local-operability priority.
 
 **Decision:** Phase 6 delivers the complete version-controlled observability
-surface now. Kafka TLS/authentication and NiFi managed least-privilege metrics
-authorization are deferred as one bounded local security migration before the
-AWS phase is accepted. NiFi remains HTTPS-only, and the local stack must not be
-exposed beyond the developer workstation.
+surface for the local lab. Kafka TLS/authentication and NiFi managed
+least-privilege metrics authorization are treated as a bounded local security
+migration rather than a partial broker-only toggle. NiFi remains HTTPS-only, and
+the local stack must not be exposed beyond the developer workstation.
 
-**Consequences:** The local lab is operable but does not claim
-transport-security completion. Phase 7 handoff treats the local security
-migration, controlled alert exercises, recovery drills, and formal
-reference/burst benchmark as explicit open gates. No AWS design may copy the
-local plaintext Kafka listener or single-user NiFi authorization model.
+**Consequences:** The local lab is operable for development, validation,
+parity, alerting, and recovery exercises. No AWS design may copy local plaintext
+Kafka listener assumptions or single-user NiFi authorization shortcuts; Phase 7
+must implement AWS-native security boundaries.
 
 **Migration impact:** All Kafka clients must move together to authenticated TLS
 with generated PKI and per-service identities; NiFi bootstrap and metrics
@@ -1176,12 +1183,13 @@ manifest, and warehouse contracts are unchanged.
 
 - The local stack has tested recovery procedures and actionable alerts.
 
-Implementation status on 2026-07-17: dashboards, metrics, recording/alert
-rules, Loki/Alloy, recovery/benchmark helpers, and runbooks are implemented.
-Loki/Alloy runtime log correlation passed a local smoke test. Kafka/NiFi
-security migration, controlled fire-and-resolve evidence for every alert,
-recovery drills, and the reference/burst/soak reports remain open; therefore
-the full Phase 6 exit criterion and 5-minute SLO are not yet claimed.
+Implementation status on 2026-07-26: the local Docker Compose stack has
+dashboards, metrics, recording/alert rules, Loki/Alloy, recovery helpers,
+benchmark helpers, runbooks, green batch-vs-CDC parity workflow evidence, and
+green CDC operational-drill workflow evidence. The deferred local Kafka/NiFi
+security migration and formal reference/burst/soak benchmark evidence remain
+separate gates; the five-minute p95 SLO is not claimed from the operational
+drills. AWS CDC remains unimplemented and starts with Phase 7.
 
 ### Phase 7: Independent AWS implementation
 
@@ -1338,7 +1346,8 @@ separation of responsibilities must remain clear:
 - `docs/runbooks/`: new CDC operations, recovery, AWS startup/teardown, and cost;
   existing root-level runbooks do not need to move as part of this work;
 - `infra/oltp/`: shared OLTP schema and bootstrap assets;
-- `infra/postgres/`: local warehouse CDC bootstrap additions;
+- `infra/clickhouse/`: local analytical warehouse and CDC bootstrap additions;
+- `infra/control-postgres/`: local transactional batch and CDC control state;
 - `infra/redshift/`: Redshift CDC bootstrap additions;
 - `infra/aws/realtime/`: independent Terraform root;
 - `streaming/kafka/`: topic and local broker configuration;

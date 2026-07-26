@@ -13,16 +13,18 @@ and recovery contracts; use AWS-native security and secret providers.
 - Six dashboard information domains, low-cardinality metrics/log labels, the
   alert policy, and recovery catalog are version-controlled.
 - Loki/Alloy log correlation is runtime-smoke-tested locally.
+- The manual `Batch and CDC parity integration` workflow is green and publishes
+  `batch-cdc-parity-report`.
+- The manual `CDC operational drills` workflow is green and publishes
+  `stage6-operational-drill` evidence for bounded alert fire/recovery.
 
 ## Open prerequisites
 
 - Complete the bounded local Kafka authenticated-TLS and NiFi managed-authorizer
   migration. Do not copy local plaintext Kafka or single-user NiFi access to
   AWS.
-- Exercise alert fire/resolution, Connect/WAL recovery, NiFi backlog drain, and
-  immutable warehouse rebuild on disposable local state.
-- Execute and retain reference/burst benchmark evidence before claiming shared
-  thresholds or the five-minute SLO.
+- Execute and retain reference, burst, and soak benchmark evidence before
+  claiming shared thresholds or the five-minute SLO.
 
 These prerequisites do not authorize AWS resources to access local services and
 do not change Phase 7's independent Terraform/state boundary.

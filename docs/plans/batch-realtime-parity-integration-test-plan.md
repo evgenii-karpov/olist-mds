@@ -129,7 +129,7 @@ and comparator-sensitivity checks defined later in this plan.
 
 ### 3.3 In scope
 
-- One clean, local PostgreSQL-based execution using the small fixture.
+- One clean, local ClickHouse-based execution using the small fixture.
 - The real batch Airflow DAG.
 - The real Debezium, Kafka, NiFi, MinIO, warehouse-ingest, Airflow Asset, and
   realtime dbt path.
@@ -183,8 +183,8 @@ metadata and CDC transport metadata.
 | sellers                      | `seller_id`                      |
 | product_category_translation | `product_category_name`          |
 
-The comparison must normalize semantically equivalent PostgreSQL types where
-the two staging paths expose different timestamp timezone or numeric scale
+The comparison must normalize semantically equivalent warehouse types where the
+two staging paths expose different timestamp timezone or numeric scale
 representations. It must not normalize case, trim strings, replace nulls, or
 otherwise hide a source-value difference.
 
@@ -278,9 +278,9 @@ Create four lightweight views under `models/parity`:
 - normalized batch monthly ARPU; and
 - normalized realtime monthly ARPU.
 
-Each pair must expose the same column names, order, and PostgreSQL data types.
-The projections may cast date/timestamp and numeric types, but must not filter
-rows or change business values.
+Each pair must expose the same column names, order, and logical data types. The
+projections may cast date/timestamp and numeric types, but must not filter rows
+or change business values.
 
 Attach one `dbt_utils.equality` generic data test to each batch projection with:
 

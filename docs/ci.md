@@ -79,7 +79,7 @@ ClickHouse release/cutover gate. It runs the deterministic batch and
 CDC/realtime path with `DBT_TARGET=local_clickhouse`, stages the accepted
 canonical manifest, exports a ClickHouse manifest from the resulting
 ClickHouse relations, and fails unless the canonical comparator reports zero
-semantic mismatches. The former optional repeated ClickHouse candidate evidence
+semantic mismatches. The former optional repeated ClickHouse evidence
 job is intentionally folded into the regular `clickhouse-runtime-contract` CI
 job to avoid duplicate manual work.
 
@@ -120,7 +120,7 @@ Happy path:
   file and analytical output fingerprints.
 - ClickHouse `fact_order_items` incremental partition replacement with moved
   keys, stale row cleanup, and empty affected partition drop.
-- ClickHouse candidate dbt selector compilation and canonical manifest
+- ClickHouse dbt selector compilation and canonical manifest
   comparator artifact generation.
 
 Failure modes:

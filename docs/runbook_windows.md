@@ -75,7 +75,7 @@ The check resets the local analytical schemas and fixture raw directory before
 the first Airflow DAG run, so use it for validation runs rather than
 exploratory local tables.
 
-Run ClickHouse candidate compile and smoke checks:
+Run ClickHouse compile and smoke checks:
 
 ```powershell
 docker compose up -d --wait clickhouse
@@ -186,7 +186,7 @@ dead_letter_max_rows: 10
 dead_letter_max_rate: 0.001
 ```
 
-For a ClickHouse candidate batch run, keep the same parameters but set:
+For a ClickHouse batch run, keep the same parameters but set:
 
 ```text
 warehouse_target: clickhouse
@@ -208,7 +208,7 @@ docker compose --profile realtime-core --profile observability --profile logs up
 
 Prometheus scrapes ClickHouse at `clickhouse:9363` and keeps the OLTP
 PostgreSQL exporter. There is no warehouse PostgreSQL exporter in the
-ClickHouse candidate path.
+local ClickHouse path.
 
 ## AWS / Redshift Path
 

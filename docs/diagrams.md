@@ -10,9 +10,9 @@ flowchart LR
     validation["Row-level validation"]
     rawzone["Raw zone\nLocal filesystem or S3"]
     dlq["Dead-letter zone"]
-    copy["Warehouse load\nPostgreSQL COPY FROM STDIN or Redshift COPY"]
+    copy["Warehouse load\nClickHouse insert or Redshift COPY"]
     reconcile["Reconciliation"]
-    raw["raw_data schema\nPostgreSQL or Redshift"]
+    raw["raw_data schema\nClickHouse locally or Redshift on AWS"]
     batchcontrol["audit.batch_runs"]
     audit["audit.dead_letter_events"]
     staging["dbt staging views"]
@@ -86,6 +86,47 @@ flowchart LR
     rejected --> corrected
     corrected --> replay
     replay --> replayaudit
+```
+
+## Local CDC Flow
+
+```mermaid
+flowchart LR
+    simulator["OLTP workload simulator"]
+    oltp["Local OLTP PostgreSQL"]
+    debezium["Debezium / Kafka Connect"]
+    kafka["Kafka topics"]
+    registry["Apicurio Registry"]
+    nifi["NiFi validation and binning"]
+    minio["MinIO landing, normalized objects, and manifests"]
+    ingest["Airflow CDC ingest DAG"]
+    rawcdc["ClickHouse raw_cdc"]
+    control["PostgreSQL olist_control"]
+    transform["Airflow realtime transform DAG"]
+    realtime["dbt realtime models"]
+    parity["batch vs realtime parity"]
+    analytics["published analytics views"]
+    observability["Prometheus, Grafana, Loki, and Alloy"]
+
+    simulator --> oltp
+    oltp --> debezium
+    debezium --> kafka
+    registry --> debezium
+    kafka --> nifi
+    registry --> nifi
+    nifi --> minio
+    minio --> ingest
+    ingest --> rawcdc
+    ingest --> control
+    rawcdc --> transform
+    control --> transform
+    transform --> realtime
+    realtime --> parity
+    parity --> analytics
+    rawcdc --> observability
+    control --> observability
+    kafka --> observability
+    nifi --> observability
 ```
 
 ## Warehouse Layers
@@ -224,7 +265,7 @@ sequenceDiagram
     participant Airflow
     participant Generator as Correction Feed Generator
     participant RawZone as Raw Zone
-    participant Warehouse as PostgreSQL or Redshift
+    participant Warehouse as ClickHouse or Redshift
     participant dbt
 
     Airflow->>Generator: Generate corrections visible as of batch_date

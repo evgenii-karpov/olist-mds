@@ -4,15 +4,15 @@ Status: implemented and verified on 2026-07-16.
 
 ## Delivered contract
 
-- `infra/postgres/006_create_cdc_tables.sql` creates eight append-only typed
-  `raw_cdc` event tables and durable `cdc_audit` state for runs, files, claims,
-  attempts, coverage, reconciliation, replay, watermarks, dead letters, and
-  future mart freshness.
+- `infra/clickhouse/003_create_cdc_tables.sql` creates eight append-only typed
+  `raw_cdc` event tables. `infra/control-postgres` creates durable `cdc_audit`
+  state for runs, files, claims, attempts, coverage, reconciliation, replay,
+  watermarks, dead letters, and future mart freshness.
 - `scripts/cdc/warehouse_ingest.py` discovers only closed normalized Parquet
   manifests, validates immutable identities and exact row/operation/offset
-  reconciliation, claims files transactionally, stages Parquet in PostgreSQL,
+  reconciliation, claims files transactionally, stages Parquet in ClickHouse,
   inserts unseen `_event_id` values, and commits file/audit/watermark state in
-  the same transaction.
+  PostgreSQL `olist_control`.
 - Coverage manifests are independently verified against their immutable landing
   object and landing manifest. Exact intervals are recorded as either
   `SOURCE_CONSUMED`, `NORMALIZED_LOADED`, or `TOMBSTONE_AUDITED`. The first is
@@ -44,10 +44,11 @@ cannot steal replay work; repeating the same request ID is idempotent.
 - Unit tests validate normalized and coverage contracts, exact classification,
   layout confinement, event identity, range merging, replay selectors, SQL
   bootstrap, DAG configuration, and least-privilege object access.
-- The isolated MinIO/PostgreSQL integration check proves an observed gap,
-  closure by later verified tombstone coverage without raw inserts, transient
-  object-read failure and retry, detection of missing business coverage at the
-  source tail, exact PASS reconciliation, and duplicate-only replay.
+- The isolated MinIO/ClickHouse/PostgreSQL-control integration check proves an
+  observed gap, closure by later verified tombstone coverage without raw
+  inserts, transient object-read failure and retry, detection of missing
+  business coverage at the source tail, exact PASS reconciliation, and
+  duplicate-only replay.
 - Full Ruff, formatting, Pyright, Python unit, Compose configuration, and
   Airflow DAG import gates pass.
 

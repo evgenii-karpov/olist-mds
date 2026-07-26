@@ -7,8 +7,8 @@ The batch schemas remain untouched.
 2. Back up `cdc_audit` ledgers and record the current publication target.
 3. Create a new disposable warehouse database or new isolated rebuild schemas.
    Do not truncate the active warehouse for the first validation attempt.
-4. Apply `infra/postgres/001_create_schemas.sql`,
-   `006_create_cdc_tables.sql`, and `007_create_cdc_transform_audit.sql`.
+4. Apply the ClickHouse realtime schema DDL from `infra/clickhouse/` and the
+   PostgreSQL control-state DDL from `infra/control-postgres/`.
 5. Discover every immutable normalized and coverage manifest from MinIO and run
    the loader in bounded date/table ranges. Verify ETags and tombstone coverage.
 6. Run focused realtime dbt builds and full quality/parity checks.

@@ -4,8 +4,8 @@
 
 | Field                    | Value                                                        |
 | ------------------------ | ------------------------------------------------------------ |
-| Status                   | Approved implementation plan                                 |
-| Last updated             | 2026-07-19                                                   |
+| Status                   | Completed historical migration record                        |
+| Last updated             | 2026-07-26                                                   |
 | Repository               | `olist-mds`                                                  |
 | Primary audience         | AI implementation agents and maintainers                     |
 | Scope                    | Local analytical warehouse only                              |
@@ -17,10 +17,14 @@
 | Related plans            | `docs/plans/near-realtime-cdc-implementation-plan.md`        |
 | Related integration test | `docs/plans/batch-realtime-parity-integration-test-plan.md`  |
 
-This document is the source of truth for replacing the local PostgreSQL
-analytical warehouse with ClickHouse. It is intentionally self-contained. An
-implementation agent must be able to execute it without access to the
-conversation that produced it.
+This document is a completed historical migration record. The current local
+analytical warehouse is ClickHouse; use the main README, architecture guide,
+runbooks, and CDC plan for current operational instructions.
+
+This document records the plan that replaced the local PostgreSQL analytical
+warehouse with ClickHouse. It is intentionally self-contained. An implementation
+agent must be able to understand it without access to the conversation that
+produced it.
 
 The migration applies to both the local batch and near-realtime analytical
 paths. It does not remove PostgreSQL where PostgreSQL is serving a transactional
@@ -29,8 +33,9 @@ and a small pipeline control database remain PostgreSQL.
 
 ## 1. Executive Summary
 
-The repository currently uses one PostgreSQL container as the local analytical
-warehouse. That database serves several distinct responsibilities:
+At the start of this migration, the repository used one PostgreSQL container as
+the local analytical warehouse. That database served several distinct
+responsibilities:
 
 1. batch raw tables and dbt-derived analytical models;
 2. typed, append-only CDC event tables;
