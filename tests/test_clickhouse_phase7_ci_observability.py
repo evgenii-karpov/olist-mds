@@ -82,6 +82,9 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         parity = (ROOT / ".github/workflows/batch-cdc-parity.yml").read_text(
             encoding="utf-8"
         )
+        parity_runner = (
+            ROOT / "scripts/ci/check_batch_cdc_parity_integration.py"
+        ).read_text(encoding="utf-8")
         stage6 = (ROOT / ".github/workflows/cdc-stage6-operations.yml").read_text(
             encoding="utf-8"
         )
@@ -91,6 +94,21 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         self.assertIn("scripts/parity/export_clickhouse_candidate.py", parity)
         self.assertIn("scripts/parity/export_postgres_oracle.py", parity)
         self.assertIn("scripts/parity/compare_manifests.py", parity)
+        self.assertIn("DBT_TARGET: local_clickhouse", parity)
+        self.assertIn("CDC_WAREHOUSE_TYPE: clickhouse", parity)
+        self.assertIn(
+            '"warehouse_target": "clickhouse" if use_clickhouse_warehouse() else "postgres"',
+            parity_runner,
+        )
+        self.assertIn("data/reports/clickhouse-candidate-manifest.json", parity)
+        self.assertIn(
+            "--candidate data/reports/clickhouse-candidate-manifest.json",
+            parity,
+        )
+        self.assertNotIn(
+            "--candidate data/reports/postgres-oracle-manifest.json",
+            parity,
+        )
         self.assertIn("candidate-run", parity)
         self.assertIn("clickhouse-init", stage6)
         self.assertNotIn("postgres-exporter-warehouse", stage6)

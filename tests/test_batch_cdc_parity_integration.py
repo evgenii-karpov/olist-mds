@@ -102,7 +102,7 @@ class BatchCdcParityIntegrationTests(unittest.TestCase):
         ]
 
         with patch(
-            "scripts.ci.check_batch_cdc_parity_integration.warehouse_connection",
+            "scripts.ci.check_batch_cdc_parity_integration.control_connection",
             return_value=connection,
         ):
             observed = batch_reconciliation_summary("2018-09-01", {"customers": 8})

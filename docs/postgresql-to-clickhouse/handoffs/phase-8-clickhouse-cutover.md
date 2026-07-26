@@ -12,8 +12,12 @@ PostgreSQL warehouse code.
 
 - `local_clickhouse` has dedicated CI compile/smoke coverage for batch,
   realtime transform, and realtime parity selectors.
-- The manual parity workflow emits PostgreSQL oracle/comparator artifacts and
-  has a two-run ClickHouse candidate evidence matrix.
+- The manual parity workflow runs the full-stack ClickHouse candidate path,
+  stages the accepted PostgreSQL oracle manifest, exports a ClickHouse
+  candidate manifest, and compares those two artifacts with the canonical
+  comparator.
+- The two-run ClickHouse candidate evidence matrix is compile/smoke/CLI
+  validation only. Do not count it as semantic cutover evidence.
 - Prometheus scrapes ClickHouse directly through `clickhouse:9363`.
 - The warehouse PostgreSQL exporter is absent from the ClickHouse
   observability path.
@@ -68,8 +72,12 @@ uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_an
 uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target redshift --no-partial-parse --quiet
 ```
 
-Then run one final clean ClickHouse-only batch and realtime smoke test, plus
-the canonical comparator against the latest accepted oracle/candidate manifests.
+Then run two clean full-stack ClickHouse candidate parity workflows. Each run
+must publish `postgres-oracle-manifest.json`,
+`clickhouse-candidate-manifest.json`, and `cross-engine-comparator.json`, and
+the comparator must report zero row-count, grain-key, aggregate-hash, row-hash,
+or metric mismatches. After that, run one final ClickHouse-only batch and
+realtime smoke test before removing the oracle.
 
 ## Exit gate
 

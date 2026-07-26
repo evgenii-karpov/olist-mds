@@ -34,7 +34,8 @@ clickhouse-candidate-static
   -> Starts isolated ClickHouse, validates the local ClickHouse connection,
      compiles the batch, realtime transform, and realtime parity selectors for
      `local_clickhouse`, and exercises the canonical manifest comparator
-     artifact contract.
+     artifact contract with a fixture self-check. It is not a semantic
+     PostgreSQL-vs-ClickHouse parity gate.
 
 cdc-stage1-oltp-simulator
   -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
@@ -78,6 +79,13 @@ python-unit / CDC Stage 6 observability contract
 ```
 
 The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
+
+The manual `Batch and CDC parity integration` workflow is the full-stack
+ClickHouse candidate gate. It runs the deterministic batch and CDC/realtime
+path with `DBT_TARGET=local_clickhouse`, stages the accepted PostgreSQL oracle
+manifest, exports a ClickHouse candidate manifest from the resulting
+ClickHouse relations, and fails unless the canonical comparator reports zero
+semantic mismatches.
 
 ## Small Fixture Dataset
 

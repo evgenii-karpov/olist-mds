@@ -20,6 +20,13 @@ jobs:
     env:
       OLIST_AIRFLOW_RETRIES: "0"
       OLIST_AIRFLOW_RETRY_DELAY_SECONDS: "1"
+      DBT_TARGET: local_clickhouse
+      CDC_WAREHOUSE_TYPE: clickhouse
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
+      CLICKHOUSE_DATABASE: analytics
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 
     steps:
@@ -102,20 +109,23 @@ jobs:
           uv run python -c "from pathlib import Path; import json; p=Path('data/reports/batch-cdc-parity.json');
           p.exists() or p.write_text(json.dumps({'status':'FAIL','failure':'parity orchestrator did not produce a report'})+'\n')"
 
-      - name: Export PostgreSQL oracle manifest
+      - name: Stage accepted PostgreSQL oracle manifest
         if: always()
         run: >-
-          docker compose exec -T airflow
-          python scripts/parity/export_postgres_oracle.py
-          --output data/reports/postgres-oracle-manifest.json
-          --password-file /run/secrets/postgres_password
+          cp tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
+          data/reports/postgres-oracle-manifest.json
 
-      - name: Validate canonical comparator against oracle manifest
-        if: always()
+      - name: Export ClickHouse candidate manifest
+        run: >-
+          uv run python scripts/parity/export_clickhouse_candidate.py
+          --output data/reports/clickhouse-candidate-manifest.json
+          --password-file docker/secrets/dev/clickhouse_password.txt
+
+      - name: Validate canonical comparator against PostgreSQL oracle
         run: >-
           uv run python scripts/parity/compare_manifests.py
           --oracle data/reports/postgres-oracle-manifest.json
-          --candidate data/reports/postgres-oracle-manifest.json
+          --candidate data/reports/clickhouse-candidate-manifest.json
           --output data/reports/cross-engine-comparator.json
 
       - name: Upload bounded parity report
@@ -126,6 +136,7 @@ jobs:
           path: |
             data/reports/batch-cdc-parity.json
             data/reports/postgres-oracle-manifest.json
+            data/reports/clickhouse-candidate-manifest.json
             data/reports/cross-engine-comparator.json
           if-no-files-found: warn
 
@@ -204,7 +215,7 @@ jobs:
           uv run python scripts/parity/compare_manifests.py \
             --oracle tests/fixtures/postgresql_oracle/postgres_batch_oracle.json \
             --candidate tests/fixtures/postgresql_oracle/postgres_batch_oracle.json \
-            --output data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator.json
+            --output data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator-contract.json
 
       - name: Upload ClickHouse candidate evidence
         if: always()
@@ -212,7 +223,7 @@ jobs:
         with:
           name: clickhouse-candidate-run-${{ matrix['candidate-run'] }}
           path: |
-            data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator.json
+            data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator-contract.json
             dbt/olist_analytics/target/manifest.json
             dbt/olist_analytics/target/run_results.json
           if-no-files-found: warn

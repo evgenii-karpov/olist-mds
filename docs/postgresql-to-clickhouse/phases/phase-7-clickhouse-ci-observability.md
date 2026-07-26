@@ -1,6 +1,7 @@
 # Phase 7: Migrate ClickHouse CI, Observability, and Documentation
 
-Status: completed on 2026-07-23.
+Status: completed on 2026-07-23; parity workflow contract corrected on
+2026-07-26.
 
 ## Delivered contract
 
@@ -8,9 +9,12 @@ Status: completed on 2026-07-23.
   initializes schemas, runs the ClickHouse smoke check, compiles the batch,
   realtime transform, and realtime parity selectors, and validates the
   canonical manifest comparator artifact contract.
-- Extended the manual batch-versus-CDC parity workflow to emit PostgreSQL
-  oracle and comparator artifacts, and added a two-run ClickHouse candidate
-  evidence matrix for candidate compile/smoke/exporter validation.
+- Extended the manual batch-versus-CDC parity workflow so the primary job runs
+  the full-stack ClickHouse candidate path, stages the accepted PostgreSQL
+  oracle manifest, exports a real ClickHouse candidate manifest, and compares
+  those two artifacts with the canonical comparator.
+- Kept the two-run ClickHouse candidate evidence matrix as compile/smoke/CLI
+  validation only; it is not the semantic cutover gate.
 - Updated the Stage 6 operational drill workflow to run with
   `DBT_TARGET=local_clickhouse` and `CDC_WAREHOUSE_TYPE=clickhouse`.
 - Replaced the warehouse PostgreSQL exporter in the observability path with
@@ -46,11 +50,13 @@ Passed:
 
 - Two full deterministic ClickHouse candidate workflows still need to be run in
   GitHub Actions or another clean disposable environment before Phase 8
-  cutover. This implementation wires the jobs and artifact contract, but does
-  not claim acceptance from the current workstation volume.
-- The manual batch-versus-CDC parity workflow now publishes oracle/comparator
-  artifacts; a zero-mismatch ClickHouse candidate manifest must still be
-  produced from a clean end-to-end candidate stack before oracle removal.
+  cutover. The primary manual parity workflow now enforces the required
+  oracle-vs-candidate comparison, but this document does not claim two green
+  runs from the current workstation volume.
+- The PostgreSQL oracle used by this workflow is the committed accepted oracle
+  fixture from Phase 0. If the deterministic fixture or oracle contract
+  changes, regenerate that fixture before treating a ClickHouse comparison as
+  cutover evidence.
 
 ## Phase boundary
 
