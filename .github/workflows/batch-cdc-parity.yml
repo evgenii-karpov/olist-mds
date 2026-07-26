@@ -11,6 +11,13 @@ jobs:
     env:
       OLIST_AIRFLOW_RETRIES: "0"
       OLIST_AIRFLOW_RETRY_DELAY_SECONDS: "1"
+      DBT_TARGET: local_clickhouse
+      CDC_WAREHOUSE_TYPE: clickhouse
+      CLICKHOUSE_HOST: localhost
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
+      CLICKHOUSE_DATABASE: analytics
       UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
 
     steps:
@@ -66,7 +73,7 @@ jobs:
       - name: Start persistent batch and realtime-core services
         run: |
           docker compose --profile realtime-core up -d --wait \
-            postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry \
+            clickhouse airflow-postgres airflow oltp-postgres kafka apicurio-registry \
             kafka-connect minio nifi
 
       - name: Run realtime bootstrap jobs
@@ -93,19 +100,42 @@ jobs:
           uv run python -c "from pathlib import Path; import json; p=Path('data/reports/batch-cdc-parity.json');
           p.exists() or p.write_text(json.dumps({'status':'FAIL','failure':'parity orchestrator did not produce a report'})+'\n')"
 
+      - name: Stage accepted canonical manifest
+        if: always()
+        run: >-
+          cp tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
+          data/reports/accepted-canonical-manifest.json
+
+      - name: Export ClickHouse candidate manifest
+        run: >-
+          uv run python scripts/parity/export_clickhouse_candidate.py
+          --output data/reports/clickhouse-candidate-manifest.json
+          --password-file docker/secrets/dev/clickhouse_password.txt
+
+      - name: Validate canonical comparator against accepted manifest
+        run: >-
+          uv run python scripts/parity/compare_manifests.py
+          --oracle data/reports/accepted-canonical-manifest.json
+          --candidate data/reports/clickhouse-candidate-manifest.json
+          --output data/reports/cross-engine-comparator.json
+
       - name: Upload bounded parity report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: batch-cdc-parity-report
-          path: data/reports/batch-cdc-parity.json
+          path: |
+            data/reports/batch-cdc-parity.json
+            data/reports/accepted-canonical-manifest.json
+            data/reports/clickhouse-candidate-manifest.json
+            data/reports/cross-engine-comparator.json
           if-no-files-found: warn
 
       - name: Dump bounded integration logs
         if: failure()
         run: >-
           docker compose --profile realtime-core logs --no-color --tail=500
-          airflow postgres airflow-postgres oltp-postgres kafka apicurio-registry
+          airflow clickhouse airflow-postgres oltp-postgres kafka apicurio-registry
           kafka-connect minio nifi cdc-warehouse-init nifi-bootstrap
 
       - name: Clean up Compose resources

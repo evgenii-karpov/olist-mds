@@ -16,7 +16,7 @@ import psycopg2
 from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 
-from scripts.loading.load_raw_to_postgres import (
+from scripts.loading.raw_batch import (
     RAW_SCHEMA,
     DeadLetterManifestEntry,
     RawLoadSpec,

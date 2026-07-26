@@ -102,7 +102,7 @@ class BatchCdcParityIntegrationTests(unittest.TestCase):
         ]
 
         with patch(
-            "scripts.ci.check_batch_cdc_parity_integration.warehouse_connection",
+            "scripts.ci.check_batch_cdc_parity_integration.control_connection",
             return_value=connection,
         ):
             observed = batch_reconciliation_summary("2018-09-01", {"customers": 8})
@@ -179,6 +179,13 @@ class BatchCdcParityIntegrationTests(unittest.TestCase):
             ),
             "FAIL",
         )
+
+    def test_record_parity_runtime_excludes_unit_tests(self) -> None:
+        runtime = Path("scripts/cdc/realtime_transform.py").read_text(encoding="utf-8")
+
+        record_parity = runtime[runtime.index("def record_parity") :]
+        self.assertIn('"--selector",\n        "realtime_parity"', record_parity)
+        self.assertIn('"--exclude-resource-type",\n        "unit_test"', record_parity)
 
     def test_acceptance_report_fails_when_either_parity_path_fails(self) -> None:
         base = {

@@ -27,9 +27,9 @@ scrape_configs:
     static_configs:
       - targets: ["postgres-exporter-oltp:9187"]
 
-  - job_name: warehouse-postgres
+  - job_name: clickhouse
     static_configs:
-      - targets: ["postgres-exporter-warehouse:9187"]
+      - targets: ["clickhouse:9363"]
 
   - job_name: airflow
     static_configs:

@@ -1,9 +1,4 @@
--- Durable Phase 5 transform boundary and publication approval state.
-
-create schema if not exists realtime_staging;
-create schema if not exists realtime_core;
-create schema if not exists realtime_marts;
-create schema if not exists analytics;
+-- CDC transform and publication control state for PostgreSQL olist_control.
 
 create table if not exists cdc_audit.cdc_transform_runs (
     transform_run_id varchar(256) primary key,
@@ -19,9 +14,6 @@ create table if not exists cdc_audit.cdc_transform_runs (
     finished_at timestamptz,
     failure_summary text
 );
-
-alter table cdc_audit.cdc_transform_runs
-    add column if not exists dbt_completed_at timestamptz;
 
 create table if not exists cdc_audit.cdc_transform_run_files (
     transform_run_id varchar(256) not null references

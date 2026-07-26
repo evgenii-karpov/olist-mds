@@ -253,9 +253,12 @@ class OffsetCoverageTests(unittest.TestCase):
 
 class Stage4ConfigurationTests(unittest.TestCase):
     def test_bootstrap_contains_all_typed_raw_and_audit_tables(self) -> None:
-        ddl = (ROOT / "infra/postgres/006_create_cdc_tables.sql").read_text(
-            encoding="utf-8"
-        )
+        clickhouse_ddl = (
+            ROOT / "infra/clickhouse/initdb/003_create_raw_cdc_tables.sql"
+        ).read_text(encoding="utf-8")
+        control_ddl = (
+            ROOT / "infra/control-postgres/initdb/003_create_cdc_control_tables.sql"
+        ).read_text(encoding="utf-8")
         for table in (
             "customers",
             "orders",
@@ -266,7 +269,7 @@ class Stage4ConfigurationTests(unittest.TestCase):
             "sellers",
             "product_category_translation",
         ):
-            self.assertIn(f"raw_cdc.{table}", ddl)
+            self.assertIn(f"raw_cdc.{table}", clickhouse_ddl)
         for table in (
             "cdc_ingest_runs",
             "cdc_files",
@@ -277,7 +280,7 @@ class Stage4ConfigurationTests(unittest.TestCase):
             "cdc_reconciliation",
             "cdc_replay_requests",
         ):
-            self.assertIn(f"cdc_audit.{table}", ddl)
+            self.assertIn(f"cdc_audit.{table}", control_ddl)
 
     def test_compose_uses_separate_read_only_minio_loader_identity(self) -> None:
         compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")

@@ -16,6 +16,8 @@ if str(PROJECT_ROOT) not in sys.path:
 import psycopg2
 from psycopg2.extensions import connection as PgConnection
 
+from scripts.orchestration.control_postgres import read_secret
+
 STATUS_ORDER = {
     "STARTED": 0,
     "SOURCE_VALIDATED": 10,
@@ -46,8 +48,8 @@ def utc_now() -> datetime:
     return datetime.now(UTC).replace(microsecond=0, tzinfo=None)
 
 
-def warehouse_env(name: str, postgres_fallback: str, default: str) -> str:
-    return os.environ.get(name, os.environ.get(postgres_fallback, default))
+def control_env(name: str, warehouse_fallback: str, default: str) -> str:
+    return os.environ.get(warehouse_fallback, os.environ.get(name, default))
 
 
 def warehouse_connection(args: argparse.Namespace) -> PgConnection:
@@ -56,7 +58,7 @@ def warehouse_connection(args: argparse.Namespace) -> PgConnection:
         port=args.port,
         dbname=args.database,
         user=args.user,
-        password=args.password,
+        password=read_secret(args.password, args.password_file, "olist_control"),
     )
 
 
@@ -282,24 +284,33 @@ def parse_args() -> argparse.Namespace:
 
     parser.add_argument(
         "--host",
-        default=warehouse_env("WAREHOUSE_HOST", "POSTGRES_HOST", "localhost"),
+        default=control_env("CONTROL_POSTGRES_HOST", "WAREHOUSE_HOST", "localhost"),
     )
     parser.add_argument(
         "--port",
         type=int,
-        default=int(warehouse_env("WAREHOUSE_PORT", "POSTGRES_PORT", "5432")),
+        default=int(control_env("CONTROL_POSTGRES_PORT", "WAREHOUSE_PORT", "5432")),
     )
     parser.add_argument(
         "--database",
-        default=warehouse_env("WAREHOUSE_DB", "POSTGRES_DB", "olist_analytics"),
+        default=control_env("CONTROL_POSTGRES_DB", "WAREHOUSE_DB", "olist_control"),
     )
     parser.add_argument(
         "--user",
-        default=warehouse_env("WAREHOUSE_USER", "POSTGRES_USER", "olist"),
+        default=control_env("CONTROL_POSTGRES_USER", "WAREHOUSE_USER", "olist_control"),
     )
     parser.add_argument(
         "--password",
-        default=warehouse_env("WAREHOUSE_PASSWORD", "POSTGRES_PASSWORD", "olist"),
+        default=os.environ.get(
+            "WAREHOUSE_PASSWORD", os.environ.get("CONTROL_POSTGRES_PASSWORD")
+        ),
+    )
+    parser.add_argument(
+        "--password-file",
+        default=os.environ.get(
+            "WAREHOUSE_PASSWORD_FILE",
+            os.environ.get("CONTROL_POSTGRES_PASSWORD_FILE"),
+        ),
     )
     return parser.parse_args()
 

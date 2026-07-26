@@ -43,7 +43,7 @@ class Stage6ContractTests(unittest.TestCase):
             for rule in group["rules"]
             if "alert" in rule
         ]
-        self.assertGreaterEqual(len(alerts), 17)
+        self.assertGreaterEqual(len(alerts), 18)
         for alert in alerts:
             runbook = alert.get("annotations", {}).get("runbook", "")
             self.assertTrue(runbook.startswith("docs/runbooks/"), alert["alert"])

@@ -1,3 +1,3 @@
 {% macro round_two_decimals(expression) -%}
-    round({{ expression }}, 2)
+    {{ cast_decimal('round(' ~ expression ~ ', 2)', 18, 2) }}
 {%- endmacro %}

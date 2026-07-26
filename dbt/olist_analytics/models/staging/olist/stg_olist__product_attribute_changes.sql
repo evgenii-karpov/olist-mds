@@ -1,14 +1,14 @@
 with ranked as (
     select
-        product_id::varchar(256) as product_id,
-        effective_at::timestamp as effective_at,
-        lower(trim(product_category_name))::varchar(256)
+        {{ cast_string('product_id', 256) }} as product_id,
+        {{ cast_timestamp('effective_at') }} as effective_at,
+        {{ cast_string('lower(trim(product_category_name))', 256) }}
             as product_category_name,
-        product_weight_g::integer as product_weight_g,
-        product_length_cm::integer as product_length_cm,
-        product_height_cm::integer as product_height_cm,
-        product_width_cm::integer as product_width_cm,
-        lower(trim(change_reason))::varchar(256) as change_reason,
+        {{ cast_int('product_weight_g') }} as product_weight_g,
+        {{ cast_int('product_length_cm') }} as product_length_cm,
+        {{ cast_int('product_height_cm') }} as product_height_cm,
+        {{ cast_int('product_width_cm') }} as product_width_cm,
+        {{ cast_string('lower(trim(change_reason))', 256) }} as change_reason,
         _batch_id,
         _loaded_at,
         _source_file,

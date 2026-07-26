@@ -1,8 +1,8 @@
 with ranked as (
     select
-        lower(trim(product_category_name))::varchar(256)
+        {{ cast_string('lower(trim(product_category_name))', 256) }}
             as product_category_name,
-        lower(trim(product_category_name_english))::varchar(256)
+        {{ cast_string('lower(trim(product_category_name_english))', 256) }}
             as product_category_name_english,
         _batch_id,
         _loaded_at,

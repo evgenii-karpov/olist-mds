@@ -4,9 +4,9 @@
 
 Provide a production-like batch analytics pipeline that can be run and reviewed
 locally or against AWS infrastructure. The default workflow uses Python, local
-files, PostgreSQL, Airflow, and dbt. An alternate workflow stages raw files in
-S3 and loads them into Redshift before running the same dbt project on the
-Redshift target.
+files, ClickHouse, Airflow, PostgreSQL control state, and dbt. An alternate
+workflow stages raw files in S3 and loads them into Redshift before running the
+same dbt project on the Redshift target.
 
 ## Near-realtime transformation boundary
 
@@ -40,14 +40,14 @@ Source archive
   -> source-contract validation
   -> row-level validation
   -> raw and dead-letter files
-  -> PostgreSQL or Redshift raw tables
+  -> ClickHouse or Redshift raw tables
   -> reconciliation
   -> dbt transformations and tests
   -> analytical marts
 ```
 
-Airflow coordinates both paths, while warehouse audit tables keep durable batch
-state and quality results in PostgreSQL or Redshift.
+Airflow coordinates both paths. Local batch and CDC control state is durable in
+PostgreSQL `olist_control`, while local analytical data lives in ClickHouse.
 
 The separate near-realtime path adds Debezium, Kafka, NiFi, immutable landing
 and normalized objects, explicit offset-coverage manifests, `raw_cdc`, and
@@ -73,9 +73,9 @@ artifacts to S3 under the same partitioning scheme.
 
 ### Warehouse
 
-The project supports two warehouse targets:
+The project supports two analytical warehouse targets:
 
-- PostgreSQL for the default local workflow
+- ClickHouse for the default local workflow
 - Redshift for the AWS workflow
 
 Both targets use the same logical schemas:
@@ -87,18 +87,17 @@ intermediate
 snapshots
 core
 marts
-audit
 ```
 
-Raw files are loaded into the `raw_data` schema. The `audit` schema stores batch
-control state, raw load attempts, reconciliation results, dead-letter events,
-and replay attempts for either warehouse target.
+Raw files are loaded into ClickHouse `raw_data` locally or Redshift `raw_data`
+on AWS. Local `audit` and `cdc_audit` control schemas live in PostgreSQL
+`olist_control`; ClickHouse `cdc_audit` stores analytical parity relations.
 
 ### Airflow
 
 Airflow exposes two DAGs:
 
-- `olist_modern_data_stack_local` for filesystem raw files plus PostgreSQL
+- `olist_modern_data_stack_local` for filesystem raw files plus ClickHouse
 - `olist_modern_data_stack_aws` for S3 raw files plus Redshift
 
 Both DAGs follow the same high-level contracts:
@@ -107,13 +106,13 @@ Both DAGs follow the same high-level contracts:
 validate_source_contract
 prepare_raw_files or upload_raw_files_to_s3
 generate_correction_feeds
-load_raw_files_to_postgres or load_raw_files_to_redshift
+load_raw_files_to_clickhouse or load_raw_files_to_redshift
 reconcile_raw_load
 dbt_build
 ```
 
 Airflow handles orchestration, retries, parameters, and failure callbacks. The
-warehouse remains the durable source of batch status.
+control database remains the durable source of batch status.
 
 ### dbt
 

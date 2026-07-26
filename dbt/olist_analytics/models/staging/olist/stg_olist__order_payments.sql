@@ -1,10 +1,10 @@
 with ranked as (
     select
-        order_id::varchar(256) as order_id,
-        payment_sequential::integer as payment_sequential,
-        lower(trim(payment_type))::varchar(64) as payment_type,
-        payment_installments::integer as payment_installments,
-        payment_value::decimal(18, 2) as payment_value,
+        {{ cast_string('order_id', 256) }} as order_id,
+        {{ cast_int('payment_sequential') }} as payment_sequential,
+        {{ cast_string('lower(trim(payment_type))', 64) }} as payment_type,
+        {{ cast_int('payment_installments') }} as payment_installments,
+        {{ cast_decimal('payment_value', 18, 2) }} as payment_value,
         _batch_id,
         _loaded_at,
         _source_file,

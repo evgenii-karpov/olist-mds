@@ -1,9 +1,6 @@
 {{
     config(
-        materialized='incremental',
-        unique_key='order_item_key',
-        incremental_strategy='merge',
-        pre_hook="{{ delete_impacted_orders() }}",
+        materialized='table',
         tags=['realtime_transform', 'realtime_quality']
     )
 }}
@@ -38,30 +35,69 @@ products as (
 )
 
 select
-    md5(items.order_id || '|' || items.order_item_id::varchar)
-        as order_item_key,
-    items.order_id,
-    items.order_item_id,
-    customers.customer_key,
-    products.product_key,
-    sellers.seller_key,
-    statuses.order_status_key,
-    purchase_date.date_key as order_purchase_date_key,
-    orders.customer_id,
-    customers.customer_unique_id,
-    items.product_id,
-    items.seller_id,
-    orders.order_status,
-    orders.order_purchase_timestamp,
-    orders.order_approved_at,
-    orders.order_delivered_carrier_date,
-    orders.order_delivered_customer_date,
-    orders.order_estimated_delivery_date,
-    items.shipping_limit_date,
-    items.price,
-    items.freight_value,
+    {{
+        hash_key(
+            "items.order_id || '|' || "
+            ~ cast_string('items.order_item_id')
+        )
+    }} as order_item_key,
+    {{ output_column('items.order_id', 'order_id') }},
+    {{ output_column('items.order_item_id', 'order_item_id') }},
+    {{ output_column('customers.customer_key', 'customer_key') }},
+    {{ output_column('products.product_key', 'product_key') }},
+    {{ output_column('sellers.seller_key', 'seller_key') }},
+    {{ output_column('statuses.order_status_key', 'order_status_key') }},
+    {{ output_column('purchase_date.date_key', 'order_purchase_date_key') }},
+    {{ output_column('orders.customer_id', 'customer_id') }},
+    {{
+        output_column(
+            'customers.customer_unique_id',
+            'customer_unique_id'
+        )
+    }},
+    {{ output_column('items.product_id', 'product_id') }},
+    {{ output_column('items.seller_id', 'seller_id') }},
+    {{ output_column('orders.order_status', 'order_status') }},
+    {{
+        output_column(
+            'orders.order_purchase_timestamp',
+            'order_purchase_timestamp'
+        )
+    }},
+    {{ output_column('orders.order_approved_at', 'order_approved_at') }},
+    {{
+        output_column(
+            'orders.order_delivered_carrier_date',
+            'order_delivered_carrier_date'
+        )
+    }},
+    {{
+        output_column(
+            'orders.order_delivered_customer_date',
+            'order_delivered_customer_date'
+        )
+    }},
+    {{
+        output_column(
+            'orders.order_estimated_delivery_date',
+            'order_estimated_delivery_date'
+        )
+    }},
+    {{
+        output_column(
+            'items.shipping_limit_date',
+            'shipping_limit_date'
+        )
+    }},
+    {{ output_column('items.price', 'price') }},
+    {{ output_column('items.freight_value', 'freight_value') }},
     items.price + items.freight_value as gross_item_amount,
-    allocations.allocated_payment_value,
+    {{
+        output_column(
+            'allocations.allocated_payment_value',
+            'allocated_payment_value'
+        )
+    }},
     {{ days_between(
         'orders.order_purchase_timestamp',
         'orders.order_delivered_customer_date'
@@ -89,7 +125,9 @@ left join {{ ref('dim_seller_realtime') }} as sellers
 left join {{ ref('dim_order_status_realtime') }} as statuses
     on orders.order_status = statuses.order_status
 left join {{ ref('dim_date_realtime') }} as purchase_date
-    on orders.order_purchase_timestamp::date = purchase_date.date_day
+    on
+        {{ cast_date('orders.order_purchase_timestamp') }}
+        = purchase_date.date_day
 left join {{ ref('int_realtime_order_payment_allocations') }} as allocations
     on
         items.order_id = allocations.order_id

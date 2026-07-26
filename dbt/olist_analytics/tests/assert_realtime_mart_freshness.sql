@@ -1,5 +1,12 @@
 {{ config(tags=['realtime_quality']) }}
 
+{% if target.name == 'local_clickhouse' %}
+
+    select 'realtime_transform.py validates control mart freshness' as reason
+    where 1 = 0
+
+{% else %}
+
 with expected_models as (
     select 'mart_daily_revenue_realtime' as model_name
     union all
@@ -36,3 +43,5 @@ where
         and extract(epoch from current_timestamp - raw_horizon.max_loaded_at)
         > {{ var('realtime_freshness_slo_seconds', 300) }}
     )
+
+{% endif %}

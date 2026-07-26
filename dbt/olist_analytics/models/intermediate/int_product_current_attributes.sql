@@ -77,7 +77,7 @@ corrections_ranked as (
             = translations.product_category_name
     where
         corrections.effective_at
-        <= '{{ var("batch_date", "9999-12-31") }}'::timestamp
+        <= {{ timestamp_literal(var("batch_date", "9999-12-31")) }}
 ),
 
 latest_corrections as (

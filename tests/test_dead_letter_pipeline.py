@@ -20,7 +20,7 @@ from scripts.ingestion.record_validation import (
     assert_dead_letter_thresholds,
     validate_row,
 )
-from scripts.loading.load_raw_to_postgres import (
+from scripts.loading.raw_batch import (
     RawLoadSpec,
     load_dead_letter_manifest_entries,
 )

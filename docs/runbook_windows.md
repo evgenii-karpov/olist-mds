@@ -67,13 +67,26 @@ uv run pre-commit run --all-files
 Run the small fixture pipeline used by CI:
 
 ```powershell
-docker compose up -d --wait postgres airflow-postgres airflow
+docker compose up -d --wait clickhouse airflow-postgres airflow
 docker compose exec -T airflow python scripts/ci/check_fixture_pipeline_idempotency.py
 ```
 
 The check resets the local analytical schemas and fixture raw directory before
 the first Airflow DAG run, so use it for validation runs rather than
 exploratory local tables.
+
+Run ClickHouse candidate compile and smoke checks:
+
+```powershell
+docker compose up -d --wait clickhouse
+docker compose run --rm clickhouse-init
+$env:DBT_PROFILES_DIR = "$((Get-Location).Path)\dbt\olist_analytics"
+$env:DBT_TARGET = "local_clickhouse"
+uv run python scripts\ci\check_clickhouse_smoke.py
+uv run dbt compile --project-dir dbt\olist_analytics --profiles-dir dbt\olist_analytics --target local_clickhouse --selector batch --no-partial-parse --quiet
+uv run dbt compile --project-dir dbt\olist_analytics --profiles-dir dbt\olist_analytics --target local_clickhouse --selector realtime_transform --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+uv run dbt compile --project-dir dbt\olist_analytics --profiles-dir dbt\olist_analytics --target local_clickhouse --selector realtime_parity --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
+```
 
 ## Full Manual Run
 
@@ -105,11 +118,12 @@ uv run python scripts\ingestion\generate_correction_feeds.py `
   --dead-letter-max-rate 0.001
 ```
 
-Load raw files into PostgreSQL:
+Load raw files into ClickHouse:
 
 ```powershell
-uv run python scripts\loading\load_raw_to_postgres.py `
-  --bootstrap-sql-dir infra\postgres `
+uv run python scripts\loading\load_raw_to_clickhouse.py `
+  --raw-dir data\raw\olist `
+  --profile docs\source_profile.json `
   --batch-date 2018-09-01 `
   --batch-id 2018-09-01 `
   --run-id manual_2018_09_01
@@ -121,7 +135,7 @@ Run reconciliation:
 uv run python scripts\quality\reconcile_batch.py `
   --raw-dir data\raw\olist `
   --profile docs\source_profile.json `
-  --bootstrap-sql-dir infra\postgres `
+  --warehouse-type clickhouse `
   --batch-date 2018-09-01 `
   --batch-id 2018-09-01 `
   --run-id manual_2018_09_01
@@ -132,16 +146,11 @@ Run dbt with the same unified flow as the Airflow DAG:
 ```powershell
 Set-Location dbt\olist_analytics
 $env:DBT_PROFILES_DIR = (Get-Location).Path
-$env:DBT_TARGET = "local_pg"
-$env:POSTGRES_HOST = "localhost"
-$env:POSTGRES_PORT = "5432"
-$env:POSTGRES_DB = "olist_analytics"
-$env:POSTGRES_USER = "olist"
-$env:POSTGRES_PASSWORD = "olist"
+$env:DBT_TARGET = "local_clickhouse"
 
 uv run dbt build --selector batch --vars '{batch_date: "2018-09-01", lookback_days: 3}'
 New-Item -ItemType Directory -Force target\edr | Out-Null
-uv run edr report --env prod --profiles-dir . --profile-target local_pg --target-path "$((Get-Location).Path)\target\edr" --file-path "$((Get-Location).Path)\target\edr\elementary_report.html" --open-browser false
+uv run edr report --env prod --profiles-dir . --profile-target local_clickhouse --target-path "$((Get-Location).Path)\target\edr" --file-path "$((Get-Location).Path)\target\edr\elementary_report.html" --open-browser false
 Set-Location ..\..
 ```
 
@@ -176,6 +185,30 @@ full_refresh: false
 dead_letter_max_rows: 10
 dead_letter_max_rate: 0.001
 ```
+
+For a ClickHouse candidate batch run, keep the same parameters but set:
+
+```text
+warehouse_target: clickhouse
+full_refresh: true
+```
+
+ClickHouse is the only supported local analytical warehouse.
+
+## Observability
+
+Start the local CDC telemetry stack:
+
+```powershell
+$env:AIRFLOW_STATSD_ON = "true"
+$env:CDC_WAREHOUSE_TYPE = "clickhouse"
+docker compose --profile realtime-core build airflow kafka-connect minio nifi
+docker compose --profile realtime-core --profile observability --profile logs up -d --wait
+```
+
+Prometheus scrapes ClickHouse at `clickhouse:9363` and keeps the OLTP
+PostgreSQL exporter. There is no warehouse PostgreSQL exporter in the
+ClickHouse candidate path.
 
 ## AWS / Redshift Path
 
@@ -212,8 +245,7 @@ After correcting the dead-letter CSV, replay the fixed row:
 uv run python scripts\loading\replay_dead_letters.py `
   --entity order_payments `
   --dead-letter-file data\raw\olist_dead_letter_demo\dead_letter\order_payments\batch_date=2018-09-01\run_id=dead_letter_demo\order_payments.csv.gz `
-  --replay-id demo_payment_fix `
-  --bootstrap-sql-dir infra\postgres
+  --replay-id demo_payment_fix
 ```
 
 ## Cleanup

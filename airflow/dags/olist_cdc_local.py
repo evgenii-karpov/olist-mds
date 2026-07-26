@@ -1,4 +1,4 @@
-"""Local Phase 4 CDC ingest and manual object replay DAGs."""
+"""Local CDC ingest and manual object replay DAGs."""
 
 from __future__ import annotations
 
@@ -58,8 +58,8 @@ def command_prefix() -> list[str]:
     return [
         python_bin(),
         "scripts/cdc/warehouse_ingest.py",
-        "--bootstrap-sql-dir",
-        "infra/postgres",
+        "--warehouse-type",
+        "clickhouse",
     ]
 
 
@@ -198,7 +198,7 @@ def emit_raw_cdc_asset(summary: Any) -> None:
     max_active_runs=1,
     max_active_tasks=2,
     dagrun_timeout=timedelta(minutes=12),
-    tags=["olist", "cdc", "local", "postgres", "minio"],
+    tags=["olist", "cdc", "local", "clickhouse", "control-postgres", "minio"],
 )
 def olist_cdc_ingest_local():
     summary = load_closed_normalized_objects("SCHEDULED")
@@ -215,7 +215,7 @@ def olist_cdc_ingest_local():
     max_active_runs=1,
     max_active_tasks=2,
     dagrun_timeout=timedelta(minutes=15),
-    tags=["olist", "cdc", "local", "postgres", "replay"],
+    tags=["olist", "cdc", "local", "clickhouse", "control-postgres", "replay"],
     params={
         "table": Param(None, type=["null", "string"], enum=[None, *CDC_TABLES]),
         "date_from": Param(

@@ -43,7 +43,8 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertIn("image: apache/kafka:4.3.1", compose)
         self.assertIn("image: quay.io/apicurio/apicurio-registry:3.3.0", compose)
         dockerfile = (ROOT / "streaming/connect/Dockerfile").read_text(encoding="utf-8")
-        self.assertIn("quay.io/debezium/connect@sha256:", dockerfile)
+        self.assertIn("quay.io/debezium/connect:3.6.0.Final", dockerfile)
+        self.assertNotIn("quay.io/debezium/connect:3.6\n", dockerfile)
         self.assertNotIn(":latest", compose + dockerfile)
 
     def test_source_and_dlq_topics_match_contract(self) -> None:

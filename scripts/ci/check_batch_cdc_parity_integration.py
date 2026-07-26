@@ -20,10 +20,10 @@ from pathlib import Path
 from typing import Any
 
 import boto3
+import clickhouse_connect
 import psycopg2
 from confluent_kafka import OFFSET_INVALID, Consumer, TopicPartition
 from confluent_kafka.admin import AdminClient
-from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -73,9 +73,14 @@ REGISTRY_URL = "http://apicurio-registry:8080"
 KAFKA_BOOTSTRAP = "kafka:29092"
 MINIO_ENDPOINT = "http://minio:9000"
 MINIO_BUCKET = "olist-cdc"
-WAREHOUSE_HOST = "postgres"
 OLTP_HOST = "oltp-postgres"
 PASSWORD_FILE = PROJECT_ROOT / "docker" / "secrets" / "dev" / "postgres_password.txt"
+CONTROL_PASSWORD_FILE = (
+    PROJECT_ROOT / "docker" / "secrets" / "dev" / "control_postgres_password.txt"
+)
+CLICKHOUSE_PASSWORD_FILE = (
+    PROJECT_ROOT / "docker" / "secrets" / "dev" / "clickhouse_password.txt"
+)
 NIFI_PASSWORD_FILE = (
     PROJECT_ROOT / "docker" / "secrets" / "dev" / "airflow_api_secret_key.txt"
 )
@@ -89,6 +94,7 @@ DBT_UTILS_TESTS = (
     "dbt_utils_equality_monthly_arpu",
 )
 SECRET_OPTION_NAMES = {"--password", "--password-file", "--secret", "--token"}
+IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
 
 
 @dataclass
@@ -136,13 +142,17 @@ def read_secret(value: str | None, file_value: Path | None, default: str) -> str
 
 def secret_values() -> list[str]:
     values = [
-        os.environ.get("POSTGRES_PASSWORD", ""),
         os.environ.get("OLTP_POSTGRES_PASSWORD", ""),
         os.environ.get("AIRFLOW_POSTGRES_PASSWORD", ""),
+        os.environ.get("CONTROL_POSTGRES_PASSWORD", ""),
+        os.environ.get("CLICKHOUSE_PASSWORD", ""),
     ]
     for path in (
-        Path(os.environ.get("POSTGRES_PASSWORD_FILE", str(PASSWORD_FILE))),
         Path(os.environ.get("OLTP_POSTGRES_PASSWORD_FILE", str(PASSWORD_FILE))),
+        Path(
+            os.environ.get("CONTROL_POSTGRES_PASSWORD_FILE", str(CONTROL_PASSWORD_FILE))
+        ),
+        Path(os.environ.get("CLICKHOUSE_PASSWORD_FILE", str(CLICKHOUSE_PASSWORD_FILE))),
         Path(os.environ.get("CDC_S3_SECRET_FILE", str(MINIO_SECRET_PATH))),
         Path(os.environ.get("NIFI_ADMIN_PASSWORD_FILE", str(NIFI_PASSWORD_FILE))),
     ):
@@ -315,23 +325,41 @@ def request_json(
         return status, raw.decode(errors="replace")
 
 
-def warehouse_connection() -> PgConnection:
+def control_connection() -> PgConnection:
     password_file = Path(
-        os.environ.get(
-            "POSTGRES_PASSWORD_FILE", str(Path("/run/secrets/postgres_password"))
-        )
+        os.environ.get("CONTROL_POSTGRES_PASSWORD_FILE", str(CONTROL_PASSWORD_FILE))
     )
     if not password_file.exists():
-        password_file = PASSWORD_FILE
+        password_file = CONTROL_PASSWORD_FILE
     return psycopg2.connect(
-        host=os.environ.get("POSTGRES_HOST", WAREHOUSE_HOST),
-        port=int(os.environ.get("POSTGRES_PORT", "5432")),
-        dbname=os.environ.get("POSTGRES_DB", "olist_analytics"),
-        user=os.environ.get("POSTGRES_USER", "olist"),
+        host=os.environ.get("CONTROL_POSTGRES_HOST", "airflow-postgres"),
+        port=int(os.environ.get("CONTROL_POSTGRES_PORT", "5432")),
+        dbname=os.environ.get("CONTROL_POSTGRES_DB", "olist_control"),
+        user=os.environ.get("CONTROL_POSTGRES_USER", "olist_control"),
         password=read_secret(
-            os.environ.get("POSTGRES_PASSWORD"), password_file, "olist"
+            os.environ.get("CONTROL_POSTGRES_PASSWORD"), password_file, "olist"
         ),
         connect_timeout=10,
+    )
+
+
+def clickhouse_password() -> str:
+    password_file = Path(
+        os.environ.get("CLICKHOUSE_PASSWORD_FILE", str(CLICKHOUSE_PASSWORD_FILE))
+    )
+    if not password_file.exists():
+        password_file = CLICKHOUSE_PASSWORD_FILE
+    return read_secret(os.environ.get("CLICKHOUSE_PASSWORD"), password_file, "olist")
+
+
+def clickhouse_client():
+    return clickhouse_connect.get_client(
+        host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
+        port=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+        username=os.environ.get("CLICKHOUSE_USER", "olist"),
+        password=clickhouse_password(),
+        database=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+        secure=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
     )
 
 
@@ -762,34 +790,48 @@ def count_minio_objects_since(client: Any, prefix: str, started_at: datetime) ->
     return count
 
 
-def table_count(connection: PgConnection, schema: str, table: str) -> int:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            sql.SQL("select count(*) from {}.{}").format(
-                sql.Identifier(schema), sql.Identifier(table)
-            )
-        )
-        row = cursor.fetchone()
+def validate_identifier(value: str) -> str:
+    if not IDENTIFIER.fullmatch(value):
+        raise ValueError(f"unsafe SQL identifier: {value!r}")
+    return value
+
+
+def clickhouse_table_count(client: Any, schema: str, table: str, *, final: bool) -> int:
+    schema = validate_identifier(schema)
+    table = validate_identifier(table)
+    suffix = " FINAL" if final else ""
+    row = client.query(f"SELECT count() FROM `{schema}`.`{table}`{suffix}").first_row
     if row is None:
         raise RuntimeError(f"Count query returned no row for {schema}.{table}")
     return int(row[0])
 
 
-def captured_row_counts(connection: PgConnection) -> dict[str, dict[str, int]]:
+def captured_row_counts_clickhouse(client: Any) -> dict[str, dict[str, int]]:
     batch = {
-        table: table_count(connection, "staging", SOURCE_TO_BATCH_MODEL[table])
+        table: clickhouse_table_count(
+            client, "staging", SOURCE_TO_BATCH_MODEL[table], final=False
+        )
         for table in CAPTURED_TABLES
     }
     realtime = {
-        table: table_count(
-            connection, "realtime_staging", SOURCE_TO_REALTIME_MODEL[table]
+        table: clickhouse_table_count(
+            client, "realtime_staging", SOURCE_TO_REALTIME_MODEL[table], final=False
         )
         for table in CAPTURED_TABLES
     }
     raw = {
-        table: table_count(connection, "raw_cdc", table) for table in CAPTURED_TABLES
+        table: clickhouse_table_count(client, "raw_cdc", table, final=True)
+        for table in CAPTURED_TABLES
     }
     return {"batch": batch, "realtime": realtime, "raw_cdc": raw}
+
+
+def captured_row_counts() -> dict[str, dict[str, int]]:
+    client = clickhouse_client()
+    try:
+        return captured_row_counts_clickhouse(client)
+    finally:
+        client.close()
 
 
 def relation_exists(connection: PgConnection, schema: str, table: str) -> bool:
@@ -799,12 +841,28 @@ def relation_exists(connection: PgConnection, schema: str, table: str) -> bool:
     return row is not None and row[0] is not None
 
 
+def clickhouse_relation_exists(client: Any, schema: str, table: str) -> bool:
+    row = client.query(
+        """
+        select count()
+        from system.tables
+        where database = {database:String} and name = {table:String}
+        """,
+        parameters={"database": schema, "table": table},
+    ).first_row
+    return row is not None and int(row[0]) > 0
+
+
 def warehouse_bootstrap_snapshot() -> dict[str, Any]:
-    with warehouse_connection() as connection:
+    client = clickhouse_client()
+    try:
         raw_tables = {
-            table: relation_exists(connection, "raw_cdc", table)
+            table: clickhouse_relation_exists(client, "raw_cdc", table)
             for table in CAPTURED_TABLES
         }
+    finally:
+        client.close()
+    with control_connection() as connection:
         audit_tables = {
             table: relation_exists(connection, "cdc_audit", table)
             for table in (
@@ -816,13 +874,22 @@ def warehouse_bootstrap_snapshot() -> dict[str, Any]:
                 "cdc_publication_state",
             )
         }
-    return {"raw_tables": raw_tables, "audit_tables": audit_tables}
+        batch_tables = {
+            table: relation_exists(connection, "audit", table)
+            for table in ("batch_runs", "batch_reconciliation")
+        }
+    return {
+        "warehouse_type": "clickhouse",
+        "clickhouse_raw_tables": raw_tables,
+        "control_audit_tables": audit_tables,
+        "control_batch_tables": batch_tables,
+    }
 
 
 def service_snapshot(s3: Any, nifi: NifiClient) -> tuple[bool, dict[str, Any]]:
     status: dict[str, Any] = {}
     checks: list[tuple[str, Callable[[], object]]] = [
-        ("warehouse_postgres", lambda: warehouse_bootstrap_snapshot()),
+        ("analytical_warehouse", lambda: warehouse_bootstrap_snapshot()),
         ("oltp_postgres", lambda: oltp_health()),
         ("kafka", lambda: validate_topic_inventory()),
         ("kafka_connect", lambda: request_json(f"{CONNECT_URL}/connectors")[0]),
@@ -905,7 +972,7 @@ def wait_for_dag(
 def batch_reconciliation_summary(
     batch_id: str, expected_counts: Mapping[str, int]
 ) -> dict[str, Any]:
-    with warehouse_connection() as connection, connection.cursor() as cursor:
+    with control_connection() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
             select entity_name, expected_source_rows, raw_loaded_rows, status,
@@ -1068,7 +1135,7 @@ def audit_summary(
     s3: Any,
     started_at: datetime,
 ) -> dict[str, Any]:
-    with warehouse_connection() as connection, connection.cursor() as cursor:
+    with control_connection() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
             select ingest_run_id, dag_id, orchestration_run_id, status,
@@ -1188,7 +1255,7 @@ def record_parity() -> dict[str, Any]:
 
 
 def publication_parity_status() -> str | None:
-    with warehouse_connection() as connection, connection.cursor() as cursor:
+    with control_connection() as connection, connection.cursor() as cursor:
         cursor.execute(
             """
             select parity_status
@@ -1207,44 +1274,45 @@ def parity_relation_summary() -> dict[str, Any]:
         "realtime_parity_grain_diffs",
     )
     result: dict[str, Any] = {}
-    with warehouse_connection() as connection, connection.cursor() as cursor:
+    client = clickhouse_client()
+    try:
         for relation in relations:
+            relation = validate_identifier(relation)
             if relation == "realtime_parity_grain_diffs":
-                cursor.execute(
+                row = client.query(
+                    f"""
+                    select
+                        (select count() from `cdc_audit`.`{relation}`),
+                        groupArray(metric_name)
+                    from
+                    (
+                        select distinct metric_name
+                        from `cdc_audit`.`{relation}`
+                        order by metric_name
+                    )
                     """
-                        select count(*),
-                           coalesce(
-                               array_agg(distinct metric_name order by metric_name),
-                               array[]::text[]
-                           )
-                        from cdc_audit.realtime_parity_grain_diffs
-                    """
-                )
-                count, metrics = fetch_one(cursor)
-                result[relation] = {
-                    "failed_count": int(count),
-                    "failed_metrics": [str(metric) for metric in (metrics or [])][:100],
-                }
+                ).first_row
+                count, metrics = (0, []) if row is None else row
             else:
-                cursor.execute(
-                    sql.SQL(
-                        """
-                        select count(*) filter (where status <> 'PASS'),
-                               coalesce(
-                                   array_agg(metric_name order by metric_name)
-                                   filter (where status <> 'PASS'),
-                                   array[]::text[]
-                               )
-                        from cdc_audit.{}
-                        """
-                    ).format(sql.Identifier(relation))
-                )
-                count, metrics = fetch_one(cursor)
-                result[relation] = {
-                    "failed_count": int(count),
-                    "failed_metrics": [str(metric) for metric in (metrics or [])][:100],
-                }
-    return result
+                row = client.query(
+                    f"""
+                    select count(), groupArray(metric_name)
+                    from (
+                        select metric_name
+                        from `cdc_audit`.`{relation}`
+                        where status != 'PASS'
+                        order by metric_name
+                    )
+                    """
+                ).first_row
+                count, metrics = (0, []) if row is None else row
+            result[relation] = {
+                "failed_count": int(count),
+                "failed_metrics": [str(metric) for metric in metrics][:100],
+            }
+        return result
+    finally:
+        client.close()
 
 
 def acceptance_failures(result: Mapping[str, Any]) -> list[str]:
@@ -1394,6 +1462,7 @@ def run_integration(
     raw_dir.mkdir(parents=True, exist_ok=True)
     batch_run_id = safe_airflow_run_id("manual__batch_cdc_parity", token)
     batch_conf = {
+        "warehouse_target": "clickhouse",
         "batch_date": FIXTURE_BATCH_DATE,
         "lookback_days": 3,
         "full_refresh": True,
@@ -1479,11 +1548,10 @@ def run_integration(
         "olist_cdc_transform_local", transform_airflow_run_id
     )
 
-    with warehouse_connection() as connection:
-        report["row_counts"] = {
-            "expected": expected_counts,
-            **captured_row_counts(connection),
-        }
+    report["row_counts"] = {
+        "expected": expected_counts,
+        **captured_row_counts(),
+    }
     report["audit"] = audit_summary(
         f"olist_cdc_ingest_local__{ingest_airflow_run_id}",
         transform_run_id,

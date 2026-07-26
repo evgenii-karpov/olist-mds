@@ -1,11 +1,11 @@
-name: CDC implementation — Stage 2 Kafka and Debezium
+name: CDC source capture drill
 
 on:
   workflow_dispatch:
 
 jobs:
-  cdc-stage2-kafka-debezium:
-    name: "CDC implementation — Stage 2: Kafka, Apicurio, and Debezium"
+  cdc-source-capture:
+    name: "CDC source: Kafka, Apicurio, and Debezium"
     runs-on: ubuntu-latest
 
     steps:

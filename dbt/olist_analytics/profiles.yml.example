@@ -1,16 +1,23 @@
 olist_analytics:
-  target: "{{ env_var('DBT_TARGET', 'local_pg') }}"
+  target: "{{ env_var('DBT_TARGET', 'local_clickhouse') }}"
   outputs:
-    local_pg:
-      type: postgres
-      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
-      user: "{{ env_var('POSTGRES_USER', 'olist') }}"
-      password: "{{ env_var('POSTGRES_PASSWORD', 'olist') }}"
-      port: "{{ env_var('POSTGRES_PORT', 5432) | as_number }}"
-      dbname: "{{ env_var('POSTGRES_DB', 'olist_analytics') }}"
-      schema: analytics
+    local_clickhouse:
+      type: clickhouse
+      driver: http
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', 8123) | as_number }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'olist') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', 'olist') }}"
+      schema: "{{ env_var('CLICKHOUSE_DATABASE', 'analytics') }}"
+      secure: false
+      verify: false
       threads: 4
       connect_timeout: 10
+      send_receive_timeout: 300
+      use_lw_deletes: false
+      check_exchange: true
+      custom_settings:
+        join_use_nulls: 1
 
     redshift:
       type: redshift
@@ -25,18 +32,25 @@ olist_analytics:
       sslmode: prefer
 
 elementary:
-  target: "{{ env_var('DBT_TARGET', 'local_pg') }}"
+  target: "{{ env_var('DBT_TARGET', 'local_clickhouse') }}"
   outputs:
-    local_pg:
-      type: postgres
-      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
-      user: "{{ env_var('POSTGRES_USER', 'olist') }}"
-      password: "{{ env_var('POSTGRES_PASSWORD', 'olist') }}"
-      port: "{{ env_var('POSTGRES_PORT', 5432) | as_number }}"
-      dbname: "{{ env_var('POSTGRES_DB', 'olist_analytics') }}"
+    local_clickhouse:
+      type: clickhouse
+      driver: http
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', 8123) | as_number }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'olist') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', 'olist') }}"
       schema: elementary
+      secure: false
+      verify: false
       threads: 4
       connect_timeout: 10
+      send_receive_timeout: 300
+      use_lw_deletes: false
+      check_exchange: true
+      custom_settings:
+        join_use_nulls: 1
 
     redshift:
       type: redshift

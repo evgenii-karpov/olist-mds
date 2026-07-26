@@ -18,18 +18,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from psycopg2.extensions import connection as PgConnection
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.ci.pipeline_helpers import (
     RelationFingerprint,
-    capture_fingerprints,
-    fetch_one,
-    pipeline_env,
-    postgres_connection,
+    capture_clickhouse_fingerprints,
+    clickhouse_client,
 )
 from scripts.ci.pipeline_helpers import (
     wait_for_dag_success as wait_for_dag_success_helper,
@@ -43,15 +39,13 @@ DEFAULT_PROFILE = (
 )
 DEFAULT_RAW_DIR = PROJECT_ROOT / "data" / "ci" / "raw" / "olist_small"
 DEFAULT_FIXTURE_BATCH_DATE = "2018-09-01"
-POSTGRES_SQL_DIR = PROJECT_ROOT / "infra" / "postgres"
-RESET_SCHEMAS = (
-    "raw_data",
-    "audit",
+RESET_MODEL_DATABASES = (
     "staging",
     "intermediate",
     "snapshots",
     "core",
     "marts",
+    "elementary",
 )
 VOLATILE_RAW_COLUMNS = {"_loaded_at"}
 AIRFLOW_LOG_DIR = Path(
@@ -100,15 +94,23 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def reset_warehouse(env: dict[str, str]) -> None:
-    connection = postgres_connection(env)
+def reset_warehouse() -> None:
+    client = clickhouse_client()
     try:
-        with connection.cursor() as cursor:
-            for schema in RESET_SCHEMAS:
-                cursor.execute(f"drop schema if exists {schema} cascade;")
-        connection.commit()
+        for database in RESET_MODEL_DATABASES:
+            client.command(f"DROP DATABASE IF EXISTS `{database}`")
+        raw_tables = client.query(
+            """
+            SELECT name
+            FROM system.tables
+            WHERE database = 'raw_data'
+            ORDER BY name
+            """
+        ).result_rows
+        for (table_name,) in raw_tables:
+            client.command(f"TRUNCATE TABLE `raw_data`.`{table_name}`")
     finally:
-        connection.close()
+        client.close()
 
 
 def clean_raw_dir(raw_dir: Path) -> None:
@@ -355,50 +357,50 @@ def capture_raw_file_fingerprints(raw_dir: Path) -> dict[str, RawFileFingerprint
     }
 
 
-def assert_fact_matches_staging(connection: PgConnection) -> None:
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
+def fetch_one_from_clickhouse(row: tuple[Any, ...] | None) -> tuple[Any, ...]:
+    if row is None:
+        raise AssertionError("Expected query to return exactly one row")
+    return row
+
+
+def assert_fact_matches_staging(client: Any) -> None:
+    row = client.query(
+        """
             with expected_items as (
                 select
-                    md5(
-                        order_items.order_id || '|'
-                        || order_items.order_item_id::varchar
-                    ) as order_item_key
-                from staging.stg_olist__order_items as order_items
-                inner join staging.stg_olist__orders as orders
+                    lower(hex(MD5(concat(
+                        order_items.order_id,
+                        '|',
+                        toString(order_items.order_item_id)
+                    )))) as order_item_key
+                from `staging`.`stg_olist__order_items` as order_items
+                inner join `staging`.`stg_olist__orders` as orders
                     on order_items.order_id = orders.order_id
             ),
 
             actual_items as (
                 select order_item_key
-                from core.fact_order_items
-            ),
-
-            missing_from_fact as (
-                select count(*) as row_count
-                from expected_items
-                left join actual_items
-                    on expected_items.order_item_key = actual_items.order_item_key
-                where actual_items.order_item_key is null
-            ),
-
-            unexpected_fact_rows as (
-                select count(*) as row_count
-                from actual_items
-                left join expected_items
-                    on actual_items.order_item_key = expected_items.order_item_key
-                where expected_items.order_item_key is null
+                from `core`.`fact_order_items`
             )
 
             select
-                missing_from_fact.row_count,
-                unexpected_fact_rows.row_count
-            from missing_from_fact
-            cross join unexpected_fact_rows;
-            """
-        )
-        missing_rows, unexpected_rows = fetch_one(cursor)
+                (
+                    select count()
+                    from expected_items
+                    left join actual_items
+                        on expected_items.order_item_key = actual_items.order_item_key
+                    where actual_items.order_item_key is null
+                ),
+                (
+                    select count()
+                    from actual_items
+                    left join expected_items
+                        on actual_items.order_item_key = expected_items.order_item_key
+                    where expected_items.order_item_key is null
+                )
+        """
+    ).first_row
+    missing_rows, unexpected_rows = fetch_one_from_clickhouse(row)
 
     if missing_rows or unexpected_rows:
         raise AssertionError(
@@ -408,45 +410,43 @@ def assert_fact_matches_staging(connection: PgConnection) -> None:
         )
 
 
-def assert_no_orphan_fact_keys(connection: PgConnection) -> None:
+def assert_no_orphan_fact_keys(client: Any) -> None:
     orphan_queries = {
         "customer_key": """
-            select count(*)
-            from core.fact_order_items as fact
-            left join core.dim_customer_scd2 as dim
+            select count()
+            from `core`.`fact_order_items` as fact
+            left join `core`.`dim_customer_scd2` as dim
                 on fact.customer_key = dim.customer_key
             where dim.customer_key is null
         """,
         "product_key": """
-            select count(*)
-            from core.fact_order_items as fact
-            left join core.dim_product_scd2 as dim
+            select count()
+            from `core`.`fact_order_items` as fact
+            left join `core`.`dim_product_scd2` as dim
                 on fact.product_key = dim.product_key
             where dim.product_key is null
         """,
         "seller_key": """
-            select count(*)
-            from core.fact_order_items as fact
-            left join core.dim_seller as dim
+            select count()
+            from `core`.`fact_order_items` as fact
+            left join `core`.`dim_seller` as dim
                 on fact.seller_key = dim.seller_key
             where dim.seller_key is null
         """,
     }
     failures = {}
-    with connection.cursor() as cursor:
-        for key_name, query in orphan_queries.items():
-            cursor.execute(query)
-            orphan_count = int(fetch_one(cursor)[0])
-            if orphan_count:
-                failures[key_name] = orphan_count
+    for key_name, query in orphan_queries.items():
+        orphan_count = int(fetch_one_from_clickhouse(client.query(query).first_row)[0])
+        if orphan_count:
+            failures[key_name] = orphan_count
 
     if failures:
         raise AssertionError(f"fact_order_items has orphan dimension keys: {failures}")
 
 
-def assert_output_contracts(connection: PgConnection) -> None:
-    assert_fact_matches_staging(connection)
-    assert_no_orphan_fact_keys(connection)
+def assert_output_contracts(client: Any) -> None:
+    assert_fact_matches_staging(client)
+    assert_no_orphan_fact_keys(client)
 
 
 def assert_replay_matches_initial(
@@ -514,7 +514,6 @@ def print_raw_fingerprints(
 
 def main() -> None:
     args = parse_args()
-    env = pipeline_env()
     raw_dir = Path(args.raw_dir)
     run_id_suffix = str(int(time.time()))
     args.initial_run_id = args.initial_run_id or f"ci_fixture_initial_{run_id_suffix}"
@@ -522,16 +521,19 @@ def main() -> None:
 
     print("Resetting warehouse for initial fixture DAG run", flush=True)
     clean_raw_dir(raw_dir)
-    reset_warehouse(env)
+    reset_warehouse()
 
     print("Running initial fixture DAG test", flush=True)
     run_dag_test(args, full_refresh=True, offset_seconds=0)
 
     initial_raw_fingerprints = capture_raw_file_fingerprints(raw_dir)
     print_raw_fingerprints("Initial", initial_raw_fingerprints)
-    with postgres_connection(env) as connection:
-        assert_output_contracts(connection)
-        initial_fingerprints = capture_fingerprints(connection)
+    client = clickhouse_client()
+    try:
+        assert_output_contracts(client)
+        initial_fingerprints = capture_clickhouse_fingerprints(client)
+    finally:
+        client.close()
     print_fingerprints("Initial", initial_fingerprints)
 
     print("Running replay fixture DAG test", flush=True)
@@ -539,9 +541,12 @@ def main() -> None:
 
     replay_raw_fingerprints = capture_raw_file_fingerprints(raw_dir)
     print_raw_fingerprints("Replay", replay_raw_fingerprints)
-    with postgres_connection(env) as connection:
-        assert_output_contracts(connection)
-        replay_fingerprints = capture_fingerprints(connection)
+    client = clickhouse_client()
+    try:
+        assert_output_contracts(client)
+        replay_fingerprints = capture_clickhouse_fingerprints(client)
+    finally:
+        client.close()
     print_fingerprints("Replay", replay_fingerprints)
 
     assert_raw_files_match_initial(initial_raw_fingerprints, replay_raw_fingerprints)

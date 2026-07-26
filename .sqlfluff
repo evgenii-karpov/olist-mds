@@ -1,5 +1,5 @@
 [sqlfluff]
-dialect = postgres
+dialect = clickhouse
 templater = dbt
 max_line_length = 80
 sql_file_exts = .sql
@@ -9,7 +9,7 @@ exclude_rules = references.keywords, structure.column_order
 project_dir = dbt/olist_analytics
 profiles_dir = dbt/olist_analytics
 profile = olist_analytics
-target = local_pg
+target = local_clickhouse
 dbt_skip_compilation_error = True
 
 [sqlfluff:templater:dbt:context]

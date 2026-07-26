@@ -14,14 +14,20 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import psycopg2
-from psycopg2 import sql
-from scripts.cdc.warehouse_ingest import BUSINESS_COLUMNS, read_secret
+import clickhouse_connect
+from scripts.cdc.warehouse_ingest import BUSINESS_COLUMNS
+from scripts.loading.load_raw_to_clickhouse import ch_string
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+    read_secret,
+)
 
 PROFILES = {
     "reference": {"rate": 5.0, "duration_seconds": 1800},
@@ -56,42 +62,97 @@ def quantile(values: list[float], fraction: float) -> float | None:
     return ordered[index]
 
 
-def event_latency_samples(connection, started: datetime, finished: datetime):
+def timestamp_seconds(value: object) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.timestamp()
+    if isinstance(value, int | float | str):
+        return float(value)
+    raise TypeError(f"Unsupported timestamp value type: {type(value).__name__}")
+
+
+def clickhouse_password(args: argparse.Namespace) -> str:
+    return (
+        read_secret(
+            args.clickhouse_password,
+            args.clickhouse_password_file,
+            "olist",
+        )
+        or "olist"
+    )
+
+
+def clickhouse_client(args: argparse.Namespace) -> Any:
+    return clickhouse_connect.get_client(
+        host=args.clickhouse_host,
+        port=args.clickhouse_port,
+        username=args.clickhouse_user,
+        password=clickhouse_password(args),
+        database=args.clickhouse_database,
+        secure=args.clickhouse_secure,
+    )
+
+
+def transformed_objects(connection) -> dict[str, datetime]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            select f.object_uri, min(t.finished_at)
+            from cdc_audit.cdc_files f
+            join cdc_audit.cdc_transform_run_files rf
+              on rf.manifest_uri = f.manifest_uri
+            join cdc_audit.cdc_transform_runs t
+              on t.transform_run_id = rf.transform_run_id
+             and t.status = 'SUCCEEDED'
+            group by f.object_uri
+            """
+        )
+        return {
+            str(object_uri): finished_at
+            for object_uri, finished_at in cursor.fetchall()
+        }
+
+
+def event_latency_samples(
+    raw_client,
+    control_pg_connection,
+    started: datetime,
+    finished: datetime,
+):
     """Return per-event source-commit-to-successful-transform latency."""
+    finished_by_object = transformed_objects(control_pg_connection)
     samples: list[float] = []
     raw_events = 0
-    with connection.cursor() as cursor:
-        for table in BUSINESS_COLUMNS:
-            relation = sql.Identifier(table)
-            cursor.execute(
-                sql.SQL(
-                    """
-                    select count(*) from raw_cdc.{}
-                    where _source_ts >= %s and _source_ts <= %s
-                    """
-                ).format(relation),
-                (started, finished),
-            )
-            raw_events += int(cursor.fetchone()[0])
-            cursor.execute(
-                sql.SQL(
-                    """
-                    select extract(epoch from min(t.finished_at) - r._source_ts)
-                    from raw_cdc.{} r
-                    join cdc_audit.cdc_files f
-                      on f.object_uri = r._source_object_uri
-                    join cdc_audit.cdc_transform_run_files rf
-                      on rf.manifest_uri = f.manifest_uri
-                    join cdc_audit.cdc_transform_runs t
-                      on t.transform_run_id = rf.transform_run_id
-                     and t.status = 'SUCCEEDED'
-                    where r._source_ts >= %s and r._source_ts <= %s
-                    group by r._event_id, r._source_ts
-                    """
-                ).format(relation),
-                (started, finished),
-            )
-            samples.extend(float(row[0]) for row in cursor.fetchall())
+    started_literal = ch_string(started.isoformat())
+    finished_literal = ch_string(finished.isoformat())
+    for table in BUSINESS_COLUMNS:
+        rows = raw_client.query(
+            f"""
+            SELECT _event_id, _source_ts, _source_object_uri
+            FROM raw_cdc.`{table}` FINAL
+            WHERE _source_ts >= parseDateTime64BestEffort({started_literal}, 6, 'UTC')
+              AND _source_ts <= parseDateTime64BestEffort({finished_literal}, 6, 'UTC')
+            """
+        ).result_rows
+        raw_events += len(rows)
+        event_latencies: dict[str, float] = {}
+        for event_id, source_ts, object_uri in rows:
+            finished_at = finished_by_object.get(str(object_uri))
+            if finished_at is None:
+                continue
+            source_seconds = timestamp_seconds(source_ts)
+            finished_seconds = timestamp_seconds(finished_at)
+            if source_seconds is None or finished_seconds is None:
+                continue
+            latency = max(0.0, finished_seconds - source_seconds)
+            event_key = str(event_id)
+            current = event_latencies.get(event_key)
+            if current is None or latency < current:
+                event_latencies[event_key] = latency
+        samples.extend(event_latencies.values())
     return samples, raw_events
 
 
@@ -109,28 +170,33 @@ def main() -> int:
         "--password-file", default="docker/secrets/dev/postgres_password.txt"
     )
     parser.add_argument(
-        "--warehouse-host", default=os.environ.get("POSTGRES_HOST", "localhost")
+        "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "localhost")
     )
     parser.add_argument(
-        "--warehouse-port",
+        "--clickhouse-port",
         type=int,
-        default=int(os.environ.get("POSTGRES_PORT", "5432")),
+        default=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
     )
     parser.add_argument(
-        "--warehouse-database", default=os.environ.get("POSTGRES_DB", "olist_analytics")
+        "--clickhouse-user", default=os.environ.get("CLICKHOUSE_USER", "olist")
     )
     parser.add_argument(
-        "--warehouse-user", default=os.environ.get("POSTGRES_USER", "olist")
+        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD")
     )
     parser.add_argument(
-        "--warehouse-password", default=os.environ.get("POSTGRES_PASSWORD")
+        "--clickhouse-password-file",
+        default=os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
     )
     parser.add_argument(
-        "--warehouse-password-file",
-        default=os.environ.get(
-            "POSTGRES_PASSWORD_FILE", "docker/secrets/dev/postgres_password.txt"
-        ),
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
     )
+    parser.add_argument(
+        "--clickhouse-secure",
+        action=argparse.BooleanOptionalAction,
+        default=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
+    )
+    add_control_postgres_args(parser)
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
     profile = PROFILES[args.profile]
@@ -164,23 +230,18 @@ def main() -> int:
     workload_finished = time.time()
     time.sleep(args.settle_seconds)
     finished = time.time()
-    connection = psycopg2.connect(
-        host=args.warehouse_host,
-        port=args.warehouse_port,
-        dbname=args.warehouse_database,
-        user=args.warehouse_user,
-        password=read_secret(args.warehouse_password, args.warehouse_password_file),
-        connect_timeout=10,
-        application_name="olist_cdc_benchmark",
-    )
+    raw_client = clickhouse_client(args)
+    control_pg_connection = control_connection(args)
     try:
         samples, raw_events = event_latency_samples(
-            connection,
+            raw_client,
+            control_pg_connection,
             datetime.fromtimestamp(started, UTC),
             datetime.fromtimestamp(workload_finished, UTC),
         )
     finally:
-        connection.close()
+        raw_client.close()
+        control_pg_connection.close()
     p50 = quantile(samples, 0.50)
     p95 = quantile(samples, 0.95)
     p99 = quantile(samples, 0.99)

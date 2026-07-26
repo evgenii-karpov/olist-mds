@@ -1,9 +1,10 @@
 with ranked as (
     select
-        seller_id::varchar(256) as seller_id,
-        seller_zip_code_prefix::varchar(16) as seller_zip_code_prefix,
-        lower(trim(seller_city))::varchar(256) as seller_city,
-        upper(trim(seller_state))::varchar(2) as seller_state,
+        {{ cast_string('seller_id', 256) }} as seller_id,
+        {{ cast_string('seller_zip_code_prefix', 16) }}
+            as seller_zip_code_prefix,
+        {{ cast_string('lower(trim(seller_city))', 256) }} as seller_city,
+        {{ cast_string('upper(trim(seller_state))', 2) }} as seller_state,
         _batch_id,
         _loaded_at,
         _source_file,

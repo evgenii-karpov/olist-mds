@@ -46,6 +46,15 @@ groups:
           summary: CDC warehouse audit metrics are unavailable
           runbook: docs/runbooks/cdc-warehouse-ingest.md
 
+      - alert: CdcClickHouseUnavailable
+        expr: up{job="clickhouse"} != 1 or absent(up{job="clickhouse"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: ClickHouse warehouse metrics are unavailable
+          runbook: docs/runbooks/cdc-warehouse-ingest.md
+
       - alert: CdcWarehouseOffsetGap
         expr: sum(olist_cdc_offset_gaps) > 0
         for: 2m
