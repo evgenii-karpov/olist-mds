@@ -142,18 +142,7 @@ def project_transform_selection(
         client.close()
 
 
-def bootstrap(connection: PgConnection) -> None:
-    sql = (
-        ROOT
-        / "infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql"
-    ).read_text(encoding="utf-8-sig")
-    with connection.cursor() as cursor:
-        cursor.execute(sql)
-    connection.commit()
-
-
 def prepare(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
-    bootstrap(connection)
     selected_files: list[tuple[str, str, str]] = []
     with connection, connection.cursor() as cursor:
         cursor.execute(
@@ -457,7 +446,6 @@ def parity_status(
 
 
 def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
-    bootstrap(connection)
     with connection, connection.cursor() as cursor:
         cursor.execute(
             """
@@ -683,7 +671,6 @@ def finish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]
 
 
 def fail(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
-    bootstrap(connection)
     with connection, connection.cursor() as cursor:
         cursor.execute(
             """
@@ -944,7 +931,6 @@ def publish_postgres_views(args: argparse.Namespace, target: str) -> None:
 
 
 def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
-    bootstrap(connection)
     with connection, connection.cursor() as cursor:
         cursor.execute(
             """
