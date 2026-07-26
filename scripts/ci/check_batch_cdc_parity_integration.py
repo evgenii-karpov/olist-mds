@@ -1360,41 +1360,45 @@ def parity_relation_summary() -> dict[str, Any]:
         try:
             for relation in relations:
                 relation = validate_identifier(relation)
-                if relation == "realtime_parity_grain_diffs":
-                    row = client.query(
-                        f"""
-                        select
-                            (select count() from `cdc_audit`.`{relation}`),
-                            groupArray(metric_name)
-                        from
-                        (
-                            select distinct metric_name
-                            from `cdc_audit`.`{relation}`
-                            order by metric_name
-                        )
-                        """
-                    ).first_row
-                    count, metrics = (0, []) if row is None else row
+                try:
+                    if relation == "realtime_parity_grain_diffs":
+                        row = client.query(
+                            f"""
+                            select
+                                (select count() from `cdc_audit`.`{relation}`),
+                                groupArray(metric_name)
+                            from
+                            (
+                                select distinct metric_name
+                                from `cdc_audit`.`{relation}`
+                                order by metric_name
+                            )
+                            """
+                        ).first_row
+                        count, metrics = (0, []) if row is None else row
+                    else:
+                        row = client.query(
+                            f"""
+                            select count(), groupArray(metric_name)
+                            from (
+                                select metric_name
+                                from `cdc_audit`.`{relation}`
+                                where status != 'PASS'
+                                order by metric_name
+                            )
+                            """
+                        ).first_row
+                        count, metrics = (0, []) if row is None else row
                     result[relation] = {
                         "failed_count": int(count),
                         "failed_metrics": [str(metric) for metric in metrics][:100],
                     }
-                else:
-                    row = client.query(
-                        f"""
-                        select count(), groupArray(metric_name)
-                        from (
-                            select metric_name
-                            from `cdc_audit`.`{relation}`
-                            where status != 'PASS'
-                            order by metric_name
-                        )
-                        """
-                    ).first_row
-                    count, metrics = (0, []) if row is None else row
+                except Exception as exc:
                     result[relation] = {
-                        "failed_count": int(count),
-                        "failed_metrics": [str(metric) for metric in metrics][:100],
+                        "failed_count": 1,
+                        "failed_metrics": [
+                            f"parity_relation_unavailable: {redact_text(exc)}"
+                        ],
                     }
             return result
         finally:

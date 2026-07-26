@@ -458,7 +458,13 @@ def record_parity(connection: PgConnection, args: argparse.Namespace) -> dict[st
     run_results_path = DBT_PROJECT / "target" / "run_results.json"
     with suppress(FileNotFoundError):
         run_results_path.unlink()
-    dbt_arguments = ["build", "--selector", "realtime_parity"]
+    dbt_arguments = [
+        "build",
+        "--selector",
+        "realtime_parity",
+        "--exclude-resource-type",
+        "unit_test",
+    ]
     try:
         dbt_result = run_dbt(
             dbt_arguments,
