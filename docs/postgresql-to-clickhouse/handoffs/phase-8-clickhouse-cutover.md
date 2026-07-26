@@ -30,6 +30,43 @@ PostgreSQL warehouse code.
 - Phase 7 contract tests pass under
   `tests/test_clickhouse_phase7_ci_observability.py`.
 
+## Captured cutover evidence
+
+GitHub Actions evidence captured on 2026-07-26:
+
+- CI run
+  [30200994501](https://github.com/evgenii-karpov/olist-mds/actions/runs/30200994501)
+  passed on `f23e3312d7b66b3da1fa99def0c3bd2bc238a811`.
+- CI run
+  [30202035677](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202035677)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+- Manual `Batch and CDC parity integration` run
+  [30202045079](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202045079)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+- Manual `Batch and CDC parity integration` run
+  [30202839894](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202839894)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+
+The two manual parity runs are the semantic Phase 7 cutover evidence. Their
+`batch-cdc-parity-report` artifacts contain `postgres-oracle-manifest.json`,
+`clickhouse-candidate-manifest.json`, and `cross-engine-comparator.json`; the
+workflow success means `cross-engine-comparator.json` reported `status: PASS`
+and `mismatch_count: 0`. The matrix artifacts
+`clickhouse-candidate-run-1` and `clickhouse-candidate-run-2` are additional
+compile/smoke/CLI evidence only.
+
+The archived reports from the latest manual run, 30202839894, record
+`cross-engine-comparator.json` as `dataset: olist_small`, `status: PASS`,
+`mismatch_count: 0`, and `mismatches: []`. The same run's
+`batch-cdc-parity.json` records `status: PASS`, `overall_parity_status: PASS`,
+`acceptance_failures: []`, ClickHouse as the analytical warehouse type, batch,
+ingest, and transform Airflow states as successful, 11 reconciled raw batch
+entities, 16 selected transform files, 79 selected transform events, zero
+Kafka lag, and zero realtime parity failures. Its
+`clickhouse-candidate-1-comparator-contract.json` and
+`clickhouse-candidate-2-comparator-contract.json` reports also record
+`status: PASS` and `mismatch_count: 0`.
+
 ## Required boundary
 
 - Preserve `airflow-postgres`, `oltp-postgres`, and PostgreSQL control-plane
@@ -72,11 +109,10 @@ uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_an
 uv run dbt compile --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target redshift --no-partial-parse --quiet
 ```
 
-Then run two clean full-stack ClickHouse candidate parity workflows. Each run
-must publish `postgres-oracle-manifest.json`,
-`clickhouse-candidate-manifest.json`, and `cross-engine-comparator.json`, and
-the comparator must report zero row-count, grain-key, aggregate-hash, row-hash,
-or metric mismatches. After that, run one final ClickHouse-only batch and
+The required two clean full-stack ClickHouse candidate parity workflows have
+already passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`. If Phase 8 makes
+material changes before oracle removal, rerun the manual parity workflow once
+on the new head SHA. After that, run one final ClickHouse-only batch and
 realtime smoke test before removing the oracle.
 
 ## Exit gate

@@ -1,7 +1,7 @@
 # Phase 7: Migrate ClickHouse CI, Observability, and Documentation
 
-Status: completed on 2026-07-23; parity workflow contract corrected on
-2026-07-26.
+Status: completed on 2026-07-23; parity workflow contract corrected and clean
+cutover evidence captured on 2026-07-26.
 
 ## Delivered contract
 
@@ -46,13 +46,51 @@ Passed:
 - `uv run ruff check scripts/cdc/pipeline_metrics.py scripts/ci/validate_stage6_configuration.py tests/test_clickhouse_phase7_ci_observability.py tests/test_stage6_contracts.py`;
 - `uv run pyright scripts/cdc/pipeline_metrics.py scripts/ci/validate_stage6_configuration.py tests/test_clickhouse_phase7_ci_observability.py tests/test_stage6_contracts.py`.
 
+GitHub Actions evidence captured on 2026-07-26:
+
+- CI run
+  [30200994501](https://github.com/evgenii-karpov/olist-mds/actions/runs/30200994501)
+  passed on `f23e3312d7b66b3da1fa99def0c3bd2bc238a811`.
+- CI run
+  [30202035677](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202035677)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+- Manual `Batch and CDC parity integration` run
+  [30202045079](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202045079)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+- Manual `Batch and CDC parity integration` run
+  [30202839894](https://github.com/evgenii-karpov/olist-mds/actions/runs/30202839894)
+  passed on `c61171964095827d0ea1c3cb8310bd1cdda1f334`.
+
+The two manual parity runs published `batch-cdc-parity-report`,
+`clickhouse-candidate-run-1`, and `clickhouse-candidate-run-2` artifacts. The
+primary `batch-cdc-parity-report` artifact contains
+`postgres-oracle-manifest.json`, `clickhouse-candidate-manifest.json`, and
+`cross-engine-comparator.json`.
+
+The archived reports from the latest manual run, 30202839894, record:
+
+- `cross-engine-comparator.json`: `dataset: olist_small`, `status: PASS`,
+  `mismatch_count: 0`, and `mismatches: []`;
+- `batch-cdc-parity.json`: `status: PASS`, `overall_parity_status: PASS`,
+  `acceptance_failures: []`, `batch_airflow_state: success`,
+  `ingest_airflow_state: success`, `transform_airflow_state: success`,
+  `source_contract_valid: true`, and ClickHouse as the observed analytical
+  warehouse type;
+- `batch_reconciliation.passed: true`, with 11 reconciled raw batch entities;
+- `audit.transform.status: SUCCEEDED`, with 16 files and 79 events selected;
+- `parity.parity_status: PASS`, `parity.dbt_exit_code: 0`,
+  `parity.command_exit_code: 0`, and `parity.failed_metrics: 0`;
+- `kafka_lag.total_lag: 0` and `kafka_lag.max_lag: 0`;
+- `clickhouse-candidate-1-comparator-contract.json` and
+  `clickhouse-candidate-2-comparator-contract.json`: `dataset: olist_small`,
+  `status: PASS`, `mismatch_count: 0`, and `mismatches: []`.
+
+The primary workflow only succeeds when `cross-engine-comparator.json` has
+`status: PASS` and `mismatch_count: 0`; otherwise
+`scripts/parity/compare_manifests.py` exits non-zero.
+
 ## Open evidence
 
-- Two full deterministic ClickHouse candidate workflows still need to be run in
-  GitHub Actions or another clean disposable environment before Phase 8
-  cutover. The primary manual parity workflow now enforces the required
-  oracle-vs-candidate comparison, but this document does not claim two green
-  runs from the current workstation volume.
 - The PostgreSQL oracle used by this workflow is the committed accepted oracle
   fixture from Phase 0. If the deterministic fixture or oracle contract
   changes, regenerate that fixture before treating a ClickHouse comparison as
