@@ -26,10 +26,9 @@ from scripts.loading.load_raw_to_clickhouse import (
     ch_string,
     qualified,
 )
-from scripts.loading.load_raw_to_postgres import (
+from scripts.loading.raw_batch import (
     RAW_SCHEMA,
     RawLoadSpec,
-    execute_sql_files,
     fetch_one,
     load_dead_letter_manifest_entries,
     load_specs,
@@ -77,10 +76,6 @@ class ReconciliationResult:
 
 def utc_now() -> datetime:
     return datetime.now(UTC).replace(microsecond=0, tzinfo=None)
-
-
-def warehouse_env(name: str, postgres_fallback: str, default: str) -> str:
-    return os.environ.get(name, os.environ.get(postgres_fallback, default))
 
 
 def warehouse_connection(args: argparse.Namespace) -> PgConnection:
@@ -391,39 +386,17 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw-dir", default="data/raw/olist")
     parser.add_argument("--profile", default="docs/source_profile.json")
-    parser.add_argument("--bootstrap-sql-dir")
     parser.add_argument("--batch-date", required=True)
     parser.add_argument("--batch-id")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--dag-id")
     parser.add_argument(
         "--warehouse-type",
-        choices=["postgres", "clickhouse"],
-        default=os.environ.get("WAREHOUSE_TYPE", "postgres"),
+        choices=["clickhouse"],
+        default=os.environ.get("WAREHOUSE_TYPE", "clickhouse"),
     )
     parser.add_argument("--no-fail-on-mismatch", action="store_true")
     parser.add_argument("--disable-batch-control", action="store_true")
-    parser.add_argument(
-        "--host",
-        default=warehouse_env("WAREHOUSE_HOST", "POSTGRES_HOST", "localhost"),
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(warehouse_env("WAREHOUSE_PORT", "POSTGRES_PORT", "5432")),
-    )
-    parser.add_argument(
-        "--database",
-        default=warehouse_env("WAREHOUSE_DB", "POSTGRES_DB", "olist_analytics"),
-    )
-    parser.add_argument(
-        "--user",
-        default=warehouse_env("WAREHOUSE_USER", "POSTGRES_USER", "olist"),
-    )
-    parser.add_argument(
-        "--password",
-        default=warehouse_env("WAREHOUSE_PASSWORD", "POSTGRES_PASSWORD", "olist"),
-    )
     add_clickhouse_args(parser)
     add_control_postgres_args(parser)
     return parser.parse_args()
@@ -433,34 +406,16 @@ def main() -> None:
     args = parse_args()
     batch_id = args.batch_id or args.batch_date
     raw_dir = Path(args.raw_dir)
-    warehouse_pg_connection = (
-        warehouse_connection(args) if args.warehouse_type == "postgres" else None
-    )
-    warehouse_clickhouse_connection = (
-        clickhouse_connection(args) if args.warehouse_type == "clickhouse" else None
-    )
+    warehouse_clickhouse_connection = clickhouse_connection(args)
     control_pg_connection = control_connection(args)
     try:
-        if args.bootstrap_sql_dir and warehouse_pg_connection is not None:
-            execute_sql_files(warehouse_pg_connection, Path(args.bootstrap_sql_dir))
-
-        if warehouse_clickhouse_connection is not None:
-            results = reconcile_batch_clickhouse(
-                clickhouse_client=warehouse_clickhouse_connection,
-                control_pg_connection=control_pg_connection,
-                profile_path=Path(args.profile),
-                raw_dir=raw_dir,
-                batch_id=batch_id,
-            )
-        else:
-            assert warehouse_pg_connection is not None
-            results = reconcile_batch(
-                warehouse_pg_connection=warehouse_pg_connection,
-                control_pg_connection=control_pg_connection,
-                profile_path=Path(args.profile),
-                raw_dir=raw_dir,
-                batch_id=batch_id,
-            )
+        results = reconcile_batch_clickhouse(
+            clickhouse_client=warehouse_clickhouse_connection,
+            control_pg_connection=control_pg_connection,
+            profile_path=Path(args.profile),
+            raw_dir=raw_dir,
+            batch_id=batch_id,
+        )
         record_reconciliation_results(
             control_pg_connection, batch_id, args.run_id, results
         )
@@ -493,10 +448,7 @@ def main() -> None:
                 )
             raise
     finally:
-        if warehouse_pg_connection is not None:
-            warehouse_pg_connection.close()
-        if warehouse_clickhouse_connection is not None:
-            warehouse_clickhouse_connection.close()
+        warehouse_clickhouse_connection.close()
         control_pg_connection.close()
 
     passed = sum(1 for result in results if result.status == "PASS")

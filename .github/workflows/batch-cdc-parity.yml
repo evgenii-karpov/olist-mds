@@ -2,15 +2,6 @@ name: Batch and CDC parity integration
 
 on:
   workflow_dispatch:
-    inputs:
-      run_clickhouse_candidate:
-        description: Also run the bounded ClickHouse candidate evidence job twice
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
 
 jobs:
   batch-cdc-parity:
@@ -82,7 +73,7 @@ jobs:
       - name: Start persistent batch and realtime-core services
         run: |
           docker compose --profile realtime-core up -d --wait \
-            postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry \
+            clickhouse airflow-postgres airflow oltp-postgres kafka apicurio-registry \
             kafka-connect minio nifi
 
       - name: Run realtime bootstrap jobs
@@ -109,11 +100,11 @@ jobs:
           uv run python -c "from pathlib import Path; import json; p=Path('data/reports/batch-cdc-parity.json');
           p.exists() or p.write_text(json.dumps({'status':'FAIL','failure':'parity orchestrator did not produce a report'})+'\n')"
 
-      - name: Stage accepted PostgreSQL oracle manifest
+      - name: Stage accepted canonical manifest
         if: always()
         run: >-
           cp tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
-          data/reports/postgres-oracle-manifest.json
+          data/reports/accepted-canonical-manifest.json
 
       - name: Export ClickHouse candidate manifest
         run: >-
@@ -121,10 +112,10 @@ jobs:
           --output data/reports/clickhouse-candidate-manifest.json
           --password-file docker/secrets/dev/clickhouse_password.txt
 
-      - name: Validate canonical comparator against PostgreSQL oracle
+      - name: Validate canonical comparator against accepted manifest
         run: >-
           uv run python scripts/parity/compare_manifests.py
-          --oracle data/reports/postgres-oracle-manifest.json
+          --oracle data/reports/accepted-canonical-manifest.json
           --candidate data/reports/clickhouse-candidate-manifest.json
           --output data/reports/cross-engine-comparator.json
 
@@ -135,7 +126,7 @@ jobs:
           name: batch-cdc-parity-report
           path: |
             data/reports/batch-cdc-parity.json
-            data/reports/postgres-oracle-manifest.json
+            data/reports/accepted-canonical-manifest.json
             data/reports/clickhouse-candidate-manifest.json
             data/reports/cross-engine-comparator.json
           if-no-files-found: warn
@@ -144,94 +135,9 @@ jobs:
         if: failure()
         run: >-
           docker compose --profile realtime-core logs --no-color --tail=500
-          airflow postgres airflow-postgres oltp-postgres kafka apicurio-registry
+          airflow clickhouse airflow-postgres oltp-postgres kafka apicurio-registry
           kafka-connect minio nifi cdc-warehouse-init nifi-bootstrap
 
       - name: Clean up Compose resources
         if: always()
         run: docker compose --profile realtime-core down -v --remove-orphans
-
-  clickhouse-candidate-evidence:
-    name: "ClickHouse candidate evidence ${{ matrix['candidate-run'] }}"
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    if: ${{ inputs.run_clickhouse_candidate == 'true' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        candidate-run: [1, 2]
-    env:
-      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_analytics
-      DBT_TARGET: local_clickhouse
-      CLICKHOUSE_HOST: localhost
-      CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_USER: olist
-      CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
-      CLICKHOUSE_DATABASE: analytics
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install Python and locked runtime dependencies
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: 0.11.28
-          enable-cache: true
-
-      - name: Install project Python and dependencies
-        run: |
-          uv python install
-          uv sync --locked --no-dev
-
-      - name: Prepare dbt profile
-        run: cp profiles.yml.example profiles.yml
-        working-directory: dbt/olist_analytics
-
-      - name: Install dbt packages
-        run: uv run dbt deps
-        working-directory: dbt/olist_analytics
-
-      - name: Start ClickHouse candidate service
-        run: docker compose up -d --wait clickhouse
-
-      - name: Initialize ClickHouse candidate databases
-        run: docker compose run --rm clickhouse-init
-
-      - name: Verify ClickHouse candidate smoke
-        run: uv run python scripts/ci/check_clickhouse_smoke.py
-
-      - name: Compile candidate batch and realtime selectors
-        run: |
-          uv run dbt compile --target local_clickhouse --selector batch --no-partial-parse --quiet
-          uv run dbt compile --target local_clickhouse --selector realtime_transform --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
-          uv run dbt compile --target local_clickhouse --selector realtime_parity --no-partial-parse --quiet --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
-        working-directory: dbt/olist_analytics
-
-      - name: Validate ClickHouse candidate exporter and comparator
-        run: |
-          uv run python scripts/parity/export_clickhouse_candidate.py --help
-          uv run python scripts/parity/export_postgres_oracle.py --help
-          uv run python scripts/parity/compare_manifests.py \
-            --oracle tests/fixtures/postgresql_oracle/postgres_batch_oracle.json \
-            --candidate tests/fixtures/postgresql_oracle/postgres_batch_oracle.json \
-            --output data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator-contract.json
-
-      - name: Upload ClickHouse candidate evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clickhouse-candidate-run-${{ matrix['candidate-run'] }}
-          path: |
-            data/reports/clickhouse-candidate-${{ matrix['candidate-run'] }}-comparator-contract.json
-            dbt/olist_analytics/target/manifest.json
-            dbt/olist_analytics/target/run_results.json
-          if-no-files-found: warn
-
-      - name: Dump ClickHouse candidate diagnostics
-        if: failure()
-        run: docker compose logs --no-color --tail=500 clickhouse clickhouse-init
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose down -v --remove-orphans

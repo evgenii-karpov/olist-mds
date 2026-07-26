@@ -8,9 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Stage5ConfigurationTests(unittest.TestCase):
     def test_transform_audit_uses_immutable_manifest_membership(self) -> None:
-        ddl = (ROOT / "infra/postgres/007_create_cdc_transform_audit.sql").read_text(
-            encoding="utf-8"
-        )
+        ddl = (
+            ROOT
+            / "infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql"
+        ).read_text(encoding="utf-8")
         runtime = (ROOT / "scripts/cdc/realtime_transform.py").read_text(
             encoding="utf-8"
         )
@@ -97,12 +98,11 @@ class Stage5ConfigurationTests(unittest.TestCase):
             self.assertTrue((parity_root / name).exists())
             self.assertFalse((old_root / name).exists())
 
-    def test_stage5_disposable_check_exercises_both_parity_comparators(self) -> None:
-        checker = (ROOT / "scripts/ci/check_stage5_cdc_integration.py").read_text(
+    def test_full_stack_parity_check_exercises_parity_comparators(self) -> None:
+        checker = (ROOT / "scripts/ci/check_batch_cdc_parity_integration.py").read_text(
             encoding="utf-8"
         )
         for fragment in (
-            "verify_parity_comparator_sensitivity",
             "dbt_utils_equality_daily_revenue",
             "realtime_parity_grain_diffs",
             "parity_status",

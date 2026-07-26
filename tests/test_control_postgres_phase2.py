@@ -14,10 +14,6 @@ class ControlPostgresPhase2Tests(unittest.TestCase):
         from scripts.orchestration import batch_control
 
         environment = {
-            "POSTGRES_HOST": "warehouse-postgres",
-            "POSTGRES_DB": "olist_analytics",
-            "POSTGRES_USER": "olist",
-            "POSTGRES_PASSWORD": "warehouse-password",
             "CONTROL_POSTGRES_HOST": "airflow-postgres",
             "CONTROL_POSTGRES_DB": "olist_control",
             "CONTROL_POSTGRES_USER": "olist_control",

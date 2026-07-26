@@ -16,7 +16,7 @@ import clickhouse_connect
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from scripts.parity.export_postgres_oracle import (
+from scripts.parity.canonical_manifest import (
     DEFAULT_CONTRACT,
     NULL_VALUE,
     ColumnType,

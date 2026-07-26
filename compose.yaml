@@ -1,29 +1,4 @@
 services:
-  # These three services intentionally have no profile. This preserves the
-  # original `docker compose up` batch-development behavior.
-  postgres:
-    image: postgres:18.4
-    container_name: olist-postgres
-    restart: unless-stopped
-    shm_size: 128mb
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-olist_analytics}
-      POSTGRES_USER: ${POSTGRES_USER:-olist}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-      PGDATA: /var/lib/postgresql/18/docker
-    ports:
-      - "5432:5432"
-    volumes:
-      - olist_postgres_data:/var/lib/postgresql
-    secrets:
-      - postgres_password
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-olist} -d $${POSTGRES_DB:-olist_analytics}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
-
   airflow-postgres:
     image: postgres:17.10
     container_name: olist-airflow-postgres
@@ -129,8 +104,6 @@ services:
     restart: unless-stopped
     working_dir: /opt/airflow/project
     depends_on:
-      postgres:
-        condition: service_healthy
       airflow-postgres:
         condition: service_healthy
       control-db-init:
@@ -161,12 +134,7 @@ services:
       OLIST_AIRFLOW_RETRIES: "${OLIST_AIRFLOW_RETRIES:-2}"
       OLIST_AIRFLOW_RETRY_DELAY_SECONDS: "${OLIST_AIRFLOW_RETRY_DELAY_SECONDS:-300}"
       DBT_PROFILES_DIR: /opt/airflow/project/dbt/olist_analytics
-      DBT_TARGET: "${DBT_TARGET:-local_pg}"
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
-      POSTGRES_USER: "${POSTGRES_USER:-olist}"
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      DBT_TARGET: "${DBT_TARGET:-local_clickhouse}"
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
@@ -198,7 +166,6 @@ services:
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
     secrets:
-      - postgres_password
       - clickhouse_password
       - airflow_postgres_password
       - control_postgres_password
@@ -573,13 +540,8 @@ services:
       clickhouse-init:
         condition: service_completed_successfully
     entrypoint: ["python", "/opt/airflow/project/scripts/cdc/pipeline_metrics.py"]
-    command: ["--listen-port", "9107", "--warehouse-type", "${CDC_WAREHOUSE_TYPE:-clickhouse}"]
+    command: ["--listen-port", "9107"]
     environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: "${POSTGRES_DB:-olist_analytics}"
-      POSTGRES_USER: "${POSTGRES_USER:-olist}"
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
@@ -592,7 +554,6 @@ services:
       CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
       CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
     secrets:
-      - postgres_password
       - clickhouse_password
       - control_postgres_password
     healthcheck:
@@ -676,7 +637,6 @@ services:
         condition: service_started
 
 volumes:
-  olist_postgres_data:
   airflow_postgres_data:
   olist_clickhouse_data:
   olist_oltp_data:
@@ -695,8 +655,6 @@ volumes:
   olist_alloy_data:
 
 secrets:
-  postgres_password:
-    file: ${POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
   clickhouse_password:
     file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_postgres_password:

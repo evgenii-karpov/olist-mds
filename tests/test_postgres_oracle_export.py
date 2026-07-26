@@ -8,7 +8,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import yaml
-from scripts.parity.export_postgres_oracle import (
+from scripts.parity.canonical_manifest import (
     NULL_VALUE,
     ColumnType,
     aggregate_hash,
@@ -19,7 +19,7 @@ from scripts.parity.export_postgres_oracle import (
 )
 
 
-class PostgresOracleExportTests(unittest.TestCase):
+class CanonicalManifestTests(unittest.TestCase):
     def test_canonical_values_preserve_semantic_distinctions(self) -> None:
         self.assertEqual(NULL_VALUE, canonical_value(None, ColumnType("string")))
         self.assertEqual("", canonical_value("", ColumnType("string")))
@@ -63,11 +63,9 @@ class PostgresOracleExportTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unsafe SQL identifier"):
                 load_contract(path)
 
-    def test_repository_contracts_declare_sixteen_oracle_relations(self) -> None:
-        batch = load_contract(Path("scripts/parity/postgres_oracle_relations.json"))
-        stage5 = load_contract(
-            Path("scripts/parity/postgres_stage5_oracle_relations.json")
-        )
+    def test_repository_contracts_declare_sixteen_canonical_relations(self) -> None:
+        batch = load_contract(Path("scripts/parity/canonical_batch_relations.json"))
+        stage5 = load_contract(Path("scripts/parity/canonical_stage5_relations.json"))
         self.assertEqual("olist_small", batch["dataset"])
         self.assertEqual("synthetic_stage5_initial_parity", stage5["dataset"])
         self.assertEqual(16, len(batch["relations"]) + len(stage5["relations"]))

@@ -16,7 +16,7 @@ from scripts.ingestion.record_validation import (
     DeadLetterThresholdExceeded,
     assert_dead_letter_thresholds,
 )
-from scripts.loading.load_raw_to_postgres import load_dead_letter_manifest_entries
+from scripts.loading.raw_batch import load_dead_letter_manifest_entries
 from scripts.quality.reconcile_batch import (
     ReconciliationInput,
     evaluate_reconciliation,

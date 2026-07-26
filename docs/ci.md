@@ -30,38 +30,32 @@ clickhouse-incremental-edges
      `fact_order_items` incremental `insert_overwrite` edge fixture for moved
      keys, stale fact row removal, and affected partitions that become empty.
 
-clickhouse-candidate-static
+clickhouse-runtime-contract
   -> Starts isolated ClickHouse, validates the local ClickHouse connection,
      compiles the batch, realtime transform, and realtime parity selectors for
      `local_clickhouse`, and exercises the canonical manifest comparator
      artifact contract with a fixture self-check. It is not a semantic
      PostgreSQL-vs-ClickHouse parity gate.
 
-cdc-stage1-oltp-simulator
-  -> CDC implementation Stage 1: starts the isolated OLTP PostgreSQL source and
+cdc-clickhouse-ingest-resilience
+  -> Starts ClickHouse, MinIO, and the PostgreSQL control plane, writes bounded
+     normalized and coverage manifests, then verifies raw CDC retry after an
+     injected ClickHouse acknowledgement failure, offset-gap closure through
+     tombstone coverage, and idempotent replay requests.
+
+cdc-source-oltp-simulator
+  -> Starts the isolated OLTP PostgreSQL source and
      validates deterministic seed, lifecycle, replay, and stop behavior.
 
-cdc-stage2-kafka-debezium
-  -> Manual-only CDC implementation Stage 2: validates Kafka topics, Apicurio
+CDC source capture drill
+  -> Manual-only workflow: validates Kafka topics, Apicurio
      compatibility, Debezium snapshot/CRUD semantics, and connector restart
      recovery.
 
 batch-fixture-idempotency
-  -> Small fixture end-to-end path through the local Airflow DAG, PostgreSQL,
+  -> Small fixture end-to-end path through the local Airflow DAG, ClickHouse,
      reconciliation, dbt snapshots/build/tests, batch-control checks, raw file
      comparison, and incremental replay idempotency.
-
-cdc-stage4-warehouse-ingest
-  -> Builds isolated MinIO, ClickHouse raw CDC, and PostgreSQL control state;
-     verifies normalized loading, tombstone coverage, gap closure, transient
-     retry, reconciliation, and duplicate-only replay in disposable local
-     state.
-
-cdc-stage5-realtime-dbt
-  -> Builds three exact-manifest dbt micro-batches in a disposable PostgreSQL
-     database and verifies source ordering, complete update history, late event
-     handling, impacted-key rebuilds, hard-delete propagation to facts/marts,
-     and reversible realtime-to-batch publication.
 
 dbt-selector-boundaries
   -> Resolves all named selectors with `dbt ls`, restricts batch to project
@@ -81,11 +75,13 @@ python-unit / CDC Stage 6 observability contract
 The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
 
 The manual `Batch and CDC parity integration` workflow is the full-stack
-ClickHouse candidate gate. It runs the deterministic batch and CDC/realtime
-path with `DBT_TARGET=local_clickhouse`, stages the accepted PostgreSQL oracle
-manifest, exports a ClickHouse candidate manifest from the resulting
+ClickHouse release/cutover gate. It runs the deterministic batch and
+CDC/realtime path with `DBT_TARGET=local_clickhouse`, stages the accepted
+canonical manifest, exports a ClickHouse manifest from the resulting
 ClickHouse relations, and fails unless the canonical comparator reports zero
-semantic mismatches.
+semantic mismatches. The former optional repeated ClickHouse candidate evidence
+job is intentionally folded into the regular `clickhouse-runtime-contract` CI
+job to avoid duplicate manual work.
 
 ## Small Fixture Dataset
 
@@ -113,7 +109,7 @@ Happy path:
 - source contract validation against the small fixture archive;
 - raw file preparation with row-level validation;
 - generated correction feeds;
-- PostgreSQL raw load;
+- ClickHouse raw load;
 - batch control state transitions;
 - source-to-raw reconciliation;
 - dbt staging and intermediate build;

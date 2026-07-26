@@ -1,25 +1,24 @@
 # Olist Modern Data Stack
 
 Data engineering project built around the Olist Brazilian e-commerce dataset.
-The local stack is moving from PostgreSQL to ClickHouse as the analytical
-warehouse. The migration plan is tracked in
+The local stack uses ClickHouse as the analytical warehouse. The completed
+cutover is tracked in
 [Local PostgreSQL-to-ClickHouse Warehouse Migration Plan](docs/plans/local-clickhouse-warehouse-migration-plan.md).
 
 The project remains fully reviewable without cloud access. PostgreSQL is still
 used locally where transactional semantics are required: Airflow metadata, the
 OLTP source captured by Debezium, and the `olist_control` pipeline-control
-database. During the migration, PostgreSQL also remains available as the local
-analytical oracle for parity checks. The AWS path remains a batch-oriented
-S3/Redshift path; local CDC has been implemented with Docker Compose services
-and is not currently implemented for AWS.
+database. The AWS path remains a batch-oriented S3/Redshift path; local CDC has
+been implemented with Docker Compose services and is not currently implemented
+for AWS.
 
 ## What It Demonstrates
 
 - End-to-end batch pipeline from CSV archive to analytics marts.
 - Deterministic raw-zone contract that can map to local files or object
   storage.
-- Local ClickHouse analytical warehouse migration with PostgreSQL retained as a
-  temporary oracle during parity validation.
+- Local ClickHouse analytical warehouse for batch, CDC raw events, dbt models,
+  parity relations, and Elementary.
 - Parallel Airflow DAG variants for local warehouse runs and AWS Redshift batch
   runs.
 - Row-level validation, dead-letter files, threshold checks, and replay support.
@@ -91,8 +90,6 @@ infra/
   clickhouse/           ClickHouse local database, raw, CDC, and runtime DDL.
   control-postgres/     PostgreSQL control-plane DDL for Airflow-hosted
                         olist_control.
-  postgres/             PostgreSQL warehouse DDL for schemas, raw tables, audit,
-                        and correction tables during the oracle period.
   redshift/             Redshift warehouse DDL and COPY templates.
 
 observability/          Local Prometheus, Grafana, Alertmanager, Loki, and
@@ -104,8 +101,7 @@ scripts/
   ingestion/            Source validation, raw file preparation, corrections.
   loading/              PostgreSQL, ClickHouse, and Redshift raw load helpers.
   orchestration/        Batch-control helpers.
-  parity/               Cross-engine oracle/candidate manifest export and
-                        comparison utilities.
+  parity/               Canonical manifest export and comparison utilities.
   quality/              Reconciliation checks.
   testing/              Fixture generation.
   utilities/            Profiling, validation, and helper scripts.
@@ -118,9 +114,7 @@ tests/
 
 ## Main Design Choices
 
-- The local analytical warehouse is migrating to ClickHouse. PostgreSQL is
-  temporarily retained as the analytical oracle until the ClickHouse cutover is
-  complete.
+- The local analytical warehouse is ClickHouse.
 - PostgreSQL remains the right local store for Airflow metadata, the Debezium
   OLTP source, and transactional pipeline-control state.
 - The AWS/Redshift path is batch-oriented and remains supported separately from
@@ -141,9 +135,8 @@ tests/
   reproducible and independent of cloud infrastructure.
 - CI uses a small deterministic fixture while still covering the real
   ingestion, loading, reconciliation, and dbt path.
-- Phase 7 CI also compiles ClickHouse candidate selectors, uploads
-  oracle/candidate comparator artifacts, and validates ClickHouse Prometheus
-  coverage while preserving the PostgreSQL oracle until cutover.
+- CI compiles ClickHouse selectors, validates canonical comparator artifacts,
+  and checks ClickHouse Prometheus coverage.
 
 ## Running Locally
 

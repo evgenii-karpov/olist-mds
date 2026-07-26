@@ -9,6 +9,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import clickhouse_connect
 import psycopg2
 from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
@@ -115,24 +116,24 @@ class RelationFingerprint:
     checksum: str
 
 
-def pipeline_env() -> dict[str, str]:
-    env = os.environ.copy()
-    env.setdefault("POSTGRES_HOST", "postgres")
-    env.setdefault("POSTGRES_PORT", "5432")
-    env.setdefault("POSTGRES_DB", "olist_analytics")
-    env.setdefault("POSTGRES_USER", "olist")
-    env.setdefault("POSTGRES_PASSWORD", "olist")
-    return env
+def clickhouse_password() -> str:
+    password = os.environ.get("CLICKHOUSE_PASSWORD")
+    if password:
+        return password
+    password_file = os.environ.get("CLICKHOUSE_PASSWORD_FILE")
+    if password_file:
+        return open(password_file, encoding="utf-8").read().strip()
+    return "olist"
 
 
-def postgres_connection(env: dict[str, str] | None = None) -> PgConnection:
-    settings = pipeline_env() if env is None else env
-    return psycopg2.connect(
-        host=settings["POSTGRES_HOST"],
-        port=int(settings["POSTGRES_PORT"]),
-        dbname=settings["POSTGRES_DB"],
-        user=settings["POSTGRES_USER"],
-        password=settings["POSTGRES_PASSWORD"],
+def clickhouse_client():
+    return clickhouse_connect.get_client(
+        host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
+        port=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
+        username=os.environ.get("CLICKHOUSE_USER", "olist"),
+        password=clickhouse_password(),
+        database=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
+        secure=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
     )
 
 
@@ -279,5 +280,55 @@ def capture_fingerprints(
     selected = DEFAULT_FINGERPRINT_COLUMNS if relations is None else relations
     return {
         relation_name: relation_fingerprint(connection, relation_name, columns)
+        for relation_name, columns in selected.items()
+    }
+
+
+def _clickhouse_identifier(identifier: str) -> str:
+    if "\x00" in identifier:
+        raise ValueError("ClickHouse identifier contains a null byte")
+    return f"`{identifier.replace('`', '``')}`"
+
+
+def clickhouse_relation_fingerprint(
+    client: Any,
+    relation_name: str,
+    columns: Sequence[str],
+) -> RelationFingerprint:
+    schema_name, table_name = relation_name.split(".", maxsplit=1)
+    row_expression = (
+        "concat("
+        + ", '|', ".join(
+            (
+                f"if(isNull({_clickhouse_identifier(column)}), "
+                f"'<NULL>', toString({_clickhouse_identifier(column)}))"
+            )
+            for column in columns
+        )
+        + ")"
+    )
+    query = f"""
+        WITH row_fingerprints AS (
+            SELECT lower(hex(MD5({row_expression}))) AS row_fingerprint
+            FROM {_clickhouse_identifier(schema_name)}.{_clickhouse_identifier(table_name)}
+        )
+        SELECT
+            count() AS row_count,
+            lower(hex(MD5(arrayStringConcat(arraySort(groupArray(row_fingerprint)), '|')))) AS checksum
+        FROM row_fingerprints
+    """
+    row = client.query(query).first_row
+    if row is None:
+        raise AssertionError("Expected query to return exactly one row")
+    return RelationFingerprint(row_count=int(row[0]), checksum=str(row[1]))
+
+
+def capture_clickhouse_fingerprints(
+    client: Any,
+    relations: dict[str, list[str]] | None = None,
+) -> dict[str, RelationFingerprint]:
+    selected = DEFAULT_FINGERPRINT_COLUMNS if relations is None else relations
+    return {
+        relation_name: clickhouse_relation_fingerprint(client, relation_name, columns)
         for relation_name, columns in selected.items()
     }

@@ -23,10 +23,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import boto3
 import clickhouse_connect
-import psycopg2
 import pyarrow as pa
 import pyarrow.parquet as parquet
-from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 from psycopg2.extras import Json, execute_values
 from scripts.orchestration.control_postgres import (
@@ -272,18 +270,6 @@ def clickhouse_client(args: argparse.Namespace) -> ClickHouseClient:
     )
 
 
-def postgres_connection(args: argparse.Namespace) -> PgConnection:
-    return psycopg2.connect(
-        host=args.host,
-        port=args.port,
-        dbname=args.database,
-        user=args.user,
-        password=read_secret(args.password, args.password_file),
-        connect_timeout=10,
-        application_name="olist_cdc_ingest",
-    )
-
-
 def ch_identifier(identifier: str) -> str:
     if "\x00" in identifier:
         raise ValueError("ClickHouse identifier contains a null byte")
@@ -341,69 +327,6 @@ def row_payload(row: Mapping[str, Any], columns: Sequence[str]) -> tuple[Any, ..
 
 def cdc_columns(table: str) -> tuple[str, ...]:
     return BUSINESS_COLUMNS[table] + COMMON_COLUMNS + ("_source_object_uri",)
-
-
-class PostgresRawCdcSink:
-    def __init__(self, connection: PgConnection) -> None:
-        self.connection = connection
-
-    def insert_file(
-        self, manifest: Manifest, rows: Sequence[dict[str, Any]]
-    ) -> tuple[int, int]:
-        columns = cdc_columns(manifest.table)
-        values = [
-            (*tuple(row[column] for column in columns[:-1]), manifest.object_uri)
-            for row in rows
-        ]
-        temp_name = f"cdc_stage_{uuid.uuid4().hex}"
-        with self.connection.cursor() as cursor:
-            cursor.execute(
-                sql.SQL(
-                    "create temp table {} (like raw_cdc.{} including defaults) on commit drop"
-                ).format(sql.Identifier(temp_name), sql.Identifier(manifest.table))
-            )
-            insert_stage = sql.SQL("insert into {} ({}) values %s").format(
-                sql.Identifier(temp_name),
-                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-            )
-            execute_values(
-                cursor, insert_stage.as_string(cursor), values, page_size=1000
-            )
-            insert_target = sql.SQL(
-                "insert into raw_cdc.{} ({}) select {} from {} "
-                "on conflict (_event_id) do nothing"
-            ).format(
-                sql.Identifier(manifest.table),
-                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-                sql.SQL(", ").join(sql.Identifier(column) for column in columns),
-                sql.Identifier(temp_name),
-            )
-            cursor.execute(insert_target)
-            inserted = cursor.rowcount
-            duplicates = len(rows) - inserted
-        self.connection.commit()
-        return inserted, duplicates
-
-    def source_progress(
-        self, table: str, topic: str, partition: int, contiguous_offset: int
-    ) -> tuple[Any, Any]:
-        with self.connection.cursor() as cursor:
-            cursor.execute(
-                sql.SQL(
-                    """
-                    select _source_lsn, _source_ts
-                    from raw_cdc.{}
-                    where _topic = %s and _partition = %s and _offset <= %s
-                    order by _offset desc limit 1
-                    """
-                ).format(sql.Identifier(table)),
-                (topic, partition, contiguous_offset),
-            )
-            source_row = cursor.fetchone()
-        return (source_row[0], source_row[1]) if source_row else (None, None)
-
-    def close(self) -> None:
-        self.connection.close()
 
 
 class ClickHouseRawCdcSink:
@@ -942,13 +865,6 @@ def known_immutable_etags(
         )
         coverage = {str(uri): str(etag) for uri, etag in cursor.fetchall()}
     return manifests, coverage
-
-
-def execute_bootstrap(connection: PgConnection, sql_dir: Path) -> None:
-    with connection.cursor() as cursor:
-        for path in sorted(sql_dir.glob("*.sql")):
-            cursor.execute(path.read_text(encoding="utf-8"))
-    connection.commit()
 
 
 def register_manifests(connection: PgConnection, manifests: Sequence[Manifest]) -> None:
@@ -2014,27 +1930,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--warehouse-type",
-        choices=("clickhouse", "postgres"),
+        choices=("clickhouse",),
         default=os.environ.get("CDC_WAREHOUSE_TYPE", "clickhouse"),
-    )
-    parser.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
-    parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("POSTGRES_PORT", "5432"))
-    )
-    parser.add_argument(
-        "--database", default=os.environ.get("POSTGRES_DB", "olist_analytics")
-    )
-    parser.add_argument("--user", default=os.environ.get("POSTGRES_USER", "olist"))
-    parser.add_argument("--password", default=os.environ.get("POSTGRES_PASSWORD"))
-    parser.add_argument(
-        "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
     )
     add_control_postgres_args(parser)
     add_clickhouse_args(parser)
-    parser.add_argument("--bootstrap-sql-dir", default="infra/postgres")
     subparsers = parser.add_subparsers(dest="command", required=True)
-
-    subparsers.add_parser("bootstrap")
 
     ingest_parser = subparsers.add_parser("ingest")
     ingest_parser.add_argument(
@@ -2093,17 +1994,8 @@ def main() -> int:
     control_connection = open_control_connection(args)
     raw_sink: RawCdcSink | None = None
     try:
-        if args.command == "bootstrap":
-            with postgres_connection(args) as warehouse_connection:
-                return run_command(
-                    args, PostgresRawCdcSink(warehouse_connection), control_connection
-                )
         if args.command == "ingest":
-            raw_sink = (
-                ClickHouseRawCdcSink(clickhouse_client(args))
-                if args.warehouse_type == "clickhouse"
-                else PostgresRawCdcSink(postgres_connection(args))
-            )
+            raw_sink = ClickHouseRawCdcSink(clickhouse_client(args))
         return run_command(args, raw_sink, control_connection)
     finally:
         if raw_sink is not None:
@@ -2119,23 +2011,11 @@ def require_warehouse_connection(
     return raw_sink
 
 
-def require_postgres_sink(raw_sink: RawCdcSink | None) -> PostgresRawCdcSink:
-    if not isinstance(raw_sink, PostgresRawCdcSink):
-        raise ValueError("PostgreSQL warehouse sink is required for bootstrap")
-    return raw_sink
-
-
 def run_command(
     args: argparse.Namespace,
     raw_sink: RawCdcSink | None,
     control_connection: PgConnection,
 ) -> int:
-    if args.command == "bootstrap":
-        execute_bootstrap(
-            require_postgres_sink(raw_sink).connection,
-            Path(args.bootstrap_sql_dir),
-        )
-        return 0
     if args.command == "record-failure":
         record_orchestration_failure(
             control_connection,

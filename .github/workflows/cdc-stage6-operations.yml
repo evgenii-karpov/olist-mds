@@ -1,4 +1,4 @@
-name: CDC implementation — Stage 6 operational drills
+name: CDC operational drills
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ on:
 
 jobs:
   failure-injection:
-    name: "CDC implementation — Stage 6: alert fire and recovery"
+    name: "CDC operations: alert fire and recovery"
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -47,9 +47,9 @@ jobs:
         run: |
           docker compose --profile realtime-core --profile observability --profile logs \
             up -d --wait \
-            postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry \
+            clickhouse airflow-postgres airflow oltp-postgres kafka apicurio-registry \
             kafka-connect minio nifi \
-            clickhouse kafka-exporter postgres-exporter-oltp \
+            kafka-exporter postgres-exporter-oltp \
             statsd-exporter node-exporter cadvisor nifi-metrics-proxy \
             cdc-component-exporter cdc-pipeline-exporter prometheus alertmanager \
             grafana loki alloy

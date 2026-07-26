@@ -65,7 +65,7 @@ class ClickHousePhase6RealtimeDbtQualityTests(unittest.TestCase):
             self.assertIn("target.name == 'local_clickhouse'", sql)
             self.assertIn("where 1 = 0", sql)
 
-    def test_python_publication_and_parity_support_clickhouse(self) -> None:
+    def test_python_publication_and_parity_are_clickhouse_only(self) -> None:
         runtime = (ROOT / "scripts/cdc/realtime_transform.py").read_text(
             encoding="utf-8"
         )
@@ -73,7 +73,9 @@ class ClickHousePhase6RealtimeDbtQualityTests(unittest.TestCase):
         self.assertIn("read_custom_parity_results_clickhouse", runtime)
         self.assertIn("publish_clickhouse_views", runtime)
         self.assertIn("create or replace view analytics.mart_daily_revenue", runtime)
-        self.assertIn("not use_clickhouse_warehouse()", runtime)
+        self.assertNotIn("publish_postgres_views", runtime)
+        self.assertNotIn("read_custom_parity_results_postgres", runtime)
+        self.assertNotIn("POSTGRES_HOST", runtime)
         self.assertIn("DBT_TARGET", runtime)
 
     def test_clickhouse_runtime_projection_remains_retry_safe(self) -> None:

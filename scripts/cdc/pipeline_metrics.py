@@ -41,37 +41,6 @@ def timestamp_seconds(value: object) -> float | None:
     raise TypeError(f"Unsupported timestamp value type: {type(value).__name__}")
 
 
-def render_raw_metrics_postgres(connection_factory) -> list[str]:
-    lines: list[str] = []
-    with connection_factory() as connection:
-        connection.set_session(readonly=True, autocommit=False)
-        with connection.cursor() as cursor:
-            for table in BUSINESS_COLUMNS:
-                cursor.execute(
-                    f"""
-                    select _op, count(*),
-                           extract(epoch from max(_source_ts)),
-                           extract(epoch from clock_timestamp() - max(_source_ts))
-                    from raw_cdc.{table} group by _op
-                    """
-                )
-                for operation, count, source_timestamp, age in cursor.fetchall():
-                    lines.append(
-                        "olist_cdc_raw_events_total"
-                        f"{labels(environment='local', table=table, operation=str(operation))} {count}"
-                    )
-                    if source_timestamp is not None:
-                        lines.append(
-                            "olist_cdc_raw_max_source_timestamp_seconds"
-                            f"{labels(environment='local', table=table)} {source_timestamp}"
-                        )
-                        lines.append(
-                            "olist_cdc_raw_freshness_seconds"
-                            f"{labels(environment='local', table=table)} {age}"
-                        )
-    return lines
-
-
 def render_raw_metrics_clickhouse(client_factory) -> list[str]:
     lines: list[str] = []
     client = client_factory()
@@ -131,23 +100,6 @@ def transform_finish_by_object(cursor) -> dict[str, datetime]:
     }
 
 
-def raw_event_rows_postgres(connection_factory) -> list[tuple[str, datetime, str]]:
-    rows: list[tuple[str, datetime, str]] = []
-    with connection_factory() as connection:
-        connection.set_session(readonly=True, autocommit=False)
-        with connection.cursor() as cursor:
-            for table in BUSINESS_COLUMNS:
-                cursor.execute(
-                    f"""
-                    select _event_id, _source_ts, _source_object_uri
-                    from raw_cdc.{table}
-                    where _source_ts is not null
-                    """
-                )
-                rows.extend(cursor.fetchall())
-    return rows
-
-
 def raw_event_rows_clickhouse(client_factory) -> list[tuple[str, datetime, str]]:
     rows: list[tuple[str, datetime, str]] = []
     client = client_factory()
@@ -170,7 +122,6 @@ def raw_event_rows_clickhouse(client_factory) -> list[tuple[str, datetime, str]]
 def render_event_latency_histogram(
     cursor,
     raw_connection_factory,
-    warehouse_type: str,
 ) -> list[str]:
     """Render a rolling event-level histogram from immutable transform membership."""
     finished_by_object = transform_finish_by_object(cursor)
@@ -179,11 +130,7 @@ def render_event_latency_histogram(
         total_sum = 0.0
         bucket_counts = {bucket: 0 for bucket in LATENCY_BUCKETS}
     else:
-        raw_rows = (
-            raw_event_rows_clickhouse(raw_connection_factory)
-            if warehouse_type == "clickhouse"
-            else raw_event_rows_postgres(raw_connection_factory)
-        )
+        raw_rows = raw_event_rows_clickhouse(raw_connection_factory)
         event_latencies: dict[str, float] = {}
         for event_id, source_ts, object_uri in raw_rows:
             finished_at = finished_by_object.get(str(object_uri))
@@ -224,14 +171,10 @@ def render_event_latency_histogram(
 def render_metrics(
     control_connection_factory,
     raw_connection_factory,
-    warehouse_type: str,
 ) -> bytes:
     lines = ["olist_cdc_pipeline_up 1"]
     try:
-        if warehouse_type == "clickhouse":
-            lines.extend(render_raw_metrics_clickhouse(raw_connection_factory))
-        else:
-            lines.extend(render_raw_metrics_postgres(raw_connection_factory))
+        lines.extend(render_raw_metrics_clickhouse(raw_connection_factory))
         with control_connection_factory() as connection:
             connection.set_session(readonly=True, autocommit=False)
             with connection.cursor() as cursor:
@@ -438,16 +381,14 @@ def render_metrics(
                             f"{latency}"
                         )
                 lines.extend(
-                    render_event_latency_histogram(
-                        cursor, raw_connection_factory, warehouse_type
-                    )
+                    render_event_latency_histogram(cursor, raw_connection_factory)
                 )
     except Exception:
         lines[0] = "olist_cdc_pipeline_up 0"
     return ("\n".join(lines) + "\n").encode()
 
 
-def handler(control_connection_factory, raw_connection_factory, warehouse_type: str):
+def handler(control_connection_factory, raw_connection_factory):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
             if self.path not in {"/metrics", "/-/healthy"}:
@@ -456,9 +397,7 @@ def handler(control_connection_factory, raw_connection_factory, warehouse_type: 
             body = (
                 b"ok\n"
                 if self.path == "/-/healthy"
-                else render_metrics(
-                    control_connection_factory, raw_connection_factory, warehouse_type
-                )
+                else render_metrics(control_connection_factory, raw_connection_factory)
             )
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; version=0.0.4")
@@ -474,23 +413,6 @@ def handler(control_connection_factory, raw_connection_factory, warehouse_type: 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--warehouse-type",
-        choices=["postgres", "clickhouse"],
-        default=os.environ.get("CDC_WAREHOUSE_TYPE", "clickhouse"),
-    )
-    parser.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
-    parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("POSTGRES_PORT", "5432"))
-    )
-    parser.add_argument(
-        "--database", default=os.environ.get("POSTGRES_DB", "olist_analytics")
-    )
-    parser.add_argument("--user", default=os.environ.get("POSTGRES_USER", "olist"))
-    parser.add_argument("--password", default=os.environ.get("POSTGRES_PASSWORD"))
-    parser.add_argument(
-        "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
-    )
     parser.add_argument(
         "--control-host", default=os.environ.get("CONTROL_POSTGRES_HOST", "localhost")
     )
@@ -544,17 +466,6 @@ def main() -> int:
     parser.add_argument("--listen-port", type=int, default=9107)
     args = parser.parse_args()
 
-    def connect_postgres_raw():
-        return psycopg2.connect(
-            host=args.host,
-            port=args.port,
-            dbname=args.database,
-            user=args.user,
-            password=read_secret(args.password, args.password_file),
-            connect_timeout=5,
-            application_name="olist_cdc_metrics_readonly",
-        )
-
     def connect_control():
         return psycopg2.connect(
             host=args.control_host,
@@ -579,14 +490,9 @@ def main() -> int:
             secure=args.clickhouse_secure,
         )
 
-    raw_connection_factory = (
-        connect_clickhouse_raw
-        if args.warehouse_type == "clickhouse"
-        else connect_postgres_raw
-    )
     ThreadingHTTPServer(
         ("0.0.0.0", args.listen_port),
-        handler(connect_control, raw_connection_factory, args.warehouse_type),
+        handler(connect_control, connect_clickhouse_raw),
     ).serve_forever()
     return 0
 

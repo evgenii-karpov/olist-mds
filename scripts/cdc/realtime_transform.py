@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import psycopg2
 import clickhouse_connect
 from psycopg2.extensions import connection as PgConnection
 
@@ -38,26 +37,6 @@ DBT_UTILS_PARITY_TESTS = (
     "dbt_utils_equality_daily_revenue",
     "dbt_utils_equality_monthly_arpu",
 )
-
-
-def read_secret(value: str | None, file_value: str | None, default: str) -> str:
-    if value:
-        return value
-    if file_value:
-        return Path(file_value).read_text(encoding="utf-8").strip()
-    return default
-
-
-def connect(args: argparse.Namespace) -> PgConnection:
-    password = read_secret(args.password, args.password_file, "olist")
-    return psycopg2.connect(
-        host=args.host,
-        port=args.port,
-        dbname=args.database,
-        user=args.user,
-        password=password,
-        connect_timeout=10,
-    )
 
 
 def clickhouse_password(args: argparse.Namespace) -> str:
@@ -80,11 +59,11 @@ def clickhouse_client(args: argparse.Namespace):
 
 
 def use_clickhouse_warehouse() -> bool:
-    return local_dbt_target() == "local_clickhouse"
+    return True
 
 
 def local_dbt_target() -> str:
-    return os.environ.get("DBT_TARGET", "local_pg")
+    return os.environ.get("DBT_TARGET", "local_clickhouse")
 
 
 def manifest_selection_digest(
@@ -327,52 +306,6 @@ def dbt_utils_error_results(message: str) -> list[dict[str, Any]]:
     ]
 
 
-def read_custom_parity_results_postgres(
-    connection: PgConnection,
-) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
-    results: dict[str, list[dict[str, str]]] = {}
-    failed_metrics: list[str] = []
-    try:
-        with connection.cursor() as cursor:
-            for report in PARITY_REPORTS:
-                if report == "realtime_parity_grain_diffs":
-                    cursor.execute(
-                        """
-                        select metric_name, grain_key
-                        from cdc_audit.realtime_parity_grain_diffs
-                        order by metric_name, grain_key
-                        limit 1000
-                        """
-                    )
-                    rows = [
-                        {"metric_name": str(metric), "grain_key": str(grain)}
-                        for metric, grain in cursor.fetchall()
-                    ]
-                    results[report] = rows
-                    failed_metrics.extend(f"{metric}:{grain}" for metric, grain in rows)
-                    continue
-
-                cursor.execute(
-                    f"""
-                    select metric_name, status
-                    from cdc_audit.{report}
-                    where status <> 'PASS'
-                    order by metric_name
-                    limit 1000
-                    """
-                )
-                rows = [
-                    {"metric_name": str(metric), "status": str(status)}
-                    for metric, status in cursor.fetchall()
-                ]
-                results[report] = rows
-                failed_metrics.extend(str(row["metric_name"]) for row in rows)
-    except Exception:
-        connection.rollback()
-        raise
-    return results, failed_metrics
-
-
 def read_custom_parity_results_clickhouse(
     args: argparse.Namespace,
 ) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
@@ -423,9 +356,7 @@ def read_custom_parity_results_clickhouse(
 def read_custom_parity_results(
     args: argparse.Namespace,
 ) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
-    if use_clickhouse_warehouse():
-        return read_custom_parity_results_clickhouse(args)
-    return read_custom_parity_results_postgres(args.warehouse_connection)
+    return read_custom_parity_results_clickhouse(args)
 
 
 def parity_status(
@@ -834,7 +765,7 @@ def quality(
     )
     if args.full:
         run_dbt(["test", "--selector", "realtime_transform"])
-        target = os.environ.get("DBT_TARGET", "local_pg")
+        target = os.environ.get("DBT_TARGET", "local_clickhouse")
         subprocess.run(
             [
                 os.environ.get("EDR_BIN", "edr"),
@@ -899,43 +830,6 @@ def publish_clickhouse_views(args: argparse.Namespace, target: str) -> None:
         client.close()
 
 
-def publish_postgres_views(args: argparse.Namespace, target: str) -> None:
-    targets = {
-        "batch": ("marts.mart_daily_revenue", "marts.mart_monthly_arpu"),
-        "realtime": (
-            "realtime_marts.mart_daily_revenue_realtime",
-            "realtime_marts.mart_monthly_arpu_realtime",
-        ),
-    }
-    daily, monthly = targets[target]
-    with (
-        args.warehouse_connection,
-        args.warehouse_connection.cursor() as warehouse_cursor,
-    ):
-        warehouse_cursor.execute(
-            f"""
-        create or replace view analytics.mart_daily_revenue as
-        select
-            order_purchase_date, gross_revenue,
-            allocated_payment_revenue, product_revenue, freight_revenue,
-            orders_count, customers_count, items_count,
-            average_order_value, average_paid_order_value,
-            average_delivery_days, late_deliveries_count
-        from {daily}
-        """
-        )
-        warehouse_cursor.execute(
-            f"""
-        create or replace view analytics.mart_monthly_arpu as
-        select
-            order_month, active_customers, total_revenue, arpu,
-            orders_count, orders_per_customer, average_order_value,
-            repeat_customer_rate
-        from {monthly}
-        """
-        )
-
-
 def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any]:
     with connection, connection.cursor() as cursor:
         cursor.execute(
@@ -952,10 +846,7 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
         parity_status = row[0]
         if args.target == "realtime" and parity_status != "PASS":
             raise ValueError("realtime publication requires recorded parity PASS")
-        if use_clickhouse_warehouse():
-            publish_clickhouse_views(args, args.target)
-        else:
-            publish_postgres_views(args, args.target)
+        publish_clickhouse_views(args, args.target)
         cursor.execute(
             """
                 update cdc_audit.cdc_publication_state
@@ -970,18 +861,6 @@ def publish(connection: PgConnection, args: argparse.Namespace) -> dict[str, Any
 
 def parser() -> argparse.ArgumentParser:
     value = argparse.ArgumentParser()
-    value.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
-    value.add_argument(
-        "--port", type=int, default=int(os.environ.get("POSTGRES_PORT", "5432"))
-    )
-    value.add_argument(
-        "--database", default=os.environ.get("POSTGRES_DB", "olist_analytics")
-    )
-    value.add_argument("--user", default=os.environ.get("POSTGRES_USER", "olist"))
-    value.add_argument("--password", default=os.environ.get("POSTGRES_PASSWORD"))
-    value.add_argument(
-        "--password-file", default=os.environ.get("POSTGRES_PASSWORD_FILE")
-    )
     value.add_argument(
         "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "localhost")
     )
@@ -1040,16 +919,8 @@ def parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
     connection = None
-    warehouse_connection = None
     try:
-        if args.command != "quality" or use_clickhouse_warehouse():
-            connection = control_connection(args)
-        if (
-            args.command in {"publish", "record-parity"}
-            and not use_clickhouse_warehouse()
-        ):
-            warehouse_connection = connect(args)
-            args.warehouse_connection = warehouse_connection
+        connection = control_connection(args)
         if args.command == "quality":
             result = quality(connection, args)
         else:
@@ -1066,8 +937,6 @@ def main() -> None:
     finally:
         if connection is not None:
             connection.close()
-        if warehouse_connection is not None:
-            warehouse_connection.close()
     print(json.dumps(result, default=str, sort_keys=True))
     if args.command == "record-parity" and result.get("parity_status") != "PASS":
         raise SystemExit(1)

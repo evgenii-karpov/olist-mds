@@ -1,4 +1,4 @@
-"""Replay corrected dead-letter rows into PostgreSQL raw tables."""
+"""Replay corrected dead-letter rows into ClickHouse raw tables."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import argparse
 import csv
 import gzip
 import io
-import os
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -19,8 +18,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import psycopg2
-from psycopg2 import sql
 from psycopg2.extensions import connection as PgConnection
 
 from scripts.ingestion.correction_specs import CORRECTION_FEEDS
@@ -30,7 +27,18 @@ from scripts.ingestion.raw_files import (
     utc_now_string,
 )
 from scripts.ingestion.record_validation import validate_row
-from scripts.loading.load_raw_to_postgres import RAW_SCHEMA, execute_sql_files, utc_now
+from scripts.loading.load_raw_to_clickhouse import (
+    ClickHouseClient,
+    add_clickhouse_args,
+    ch_string,
+    clickhouse_client,
+    qualified,
+)
+from scripts.loading.raw_batch import RAW_SCHEMA, utc_now
+from scripts.orchestration.control_postgres import (
+    add_control_postgres_args,
+    control_connection,
+)
 
 
 @dataclass(frozen=True)
@@ -44,18 +52,9 @@ class ReplaySpec:
 class ReplayPayload:
     batch_id: str
     replay_source_file: str
+    columns: list[str]
     csv_buffer: io.StringIO
     row_count: int
-
-
-def postgres_connection(args: argparse.Namespace) -> PgConnection:
-    return psycopg2.connect(
-        host=args.host,
-        port=args.port,
-        dbname=args.database,
-        user=args.user,
-        password=args.password,
-    )
 
 
 def load_replay_specs(profile_path: Path) -> dict[str, ReplaySpec]:
@@ -167,42 +166,85 @@ def build_replay_payload(
     return ReplayPayload(
         batch_id=batch_id,
         replay_source_file=replay_source_file,
+        columns=fieldnames,
         csv_buffer=output,
         row_count=len(rows),
     )
 
 
 def delete_previous_replay(
-    connection: PgConnection,
+    client: ClickHouseClient,
     spec: ReplaySpec,
     payload: ReplayPayload,
     source_system: str,
 ) -> None:
-    delete_statement = sql.SQL(
-        """
-        delete from {}.{}
-        where _batch_id = %s
-          and _source_file = %s
-          and _source_system = %s;
-        """
-    ).format(sql.Identifier(RAW_SCHEMA), sql.Identifier(spec.entity_name))
-    with connection.cursor() as cursor:
-        cursor.execute(
-            delete_statement,
-            (payload.batch_id, payload.replay_source_file, source_system),
-        )
+    client.command(
+        "ALTER TABLE "
+        f"{qualified(RAW_SCHEMA, spec.entity_name)} "
+        "DELETE WHERE "
+        f"_batch_id = {ch_string(payload.batch_id)} "
+        f"AND _source_file = {ch_string(payload.replay_source_file)} "
+        f"AND _source_system = {ch_string(source_system)}"
+    )
 
 
-def copy_replay_rows(
-    connection: PgConnection,
+def insert_replay_rows(
+    client: ClickHouseClient,
     spec: ReplaySpec,
     payload: ReplayPayload,
 ) -> None:
-    copy_statement = sql.SQL(
-        "copy {}.{} from stdin with (format csv, header true)"
-    ).format(sql.Identifier(RAW_SCHEMA), sql.Identifier(spec.entity_name))
-    with connection.cursor() as cursor:
-        cursor.copy_expert(copy_statement.as_string(connection), payload.csv_buffer)
+    payload.csv_buffer.seek(0)
+    client.raw_insert(
+        qualified(RAW_SCHEMA, spec.entity_name),
+        column_names=payload.columns,
+        insert_block=payload.csv_buffer.getvalue(),
+        fmt="CSVWithNames",
+        settings={
+            "input_format_csv_empty_as_default": 1,
+            "input_format_null_as_default": 1,
+        },
+    )
+
+
+def replay_row_count(
+    client: ClickHouseClient,
+    spec: ReplaySpec,
+    payload: ReplayPayload,
+    source_system: str,
+) -> int:
+    row = client.query(
+        "SELECT count() "
+        f"FROM {qualified(RAW_SCHEMA, spec.entity_name)} "
+        "WHERE "
+        f"_batch_id = {ch_string(payload.batch_id)} "
+        f"AND _source_file = {ch_string(payload.replay_source_file)} "
+        f"AND _source_system = {ch_string(source_system)}"
+    ).first_row
+    if row is None:
+        raise ValueError("Expected ClickHouse replay row count")
+    return int(row[0])
+
+
+def copy_replay_rows(
+    client: ClickHouseClient,
+    spec: ReplaySpec,
+    payload: ReplayPayload,
+) -> None:
+    insert_replay_rows(client, spec, payload)
+
+
+def validate_replay_rows(
+    client: ClickHouseClient,
+    spec: ReplaySpec,
+    payload: ReplayPayload,
+    source_system: str,
+) -> None:
+    loaded_rows = replay_row_count(client, spec, payload, source_system)
+    if loaded_rows != payload.row_count:
+        raise ValueError(
+            f"ClickHouse replay count mismatch for {spec.entity_name}: "
+            f"expected {payload.row_count}, got {loaded_rows}"
+        )
 
 
 def delete_replay_audit(
@@ -305,7 +347,8 @@ def record_replay_failure(
 
 
 def replay_dead_letters(
-    connection: PgConnection,
+    client: ClickHouseClient,
+    control_pg_connection: PgConnection,
     spec: ReplaySpec,
     payload: ReplayPayload,
     dead_letter_file: Path,
@@ -314,21 +357,22 @@ def replay_dead_letters(
 ) -> None:
     started_at = utc_now()
     try:
-        delete_previous_replay(connection, spec, payload, source_system)
-        copy_replay_rows(connection, spec, payload)
+        delete_previous_replay(client, spec, payload, source_system)
+        copy_replay_rows(client, spec, payload)
+        validate_replay_rows(client, spec, payload, source_system)
         record_replay_success(
-            connection,
+            control_pg_connection,
             replay_id,
             spec,
             payload,
             dead_letter_file,
             started_at,
         )
-        connection.commit()
+        control_pg_connection.commit()
     except Exception as exc:
-        connection.rollback()
+        control_pg_connection.rollback()
         record_replay_failure(
-            connection,
+            control_pg_connection,
             replay_id,
             spec,
             payload.batch_id,
@@ -348,20 +392,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-id")
     parser.add_argument("--replay-id")
     parser.add_argument("--source-system", default="olist_dead_letter_replay")
-    parser.add_argument("--bootstrap-sql-dir")
-    parser.add_argument("--host", default=os.environ.get("POSTGRES_HOST", "localhost"))
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=int(os.environ.get("POSTGRES_PORT", "5432")),
-    )
-    parser.add_argument(
-        "--database", default=os.environ.get("POSTGRES_DB", "olist_analytics")
-    )
-    parser.add_argument("--user", default=os.environ.get("POSTGRES_USER", "olist"))
-    parser.add_argument(
-        "--password", default=os.environ.get("POSTGRES_PASSWORD", "olist")
-    )
+    add_clickhouse_args(parser)
+    add_control_postgres_args(parser)
     return parser.parse_args()
 
 
@@ -387,13 +419,12 @@ def main() -> None:
         source_system=args.source_system,
     )
 
-    connection = postgres_connection(args)
+    client = clickhouse_client(args)
+    control_pg_connection = control_connection(args)
     try:
-        if args.bootstrap_sql_dir:
-            execute_sql_files(connection, Path(args.bootstrap_sql_dir))
-
         replay_dead_letters(
-            connection=connection,
+            client=client,
+            control_pg_connection=control_pg_connection,
             spec=spec,
             payload=payload,
             dead_letter_file=dead_letter_file,
@@ -401,7 +432,8 @@ def main() -> None:
             source_system=args.source_system,
         )
     finally:
-        connection.close()
+        client.close()
+        control_pg_connection.close()
 
     print(
         f"Replayed {payload.row_count} {spec.entity_name} rows "

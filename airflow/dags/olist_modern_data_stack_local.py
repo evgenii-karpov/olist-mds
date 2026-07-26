@@ -1,7 +1,7 @@
 """Local Airflow DAG for the Olist Modern Data Stack project.
 
 This DAG is the default development entrypoint. It uses a local S3-shaped raw
-zone and PostgreSQL in Docker instead of S3 and Redshift.
+zone and ClickHouse in Docker instead of S3 and Redshift.
 """
 
 from __future__ import annotations
@@ -23,9 +23,7 @@ DAG_ID = "olist_modern_data_stack_local"
 DEFAULT_SOURCE_ARCHIVE = "olist.zip"
 DEFAULT_SOURCE_PROFILE = "docs/source_profile.json"
 DEFAULT_LOCAL_RAW_DIR = "data/raw/olist"
-POSTGRES_SQL_DIR = "infra/postgres"
-DEFAULT_DBT_TARGET = "local_pg"
-CLICKHOUSE_DBT_TARGET = "local_clickhouse"
+DEFAULT_DBT_TARGET = "local_clickhouse"
 # Runtime default for manual/demo runs. It is after all generated correction
 # feed effective dates, so one batch sees the complete synthetic SCD2 scenario.
 DEFAULT_DEMO_BATCH_DATE = "2018-09-01"
@@ -74,10 +72,10 @@ def default_args() -> dict[str, Any]:
 def dag_params() -> dict[str, Param]:
     return {
         "warehouse_target": Param(
-            "postgres",
+            "clickhouse",
             type="string",
-            enum=["postgres", "clickhouse"],
-            description="Raw warehouse target for the local batch candidate run.",
+            enum=["clickhouse"],
+            description="Raw warehouse target for the local batch run.",
         ),
         "run_dbt": Param(
             True,
@@ -332,58 +330,13 @@ def olist_modern_data_stack_local():
         @task
         def load_raw_files() -> None:
             params, batch_date, run_id = current_batch_identifiers()
-            warehouse_target = str(params["warehouse_target"])
-            if warehouse_target == "clickhouse":
-                command = [
-                    python_bin(),
-                    "scripts/loading/load_raw_to_clickhouse.py",
-                    "--raw-dir",
-                    str(params["raw_dir"]),
-                    "--profile",
-                    str(params["source_profile"]),
-                    "--batch-date",
-                    batch_date,
-                    "--batch-id",
-                    batch_date,
-                    "--run-id",
-                    run_id,
-                    "--dag-id",
-                    DAG_ID,
-                ]
-            else:
-                command = [
-                    python_bin(),
-                    "scripts/loading/load_raw_to_postgres.py",
-                    "--raw-dir",
-                    str(params["raw_dir"]),
-                    "--profile",
-                    str(params["source_profile"]),
-                    "--bootstrap-sql-dir",
-                    POSTGRES_SQL_DIR,
-                    "--batch-date",
-                    batch_date,
-                    "--batch-id",
-                    batch_date,
-                    "--run-id",
-                    run_id,
-                    "--dag-id",
-                    DAG_ID,
-                ]
-            run_project_command(command)
-
-        @task
-        def reconcile_raw_load() -> None:
-            params, batch_date, run_id = current_batch_identifiers()
-            warehouse_target = str(params["warehouse_target"])
             command = [
                 python_bin(),
-                "scripts/quality/reconcile_batch.py",
+                "scripts/loading/load_raw_to_clickhouse.py",
                 "--raw-dir",
                 str(params["raw_dir"]),
                 "--profile",
                 str(params["source_profile"]),
-                "--warehouse-type",
-                warehouse_target,
                 "--batch-date",
                 batch_date,
                 "--batch-id",
@@ -393,8 +346,29 @@ def olist_modern_data_stack_local():
                 "--dag-id",
                 DAG_ID,
             ]
-            if warehouse_target == "postgres":
-                command.extend(["--bootstrap-sql-dir", POSTGRES_SQL_DIR])
+            run_project_command(command)
+
+        @task
+        def reconcile_raw_load() -> None:
+            params, batch_date, run_id = current_batch_identifiers()
+            command = [
+                python_bin(),
+                "scripts/quality/reconcile_batch.py",
+                "--raw-dir",
+                str(params["raw_dir"]),
+                "--profile",
+                str(params["source_profile"]),
+                "--warehouse-type",
+                "clickhouse",
+                "--batch-date",
+                batch_date,
+                "--batch-id",
+                batch_date,
+                "--run-id",
+                run_id,
+                "--dag-id",
+                DAG_ID,
+            ]
             run_project_command(command)
 
         _ = load_raw_files() >> reconcile_raw_load()
@@ -411,18 +385,10 @@ def olist_modern_data_stack_local():
             "dbt build --selector batch --vars "
             "'{batch_date: \"{{ params.batch_date }}\", lookback_days: {{ params.lookback_days }}}'"
         )
-        dbt_target = (
-            "{{ '"
-            + CLICKHOUSE_DBT_TARGET
-            + "' if params.warehouse_target == 'clickhouse' else '"
-            + DEFAULT_DBT_TARGET
-            + "' }}"
-        )
-
         dbt_build = BashOperator(
             task_id="dbt_build",
             cwd=str(dbt_project_dir()),
-            env={**os.environ, "DBT_TARGET": dbt_target},
+            env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
             bash_command=(
                 "{% if params.full_refresh %}"
                 + dbt_build_command
@@ -436,11 +402,11 @@ def olist_modern_data_stack_local():
         elementary_report = BashOperator(
             task_id="elementary_report",
             cwd=str(dbt_project_dir()),
-            env={**os.environ, "DBT_TARGET": dbt_target},
+            env={**os.environ, "DBT_TARGET": DEFAULT_DBT_TARGET},
             bash_command=(
                 "mkdir -p target/edr && "
                 "edr report --env prod --profiles-dir . "
-                f"--profile-target {dbt_target} "
+                f"--profile-target {DEFAULT_DBT_TARGET} "
                 '--target-path "$PWD/target/edr" '
                 '--file-path "$PWD/target/edr/elementary_report.html" '
                 "--open-browser false"

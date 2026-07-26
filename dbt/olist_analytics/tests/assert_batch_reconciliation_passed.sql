@@ -1,6 +1,6 @@
 {{ config(tags=['batch_quality']) }}
 
-{% if target.name in ['local_pg', 'local_clickhouse'] %}
+{% if target.name == 'local_clickhouse' %}
 
     select 'reconcile_batch.py validates batch reconciliation' as reason
     where 1 = 0

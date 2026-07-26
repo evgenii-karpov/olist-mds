@@ -14,7 +14,7 @@ from scripts.loading.load_raw_to_clickhouse import (
     load_csv_to_staging,
     validate_source_schema,
 )
-from scripts.loading.load_raw_to_postgres import RawLoadSpec
+from scripts.loading.raw_batch import RawLoadSpec
 from scripts.quality.reconcile_batch import count_clickhouse_raw_rows
 
 
@@ -142,8 +142,10 @@ class ClickHouseBatchPhase3Tests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('"warehouse_target"', dag_text)
-        self.assertIn('enum=["postgres", "clickhouse"]', dag_text)
+        self.assertIn('enum=["clickhouse"]', dag_text)
         self.assertIn("scripts/loading/load_raw_to_clickhouse.py", dag_text)
+        removed_loader = "scripts/loading/load_raw_to_" + "postgres.py"
+        self.assertNotIn(removed_loader, dag_text)
         self.assertIn('"--warehouse-type"', dag_text)
         self.assertIn('"run_dbt"', dag_text)
 

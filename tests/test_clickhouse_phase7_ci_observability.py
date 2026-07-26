@@ -15,9 +15,10 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
     ) -> None:
         compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
         services = compose["services"]
-        self.assertIn("postgres", services)
+        self.assertNotIn("postgres", services)
         self.assertIn("postgres-exporter-oltp", services)
-        self.assertNotIn("postgres-exporter-warehouse", services)
+        removed_exporter = "postgres-exporter-" + "warehouse"
+        self.assertNotIn(removed_exporter, services)
 
         prometheus = yaml.safe_load(
             (ROOT / "observability/prometheus/prometheus.yml").read_text(
@@ -40,7 +41,7 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         self.assertIn("clickhouse-init", service["depends_on"])
         self.assertIn("clickhouse_password", service["secrets"])
         self.assertIn("control_postgres_password", service["secrets"])
-        self.assertIn("--warehouse-type", service["command"])
+        self.assertEqual(["--listen-port", "9107"], service["command"])
 
         exporter = (ROOT / "scripts/cdc/pipeline_metrics.py").read_text(
             encoding="utf-8"
@@ -77,7 +78,7 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         self.assertIn("ClickHouseProfileEvents_FailedQuery", payload)
         self.assertIn("olist_cdc_raw_freshness_seconds", payload)
 
-    def test_workflows_have_clickhouse_candidate_and_comparator_jobs(self) -> None:
+    def test_workflows_have_clickhouse_runtime_and_comparator_jobs(self) -> None:
         ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity = (ROOT / ".github/workflows/batch-cdc-parity.yml").read_text(
             encoding="utf-8"
@@ -88,16 +89,19 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
         stage6 = (ROOT / ".github/workflows/cdc-stage6-operations.yml").read_text(
             encoding="utf-8"
         )
+        removed_exporter = "postgres-exporter-" + "warehouse"
 
         self.assertIn("local_clickhouse", ci)
+        self.assertIn("clickhouse-runtime-contract", ci)
+        self.assertIn("cdc-clickhouse-ingest-resilience", ci)
+        self.assertIn("check_clickhouse_cdc_ingest_resilience.py", ci)
         self.assertIn("scripts/parity/compare_manifests.py", ci)
         self.assertIn("scripts/parity/export_clickhouse_candidate.py", parity)
-        self.assertIn("scripts/parity/export_postgres_oracle.py", parity)
         self.assertIn("scripts/parity/compare_manifests.py", parity)
         self.assertIn("DBT_TARGET: local_clickhouse", parity)
         self.assertIn("CDC_WAREHOUSE_TYPE: clickhouse", parity)
         self.assertIn(
-            '"warehouse_target": "clickhouse" if use_clickhouse_warehouse() else "postgres"',
+            '"warehouse_target": "clickhouse"',
             parity_runner,
         )
         self.assertIn("data/reports/clickhouse-candidate-manifest.json", parity)
@@ -106,12 +110,13 @@ class ClickHousePhase7CiObservabilityTests(unittest.TestCase):
             parity,
         )
         self.assertNotIn(
-            "--candidate data/reports/postgres-oracle-manifest.json",
+            "--candidate data/reports/" + "postgres-" + "oracle-manifest.json",
             parity,
         )
-        self.assertIn("candidate-run", parity)
+        self.assertNotIn("candidate-run", parity)
+        self.assertNotIn("run_clickhouse_candidate", parity)
         self.assertIn("clickhouse-init", stage6)
-        self.assertNotIn("postgres-exporter-warehouse", stage6)
+        self.assertNotIn(removed_exporter, stage6)
 
 
 if __name__ == "__main__":

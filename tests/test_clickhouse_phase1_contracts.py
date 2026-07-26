@@ -45,13 +45,14 @@ class ClickHousePhase1ContractTests(unittest.TestCase):
         )
         self.assertIn("infra/clickhouse/initdb", "\n".join(init["volumes"]))
 
-    def test_airflow_keeps_local_pg_default_and_resolves_clickhouse_secret(
+    def test_airflow_uses_clickhouse_default_and_resolves_secret(
         self,
     ) -> None:
         airflow = self.compose["services"]["airflow"]
         environment = airflow["environment"]
 
-        self.assertEqual(environment["DBT_TARGET"], "${DBT_TARGET:-local_pg}")
+        self.assertEqual(environment["DBT_TARGET"], "${DBT_TARGET:-local_clickhouse}")
+        self.assertNotIn("POSTGRES_HOST", environment)
         self.assertEqual(environment["CLICKHOUSE_HOST"], "clickhouse")
         self.assertEqual(
             environment["CLICKHOUSE_PASSWORD_FILE"], "/run/secrets/clickhouse_password"
@@ -75,7 +76,7 @@ class ClickHousePhase1ContractTests(unittest.TestCase):
 
         self.assertEqual(
             self.profile["olist_analytics"]["target"],
-            "{{ env_var('DBT_TARGET', 'local_pg') }}",
+            "{{ env_var('DBT_TARGET', 'local_clickhouse') }}",
         )
 
     def test_clickhouse_ddl_matches_phase1_storage_contract(self) -> None:

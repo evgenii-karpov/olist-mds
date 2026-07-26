@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import clickhouse_connect
 
 from scripts.ingestion.raw_files import raw_file_path
-from scripts.loading.load_raw_to_postgres import (
+from scripts.loading.raw_batch import (
     RAW_SCHEMA,
     DeadLetterManifestEntry,
     RawLoadSpec,

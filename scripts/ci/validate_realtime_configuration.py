@@ -34,7 +34,8 @@ REQUIRED_COMPONENTS = {
 
 REQUIRED_DIRECTORIES = (
     "infra/oltp",
-    "infra/postgres/realtime",
+    "infra/clickhouse",
+    "infra/control-postgres",
     "infra/redshift/realtime",
     "infra/aws/realtime",
     "streaming/kafka",

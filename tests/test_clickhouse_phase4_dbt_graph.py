@@ -78,7 +78,7 @@ class ClickHousePhase4DbtGraphTests(unittest.TestCase):
         macro_sql = (
             ROOT / "dbt/olist_analytics/macros/warehouse_compat.sql"
         ).read_text(encoding="utf-8")
-        contract = (ROOT / "scripts/parity/postgres_oracle_relations.json").read_text(
+        contract = (ROOT / "scripts/parity/canonical_batch_relations.json").read_text(
             encoding="utf-8"
         )
 
@@ -112,15 +112,15 @@ class ClickHousePhase4DbtGraphTests(unittest.TestCase):
         self.assertIn("include_empty_partition_order=False", edge_fixture_sql)
         self.assertIn("Expected partitions", edge_fixture_sql)
 
-    def test_local_dag_routes_dbt_target_from_warehouse_target(self) -> None:
+    def test_local_dag_uses_clickhouse_dbt_target(self) -> None:
         dag_text = (ROOT / "airflow/dags/olist_modern_data_stack_local.py").read_text(
             encoding="utf-8"
         )
 
-        self.assertIn('CLICKHOUSE_DBT_TARGET = "local_clickhouse"', dag_text)
-        self.assertIn("params.warehouse_target == 'clickhouse'", dag_text)
-        self.assertIn('"DBT_TARGET": dbt_target', dag_text)
-        self.assertIn("--profile-target {dbt_target}", dag_text)
+        self.assertIn('DEFAULT_DBT_TARGET = "local_clickhouse"', dag_text)
+        self.assertNotIn("params.warehouse_target == 'clickhouse'", dag_text)
+        self.assertIn('"DBT_TARGET": DEFAULT_DBT_TARGET', dag_text)
+        self.assertIn("--profile-target {DEFAULT_DBT_TARGET}", dag_text)
 
     def test_clickhouse_manifest_type_mapping_preserves_semantics(self) -> None:
         self.assertEqual(_semantic_type("seller_id", "String").semantic_type, "string")
