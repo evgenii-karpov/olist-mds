@@ -80,6 +80,7 @@ operations:
 | `bootstrap-nifi`                  | Deploy or update the version-controlled NiFi CDC process group.          |
 | `seed`                            | Load the full local `olist.zip` archive into OLTP PostgreSQL.            |
 | `seed-small`                      | Load the committed small fixture archive.                                |
+| `run-workload`                    | Generate a finite synthetic OLTP workload after the initial snapshot.    |
 | `register-connector`              | Create or update the Debezium connector and wait for `RUNNING`.          |
 | `connector-status`                | Print Debezium connector and task state.                                 |
 | `wait-connector-running`          | Wait until the connector and task are `RUNNING`.                         |
@@ -291,27 +292,20 @@ docker compose exec -T airflow-postgres `
 ## 10. Prove incremental propagation
 
 After the initial snapshot and transform have completed, create a finite
-incremental workload using the current UTC time:
+incremental workload. By default this generates 20 synthetic order lifecycles
+at the current UTC source time:
 
 ```powershell
-$runId = "e2e_" + (Get-Date -Format "yyyyMMdd_HHmmss")
-$startTime = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-
-uv run python -m scripts.simulation run `
-  --seed 20260717 `
-  --run-id $runId `
-  --start-time $startTime `
-  --event-limit 20 `
-  --rate 5 `
-  --password-file docker/secrets/dev/postgres_password.txt
+uv run python scripts/cdc/local_lab.py run-workload
 ```
 
-Inspect the persisted simulator run:
+For a larger or faster run:
 
 ```powershell
-uv run python -m scripts.simulation status `
-  --run-id $runId `
-  --password-file docker/secrets/dev/postgres_password.txt
+uv run python scripts/cdc/local_lab.py run-workload `
+  --event-limit 100 `
+  --rate 20 `
+  --no-pacing
 ```
 
 After three to five minutes, repeat the audit and warehouse queries from the

@@ -58,6 +58,11 @@ DEFAULT_CONSUMER_GROUP = "olist-nifi-cdc-v1"
 FULL_ARCHIVE = ROOT / "olist.zip"
 SMALL_ARCHIVE = ROOT / "tests" / "fixtures" / "olist_small" / "olist_small.zip"
 DEFAULT_PASSWORD_FILE = ROOT / "docker" / "secrets" / "dev" / "postgres_password.txt"
+REALTIME_RELATIONS = {
+    "fact_order_items_realtime": "realtime_core.fact_order_items_realtime",
+    "mart_daily_revenue_realtime": "realtime_marts.mart_daily_revenue_realtime",
+    "mart_monthly_arpu_realtime": "realtime_marts.mart_monthly_arpu_realtime",
+}
 CAPTURED_TABLES = (
     "customers",
     "orders",
@@ -218,6 +223,51 @@ def seed_source(
     )
 
 
+def simulation_run_id(prefix: str) -> str:
+    return prefix + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
+def current_utc_start_time() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def run_workload_source(
+    *,
+    seed: int,
+    run_id: str,
+    start_time: str,
+    rate: float,
+    event_limit: int | None,
+    duration_seconds: float | None,
+    password_file: Path,
+    no_pacing: bool,
+    env: dict[str, str],
+) -> None:
+    command = [
+        sys.executable,
+        "-m",
+        "scripts.simulation",
+        "run",
+        "--seed",
+        str(seed),
+        "--run-id",
+        run_id,
+        "--start-time",
+        start_time,
+        "--rate",
+        str(rate),
+        "--password-file",
+        str(password_file),
+    ]
+    if duration_seconds is not None:
+        command.extend(["--duration-seconds", str(duration_seconds)])
+    else:
+        command.extend(["--event-limit", str(event_limit or 20)])
+    if no_pacing:
+        command.append("--no-pacing")
+    run(command, env=env)
+
+
 def source_counts(env: dict[str, str]) -> dict[str, int]:
     selects = [
         f"select '{table}' as table_name, count(*)::bigint as row_count from public.{table}"
@@ -342,6 +392,33 @@ def seed(args: argparse.Namespace) -> int:
         env=env,
     )
     source_counts(env)
+    return 0
+
+
+def run_workload(args: argparse.Namespace) -> int:
+    run_id = args.run_id or simulation_run_id("local_lab_workload__")
+    start_time = args.start_time or current_utc_start_time()
+    run_workload_source(
+        seed=int(args.seed),
+        run_id=run_id,
+        start_time=start_time,
+        rate=float(args.rate),
+        event_limit=args.event_limit,
+        duration_seconds=args.duration_seconds,
+        password_file=lab_path(args.password_file),
+        no_pacing=bool(args.no_pacing),
+        env=compose_env(),
+    )
+    print(
+        json.dumps(
+            {
+                "event": "workload_submitted",
+                "run_id": run_id,
+                "start_time": start_time,
+            },
+            sort_keys=True,
+        )
+    )
     return 0
 
 
@@ -511,6 +588,22 @@ def warehouse_status_in_container(_: argparse.Namespace) -> int:
                 "max_loaded_at": None if row[2] is None else str(row[2]),
             }
 
+        realtime_counts: dict[str, dict[str, Any]] = {}
+        for name, relation in REALTIME_RELATIONS.items():
+            row = clickhouse.query(
+                f"""
+                SELECT count(), max(max_source_ts)
+                FROM {relation}
+                """
+            ).first_row
+            if row is None:
+                raise RuntimeError(f"Failed to read realtime relation: {relation}")
+            realtime_counts[name] = {
+                "relation": relation,
+                "rows": int(row[0]),
+                "max_source_ts": None if row[1] is None else str(row[1]),
+            }
+
         with control, control.cursor() as cursor:
             cursor.execute(
                 """
@@ -553,6 +646,7 @@ def warehouse_status_in_container(_: argparse.Namespace) -> int:
             {
                 "event": "warehouse_status",
                 "raw_cdc": raw_counts,
+                "realtime": realtime_counts,
                 "cdc_audit": audit_summary,
             },
             indent=2,
@@ -695,6 +789,31 @@ def main() -> int:
         default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
     )
     seed_small_parser.set_defaults(func=seed)
+
+    workload_parser = subparsers.add_parser(
+        "run-workload",
+        help="Generate a finite synthetic OLTP workload after the CDC snapshot.",
+    )
+    workload_parser.add_argument("--seed", type=int, default=20260717)
+    workload_parser.add_argument("--run-id")
+    workload_parser.add_argument(
+        "--start-time",
+        help="Logical source start time. Defaults to the current UTC time.",
+    )
+    workload_parser.add_argument("--rate", type=float, default=5.0)
+    workload_limit = workload_parser.add_mutually_exclusive_group()
+    workload_limit.add_argument("--event-limit", type=int)
+    workload_limit.add_argument("--duration-seconds", type=float)
+    workload_parser.add_argument(
+        "--no-pacing",
+        action="store_true",
+        help="Generate the workload as fast as possible instead of sleeping by rate.",
+    )
+    workload_parser.add_argument(
+        "--password-file",
+        default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
+    )
+    workload_parser.set_defaults(func=run_workload)
 
     check_parser = subparsers.add_parser(
         "check",
