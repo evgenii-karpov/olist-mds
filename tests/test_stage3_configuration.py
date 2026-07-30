@@ -15,6 +15,11 @@ class Stage3ConfigurationTests(unittest.TestCase):
         self.flow = json.loads(
             (ROOT / "streaming/nifi/flow/olist-cdc-v1.json").read_text(encoding="utf-8")
         )
+        self.parameters = json.loads(
+            (ROOT / "streaming/nifi/parameters/local.template.json").read_text(
+                encoding="utf-8"
+            )
+        )
 
     def test_realtime_services_and_persistent_repositories(self) -> None:
         for service in ("minio", "minio-init", "nifi", "nifi-bootstrap"):
@@ -48,12 +53,17 @@ class Stage3ConfigurationTests(unittest.TestCase):
         )
         self.assertIn('NIFI_PYTHON_COMMAND="/usr/local/bin/python3.12"', start)
         self.assertIn("nifi.python.command=${NIFI_PYTHON_COMMAND}", start)
+        self.assertIn("NIFI_JVM_HEAP_INIT: 2g", self.compose)
+        self.assertIn("NIFI_JVM_HEAP_MAX: 4g", self.compose)
 
     def test_flow_uses_durable_group_and_bounded_bins(self) -> None:
         by_name = {item["name"]: item for item in self.flow["processors"]}
         consume = by_name["Consume Olist CDC"]["properties"]
         self.assertEqual("#{kafka_group_id}", consume["Group ID"])
         self.assertEqual("true", consume["Commit Offsets"])
+        kafka_service = self.flow["controller_services"][0]["properties"]
+        self.assertEqual("500", kafka_service["max.poll.records"])
+        self.assertNotIn("max.poll.interval.ms", kafka_service)
         for name in ("Merge Landing", "Merge Normalized"):
             self.assertEqual(
                 "#{max_bin_age}", by_name[name]["properties"]["Max Bin Age"]
@@ -61,6 +71,26 @@ class Stage3ConfigurationTests(unittest.TestCase):
             self.assertEqual(
                 "#{maximum_bin_size}", by_name[name]["properties"]["Maximum Bin Size"]
             )
+
+    def test_local_nifi_profile_is_sized_for_full_fixture_snapshot(self) -> None:
+        self.assertEqual("0 sec", self.parameters["default_scheduling_period"])
+        self.assertEqual(4, self.parameters["default_concurrent_tasks"])
+        self.assertEqual(200000, self.parameters["backpressure_object_threshold"])
+        concurrency = self.parameters["processor_concurrent_tasks"]
+        self.assertEqual(2, concurrency["Consume Olist CDC"])
+        self.assertEqual(8, concurrency["Route Tombstones"])
+        self.assertEqual(8, concurrency["Build Landing Avro"])
+        self.assertEqual(8, concurrency["Build Normalized Avro"])
+
+    def test_nifi_bootstrap_updates_existing_runtime_settings(self) -> None:
+        deploy = (ROOT / "streaming/nifi/deploy_flow.py").read_text(encoding="utf-8")
+        self.assertIn("update_processor", deploy)
+        self.assertIn("update_service", deploy)
+        self.assertIn("update_connection", deploy)
+        self.assertIn("stop_processors", deploy)
+        self.assertIn("disable_services", deploy)
+        self.assertIn("default_scheduling_period", deploy)
+        self.assertIn("processor_concurrent_tasks", deploy)
 
     def test_flow_routes_delete_tombstone_and_poison_records_once(self) -> None:
         by_name = {item["name"]: item for item in self.flow["processors"]}

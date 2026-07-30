@@ -420,8 +420,8 @@ services:
     environment:
       NIFI_ADMIN_USERNAME: nifi-admin
       NIFI_WEB_PROXY_HOST: "nifi:8443,localhost:${NIFI_HOST_PORT:-8443}"
-      NIFI_JVM_HEAP_INIT: 1g
-      NIFI_JVM_HEAP_MAX: 2g
+      NIFI_JVM_HEAP_INIT: 2g
+      NIFI_JVM_HEAP_MAX: 4g
     ports:
       - "${NIFI_HOST_PORT:-8443}:8443"
     volumes:

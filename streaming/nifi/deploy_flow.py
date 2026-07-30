@@ -152,6 +152,7 @@ def configure_service(
             },
         },
     )
+    validate_service_properties(entity, definition)
     return client.put(
         f"/controller-services/{entity['id']}",
         {
@@ -165,12 +166,69 @@ def configure_service(
     )
 
 
+def update_service(
+    client: NifiClient,
+    entity: dict[str, Any],
+    definition: dict[str, Any],
+) -> dict[str, Any]:
+    current = client.get(f"/controller-services/{entity['id']}")
+    validate_service_properties(current, definition)
+    return client.put(
+        f"/controller-services/{entity['id']}",
+        {
+            "revision": current["revision"],
+            "component": {
+                "id": entity["id"],
+                "name": definition["name"],
+                "properties": definition.get("properties", {}),
+            },
+        },
+    )
+
+
+def validate_service_properties(
+    entity: dict[str, Any], definition: dict[str, Any]
+) -> None:
+    descriptors = entity["component"].get("descriptors", {})
+    unsupported = sorted(set(definition.get("properties", {})) - set(descriptors))
+    if unsupported:
+        raise ValueError(
+            "controller service "
+            f"{definition['name']!r} does not support properties: "
+            f"{', '.join(unsupported)}"
+        )
+
+
+def disable_services(client: NifiClient, services: dict[str, dict[str, Any]]) -> None:
+    for entity in services.values():
+        current = client.get(f"/controller-services/{entity['id']}")
+        if current["component"]["state"] != "DISABLED":
+            client.put(
+                f"/controller-services/{entity['id']}/run-status",
+                {"revision": current["revision"], "state": "DISABLED"},
+            )
+    deadline = time.monotonic() + 120
+    while True:
+        states = {
+            name: client.get(f"/controller-services/{entity['id']}")["component"][
+                "state"
+            ]
+            for name, entity in services.items()
+        }
+        if set(states.values()) == {"DISABLED"}:
+            return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"controller services did not disable: {states}")
+        time.sleep(1)
+
+
 def configure_processor(
     client: NifiClient,
     group_id: str,
     definition: dict[str, Any],
     available: dict[str, dict[str, Any]],
     service_ids: dict[str, str],
+    parameters: dict[str, Any],
 ) -> dict[str, Any]:
     metadata = resolve_type(definition["type"], available)
     entity = client.post(
@@ -185,7 +243,13 @@ def configure_processor(
             },
         },
     )
-    properties = {
+    return update_processor(client, entity, definition, service_ids, parameters)
+
+
+def processor_properties(
+    definition: dict[str, Any], service_ids: dict[str, str]
+) -> dict[str, Any]:
+    return {
         key: (
             service_ids[value.removeprefix("@service:")]
             if isinstance(value, str) and value.startswith("@service:")
@@ -193,18 +257,62 @@ def configure_processor(
         )
         for key, value in definition.get("properties", {}).items()
     }
+
+
+def processor_concurrent_tasks(
+    definition: dict[str, Any], parameters: dict[str, Any]
+) -> int:
+    overrides = parameters.get("processor_concurrent_tasks", {})
+    if not isinstance(overrides, dict):
+        raise ValueError("processor_concurrent_tasks must be an object")
+    value = overrides.get(
+        definition["name"],
+        definition.get(
+            "concurrently_schedulable_tasks",
+            parameters.get("default_concurrent_tasks", 1),
+        ),
+    )
+    return int(value)
+
+
+def processor_scheduling_period(
+    definition: dict[str, Any], parameters: dict[str, Any]
+) -> str:
+    return str(
+        definition.get(
+            "scheduling_period",
+            parameters.get("default_scheduling_period", "1 sec"),
+        )
+    )
+
+
+def update_processor(
+    client: NifiClient,
+    entity: dict[str, Any],
+    definition: dict[str, Any],
+    service_ids: dict[str, str],
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    properties = {
+        **processor_properties(definition, service_ids),
+    }
+    current = ensure_processor_stopped(client, entity)
     return client.put(
         f"/processors/{entity['id']}",
         {
-            "revision": entity["revision"],
+            "revision": current["revision"],
             "component": {
                 "id": entity["id"],
                 "name": definition["name"],
                 "config": {
                     "properties": properties,
                     "schedulingStrategy": "TIMER_DRIVEN",
-                    "schedulingPeriod": "1 sec",
-                    "concurrentlySchedulableTaskCount": 1,
+                    "schedulingPeriod": processor_scheduling_period(
+                        definition, parameters
+                    ),
+                    "concurrentlySchedulableTaskCount": processor_concurrent_tasks(
+                        definition, parameters
+                    ),
                     "penaltyDuration": "30 sec",
                     "yieldDuration": "1 sec",
                     "bulletinLevel": "WARN",
@@ -215,8 +323,78 @@ def configure_processor(
     )
 
 
+def ensure_processor_stopped(
+    client: NifiClient, entity: dict[str, Any]
+) -> dict[str, Any]:
+    current = client.get(f"/processors/{entity['id']}")
+    if current["component"]["state"] == "STOPPED":
+        return current
+    client.put(
+        f"/processors/{entity['id']}/run-status",
+        {"revision": current["revision"], "state": "STOPPED"},
+    )
+    deadline = time.monotonic() + 120
+    while True:
+        current = client.get(f"/processors/{entity['id']}")
+        if current["component"]["state"] == "STOPPED":
+            return current
+        if time.monotonic() >= deadline:
+            raise TimeoutError(
+                "processor did not stop: "
+                f"{current['component']['name']}={current['component']['state']}"
+            )
+        time.sleep(1)
+
+
+def stop_processors(client: NifiClient, processors: dict[str, dict[str, Any]]) -> None:
+    for entity in processors.values():
+        ensure_processor_stopped(client, entity)
+    deadline = time.monotonic() + 120
+    while True:
+        states = {
+            name: client.get(f"/processors/{entity['id']}")["component"]["state"]
+            for name, entity in processors.items()
+        }
+        if set(states.values()) == {"STOPPED"}:
+            return
+        if time.monotonic() >= deadline:
+            raise TimeoutError(f"processors did not stop: {states}")
+        time.sleep(1)
+
+
+def connection_index(current_flow: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        entity["component"]["name"]: entity
+        for entity in current_flow.get("connections", [])
+    }
+
+
+def update_connection(
+    client: NifiClient,
+    entity: dict[str, Any],
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
+    current = client.get(f"/connections/{entity['id']}")
+    component = current["component"]
+    component["backPressureObjectThreshold"] = int(
+        parameters["backpressure_object_threshold"]
+    )
+    component["backPressureDataSizeThreshold"] = parameters[
+        "backpressure_data_size_threshold"
+    ]
+    component["flowFileExpiration"] = "0 sec"
+    return client.put(
+        f"/connections/{entity['id']}",
+        {"revision": current["revision"], "component": component},
+    )
+
+
 def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any]) -> str:
     root = client.get("/flow/process-groups/root")["processGroupFlow"]
+    group_id = ""
+    services: dict[str, dict[str, Any]] = {}
+    processors: dict[str, dict[str, Any]] = {}
+    connections: dict[str, dict[str, Any]] = {}
     existing = [
         entity
         for entity in root["flow"].get("processGroups", [])
@@ -239,6 +417,7 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
                 item["component"]["name"]: item
                 for item in current.get("processors", [])
             }
+            connections = connection_index(current)
             expected_services = {item["name"] for item in flow["controller_services"]}
             reuse_existing = set(services) == expected_services
         if not reuse_existing:
@@ -268,16 +447,14 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
             client.get("/flow/processor-types")["processorTypes"]
         )
 
-        services = {}
         for definition in flow["controller_services"]:
             entity = configure_service(client, group_id, definition, controller_types)
             services[definition["name"]] = entity
         service_ids = {name: entity["id"] for name, entity in services.items()}
 
-        processors = {}
         for definition in flow["processors"]:
             entity = configure_processor(
-                client, group_id, definition, processor_types, service_ids
+                client, group_id, definition, processor_types, service_ids, parameters
             )
             processors[definition["name"]] = entity
 
@@ -311,6 +488,27 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
                     },
                 },
             )
+    else:
+        stop_processors(client, processors)
+        disable_services(client, services)
+        service_ids = {name: entity["id"] for name, entity in services.items()}
+        for definition in flow["controller_services"]:
+            services[definition["name"]] = update_service(
+                client,
+                services[definition["name"]],
+                definition,
+            )
+        for definition in flow["processors"]:
+            processors[definition["name"]] = update_processor(
+                client,
+                processors[definition["name"]],
+                definition,
+                service_ids,
+                parameters,
+            )
+        for source_name, relationship, destination_name in flow["connections"]:
+            connection_name = f"{source_name} [{relationship}] to {destination_name}"
+            update_connection(client, connections[connection_name], parameters)
 
     for entity in services.values():
         current = client.get(f"/controller-services/{entity['id']}")
@@ -320,6 +518,7 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
                 {"revision": current["revision"], "state": "ENABLED"},
             )
     deadline = time.monotonic() + 120
+    states: list[str] = []
     while time.monotonic() < deadline:
         states = [
             client.get(f"/controller-services/{entity['id']}")["component"]["state"]
