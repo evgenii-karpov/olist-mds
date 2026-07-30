@@ -23,99 +23,42 @@ Do not generate replacement passwords before running this procedure.
 For the most reproducible test, remove existing containers and volumes:
 
 ```powershell
-docker compose `
-  --profile realtime-core `
-  --profile observability `
-  --profile logs `
-  down -v --remove-orphans
+uv run python scripts/cdc/local_lab.py stop --volumes
 ```
 
 This permanently deletes the local PostgreSQL databases, Kafka data, MinIO
-objects, NiFi repositories, Airflow metadata, and telemetry history. Omit `-v`
-when those volumes must be preserved.
+objects, NiFi repositories, Airflow metadata, and telemetry history. Use
+`uv run python scripts/cdc/local_lab.py stop` when volumes must be preserved.
 
-Enable Airflow StatsD metrics in the current PowerShell session:
+## 2. Start and smoke-check the local stack
 
-```powershell
-$env:AIRFLOW_STATSD_ON = "true"
-```
-
-## 2. Build the local runtime images
+Use the cross-platform helper:
 
 ```powershell
-docker compose --profile realtime-core build `
-  airflow `
-  kafka-connect `
-  minio `
-  nifi
+uv run python scripts/cdc/local_lab.py start --status
 ```
 
-The first build can take several minutes.
+It builds the local runtime images, starts the complete Compose stack, deploys
+the NiFi process group, validates Airflow DAG discovery, configures Apicurio,
+validates Kafka topics, and prints the final Compose status. It also enables
+Airflow StatsD metrics for the started Airflow container unless
+`AIRFLOW_STATSD_ON` is already set.
 
-## 3. Start the complete stack
+For repeated starts after the images already exist:
 
 ```powershell
-docker compose `
-  --profile realtime-core `
-  --profile observability `
-  --profile logs `
-  up -d --wait `
-  postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry `
-  kafka-connect minio nifi `
-  kafka-exporter postgres-exporter-oltp postgres-exporter-warehouse `
-  statsd-exporter node-exporter cadvisor nifi-metrics-proxy `
-  cdc-component-exporter cdc-pipeline-exporter prometheus alertmanager `
-  grafana loki alloy
-
-docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
-docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
+uv run python scripts/cdc/local_lab.py start --skip-build --status
 ```
 
-Inspect all services, including completed bootstrap containers:
+Expected result:
 
-```powershell
-docker compose `
-  --profile realtime-core `
-  --profile observability `
-  --profile logs `
-  ps -a
-```
-
-Expected state:
-
-- PostgreSQL, Kafka, Connect, Registry, MinIO, NiFi, Airflow, Prometheus,
-  Grafana, Loki, and exporters are `Up` or `healthy`;
-- `kafka-topics`, `minio-init`, `nifi-bootstrap`, and `cdc-warehouse-init`
-  completed with exit code `0`;
-
-Inspect bootstrap logs:
-
-```powershell
-docker compose logs --no-color `
-  kafka-topics `
-  minio-init `
-  nifi-bootstrap `
-  cdc-warehouse-init
-```
-
-The logs must not contain a traceback, failed initialization, or invalid NiFi
-processors.
-
-## 4. Validate Airflow DAG discovery
-
-```powershell
-docker compose exec -T airflow airflow dags list-import-errors
-
-docker compose exec -T airflow airflow dags list |
-  Select-String "olist_cdc"
-```
-
-There must be no import errors. The list must contain:
-
-- `olist_cdc_ingest_local`;
-- `olist_cdc_backfill_local`;
-- `olist_cdc_transform_local`;
-- `olist_cdc_quality_local`.
+- long-running PostgreSQL, ClickHouse, Kafka, Connect, Registry, MinIO, NiFi,
+  Airflow, Prometheus, Grafana, Loki, and exporter services are `Up` or
+  `healthy`;
+- one-shot bootstrap services such as `clickhouse-init`, `control-db-init`,
+  `kafka-topics`, and `minio-init` completed with exit code `0`;
+- the helper reports `Validated 4 CDC Airflow DAGs` and
+  `Validated 22 explicit Kafka topics`.
 
 Airflow is available at <http://localhost:8080>. The local credentials are:
 
@@ -124,47 +67,48 @@ username: admin
 password: admin
 ```
 
-## 5. Configure Apicurio and validate Kafka topics
+### Local lab helper command reference
 
-```powershell
-uv run python scripts/cdc/stage2_admin.py configure-registry
+The E2E workflow should use `scripts/cdc/local_lab.py` for routine local
+operations:
 
-uv run python scripts/cdc/stage2_admin.py validate-topics
-```
+| Command                           | Purpose                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `start [--skip-build] [--status]` | Build images, start Compose services, deploy NiFi, and run smoke checks. |
+| `stop [--volumes]`                | Stop services, optionally deleting local Compose volumes.                |
+| `check`                           | Run Airflow DAG discovery plus registry and Kafka topic checks.          |
+| `bootstrap-nifi`                  | Deploy or update the version-controlled NiFi CDC process group.          |
+| `seed`                            | Load the full local `olist.zip` archive into OLTP PostgreSQL.            |
+| `seed-small`                      | Load the committed small fixture archive.                                |
+| `register-connector`              | Create or update the Debezium connector and wait for `RUNNING`.          |
+| `connector-status`                | Print Debezium connector and task state.                                 |
+| `wait-connector-running`          | Wait until the connector and task are `RUNNING`.                         |
+| `restart-failed-connector`        | Restart failed Debezium tasks without deleting offsets or slots.         |
+| `enable-dags`                     | Unpause the CDC DAGs used by the local near-realtime path.               |
+| `trigger-ingest`                  | Trigger one `olist_cdc_ingest_local` run.                                |
+| `airflow-runs`                    | List recent CDC DAG runs.                                                |
+| `kafka-lag`                       | Show lag for the NiFi CDC consumer group.                                |
+| `warehouse-status`                | Print `raw_cdc` counts and `cdc_audit` summary.                          |
+| `status`                          | Print Compose plus connector, Kafka, Airflow, and warehouse status.      |
 
-Expected output confirms `BACKWARD_TRANSITIVE` registry compatibility and a
-valid explicit topic inventory.
-
-## 6. Seed the OLTP source
+## 3. Seed the OLTP source
 
 Seed before the first connector registration so Debezium takes an initial
 snapshot of populated source tables:
 
 ```powershell
-uv run python -m scripts.simulation seed `
-  --archive tests/fixtures/olist_small/olist_small.zip `
-  --seed 101 `
-  --run-id e2e_initial_seed `
-  --password-file docker/secrets/dev/postgres_password.txt
+uv run python scripts/cdc/local_lab.py seed
 ```
 
-Verify that the source contains orders:
+This command loads the full `olist.zip` archive and validates row counts for all
+captured CDC tables. For the committed small fixture, use
+`uv run python scripts/cdc/local_lab.py seed-small` instead.
+
+## 4. Register and validate Debezium
 
 ```powershell
-docker compose exec -T oltp-postgres `
-  psql -U olist_admin -d olist_oltp `
-  -c "select count(*) as source_orders from public.orders;"
-```
-
-`source_orders` must be greater than zero.
-
-## 7. Register and validate Debezium
-
-```powershell
-uv run python scripts/cdc/stage2_admin.py register-connector `
-  --password-file docker/secrets/dev/postgres_password.txt
-
-uv run python scripts/cdc/stage2_admin.py connector-status
+uv run python scripts/cdc/local_lab.py register-connector
+uv run python scripts/cdc/local_lab.py connector-status
 ```
 
 The connector and its task must both be `RUNNING`.
@@ -177,16 +121,12 @@ Invoke-RestMethod `
   ConvertTo-Json -Depth 10
 ```
 
-## 8. Verify Kafka-to-NiFi movement
+## 5. Verify Kafka-to-NiFi movement
 
 Inspect the stable NiFi consumer group:
 
 ```powershell
-docker compose exec -T kafka `
-  /opt/kafka/bin/kafka-consumer-groups.sh `
-  --bootstrap-server kafka:29092 `
-  --describe `
-  --group olist-nifi-cdc-v1
+uv run python scripts/cdc/local_lab.py kafka-lag
 ```
 
 Lag may be positive during the initial snapshot but must subsequently decrease
@@ -224,19 +164,12 @@ Bucket `olist-cdc` must contain objects under:
 - `stage/cdc/`;
 - `manifests/cdc/`.
 
-## 9. Enable the CDC DAGs
+## 6. Enable the CDC DAGs
 
 Unpause the Asset-triggered transform before the scheduled ingest:
 
 ```powershell
-docker compose exec -T airflow `
-  airflow dags unpause olist_cdc_transform_local
-
-docker compose exec -T airflow `
-  airflow dags unpause olist_cdc_ingest_local
-
-docker compose exec -T airflow `
-  airflow dags unpause olist_cdc_quality_local
+uv run python scripts/cdc/local_lab.py enable-dags
 ```
 
 Runtime behavior:
@@ -250,14 +183,13 @@ Runtime behavior:
 To trigger ingest immediately after NiFi has closed its objects:
 
 ```powershell
-docker compose exec -T airflow `
-  airflow dags trigger olist_cdc_ingest_local
+uv run python scripts/cdc/local_lab.py trigger-ingest
 ```
 
 Do not trigger the transform manually during the normal test. A successful
 ingest containing new rows must trigger it through the Asset event.
 
-## 10. Expected timing
+## 7. Expected timing
 
 For the small fixture:
 
@@ -273,27 +205,17 @@ The first run can take longer while Airflow and dbt warm up.
 Inspect recent DAG runs:
 
 ```powershell
-docker compose exec -T airflow `
-  airflow dags list-runs `
-  --dag-id olist_cdc_ingest_local `
-  --limit 5
-
-docker compose exec -T airflow `
-  airflow dags list-runs `
-  --dag-id olist_cdc_transform_local `
-  --limit 5
+uv run python scripts/cdc/local_lab.py airflow-runs --limit 5
 ```
 
 Both DAGs must finish in `success`.
 
-## 11. Verify warehouse ingest and transform audit
+## 8. Verify warehouse ingest and transform audit
 
-Inspect recent ingest runs:
+Inspect warehouse and audit state:
 
 ```powershell
-docker compose exec -T postgres `
-  psql -U olist -d olist_analytics `
-  -c "select ingest_run_id, status, files_loaded, inserted_rows, duplicate_rows, gap_count, finished_at from cdc_audit.cdc_ingest_runs order by started_at desc limit 5;"
+uv run python scripts/cdc/local_lab.py warehouse-status
 ```
 
 For the first effective run:
@@ -303,21 +225,13 @@ For the first effective run:
 - `inserted_rows > 0`;
 - `gap_count = 0`.
 
-Inspect transform runs:
-
-```powershell
-docker compose exec -T postgres `
-  psql -U olist -d olist_analytics `
-  -c "select transform_run_id, status, files_selected, events_selected, finished_at from cdc_audit.cdc_transform_runs order by started_at desc limit 5;"
-```
-
 The effective transform must have `status = SUCCEEDED`, `files_selected > 0`,
 and `events_selected > 0`.
 
 Verify raw CDC events:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select count(*) as raw_orders, max(_warehouse_loaded_at) as last_loaded_at, max(_source_ts) as last_source_at from raw_cdc.orders;"
 ```
@@ -325,7 +239,7 @@ docker compose exec -T postgres `
 Verify current realtime order state:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select count(*) as current_orders, max(_source_ts) as last_source_at from realtime_staging.stg_cdc__orders_current;"
 ```
@@ -333,19 +247,19 @@ docker compose exec -T postgres `
 Verify realtime marts:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select count(*) as mart_rows, max(max_source_ts) as last_source_at from realtime_marts.mart_daily_revenue_realtime;"
 ```
 
 All three queries must return rows.
 
-## 12. Verify integrity
+## 9. Verify integrity
 
 Offset gaps must be zero:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select coalesce(sum(gap_count), 0) as total_gaps from cdc_audit.cdc_partition_watermarks;"
 ```
@@ -353,7 +267,7 @@ docker compose exec -T postgres `
 Reconciliation must contain only `PASS`:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select status, count(*) from cdc_audit.cdc_reconciliation group by status order by status;"
 ```
@@ -361,7 +275,7 @@ docker compose exec -T postgres `
 No unresolved DLQ records are expected:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select count(*) as open_dlq from cdc_audit.cdc_dead_letters where resolution_status = 'OPEN';"
 ```
@@ -369,12 +283,12 @@ docker compose exec -T postgres `
 Inspect mart freshness:
 
 ```powershell
-docker compose exec -T postgres `
+docker compose exec -T airflow-postgres `
   psql -U olist -d olist_analytics `
   -c "select model_name, max_source_ts, build_time, latency_seconds from cdc_audit.cdc_mart_freshness order by model_name;"
 ```
 
-## 13. Prove incremental propagation
+## 10. Prove incremental propagation
 
 After the initial snapshot and transform have completed, create a finite
 incremental workload using the current UTC time:
@@ -410,7 +324,7 @@ previous sections. Expected evidence:
 - refreshed `cdc_mart_freshness`;
 - zero offset gaps and zero open DLQ records.
 
-## 14. Run the quality DAG immediately
+## 11. Run the quality DAG immediately
 
 The quality DAG normally starts at the beginning of each hour. Trigger it
 manually for this validation:
@@ -423,7 +337,7 @@ docker compose exec -T airflow `
 The run must succeed. It validates offset continuity, latest reconciliation,
 mart freshness, and realtime model invariants.
 
-## 15. Verify observability
+## 12. Verify observability
 
 Open:
 
@@ -449,7 +363,7 @@ Verify:
 - mart freshness reflects the latest transform;
 - the capacity/logs dashboard contains Loki records.
 
-## 16. Realtime marts versus published analytics
+## 13. Realtime marts versus published analytics
 
 The automatic near-realtime chain terminates in:
 
@@ -474,28 +388,22 @@ Publication is not required to validate the CDC chain itself. Successful
 ingest/transform runs and data in `raw_cdc`, `realtime_core`, and
 `realtime_marts` are the primary evidence.
 
-## 17. Batch-to-realtime parity integration
+## 14. Batch-to-realtime parity integration
 
 For the defining end-to-end evidence, use the disposable default batch plus
 `realtime-core` stack and the exact committed fixture on both branches:
 
 ```powershell
-docker compose --profile realtime-core down -v --remove-orphans
-docker compose --profile realtime-core build airflow kafka-connect minio nifi
-docker compose --profile realtime-core up -d --wait `
-  postgres airflow-postgres airflow oltp-postgres kafka apicurio-registry `
-  kafka-connect minio nifi
-docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
-docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
+uv run python scripts/cdc/local_lab.py stop --volumes
+uv run python scripts/cdc/local_lab.py start --status
 docker compose exec -T airflow `
   python scripts/ci/check_batch_cdc_parity_integration.py `
-  --archive tests/fixtures/olist_small/olist_small.zip `
   --profile tests/fixtures/olist_small/source_profile_small.json `
   --timeout-seconds 1200 `
   --poll-seconds 2 `
   --report data/reports/batch-cdc-parity.json
 Get-Content data/reports/batch-cdc-parity.json
-docker compose --profile realtime-core down -v --remove-orphans
+uv run python scripts/cdc/local_lab.py stop --volumes
 ```
 
 The command runs the real batch DAG and the real Debezium snapshot through
@@ -506,13 +414,22 @@ does not prove the latency SLO, SCD2 history equality, or CRUD/replay/recovery
 behavior; those remain separate checks. The manual GitHub Actions workflow
 runs this same command and uploads the bounded JSON report.
 
-## 18. Troubleshooting
+## 15. Troubleshooting
+
+For a compact snapshot of the local lab state, use:
+
+```powershell
+uv run python scripts/cdc/local_lab.py status
+```
+
+This prints Compose status and non-fatal connector, Kafka lag, Airflow run, and
+warehouse summaries.
 
 Connector is not running:
 
 ```powershell
 docker compose logs --no-color --tail=300 kafka-connect
-uv run python scripts/cdc/stage2_admin.py connector-status
+uv run python scripts/cdc/local_lab.py connector-status
 ```
 
 Kafka has records but MinIO objects do not appear:
@@ -526,14 +443,13 @@ MinIO objects exist but `raw_cdc` remains empty:
 
 ```powershell
 docker compose logs --no-color --tail=300 airflow
-docker compose exec -T airflow airflow dags trigger olist_cdc_ingest_local
+uv run python scripts/cdc/local_lab.py trigger-ingest
 ```
 
 `raw_cdc` contains data but realtime marts remain empty:
 
 ```powershell
-docker compose exec -T airflow `
-  airflow dags list-runs `
+uv run python scripts/cdc/local_lab.py airflow-runs `
   --dag-id olist_cdc_transform_local `
   --limit 5
 ```

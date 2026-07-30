@@ -62,13 +62,12 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "-ec"]
-    command:
-      - for file in /opt/olist/clickhouse/initdb/*.sql; do clickhouse-client --host clickhouse --port 9000 --user "$${CLICKHOUSE_USER:-olist}" --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)" --multiquery < "$${file}"; done
+    entrypoint: ["bash", "/opt/olist/clickhouse/init-clickhouse.sh"]
     environment:
       CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
     volumes:
       - ./infra/clickhouse/initdb:/opt/olist/clickhouse/initdb:ro
+      - ./docker/clickhouse/init-clickhouse.sh:/opt/olist/clickhouse/init-clickhouse.sh:ro
     secrets:
       - clickhouse_password
 
@@ -221,27 +220,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
-
-  cdc-warehouse-init:
-    image: olist-airflow:local
-    profiles: [realtime-core]
-    container_name: olist-cdc-warehouse-init
-    restart: "no"
-    depends_on:
-      control-db-init:
-        condition: service_completed_successfully
-      clickhouse-init:
-        condition: service_completed_successfully
-    entrypoint: ["python", "-c"]
-    command: ["print('ClickHouse raw CDC and PostgreSQL control schemas are initialized')"]
-    environment:
-      CONTROL_POSTGRES_HOST: airflow-postgres
-      CONTROL_POSTGRES_PORT: "5432"
-      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
-      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
-      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
-    secrets:
-      - control_postgres_password
 
   kafka:
     image: apache/kafka:4.3.1
@@ -492,7 +470,7 @@ services:
     restart: unless-stopped
     command: ["--path.rootfs=/host"]
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.55.1

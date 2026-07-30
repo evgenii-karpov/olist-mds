@@ -180,13 +180,51 @@ class ClickHousePhase5CdcIngestionTests(unittest.TestCase):
         self.assertIn("source('pipeline_runtime', 'cdc_transform_run_files')", macro)
         self.assertIn("- name: pipeline_runtime", sources)
 
-    def test_realtime_compose_init_no_longer_bootstraps_postgres_raw_cdc(self) -> None:
+    def test_realtime_compose_uses_real_init_dependencies_without_placeholder(
+        self,
+    ) -> None:
         compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
-        service = compose["services"]["cdc-warehouse-init"]
-        self.assertNotIn("postgres", service["depends_on"])
-        self.assertIn("clickhouse-init", service["depends_on"])
-        self.assertNotIn("postgres_password", service.get("secrets", []))
-        self.assertNotIn("warehouse_ingest.py", " ".join(service["entrypoint"]))
+        services = compose["services"]
+        self.assertNotIn("cdc-warehouse-init", services)
+        self.assertIn("control-db-init", services["airflow"]["depends_on"])
+        self.assertIn("clickhouse-init", services["airflow"]["depends_on"])
+        self.assertIn(
+            "control-db-init", services["cdc-pipeline-exporter"]["depends_on"]
+        )
+        self.assertIn(
+            "clickhouse-init", services["cdc-pipeline-exporter"]["depends_on"]
+        )
+
+    def test_local_lab_helper_uses_current_bootstrap_contract(self) -> None:
+        helper = (ROOT / "scripts/cdc/local_lab.py").read_text(encoding="utf-8")
+        self.assertIn('"control-db-init"', helper)
+        self.assertIn('"clickhouse-init"', helper)
+        self.assertIn('"nifi-bootstrap"', helper)
+        self.assertIn('"down"', helper)
+        self.assertIn('"--remove-orphans"', helper)
+        self.assertIn('"--volumes"', helper)
+        self.assertIn('"seed-small"', helper)
+        self.assertIn('"olist.zip"', helper)
+        self.assertIn('"tests"', helper)
+        self.assertIn('"olist_small.zip"', helper)
+        self.assertIn('"bootstrap-nifi"', helper)
+        self.assertIn('"register-connector"', helper)
+        self.assertIn('"enable-dags"', helper)
+        self.assertIn('"trigger-ingest"', helper)
+        self.assertIn('"airflow-runs"', helper)
+        self.assertIn('"kafka-lag"', helper)
+        self.assertIn('"warehouse-status"', helper)
+        self.assertIn('"status"', helper)
+        self.assertIn('"olist-nifi-cdc-v1"', helper)
+        self.assertIn(
+            'airflow_command("dags", "list-runs", dag_id, "-o", "json")',
+            helper,
+        )
+        self.assertNotIn(
+            'airflow_command(\n                    "dags",\n                    "list-runs",\n                    "--dag-id"',
+            helper,
+        )
+        self.assertNotIn('"cdc-warehouse-init"', helper)
 
 
 if __name__ == "__main__":

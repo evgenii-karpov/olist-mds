@@ -200,10 +200,7 @@ ClickHouse is the only supported local analytical warehouse.
 Start the local CDC telemetry stack:
 
 ```powershell
-$env:AIRFLOW_STATSD_ON = "true"
-$env:CDC_WAREHOUSE_TYPE = "clickhouse"
-docker compose --profile realtime-core build airflow kafka-connect minio nifi
-docker compose --profile realtime-core --profile observability --profile logs up -d --wait
+uv run python scripts/cdc/local_lab.py start --status
 ```
 
 Prometheus scrapes ClickHouse at `clickhouse:9363` and keeps the OLTP

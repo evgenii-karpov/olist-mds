@@ -63,10 +63,6 @@ create table if not exists public.orders (
     constraint ck_orders_approval_after_purchase check (
         order_approved_at is null or order_approved_at >= order_purchase_timestamp
     ),
-    constraint ck_orders_carrier_after_purchase check (
-        order_delivered_carrier_date is null
-        or order_delivered_carrier_date >= order_purchase_timestamp
-    ),
     constraint ck_orders_customer_after_purchase check (
         order_delivered_customer_date is null
         or order_delivered_customer_date >= order_purchase_timestamp
@@ -238,4 +234,3 @@ alter default privileges in schema public
 alter default privileges in schema public grant select on tables to olist_cdc_reader;
 alter default privileges in schema simulator_control
     grant select, insert, update, delete on tables to olist_simulator;
-

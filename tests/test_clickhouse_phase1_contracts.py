@@ -44,6 +44,19 @@ class ClickHousePhase1ContractTests(unittest.TestCase):
             init["depends_on"]["clickhouse"]["condition"], "service_healthy"
         )
         self.assertIn("infra/clickhouse/initdb", "\n".join(init["volumes"]))
+        self.assertIn("init-clickhouse.sh", "\n".join(init["entrypoint"]))
+        self.assertIn(
+            "docker/clickhouse/init-clickhouse.sh", "\n".join(init["volumes"])
+        )
+
+    def test_clickhouse_init_retries_transient_network_errors(self) -> None:
+        init_script = (ROOT / "docker/clickhouse/init-clickhouse.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("wait_for_clickhouse", init_script)
+        self.assertIn("clickhouse:9000", init_script)
+        self.assertIn('"210"', init_script)
+        self.assertIn('"Code: 210"', init_script)
 
     def test_airflow_uses_clickhouse_default_and_resolves_secret(
         self,

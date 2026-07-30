@@ -78,7 +78,6 @@ jobs:
 
       - name: Run realtime bootstrap jobs
         run: |
-          docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
           docker compose --profile realtime-core run --rm --no-deps nifi-bootstrap
 
       - name: Verify Airflow DAG imports
@@ -136,7 +135,7 @@ jobs:
         run: >-
           docker compose --profile realtime-core logs --no-color --tail=500
           airflow clickhouse airflow-postgres oltp-postgres kafka apicurio-registry
-          kafka-connect minio nifi cdc-warehouse-init nifi-bootstrap
+          kafka-connect minio nifi nifi-bootstrap
 
       - name: Clean up Compose resources
         if: always()

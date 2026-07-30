@@ -7,11 +7,7 @@ secret mounts outside local development.
 ## Bootstrap and start
 
 ```powershell
-docker compose build airflow
-docker compose --profile realtime-core up -d --wait `
-  airflow-postgres control-db-init clickhouse clickhouse-init minio airflow
-docker compose --profile realtime-core run --rm --no-deps minio-init
-docker compose --profile realtime-core run --rm --no-deps cdc-warehouse-init
+uv run python scripts/cdc/local_lab.py start --status
 ```
 
 Unpause `olist_cdc_ingest_local` only after NiFi is producing normalized and
