@@ -46,6 +46,18 @@
     cast({{ expression }} as Decimal({{ precision }}, {{ scale }}))
 {%- endmacro %}
 
+{% macro cast_nullable_decimal(expression, precision=18, scale=2) -%}
+    {{ return(adapter.dispatch('cast_nullable_decimal', 'olist_analytics')(expression, precision, scale)) }}
+{%- endmacro %}
+
+{% macro default__cast_nullable_decimal(expression, precision=18, scale=2) -%}
+    {{ cast_decimal(expression, precision, scale) }}
+{%- endmacro %}
+
+{% macro clickhouse__cast_nullable_decimal(expression, precision=18, scale=2) -%}
+    cast({{ expression }} as Nullable(Decimal({{ precision }}, {{ scale }})))
+{%- endmacro %}
+
 {% macro cast_timestamp(expression) -%}
     {{ return(adapter.dispatch('cast_timestamp', 'olist_analytics')(expression)) }}
 {%- endmacro %}

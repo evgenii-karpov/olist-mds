@@ -659,10 +659,10 @@ def control_quality_checks(
 
         cursor.execute(
             """
-            select topic, partition, gap_count
+            select topic, partition_id, gap_count
             from cdc_audit.cdc_partition_watermarks
             where gap_count <> 0
-            order by topic, partition
+            order by topic, partition_id
             """
         )
         failures.extend(

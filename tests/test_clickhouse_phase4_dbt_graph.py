@@ -74,6 +74,28 @@ class ClickHousePhase4DbtGraphTests(unittest.TestCase):
         self.assertIn("macro clickhouse__output_column", macro_sql)
         self.assertIn("{{ expression }} as {{ column_name }}", macro_sql)
 
+    def test_payment_allocation_uses_nullable_decimal_for_clickhouse_joins(
+        self,
+    ) -> None:
+        business_sql = (
+            ROOT / "dbt/olist_analytics/macros/business_calculations.sql"
+        ).read_text(encoding="utf-8")
+        compat_sql = (
+            ROOT / "dbt/olist_analytics/macros/warehouse_compat.sql"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("cast_nullable_decimal(", business_sql)
+        self.assertIn("macro clickhouse__cast_nullable_decimal", compat_sql)
+        self.assertIn("Nullable(Decimal({{ precision }}, {{ scale }}))", compat_sql)
+
+    def test_rounded_metrics_preserve_nullable_clickhouse_expressions(self) -> None:
+        rounding_sql = (ROOT / "dbt/olist_analytics/macros/rounding.sql").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("cast_nullable_decimal(", rounding_sql)
+        self.assertNotIn("cast_decimal('round('", rounding_sql)
+
     def test_dim_date_clickhouse_semantics_match_postgres_contract(self) -> None:
         macro_sql = (
             ROOT / "dbt/olist_analytics/macros/warehouse_compat.sql"

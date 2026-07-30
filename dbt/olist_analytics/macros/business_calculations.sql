@@ -24,7 +24,7 @@ select
     order_payments.order_payment_value,
     case
         when order_item_amounts.order_gross_amount > 0
-            then {{ cast_decimal(
+            then {{ cast_nullable_decimal(
                 "round("
                 ~ "order_payments.order_payment_value "
                 ~ "* order_item_amounts.item_gross_amount "

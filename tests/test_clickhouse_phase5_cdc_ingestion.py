@@ -174,6 +174,8 @@ class ClickHousePhase5CdcIngestionTests(unittest.TestCase):
         self.assertIn("project_transform_selection", runtime)
         self.assertIn("pipeline_runtime", runtime)
         self.assertIn("manifest_selection_digest", runtime)
+        self.assertIn("select topic, partition_id, gap_count", runtime)
+        self.assertNotIn("select topic, partition, gap_count", runtime)
         self.assertIn("clickhouse__cdc_selected_file_predicate", macro)
         self.assertIn("source('pipeline_runtime', 'cdc_transform_run_files')", macro)
         self.assertIn("- name: pipeline_runtime", sources)
