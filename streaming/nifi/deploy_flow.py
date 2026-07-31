@@ -327,16 +327,17 @@ def ensure_processor_stopped(
     client: NifiClient, entity: dict[str, Any]
 ) -> dict[str, Any]:
     current = client.get(f"/processors/{entity['id']}")
-    if current["component"]["state"] == "STOPPED":
+    if processor_is_stopped(current):
         return current
-    client.put(
-        f"/processors/{entity['id']}/run-status",
-        {"revision": current["revision"], "state": "STOPPED"},
-    )
+    if current["component"]["state"] != "STOPPED":
+        client.put(
+            f"/processors/{entity['id']}/run-status",
+            {"revision": current["revision"], "state": "STOPPED"},
+        )
     deadline = time.monotonic() + 120
     while True:
         current = client.get(f"/processors/{entity['id']}")
-        if current["component"]["state"] == "STOPPED":
+        if processor_is_stopped(current):
             return current
         if time.monotonic() >= deadline:
             raise TimeoutError(
@@ -344,6 +345,17 @@ def ensure_processor_stopped(
                 f"{current['component']['name']}={current['component']['state']}"
             )
         time.sleep(1)
+
+
+def processor_is_stopped(entity: dict[str, Any]) -> bool:
+    component = entity["component"]
+    if component.get("state") != "STOPPED":
+        return False
+    physical_state = component.get("physicalState")
+    if physical_state is not None and physical_state != "STOPPED":
+        return False
+    snapshot = entity.get("status", {}).get("aggregateSnapshot", {})
+    return int(snapshot.get("activeThreadCount", 0) or 0) == 0
 
 
 def stop_processors(client: NifiClient, processors: dict[str, dict[str, Any]]) -> None:
@@ -369,10 +381,24 @@ def connection_index(current_flow: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
+def expected_connection_names(flow: dict[str, Any]) -> set[str]:
+    return {
+        f"{connection[0]} [{connection[1]}] to {connection[2]}"
+        for connection in flow["connections"]
+    }
+
+
+def connection_bends(
+    flow: dict[str, Any], connection_name: str
+) -> list[dict[str, float]]:
+    return list(flow.get("connection_bends", {}).get(connection_name, []))
+
+
 def update_connection(
     client: NifiClient,
     entity: dict[str, Any],
     parameters: dict[str, Any],
+    bends: list[dict[str, float]],
 ) -> dict[str, Any]:
     current = client.get(f"/connections/{entity['id']}")
     component = current["component"]
@@ -383,6 +409,7 @@ def update_connection(
         "backpressure_data_size_threshold"
     ]
     component["flowFileExpiration"] = "0 sec"
+    component["bends"] = bends
     return client.put(
         f"/connections/{entity['id']}",
         {"revision": current["revision"], "component": component},
@@ -408,24 +435,33 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
         ]
         expected = {item["name"] for item in flow["processors"]}
         actual = {item["component"]["name"] for item in current.get("processors", [])}
-        if actual == expected:
-            current_services = client.get(
-                f"/flow/process-groups/{group_id}/controller-services"
-            )["controllerServices"]
-            services = {item["component"]["name"]: item for item in current_services}
-            processors = {
-                item["component"]["name"]: item
-                for item in current.get("processors", [])
-            }
-            connections = connection_index(current)
-            expected_services = {item["name"] for item in flow["controller_services"]}
-            reuse_existing = set(services) == expected_services
+        current_services = client.get(
+            f"/flow/process-groups/{group_id}/controller-services"
+        )["controllerServices"]
+        services = {item["component"]["name"]: item for item in current_services}
+        processors = {
+            item["component"]["name"]: item for item in current.get("processors", [])
+        }
+        connections = connection_index(current)
+        expected_services = {item["name"] for item in flow["controller_services"]}
+        reuse_existing = (
+            actual == expected
+            and set(services) == expected_services
+            and set(connections) == expected_connection_names(flow)
+        )
         if not reuse_existing:
+            if processors:
+                stop_processors(client, processors)
+            if services:
+                disable_services(client, services)
             revision = existing[0]["revision"]
             query = urllib.parse.urlencode(
                 {"version": revision["version"], "clientId": "olist-cdc-bootstrap"}
             )
             client.delete(f"/process-groups/{group_id}?{query}")
+            services = {}
+            processors = {}
+            connections = {}
 
     if not reuse_existing:
         group = client.post(
@@ -461,6 +497,7 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
         for source_name, relationship, destination_name in flow["connections"]:
             source_id = processors[source_name]["id"]
             destination_id = processors[destination_name]["id"]
+            connection_name = f"{source_name} [{relationship}] to {destination_name}"
             client.post(
                 f"/process-groups/{group_id}/connections",
                 {
@@ -478,6 +515,7 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
                             "type": "PROCESSOR",
                         },
                         "selectedRelationships": [relationship],
+                        "bends": connection_bends(flow, connection_name),
                         "flowFileExpiration": "0 sec",
                         "backPressureObjectThreshold": int(
                             parameters["backpressure_object_threshold"]
@@ -508,7 +546,12 @@ def deploy(client: NifiClient, flow: dict[str, Any], parameters: dict[str, Any])
             )
         for source_name, relationship, destination_name in flow["connections"]:
             connection_name = f"{source_name} [{relationship}] to {destination_name}"
-            update_connection(client, connections[connection_name], parameters)
+            update_connection(
+                client,
+                connections[connection_name],
+                parameters,
+                connection_bends(flow, connection_name),
+            )
 
     for entity in services.values():
         current = client.get(f"/controller-services/{entity['id']}")

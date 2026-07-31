@@ -59,23 +59,6 @@
       }
     },
     {
-      "name": "Duplicate Business Event",
-      "type": "org.apache.nifi.processors.standard.DuplicateFlowFile",
-      "x": 700, "y": 400,
-      "properties": {"Number of Copies": "1"}
-    },
-    {
-      "name": "Route Landing and Normalized",
-      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
-      "x": 1050, "y": 400,
-      "properties": {
-        "Routing Strategy": "Route to Property name",
-        "landing": "${copy.index:equals('0')}",
-        "normalized": "${copy.index:equals('1')}"
-      },
-      "auto_terminate": ["unmatched"]
-    },
-    {
       "name": "Build Landing Avro",
       "type": "BuildCdcAvro",
       "x": 1400, "y": 150,
@@ -96,9 +79,27 @@
       }
     },
     {
-      "name": "Merge Landing",
+      "name": "Merge Landing Micro-batch",
       "type": "org.apache.nifi.processors.standard.MergeRecord",
       "x": 1750, "y": 150,
+      "properties": {
+        "Record Reader": "@service:avro-reader",
+        "Record Writer": "@service:avro-writer",
+        "Merge Strategy": "Bin-Packing Algorithm",
+        "Correlation Attribute Name": "cdc.bin.key",
+        "Minimum Number of Records": "1",
+        "Maximum Number of Records": "1000",
+        "Minimum Bin Size": "0 B",
+        "Maximum Bin Size": "8 MB",
+        "Max Bin Age": "2 sec",
+        "Maximum Number of Bins": "256"
+      },
+      "auto_terminate": ["original"]
+    },
+    {
+      "name": "Merge Landing",
+      "type": "org.apache.nifi.processors.standard.MergeRecord",
+      "x": 2100, "y": 150,
       "properties": {
         "Record Reader": "@service:avro-reader",
         "Record Writer": "@service:avro-writer",
@@ -114,9 +115,27 @@
       "auto_terminate": ["original"]
     },
     {
-      "name": "Merge Normalized",
+      "name": "Merge Normalized Micro-batch",
       "type": "org.apache.nifi.processors.standard.MergeRecord",
       "x": 1750, "y": 550,
+      "properties": {
+        "Record Reader": "@service:avro-reader",
+        "Record Writer": "@service:avro-writer",
+        "Merge Strategy": "Bin-Packing Algorithm",
+        "Correlation Attribute Name": "cdc.bin.key",
+        "Minimum Number of Records": "1",
+        "Maximum Number of Records": "1000",
+        "Minimum Bin Size": "0 B",
+        "Maximum Bin Size": "8 MB",
+        "Max Bin Age": "2 sec",
+        "Maximum Number of Bins": "256"
+      },
+      "auto_terminate": ["original"]
+    },
+    {
+      "name": "Merge Normalized",
+      "type": "org.apache.nifi.processors.standard.MergeRecord",
+      "x": 2100, "y": 550,
       "properties": {
         "Record Reader": "@service:avro-reader",
         "Record Writer": "@service:avro-writer",
@@ -134,19 +153,19 @@
     {
       "name": "Describe Landing Batch",
       "type": "DescribeAvroBatch",
-      "x": 2100, "y": 150,
+      "x": 2450, "y": 150,
       "properties": {}
     },
     {
       "name": "Describe Normalized Batch",
       "type": "DescribeAvroBatch",
-      "x": 2100, "y": 550,
+      "x": 2450, "y": 550,
       "properties": {}
     },
     {
       "name": "Convert Normalized to Parquet",
       "type": "org.apache.nifi.processors.standard.ConvertRecord",
-      "x": 2450, "y": 550,
+      "x": 2800, "y": 550,
       "properties": {
         "Record Reader": "@service:avro-reader",
         "Record Writer": "@service:parquet-writer",
@@ -156,7 +175,7 @@
     {
       "name": "Put Landing Immutable",
       "type": "PutImmutableS3Object",
-      "x": 2450, "y": 150,
+      "x": 2800, "y": 150,
       "properties": {
         "Endpoint URL": "#{minio_endpoint}", "Region": "#{minio_region}",
         "Bucket": "#{minio_bucket}", "Access Key": "#{minio_access_key}",
@@ -167,7 +186,7 @@
     {
       "name": "Put Normalized Immutable",
       "type": "PutImmutableS3Object",
-      "x": 2800, "y": 550,
+      "x": 3150, "y": 550,
       "properties": {
         "Endpoint URL": "#{minio_endpoint}", "Region": "#{minio_region}",
         "Bucket": "#{minio_bucket}", "Access Key": "#{minio_access_key}",
@@ -180,23 +199,6 @@
       "type": "BuildDlqEnvelope",
       "x": 1750, "y": 900,
       "properties": {}
-    },
-    {
-      "name": "Duplicate DLQ Envelope",
-      "type": "org.apache.nifi.processors.standard.DuplicateFlowFile",
-      "x": 2100, "y": 900,
-      "properties": {"Number of Copies": "1"}
-    },
-    {
-      "name": "Route Quarantine and DLQ",
-      "type": "org.apache.nifi.processors.standard.RouteOnAttribute",
-      "x": 2450, "y": 900,
-      "properties": {
-        "Routing Strategy": "Route to Property name",
-        "quarantine": "${copy.index:equals('0')}",
-        "dlq": "${copy.index:equals('1')}"
-      },
-      "auto_terminate": ["unmatched"]
     },
     {
       "name": "Put Quarantine Immutable",
@@ -239,15 +241,17 @@
   ],
   "connections": [
     ["Consume Olist CDC", "success", "Route Tombstones"],
-    ["Route Tombstones", "unmatched", "Duplicate Business Event"],
+    ["Route Tombstones", "unmatched", "Build Landing Avro"],
+    ["Route Tombstones", "unmatched", "Build Normalized Avro"],
     ["Route Tombstones", "tombstone", "Build Landing Avro"],
-    ["Duplicate Business Event", "success", "Route Landing and Normalized"],
-    ["Route Landing and Normalized", "landing", "Build Landing Avro"],
-    ["Route Landing and Normalized", "normalized", "Build Normalized Avro"],
-    ["Build Landing Avro", "success", "Merge Landing"],
+    ["Build Landing Avro", "success", "Merge Landing Micro-batch"],
     ["Build Landing Avro", "failure", "Build DLQ Envelope"],
-    ["Build Normalized Avro", "success", "Merge Normalized"],
+    ["Build Normalized Avro", "success", "Merge Normalized Micro-batch"],
     ["Build Normalized Avro", "failure", "Build DLQ Envelope"],
+    ["Merge Landing Micro-batch", "merged", "Merge Landing"],
+    ["Merge Landing Micro-batch", "failure", "Log Pipeline Error"],
+    ["Merge Normalized Micro-batch", "merged", "Merge Normalized"],
+    ["Merge Normalized Micro-batch", "failure", "Log Pipeline Error"],
     ["Merge Landing", "merged", "Describe Landing Batch"],
     ["Merge Landing", "failure", "Log Pipeline Error"],
     ["Merge Normalized", "merged", "Describe Normalized Batch"],
@@ -260,11 +264,14 @@
     ["Convert Normalized to Parquet", "failure", "Log Pipeline Error"],
     ["Put Landing Immutable", "failure", "Log Pipeline Error"],
     ["Put Normalized Immutable", "failure", "Log Pipeline Error"],
-    ["Build DLQ Envelope", "success", "Duplicate DLQ Envelope"],
     ["Build DLQ Envelope", "failure", "Log Pipeline Error"],
-    ["Duplicate DLQ Envelope", "success", "Route Quarantine and DLQ"],
-    ["Route Quarantine and DLQ", "quarantine", "Put Quarantine Immutable"],
-    ["Route Quarantine and DLQ", "dlq", "Publish Table DLQ"],
+    ["Build DLQ Envelope", "success", "Put Quarantine Immutable"],
+    ["Build DLQ Envelope", "success", "Publish Table DLQ"],
     ["Put Quarantine Immutable", "failure", "Log Pipeline Error"]
-  ]
+  ],
+  "connection_bends": {
+    "Route Tombstones [tombstone] to Build Landing Avro": [
+      {"x": 900, "y": 80}
+    ]
+  }
 }

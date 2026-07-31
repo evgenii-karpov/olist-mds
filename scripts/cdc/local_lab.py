@@ -590,6 +590,23 @@ def warehouse_status_in_container(_: argparse.Namespace) -> int:
 
         realtime_counts: dict[str, dict[str, Any]] = {}
         for name, relation in REALTIME_RELATIONS.items():
+            database_name, table_name = relation.split(".", 1)
+            exists = clickhouse.query(
+                """
+                SELECT count()
+                FROM system.tables
+                WHERE database = {database:String} AND name = {table:String}
+                """,
+                parameters={"database": database_name, "table": table_name},
+            ).first_row
+            if exists is None or int(exists[0]) == 0:
+                realtime_counts[name] = {
+                    "relation": relation,
+                    "exists": False,
+                    "rows": None,
+                    "max_source_ts": None,
+                }
+                continue
             row = clickhouse.query(
                 f"""
                 SELECT count(), max(max_source_ts)
@@ -600,6 +617,7 @@ def warehouse_status_in_container(_: argparse.Namespace) -> int:
                 raise RuntimeError(f"Failed to read realtime relation: {relation}")
             realtime_counts[name] = {
                 "relation": relation,
+                "exists": True,
                 "rows": int(row[0]),
                 "max_source_ts": None if row[1] is None else str(row[1]),
             }

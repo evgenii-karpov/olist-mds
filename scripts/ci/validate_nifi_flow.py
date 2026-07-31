@@ -67,7 +67,9 @@ def main() -> int:
         "Consume Olist CDC",
         "Build Landing Avro",
         "Build Normalized Avro",
+        "Merge Landing Micro-batch",
         "Merge Landing",
+        "Merge Normalized Micro-batch",
         "Merge Normalized",
         "Convert Normalized to Parquet",
         "Put Landing Immutable",
@@ -87,6 +89,8 @@ def main() -> int:
         errors.append("controller service set is incomplete")
 
     consume = processors["Consume Olist CDC"]["properties"]
+    if consume.get("Processing Strategy") != "FLOW_FILE":
+        errors.append("ConsumeKafka must continue to use FLOW_FILE processing")
     if consume.get("Commit Offsets") != "true":
         errors.append(
             "ConsumeKafka must commit after durable NiFi repository acceptance"
@@ -97,12 +101,52 @@ def main() -> int:
     if topics != TABLES:
         errors.append("ConsumeKafka topic set does not match the CDC table contract")
 
+    micro_batch_properties = {
+        "Merge Landing Micro-batch": processors["Merge Landing Micro-batch"][
+            "properties"
+        ],
+        "Merge Normalized Micro-batch": processors["Merge Normalized Micro-batch"][
+            "properties"
+        ],
+    }
+    for name, properties in micro_batch_properties.items():
+        expected = {
+            "Record Reader": "@service:avro-reader",
+            "Record Writer": "@service:avro-writer",
+            "Merge Strategy": "Bin-Packing Algorithm",
+            "Correlation Attribute Name": "cdc.bin.key",
+            "Minimum Number of Records": "1",
+            "Maximum Number of Records": "1000",
+            "Minimum Bin Size": "0 B",
+            "Maximum Bin Size": "8 MB",
+            "Max Bin Age": "2 sec",
+            "Maximum Number of Bins": "256",
+        }
+        for property_name, expected_value in expected.items():
+            if properties.get(property_name) != expected_value:
+                errors.append(f"{name} must set {property_name} to {expected_value!r}")
+
     for name in ("Merge Landing", "Merge Normalized"):
         properties = processors[name]["properties"]
         if properties.get("Max Bin Age") != "#{max_bin_age}":
             errors.append(f"{name} does not use the bounded bin-age parameter")
         if properties.get("Maximum Bin Size") != "#{maximum_bin_size}":
             errors.append(f"{name} does not enforce maximum bin size")
+        if properties.get("Minimum Bin Size") != "#{minimum_bin_size}":
+            errors.append(f"{name} does not use the configured minimum bin size")
+        if properties.get("Maximum Number of Records") != "50000":
+            errors.append(f"{name} does not preserve the final record target")
+
+    obsolete_processors = {
+        "Duplicate Business Event",
+        "Route Landing and Normalized",
+        "Duplicate DLQ Envelope",
+        "Route Quarantine and DLQ",
+    }
+    if obsolete := obsolete_processors & set(processors):
+        errors.append(
+            f"obsolete fan-out processors remain: {', '.join(sorted(obsolete))}"
+        )
 
     names = set(processors)
     for source, _relationship, destination in flow["connections"]:
@@ -120,6 +164,12 @@ def main() -> int:
         errors.append(
             "local max bin age must leave upload time inside the 60-second SLO"
         )
+    if parameters.get("backpressure_object_threshold") != 20000:
+        errors.append("local backpressure object threshold must be 20000")
+    if parameters.get("backpressure_data_size_threshold") != "1 GB":
+        errors.append("local backpressure data-size threshold must remain 1 GB")
+    if "copy.index" in serialized:
+        errors.append("flow must not route fan-out copies through copy.index")
 
     for table in sorted(TABLES):
         path = SCHEMA_ROOT / "normalized" / table / "v1.avsc"

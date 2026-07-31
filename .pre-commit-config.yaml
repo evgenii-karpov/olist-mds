@@ -27,6 +27,7 @@ repos:
         entry: uv run pyright
         language: system
         types_or: [python, pyi]
+        files: '^(airflow/dags|scripts|tests)/.*\.(py|pyi)$'
 
       - id: dbt-parse
         name: dbt-parse

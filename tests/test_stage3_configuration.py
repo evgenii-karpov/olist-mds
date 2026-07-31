@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from typing import Any
 
 from scripts.ci.validate_nifi_flow import REQUIRED_METADATA, TABLES
 
@@ -75,12 +76,15 @@ class Stage3ConfigurationTests(unittest.TestCase):
     def test_local_nifi_profile_is_sized_for_full_fixture_snapshot(self) -> None:
         self.assertEqual("0 sec", self.parameters["default_scheduling_period"])
         self.assertEqual(4, self.parameters["default_concurrent_tasks"])
-        self.assertEqual(200000, self.parameters["backpressure_object_threshold"])
+        self.assertEqual(20000, self.parameters["backpressure_object_threshold"])
+        self.assertEqual("1 GB", self.parameters["backpressure_data_size_threshold"])
         concurrency = self.parameters["processor_concurrent_tasks"]
         self.assertEqual(2, concurrency["Consume Olist CDC"])
         self.assertEqual(8, concurrency["Route Tombstones"])
         self.assertEqual(8, concurrency["Build Landing Avro"])
         self.assertEqual(8, concurrency["Build Normalized Avro"])
+        self.assertEqual(4, concurrency["Merge Landing Micro-batch"])
+        self.assertEqual(4, concurrency["Merge Normalized Micro-batch"])
 
     def test_nifi_bootstrap_updates_existing_runtime_settings(self) -> None:
         deploy = (ROOT / "streaming/nifi/deploy_flow.py").read_text(encoding="utf-8")
@@ -103,12 +107,61 @@ class Stage3ConfigurationTests(unittest.TestCase):
             ("Build Normalized Avro", "failure", "Build DLQ Envelope"), connections
         )
         self.assertIn(
-            ("Route Quarantine and DLQ", "quarantine", "Put Quarantine Immutable"),
+            ("Build DLQ Envelope", "success", "Put Quarantine Immutable"),
             connections,
         )
         self.assertIn(
-            ("Route Quarantine and DLQ", "dlq", "Publish Table DLQ"), connections
+            ("Build DLQ Envelope", "success", "Publish Table DLQ"), connections
         )
+
+    def test_flow_uses_direct_relationship_fanout_and_two_stage_merges(self) -> None:
+        names = {item["name"] for item in self.flow["processors"]}
+        self.assertNotIn("Duplicate Business Event", names)
+        self.assertNotIn("Route Landing and Normalized", names)
+        self.assertNotIn("Duplicate DLQ Envelope", names)
+        self.assertNotIn("Route Quarantine and DLQ", names)
+        self.assertNotIn("copy.index", json.dumps(self.flow))
+
+        connections = {tuple(item) for item in self.flow["connections"]}
+        for branch in ("Landing", "Normalized"):
+            self.assertIn(
+                (f"Build {branch} Avro", "success", f"Merge {branch} Micro-batch"),
+                connections,
+            )
+            self.assertIn(
+                (
+                    f"Merge {branch} Micro-batch",
+                    "merged",
+                    f"Merge {branch}",
+                ),
+                connections,
+            )
+            micro = self.flow_processor(f"Merge {branch} Micro-batch")
+            final = self.flow_processor(f"Merge {branch}")
+            self.assertEqual(
+                "cdc.bin.key", micro["properties"]["Correlation Attribute Name"]
+            )
+            self.assertEqual(
+                "cdc.bin.key", final["properties"]["Correlation Attribute Name"]
+            )
+            self.assertEqual("1000", micro["properties"]["Maximum Number of Records"])
+            self.assertEqual("50000", final["properties"]["Maximum Number of Records"])
+
+        self.assertIn(
+            ("Route Tombstones", "unmatched", "Build Landing Avro"), connections
+        )
+        self.assertIn(
+            ("Route Tombstones", "unmatched", "Build Normalized Avro"), connections
+        )
+        self.assertIn(
+            ("Route Tombstones", "tombstone", "Build Landing Avro"), connections
+        )
+        self.assertNotIn(
+            ("Route Tombstones", "tombstone", "Build Normalized Avro"), connections
+        )
+
+    def flow_processor(self, name: str) -> dict[str, Any]:
+        return next(item for item in self.flow["processors"] if item["name"] == name)
 
     def test_all_normalized_schemas_have_ordering_metadata(self) -> None:
         for table in TABLES:

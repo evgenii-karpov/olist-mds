@@ -13,6 +13,17 @@ from typing import Any
 
 from fastavro import parse_schema, schemaless_reader, writer
 
+SUPPORTED_NORMALIZED_TABLES: tuple[str, ...] = (
+    "customers",
+    "orders",
+    "order_items",
+    "order_payments",
+    "order_reviews",
+    "products",
+    "sellers",
+    "product_category_translation",
+)
+
 
 class ApicurioAvroDecoder:
     """Resolve Confluent framing and recursive ccompat schema references."""
@@ -108,10 +119,42 @@ def load_schema(schema_directory: str, kind: str, table: str | None = None) -> A
     return parse_schema(json.loads(path.read_text(encoding="utf-8")))
 
 
-def avro_container(schema: Any, record: dict[str, Any]) -> bytes:
+def load_output_schemas(
+    schema_directory: str,
+) -> tuple[Any, dict[str, Any]]:
+    """Load every local CDC output schema for one processor schedule."""
+    try:
+        landing_schema = load_schema(schema_directory, "landing")
+    except Exception as exc:
+        raise ValueError(
+            f"failed to load landing CDC schema from {schema_directory!r}"
+        ) from exc
+
+    normalized_schemas: dict[str, Any] = {}
+    for table in SUPPORTED_NORMALIZED_TABLES:
+        try:
+            normalized_schemas[table] = load_schema(
+                schema_directory, "normalized", table
+            )
+        except Exception as exc:
+            raise ValueError(
+                f"failed to load normalized CDC schema for {table!r} "
+                f"from {schema_directory!r}"
+            ) from exc
+    return landing_schema, normalized_schemas
+
+
+def avro_container(
+    schema: Any, record: dict[str, Any], codec: str = "deflate"
+) -> bytes:
     output = BytesIO()
-    writer(output, schema, [record], codec="deflate")
+    writer(output, schema, [record], codec=codec)
     return output.getvalue()
+
+
+def intermediate_avro_container(schema: Any, record: dict[str, Any]) -> bytes:
+    """Build an uncompressed one-record OCF for NiFi MergeRecord inputs."""
+    return avro_container(schema, record, codec="null")
 
 
 def to_long(value: Any) -> int | None:

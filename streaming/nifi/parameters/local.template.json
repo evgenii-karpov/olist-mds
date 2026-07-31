@@ -14,10 +14,10 @@
   "processor_concurrent_tasks": {
     "Consume Olist CDC": 2,
     "Route Tombstones": 8,
-    "Duplicate Business Event": 8,
-    "Route Landing and Normalized": 8,
     "Build Landing Avro": 8,
     "Build Normalized Avro": 8,
+    "Merge Landing Micro-batch": 4,
+    "Merge Normalized Micro-batch": 4,
     "Merge Landing": 4,
     "Merge Normalized": 4,
     "Describe Landing Batch": 4,
@@ -31,6 +31,6 @@
   "max_bin_age": "45 sec",
   "minimum_bin_size": "32 MB",
   "maximum_bin_size": "64 MB",
-  "backpressure_object_threshold": 200000,
+  "backpressure_object_threshold": 20000,
   "backpressure_data_size_threshold": "1 GB"
 }

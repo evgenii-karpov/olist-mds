@@ -47,11 +47,21 @@ class BuildCdcAvro(FlowFileTransform):
         return [self.output_kind, self.registry_url, self.schema_directory]
 
     def onScheduled(self, context):
-        from cdc_common import ApicurioAvroDecoder
+        from cdc_common import ApicurioAvroDecoder, load_output_schemas
 
         self.decoder = ApicurioAvroDecoder(
             context.getProperty(self.registry_url).getValue()
         )
+        schema_directory = context.getProperty(self.schema_directory).getValue()
+        try:
+            (
+                self.landing_schema,
+                self.normalized_schemas,
+            ) = load_output_schemas(schema_directory)
+        except Exception as exc:
+            raise RuntimeError(
+                f"BuildCdcAvro could not initialize its local CDC output schemas: {exc}"
+            ) from exc
 
     @staticmethod
     def _decimal(value: Any) -> Decimal:
@@ -73,11 +83,10 @@ class BuildCdcAvro(FlowFileTransform):
 
     def transform(self, context, flowfile):
         from cdc_common import (
-            avro_container,
             epoch_micros,
             epoch_millis,
+            intermediate_avro_container,
             json_default,
-            load_schema,
             to_long,
         )
 
@@ -93,7 +102,6 @@ class BuildCdcAvro(FlowFileTransform):
         key_hex = attributes.get("kafka.key")
         raw_key = bytes.fromhex(key_hex) if key_hex else None
         kind = context.getProperty(self.output_kind).getValue()
-        schema_directory = context.getProperty(self.schema_directory).getValue()
 
         try:
             try:
@@ -154,7 +162,7 @@ class BuildCdcAvro(FlowFileTransform):
                     if envelope is None
                     else json.dumps(envelope, default=json_default, sort_keys=True),
                 }
-                schema = load_schema(schema_directory, "landing")
+                schema = self.landing_schema
                 schema_key = (
                     value_schema_id if value_schema_id is not None else "tombstone"
                 )
@@ -174,10 +182,15 @@ class BuildCdcAvro(FlowFileTransform):
                     if field in record and record[field] is not None:
                         record[field] = self._decimal(record[field])
                 record.update(metadata)
-                schema = load_schema(schema_directory, "normalized", table)
+                try:
+                    schema = self.normalized_schemas[table]
+                except KeyError as exc:
+                    raise ValueError(
+                        f"unsupported normalized CDC table: {table!r}"
+                    ) from exc
                 schema_key = value_schema_id
 
-            content = avro_container(schema, record)
+            content = intermediate_avro_container(schema, record)
             output_attributes = {
                 "cdc.event_id": event_id,
                 "cdc.table": table,
