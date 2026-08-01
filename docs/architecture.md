@@ -3,13 +3,35 @@
 ## Goal
 
 Provide a production-like analytics pipeline that can be run and reviewed
-locally, with a separate AWS batch path. The default local workflow uses Python,
-local files, ClickHouse, Airflow, PostgreSQL control state, and dbt. The AWS
-batch workflow stages raw files in S3 and loads them into Redshift before
-running the same dbt project on the Redshift target. The near-realtime CDC path
-is implemented for the local Docker Compose stack only.
+locally, with a separate AWS batch path. The batch workflow uses Python, local
+files, ClickHouse, Airflow, PostgreSQL control state, and dbt; the AWS workflow
+stages raw files in S3 and loads Redshift. The candidate CDC architecture uses
+MySQL, Kafka/Apicurio, Spark, Iceberg, MinIO, and Polaris. Wave 1 freezes the
+platform contracts and integration seams; entity Silver transforms and serving
+publication are later join points.
 
-## Near-realtime transformation boundary
+## Wave 1 CDC boundary
+
+```text
+MySQL OLTP
+  -> Debezium MySQL / Kafka Connect
+  -> Kafka (15 exact topics) + Apicurio (Confluent-framed Avro)
+  -> Spark/Iceberg through Polaris REST Catalog
+  -> Bronze/Silver/audit Iceberg tables on MinIO
+```
+
+MySQL is the authoritative business source. PostgreSQL is limited to the
+Airflow, Polaris, Apicurio, and `olist_control` control-plane databases. The
+single `scripts/cdc/local_lab.py` CLI owns the disposable Compose project and
+returns bounded JSON results. `reset --yes` removes only that Compose project's
+volumes; `down` preserves them.
+
+The common normalization API in `streaming/spark/platform/normalization_api.py`
+freezes event identity, captured writer fingerprints, schema resolution,
+changes append, current MERGE, audit/error, ordering, deduplication, and
+checkpoint boundaries. It contains no entity business transforms.
+
+## Legacy near-realtime transformation boundary
 
 The local CDC ingest Asset triggers `olist_cdc_transform_local`. Before dbt
 runs, the DAG records the exact set of newly loaded immutable manifests in
@@ -50,10 +72,9 @@ Source archive
 Airflow coordinates both paths. Local batch and CDC control state is durable in
 PostgreSQL `olist_control`, while local analytical data lives in ClickHouse.
 
-The separate near-realtime path adds Debezium, Kafka, NiFi, immutable landing
-and normalized objects, explicit offset-coverage manifests, `raw_cdc`, and
-`cdc_audit`. Its warehouse watermark advances through committed normalized
-events plus verified tombstones; it never treats ingestion time as source order.
+The previous PostgreSQL/NiFi path remains available in the repository for later
+parity work, but it is not selected by the Wave 1 `platform`, `streaming`, or
+`serving` profiles and is not part of J1 readiness.
 
 ## Components
 

@@ -1,0 +1,13 @@
+SET log_queries = 0;
+SET allow_database_iceberg = 1;
+
+CREATE DATABASE IF NOT EXISTS lakehouse
+ENGINE = DataLakeCatalog('http://polaris:8181/api/catalog')
+SETTINGS catalog_type = 'rest',
+         warehouse = 'olist_lakehouse',
+         catalog_credential = '__POLARIS_CATALOG_CREDENTIAL_ESCAPED__';
+-- ClickHouse 26.3 rejects storage_endpoint for a REST DataLakeCatalog;
+-- Polaris supplies the warehouse location and vended storage configuration.
+-- storage_endpoint = 'http://minio:9000/olist-lakehouse';
+-- unhex('__POLARIS_CATALOG_CREDENTIAL_HEX__') is also rejected in SETTINGS;
+-- the bootstrap script injects equivalent \xHH escapes into the literal above.

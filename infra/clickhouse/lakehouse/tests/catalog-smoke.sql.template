@@ -1,0 +1,8 @@
+SET allow_database_iceberg = 1;
+
+SELECT count() AS current_row_count
+FROM lakehouse.`silver.customers_current`;
+
+SELECT count() AS fixed_snapshot_row_count
+FROM lakehouse.`silver.customers_current`
+SETTINGS iceberg_snapshot_id = {snapshot_id:UInt64};

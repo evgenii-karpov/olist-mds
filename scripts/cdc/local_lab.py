@@ -1,69 +1,41 @@
 #!/usr/bin/env python3
-"""Operate the local CDC lab from infrastructure startup through CDC validation."""
+"""Operate the disposable MySQL → Kafka → Spark/Iceberg Wave 1 lab.
+
+This is the only documented lifecycle entry point for the candidate runtime.
+Every command emits one bounded JSON result and never prints secret contents.
+Wave 2 and serving commands remain explicit non-zero guards until their join
+points are implemented.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
+import shutil
+import socket
 import subprocess
 import sys
-from datetime import UTC, datetime
+import tempfile
+import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
-PROFILES = ("realtime-core", "observability", "logs")
-RUNTIME_IMAGES = ("airflow", "kafka-connect", "minio", "nifi")
-STACK_SERVICES = (
-    "airflow-postgres",
-    "clickhouse",
-    "clickhouse-init",
-    "control-db-init",
-    "airflow",
-    "oltp-postgres",
-    "kafka",
-    "kafka-topics",
-    "apicurio-registry",
-    "kafka-connect",
-    "minio",
-    "minio-init",
-    "nifi",
-    "kafka-exporter",
-    "postgres-exporter-oltp",
-    "statsd-exporter",
-    "node-exporter",
-    "cadvisor",
-    "nifi-metrics-proxy",
-    "cdc-component-exporter",
-    "cdc-pipeline-exporter",
-    "prometheus",
-    "alertmanager",
-    "grafana",
-    "loki",
-    "alloy",
-)
-CDC_DAGS = (
-    "olist_cdc_ingest_local",
-    "olist_cdc_backfill_local",
-    "olist_cdc_transform_local",
-    "olist_cdc_quality_local",
-)
-ACTIVE_CDC_DAGS = (
-    "olist_cdc_transform_local",
-    "olist_cdc_ingest_local",
-    "olist_cdc_quality_local",
-)
-DEFAULT_CONSUMER_GROUP = "olist-nifi-cdc-v1"
-FULL_ARCHIVE = ROOT / "olist.zip"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 SMALL_ARCHIVE = ROOT / "tests" / "fixtures" / "olist_small" / "olist_small.zip"
+FULL_ARCHIVE = ROOT / "olist.zip"
 DEFAULT_PASSWORD_FILE = ROOT / "docker" / "secrets" / "dev" / "postgres_password.txt"
-REALTIME_RELATIONS = {
-    "fact_order_items_realtime": "realtime_core.fact_order_items_realtime",
-    "mart_daily_revenue_realtime": "realtime_marts.mart_daily_revenue_realtime",
-    "mart_monthly_arpu_realtime": "realtime_marts.mart_monthly_arpu_realtime",
-}
-CAPTURED_TABLES = (
+DEFAULT_PROJECT_NAME = "olist_wave1_j1"
+COMPOSE_PROFILES = ("platform", "streaming", "serving", "observability")
+PLATFORM_PROFILES = ("platform",)
+SERVING_PROFILES = ("platform", "serving")
+ALL_ENTITIES = (
     "customers",
     "orders",
     "order_items",
@@ -73,879 +45,878 @@ CAPTURED_TABLES = (
     "sellers",
     "product_category_translation",
 )
+MYSQL_TABLES = (*ALL_ENTITIES, "geolocation")
+PINNED_IMAGES = {
+    "postgres:17.10",
+    "mysql:8.4.10",
+    "apache/kafka:4.3.1",
+    "quay.io/apicurio/apicurio-registry:3.3.0",
+    "clickhouse/clickhouse-server:26.3.17.4",
+    "olist-spark:4.1.3-iceberg1.11.0",
+    "olist-kafka-connect:3.6.0.Final",
+    "olist-polaris:1.6.0",
+    "olist-airflow:local",
+}
+DEFAULT_COMMAND_TIMEOUT = 120.0
+DEFAULT_BOOTSTRAP_TIMEOUT = 1800.0
+SECRET_ENV_DEFAULTS = {
+    "AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE": "docker/secrets/dev/airflow_postgres_password.txt",
+    "CONTROL_POSTGRES_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
+    "POLARIS_DB_USERNAME_SOURCE_FILE": "docker/secrets/dev/polaris_db_user.txt",
+    "POLARIS_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
+    "APICURIO_DB_USERNAME_SOURCE_FILE": "docker/secrets/dev/apicurio_db_user.txt",
+    "APICURIO_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
+    "MYSQL_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
+    "MYSQL_ADMIN_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
+    "MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
+    "MYSQL_CDC_READER_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
+    "MINIO_ROOT_USER_SOURCE_FILE": "docker/secrets/dev/minio_root_user.txt",
+    "MINIO_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/airflow_api_secret_key.txt",
+    "CLICKHOUSE_PASSWORD_SOURCE_FILE": "docker/secrets/dev/clickhouse_password.txt",
+    "AIRFLOW_API_SECRET_KEY_SOURCE_FILE": "docker/secrets/dev/airflow_api_secret_key.txt",
+}
+_PASSWORD_PATTERN = re.compile(
+    r"(?i)(password|passwd|secret|token|credential)([=:])([^\s,;]+)"
+)
 
 
-def compose_args(*args: str) -> list[str]:
-    command = ["docker", "compose"]
-    for profile in PROFILES:
-        command.extend(["--profile", profile])
-    command.extend(args)
-    return command
+class LabError(RuntimeError):
+    """A bounded lifecycle operation failed without a safe retry assumption."""
 
 
-def run(
-    command: list[str],
+class NotAvailableUntil(LabError):
+    """A deliberately deferred Wave 2/E command was requested."""
+
+    def __init__(self, phase: str, command: str) -> None:
+        super().__init__(f"{command} is not available until {phase}")
+        self.phase = phase
+        self.command = command
+
+
+def _path(value: str | Path) -> Path:
+    candidate = Path(value)
+    return candidate if candidate.is_absolute() else ROOT / candidate
+
+
+def _compose_env() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.setdefault("COMPOSE_PROJECT_NAME", DEFAULT_PROJECT_NAME)
+    python_path = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = str(ROOT) + (
+        os.pathsep + python_path if python_path else ""
+    )
+    return environment
+
+
+def _profiles_args(profiles: Sequence[str]) -> list[str]:
+    result: list[str] = []
+    for profile in profiles:
+        result.extend(["--profile", profile])
+    return result
+
+
+def compose_command(
+    *args: str, profiles: Sequence[str] = SERVING_PROFILES
+) -> list[str]:
+    return ["docker", "compose", *_profiles_args(profiles), *args]
+
+
+def _secret_paths() -> dict[str, Path]:
+    paths: dict[str, Path] = {}
+    for environment_name, default in SECRET_ENV_DEFAULTS.items():
+        paths[environment_name] = _path(os.environ.get(environment_name, default))
+    paths["MYSQL_PASSWORD_FILE"] = _path(
+        os.environ.get(
+            "MYSQL_PASSWORD_FILE",
+            os.environ.get(
+                "MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE",
+                SECRET_ENV_DEFAULTS["MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE"],
+            ),
+        )
+    )
+    return paths
+
+
+def _secret_values() -> tuple[str, ...]:
+    values: list[str] = []
+    for path in _secret_paths().values():
+        try:
+            value = path.read_text(encoding="utf-8").rstrip("\r\n")
+        except (OSError, UnicodeError):
+            continue
+        if value:
+            values.append(value)
+    return tuple(dict.fromkeys(values))
+
+
+def redact_text(value: str) -> str:
+    sanitized = value
+    variants: list[str] = []
+    for secret in _secret_values():
+        variants.extend((secret, json.dumps(secret, ensure_ascii=True)[1:-1]))
+    for variant in sorted((item for item in variants if item), key=len, reverse=True):
+        sanitized = sanitized.replace(variant, "<redacted>")
+    return _PASSWORD_PATTERN.sub(r"\1\2<redacted>", sanitized)
+
+
+def _run(
+    command: Sequence[str],
     *,
+    timeout: float = DEFAULT_COMMAND_TIMEOUT,
     check: bool = True,
-    capture: bool = False,
     env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    print("+ " + " ".join(command), flush=True)
-    return subprocess.run(
-        command,
-        cwd=ROOT,
-        check=check,
-        text=True,
-        capture_output=capture,
-        env=env,
-    )
-
-
-def relative_or_absolute(path: Path) -> str:
     try:
-        return str(path.resolve().relative_to(ROOT))
-    except ValueError:
-        return str(path.resolve())
-
-
-def lab_path(value: str | Path) -> Path:
-    path = Path(value)
-    return path if path.is_absolute() else ROOT / path
-
-
-def compose_env() -> dict[str, str]:
-    env = os.environ.copy()
-    env.setdefault("AIRFLOW_STATSD_ON", "true")
-    return env
-
-
-def stage2_command(*args: str) -> list[str]:
-    return [sys.executable, "scripts/cdc/stage2_admin.py", *args]
-
-
-def airflow_command(*args: str) -> list[str]:
-    return ["docker", "compose", "exec", "-T", "airflow", "airflow", *args]
-
-
-def build_images(env: dict[str, str]) -> None:
-    run(compose_args("build", *RUNTIME_IMAGES), env=env)
-
-
-def start_stack(env: dict[str, str]) -> None:
-    run(compose_args("up", "-d", "--wait", *STACK_SERVICES), env=env)
-
-
-def stop_stack(env: dict[str, str], *, volumes: bool) -> None:
-    command = compose_args("down", "--remove-orphans")
-    if volumes:
-        command.append("--volumes")
-    run(command, env=env)
-
-
-def bootstrap_nifi(env: dict[str, str]) -> None:
-    run(
-        [
-            "docker",
-            "compose",
-            "--profile",
-            "realtime-core",
-            "run",
-            "--rm",
-            "--no-deps",
-            "nifi-bootstrap",
-        ],
-        env=env,
-    )
-
-
-def check_airflow_dags(env: dict[str, str]) -> None:
-    run(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "airflow",
-            "airflow",
-            "dags",
-            "list-import-errors",
-        ],
-        env=env,
-    )
-    result = run(
-        ["docker", "compose", "exec", "-T", "airflow", "airflow", "dags", "list"],
-        capture=True,
-        env=env,
-    )
-    missing = [dag_id for dag_id in CDC_DAGS if dag_id not in result.stdout]
-    if missing:
-        raise RuntimeError(f"Airflow does not list required CDC DAGs: {missing}")
-    print(f"Validated {len(CDC_DAGS)} CDC Airflow DAGs.", flush=True)
-
-
-def check_stage2_contracts(env: dict[str, str]) -> None:
-    run(stage2_command("configure-registry"), env=env)
-    run(stage2_command("validate-topics"), env=env)
-
-
-def seed_source(
-    *,
-    archive: Path,
-    seed: int,
-    run_id: str,
-    start_time: str,
-    password_file: Path,
-    env: dict[str, str],
-) -> None:
-    if not archive.exists():
-        raise FileNotFoundError(
-            f"Source archive does not exist: {archive}. "
-            "Use seed-small for the committed fixture archive."
+        result = subprocess.run(
+            list(command),
+            cwd=ROOT,
+            env=env or _compose_env(),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+            timeout=timeout,
         )
-    run(
-        [
-            sys.executable,
-            "-m",
-            "scripts.simulation",
-            "seed",
-            "--archive",
-            str(archive),
-            "--seed",
-            str(seed),
-            "--run-id",
-            run_id,
-            "--start-time",
-            start_time,
-            "--password-file",
-            str(password_file),
-        ],
-        env=env,
+    except FileNotFoundError as exc:
+        raise LabError(f"required executable is unavailable: {command[0]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise LabError(f"command timed out after {timeout:g}s: {command[0]}") from exc
+    if check and result.returncode != 0:
+        detail = redact_text((result.stderr or result.stdout or "").strip())
+        detail = detail[-1200:] if detail else "no diagnostic output"
+        raise LabError(f"command exited {result.returncode}: {command[0]} ({detail})")
+    return result
+
+
+def _emit(command: str, status: str, **fields: Any) -> int:
+    payload: dict[str, Any] = {"command": command, "status": status, **fields}
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
+    return 0 if status == "ready" else 1
+
+
+def _read_single_line(path: Path, label: str) -> str:
+    try:
+        value = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise LabError(f"{label} secret file is not readable") from exc
+    value = value.rstrip("\r\n")
+    if not value:
+        raise LabError(f"{label} secret file is empty")
+    if "\n" in value or "\r" in value:
+        raise LabError(f"{label} secret file must contain exactly one line")
+    return value
+
+
+def _archive_or_fail(value: str | Path) -> Path:
+    archive = _path(value)
+    if not archive.is_file():
+        raise LabError(f"archive does not exist: {archive}")
+    return archive
+
+
+def _docker_versions() -> dict[str, str]:
+    docker = _run(["docker", "version", "--format", "{{.Server.Version}}"], timeout=20)
+    compose = _run(["docker", "compose", "version", "--short"], timeout=20)
+    return {
+        "docker_server": redact_text(docker.stdout.strip() or "unknown"),
+        "compose": redact_text(compose.stdout.strip() or "unknown"),
+    }
+
+
+def _compose_config_check() -> None:
+    _run(
+        compose_command("config", "--quiet", profiles=COMPOSE_PROFILES),
+        timeout=60,
     )
 
 
-def simulation_run_id(prefix: str) -> str:
-    return prefix + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+def _pinned_image_check() -> dict[str, Any]:
+    compose_text = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    if re.search(r"^\s+container_name\s*:", compose_text, re.MULTILINE):
+        raise LabError("compose.yaml must not define fixed container_name values")
+    missing = sorted(
+        image for image in PINNED_IMAGES if f"image: {image}" not in compose_text
+    )
+    if missing:
+        raise LabError("compose.yaml is missing pinned images: " + ", ".join(missing))
+    return {"pinned_images": sorted(PINNED_IMAGES), "fixed_container_names": 0}
 
 
-def current_utc_start_time() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def _doctor(args: argparse.Namespace) -> int:
+    checks: dict[str, Any] = {}
+    try:
+        checks["docker"] = _docker_versions()
+        checks["images"] = _pinned_image_check()
+        archive = _archive_or_fail(args.archive)
+        checks["archive"] = {"path": str(archive), "exists": True}
+        missing_secrets: list[str] = []
+        for label, path in _secret_paths().items():
+            try:
+                _read_single_line(path, label)
+            except LabError:
+                missing_secrets.append(label)
+        if missing_secrets:
+            raise LabError("invalid secret files: " + ", ".join(missing_secrets))
+        checks["secret_files"] = {"count": len(_secret_paths()), "values": "redacted"}
+        _compose_config_check()
+        checks["compose_config"] = "valid"
+        checks["ports"] = _port_observations()
+    except LabError as exc:
+        return _emit("doctor", "blocked", checks=checks, error=redact_text(str(exc)))
+    return _emit("doctor", "ready", checks=checks)
 
 
-def run_workload_source(
-    *,
-    seed: int,
-    run_id: str,
-    start_time: str,
-    rate: float,
-    event_limit: int | None,
-    duration_seconds: float | None,
-    password_file: Path,
-    no_pacing: bool,
-    env: dict[str, str],
-) -> None:
+def _port_observations() -> dict[str, str]:
+    ports = {
+        "mysql": int(os.environ.get("MYSQL_HOST_PORT", "3306")),
+        "kafka": int(os.environ.get("KAFKA_HOST_PORT", "9092")),
+        "connect": int(os.environ.get("KAFKA_CONNECT_HOST_PORT", "8083")),
+        "apicurio": int(os.environ.get("APICURIO_HOST_PORT", "8081")),
+        "polaris": int(os.environ.get("POLARIS_HOST_PORT", "8181")),
+        "clickhouse": int(os.environ.get("CLICKHOUSE_HTTP_HOST_PORT", "8123")),
+    }
+    observations: dict[str, str] = {}
+    for name, port in ports.items():
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(0.2)
+            observations[name] = (
+                "in_use" if sock.connect_ex(("127.0.0.1", port)) == 0 else "available"
+            )
+        finally:
+            sock.close()
+    return observations
+
+
+def _compose_up(*, profiles: Sequence[str], build: bool, timeout: float) -> None:
+    args = ["up", "-d", "--wait"]
+    if build:
+        args.append("--build")
+    result = _run(
+        compose_command(*args, profiles=profiles),
+        timeout=timeout,
+        check=False,
+    )
+    if result.returncode == 0:
+        return
+
+    # Compose returns 1 from `up --wait` when the graph contains a
+    # service_completed_successfully one-shot service that exited with code
+    # zero.  That is a successful platform state for J1 (for example,
+    # iceberg-migration).  A dependent service can still be health=starting
+    # at that instant, so keep polling the bounded Compose state briefly.
+    deadline = time.monotonic() + min(timeout, 180.0)
+    while True:
+        records = _compose_records(profiles)
+        failures: list[str] = []
+        transient = False
+        for item in records:
+            state = str(item.get("State", "")).lower()
+            exit_code = item.get("ExitCode")
+            if state == "exited":
+                if exit_code not in (0, "0", None):
+                    failures.append(
+                        f"{item.get('Service', 'unknown')} exited {exit_code}"
+                    )
+            elif state != "running":
+                failures.append(
+                    f"{item.get('Service', 'unknown')} state {state or 'unknown'}"
+                )
+            elif item.get("Health") not in (None, "", "healthy"):
+                health = str(item.get("Health"))
+                if health == "starting":
+                    transient = True
+                else:
+                    failures.append(f"{item.get('Service', 'unknown')} health {health}")
+        if failures:
+            detail = "; ".join(failures)
+            raise LabError(f"compose platform did not become ready: {detail}")
+        if records and not transient:
+            return
+        if time.monotonic() >= deadline:
+            pending = "; ".join(
+                f"{item.get('Service', 'unknown')} {item.get('Health', item.get('State', 'unknown'))}"
+                for item in records
+                if item.get("State") == "running"
+                and item.get("Health") not in (None, "", "healthy")
+            )
+            raise LabError(
+                "compose platform did not become ready before timeout"
+                + (f": {pending}" if pending else "")
+            )
+        time.sleep(2)
+
+
+def _compose_records(profiles: Sequence[str]) -> list[dict[str, Any]]:
+    status = _run(
+        compose_command("ps", "-a", "--format", "json", profiles=profiles),
+        timeout=30,
+        check=False,
+    )
+    records: list[dict[str, Any]] = []
+    for line in status.stdout.splitlines():
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(item, dict):
+            records.append(item)
+    return records
+
+
+def _up(args: argparse.Namespace) -> int:
+    try:
+        _compose_up(
+            profiles=SERVING_PROFILES, build=bool(args.build), timeout=args.timeout
+        )
+    except LabError as exc:
+        return _emit("up", "failed", error=redact_text(str(exc)))
+    return _emit("up", "ready", profiles=list(SERVING_PROFILES))
+
+
+def _down(_: argparse.Namespace) -> int:
+    try:
+        _run(
+            compose_command("down", "--remove-orphans", profiles=COMPOSE_PROFILES),
+            timeout=180,
+        )
+    except LabError as exc:
+        return _emit("down", "failed", error=redact_text(str(exc)))
+    return _emit("down", "ready", volumes_preserved=True)
+
+
+def _reset(args: argparse.Namespace) -> int:
+    if not args.yes:
+        return _emit("reset", "failed", error="reset requires --yes")
+    try:
+        # This is intentionally the only mutating reset operation.  It is
+        # scoped by COMPOSE_PROJECT_NAME and never deletes host directories.
+        _run(
+            compose_command(
+                "down", "-v", "--remove-orphans", profiles=COMPOSE_PROFILES
+            ),
+            timeout=180,
+        )
+    except LabError as exc:
+        return _emit("reset", "failed", error=redact_text(str(exc)))
+    return _emit("reset", "ready", scoped_to=_compose_env()["COMPOSE_PROJECT_NAME"])
+
+
+def _mysql_connection_settings(args: argparse.Namespace) -> tuple[str, int, Path]:
+    host = os.environ.get("MYSQL_HOST", "127.0.0.1")
+    port = int(os.environ.get("MYSQL_HOST_PORT", os.environ.get("MYSQL_PORT", "3306")))
+    password_file = _path(args.password_file)
+    _read_single_line(password_file, "MySQL")
+    return host, port, password_file
+
+
+def _mysql_counts(args: argparse.Namespace) -> dict[str, int]:
+    from scripts.simulation.database import DatabaseSettings, connect
+
+    host, port, password_file = _mysql_connection_settings(args)
+    settings = DatabaseSettings(
+        password_file=password_file,
+        host=host,
+        port=port,
+        database="olist_oltp",
+        user=os.environ.get("MYSQL_USER", "olist_simulator"),
+        connect_timeout=10,
+    )
+    connection = connect(settings)
+    try:
+        cursor = connection.cursor()
+        try:
+            observed: dict[str, int] = {}
+            for table in MYSQL_TABLES:
+                # INFORMATION_SCHEMA.TABLES.TABLE_ROWS is only an estimate
+                # for InnoDB and can remain zero immediately after seed.
+                cursor.execute(f"SELECT COUNT(*) FROM olist_oltp.`{table}`")
+                row = cursor.fetchone()
+                observed[table] = int(row[0]) if row else 0
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return {table: observed.get(table, 0) for table in MYSQL_TABLES}
+
+
+def _http_json(url: str, *, timeout: float = 10.0) -> tuple[int, Any]:
+    request = Request(url, headers={"Accept": "application/json"}, method="GET")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8", errors="replace")
+            try:
+                return response.status, json.loads(raw) if raw.strip() else None
+            except json.JSONDecodeError:
+                return response.status, None
+    except HTTPError as exc:
+        return exc.code, None
+    except (URLError, TimeoutError):
+        return 0, None
+
+
+def _connector_state() -> dict[str, Any]:
+    base = os.environ.get("KAFKA_CONNECT_URL", "http://127.0.0.1:8083")
+    status, body = _http_json(f"{base.rstrip('/')}/connectors/olist-mysql-cdc/status")
+    if status != 200 or not isinstance(body, dict):
+        return {"registered": False, "status_code": status}
+    connector = body.get("connector")
+    tasks = body.get("tasks")
+    return {
+        "registered": True,
+        "connector_state": connector.get("state")
+        if isinstance(connector, dict)
+        else None,
+        "task_0_state": next(
+            (
+                task.get("state")
+                for task in tasks
+                if isinstance(task, dict) and task.get("id") == 0
+            ),
+            None,
+        )
+        if isinstance(tasks, list)
+        else None,
+    }
+
+
+def _seed_preconditions(args: argparse.Namespace) -> dict[str, Any]:
+    connector = _connector_state()
+    if connector.get("registered"):
+        raise LabError("seed refuses to run after olist-mysql-cdc is registered")
+    counts = _mysql_counts(args)
+    non_empty = {name: count for name, count in counts.items() if count}
+    if non_empty:
+        raise LabError(
+            f"seed refuses non-empty MySQL business tables: {sorted(non_empty)}"
+        )
+    return {"connector": connector, "row_counts": counts}
+
+
+def _run_seed(args: argparse.Namespace) -> dict[str, Any]:
+    archive = _archive_or_fail(args.archive)
+    password_file = _path(args.password_file)
+    _seed_preconditions(args)
+    host, port, _ = _mysql_connection_settings(args)
     command = [
         sys.executable,
         "-m",
         "scripts.simulation",
-        "run",
-        "--seed",
-        str(seed),
+        "seed",
+        "--archive",
+        str(archive),
+        "--random-seed",
+        str(args.random_seed),
         "--run-id",
-        run_id,
+        str(args.run_id),
         "--start-time",
-        start_time,
-        "--rate",
-        str(rate),
+        str(args.start_time),
+        "--host",
+        host,
+        "--port",
+        str(port),
+        "--database",
+        "olist_oltp",
+        "--user",
+        os.environ.get("MYSQL_USER", "olist_simulator"),
         "--password-file",
         str(password_file),
     ]
-    if duration_seconds is not None:
-        command.extend(["--duration-seconds", str(duration_seconds)])
-    else:
-        command.extend(["--event-limit", str(event_limit or 20)])
-    if no_pacing:
-        command.append("--no-pacing")
-    run(command, env=env)
+    result = _run(command, timeout=DEFAULT_BOOTSTRAP_TIMEOUT)
+    counts = _mysql_counts(args)
+    return {
+        "archive": str(archive),
+        "run_id": args.run_id,
+        "row_counts": counts,
+        "exit_code": result.returncode,
+    }
 
 
-def source_counts(env: dict[str, str]) -> dict[str, int]:
-    selects = [
-        f"select '{table}' as table_name, count(*)::bigint as row_count from public.{table}"
-        for table in CAPTURED_TABLES
-    ]
-    sql = " union all ".join(selects) + " order by table_name;"
-    result = run(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "oltp-postgres",
-            "psql",
-            "-U",
-            "olist_admin",
-            "-d",
-            "olist_oltp",
-            "-t",
-            "-A",
-            "-F",
-            ",",
-            "-c",
-            sql,
-        ],
-        capture=True,
-        env=env,
-    )
-    counts: dict[str, int] = {}
-    for line in result.stdout.splitlines():
-        if not line.strip() or "," not in line:
-            continue
-        table_name, row_count = line.split(",", 1)
-        counts[table_name] = int(row_count)
-    missing = [table for table in CAPTURED_TABLES if counts.get(table, 0) <= 0]
-    if missing:
-        raise RuntimeError(f"Seed verification found empty captured tables: {missing}")
-    print(json.dumps({"event": "source_counts_validated", "row_counts": counts}))
-    return counts
-
-
-def print_status(env: dict[str, str]) -> None:
-    run(compose_args("ps", "-a"), env=env)
-
-
-def run_nonfatal(label: str, command: list[str], env: dict[str, str]) -> None:
-    print(f"\n== {label} ==", flush=True)
-    result = run(command, check=False, env=env)
-    if result.returncode != 0:
-        print(f"{label} failed with exit code {result.returncode}; continuing.")
-
-
-def json_from_cli_output(output: str) -> Any:
-    for index, character in enumerate(output):
-        if character not in "[{":
-            continue
-        try:
-            return json.loads(output[index:])
-        except json.JSONDecodeError:
-            continue
-    raise ValueError("Airflow CLI output did not contain JSON payload")
-
-
-def print_airflow_runs(dag_id: str, *, limit: int, env: dict[str, str]) -> None:
-    result = run(
-        airflow_command("dags", "list-runs", dag_id, "-o", "json"),
-        capture=True,
-        env=env,
-    )
-    runs = json_from_cli_output(result.stdout)
-    if not isinstance(runs, list):
-        raise ValueError(f"Unexpected Airflow list-runs payload for {dag_id}: {runs!r}")
-    print(
-        json.dumps(
-            {
-                "dag_id": dag_id,
-                "runs": runs[:limit],
-            },
-            indent=2,
-            sort_keys=True,
-        )
-    )
-
-
-def print_airflow_runs_nonfatal(
-    dag_id: str, *, limit: int, env: dict[str, str]
-) -> None:
-    print(f"\n== airflow-runs {dag_id} ==", flush=True)
+def _seed(args: argparse.Namespace) -> int:
     try:
-        print_airflow_runs(dag_id, limit=limit, env=env)
-    except Exception as exc:
-        print(f"airflow-runs {dag_id} failed: {exc}; continuing.")
+        details = _run_seed(args)
+    except (LabError, ImportError) as exc:
+        return _emit("seed", "failed", error=redact_text(str(exc)))
+    return _emit("seed", "ready", **details)
 
 
-def start(args: argparse.Namespace) -> int:
-    env = compose_env()
-    if not args.skip_build:
-        build_images(env)
-    start_stack(env)
-    if not args.skip_nifi_bootstrap:
-        bootstrap_nifi(env)
-    if not args.skip_checks:
-        run_checks(env)
-    if args.status:
-        print_status(env)
-    return 0
-
-
-def stop(args: argparse.Namespace) -> int:
-    stop_stack(compose_env(), volumes=bool(args.volumes))
-    return 0
-
-
-def seed(args: argparse.Namespace) -> int:
-    env = compose_env()
-    seed_source(
-        archive=lab_path(args.archive),
-        seed=int(args.seed),
-        run_id=str(args.run_id),
-        start_time=str(args.start_time),
-        password_file=lab_path(args.password_file),
-        env=env,
+def _connector_bootstrap(args: argparse.Namespace) -> None:
+    connect_url = os.environ.get("KAFKA_CONNECT_URL", "http://127.0.0.1:8083")
+    registry_url = os.environ.get(
+        "APICURIO_REGISTRY_URL",
+        "http://127.0.0.1:8081/apis/registry/v3",
     )
-    source_counts(env)
-    return 0
-
-
-def run_workload(args: argparse.Namespace) -> int:
-    run_id = args.run_id or simulation_run_id("local_lab_workload__")
-    start_time = args.start_time or current_utc_start_time()
-    run_workload_source(
-        seed=int(args.seed),
-        run_id=run_id,
-        start_time=start_time,
-        rate=float(args.rate),
-        event_limit=args.event_limit,
-        duration_seconds=args.duration_seconds,
-        password_file=lab_path(args.password_file),
-        no_pacing=bool(args.no_pacing),
-        env=compose_env(),
-    )
-    print(
-        json.dumps(
-            {
-                "event": "workload_submitted",
-                "run_id": run_id,
-                "start_time": start_time,
-            },
-            sort_keys=True,
-        )
-    )
-    return 0
-
-
-def run_checks(env: dict[str, str]) -> None:
-    check_airflow_dags(env)
-    check_stage2_contracts(env)
-
-
-def check(_: argparse.Namespace) -> int:
-    run_checks(compose_env())
-    return 0
-
-
-def bootstrap_nifi_command(_: argparse.Namespace) -> int:
-    bootstrap_nifi(compose_env())
-    return 0
-
-
-def register_connector(args: argparse.Namespace) -> int:
-    env = compose_env()
-    run(
-        stage2_command(
-            "register-connector",
-            "--url",
-            str(args.url),
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "streaming.connect.bootstrap",
             "--password-file",
-            str(lab_path(args.password_file)),
-        ),
-        env=env,
-    )
-    return 0
-
-
-def connector_status(args: argparse.Namespace) -> int:
-    run(stage2_command("connector-status", "--url", str(args.url)), env=compose_env())
-    return 0
-
-
-def wait_connector_running(args: argparse.Namespace) -> int:
-    run(
-        stage2_command(
-            "wait-connector-running",
-            "--url",
-            str(args.url),
-            "--timeout",
+            str(_path(args.password_file)),
+            "--connect-url",
+            connect_url,
+            "--registry-url",
+            registry_url,
+            "--timeout-seconds",
             str(args.timeout),
-        ),
-        env=compose_env(),
-    )
-    return 0
-
-
-def restart_failed_connector(args: argparse.Namespace) -> int:
-    run(stage2_command("restart-failed", "--url", str(args.url)), env=compose_env())
-    return 0
-
-
-def enable_dags(args: argparse.Namespace) -> int:
-    env = compose_env()
-    dag_ids: list[str] = list(ACTIVE_CDC_DAGS)
-    if args.include_backfill:
-        dag_ids.insert(1, "olist_cdc_backfill_local")
-    for dag_id in dag_ids:
-        run(airflow_command("dags", "unpause", dag_id), env=env)
-    return 0
-
-
-def trigger_ingest(args: argparse.Namespace) -> int:
-    run_id = args.run_id or (
-        "local_lab_ingest__" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    )
-    command = airflow_command(
-        "dags",
-        "trigger",
-        "olist_cdc_ingest_local",
-        "--run-id",
-        run_id,
-    )
-    if args.conf:
-        command.extend(["--conf", str(args.conf)])
-    run(command, env=compose_env())
-    print(json.dumps({"event": "ingest_triggered", "run_id": run_id}))
-    return 0
-
-
-def airflow_runs(args: argparse.Namespace) -> int:
-    env = compose_env()
-    dag_ids = ACTIVE_CDC_DAGS if args.dag_id is None else args.dag_id
-    for dag_id in dag_ids:
-        print_airflow_runs(dag_id, limit=int(args.limit), env=env)
-    return 0
-
-
-def kafka_lag(args: argparse.Namespace) -> int:
-    run(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "kafka",
-            "/opt/kafka/bin/kafka-consumer-groups.sh",
-            "--bootstrap-server",
-            "kafka:29092",
-            "--describe",
-            "--group",
-            str(args.group),
         ],
-        env=compose_env(),
+        timeout=args.timeout + 30,
     )
-    return 0
 
 
-def _read_secret(value: str | None, password_file: str | None, default: str) -> str:
-    if value:
-        return value
-    if password_file:
-        secret = Path(password_file).read_text(encoding="utf-8").strip()
-        if secret:
-            return secret
-    return default
-
-
-def warehouse_status_in_container(_: argparse.Namespace) -> int:
-    import importlib
-
-    clickhouse_connect = importlib.import_module("clickhouse_connect")
-    psycopg2 = importlib.import_module("psycopg2")
-
-    clickhouse = clickhouse_connect.get_client(
-        host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
-        port=int(os.environ.get("CLICKHOUSE_PORT", "8123")),
-        username=os.environ.get("CLICKHOUSE_USER", "olist"),
-        password=_read_secret(
-            os.environ.get("CLICKHOUSE_PASSWORD"),
-            os.environ.get("CLICKHOUSE_PASSWORD_FILE"),
-            "olist",
-        ),
-        database=os.environ.get("CLICKHOUSE_DATABASE", "analytics"),
-        secure=os.environ.get("CLICKHOUSE_SECURE", "false").lower() == "true",
-    )
-    control = psycopg2.connect(
-        host=os.environ.get("CONTROL_POSTGRES_HOST", "airflow-postgres"),
-        port=int(os.environ.get("CONTROL_POSTGRES_PORT", "5432")),
-        dbname=os.environ.get("CONTROL_POSTGRES_DB", "olist_control"),
-        user=os.environ.get("CONTROL_POSTGRES_USER", "olist_control"),
-        password=_read_secret(
-            os.environ.get("CONTROL_POSTGRES_PASSWORD"),
-            os.environ.get("CONTROL_POSTGRES_PASSWORD_FILE"),
-            "olist_control",
-        ),
-        application_name="local_lab_warehouse_status",
-        connect_timeout=5,
-    )
+def _capture_and_contracts(args: argparse.Namespace) -> dict[str, Any]:
+    capture_root = Path(tempfile.mkdtemp(prefix="olist-wave1-j1-capture-"))
     try:
-        raw_counts: dict[str, dict[str, Any]] = {}
-        for table in CAPTURED_TABLES:
-            row = clickhouse.query(
-                f"""
-                SELECT count(), max(_source_ts), max(_warehouse_loaded_at)
-                FROM raw_cdc.`{table}` FINAL
-                """
-            ).first_row
-            raw_counts[table] = {
-                "rows": int(row[0]),
-                "max_source_ts": None if row[1] is None else str(row[1]),
-                "max_loaded_at": None if row[2] is None else str(row[2]),
-            }
-
-        realtime_counts: dict[str, dict[str, Any]] = {}
-        for name, relation in REALTIME_RELATIONS.items():
-            database_name, table_name = relation.split(".", 1)
-            exists = clickhouse.query(
-                """
-                SELECT count()
-                FROM system.tables
-                WHERE database = {database:String} AND name = {table:String}
-                """,
-                parameters={"database": database_name, "table": table_name},
-            ).first_row
-            if exists is None or int(exists[0]) == 0:
-                realtime_counts[name] = {
-                    "relation": relation,
-                    "exists": False,
-                    "rows": None,
-                    "max_source_ts": None,
-                }
-                continue
-            row = clickhouse.query(
-                f"""
-                SELECT count(), max(max_source_ts)
-                FROM {relation}
-                """
-            ).first_row
-            if row is None:
-                raise RuntimeError(f"Failed to read realtime relation: {relation}")
-            realtime_counts[name] = {
-                "relation": relation,
-                "exists": True,
-                "rows": int(row[0]),
-                "max_source_ts": None if row[1] is None else str(row[1]),
-            }
-
-        with control, control.cursor() as cursor:
-            cursor.execute(
-                """
-                select 'ingest_runs' as metric, count(*)::text as value
-                from cdc_audit.cdc_ingest_runs
-                union all
-                select 'last_ingest_status',
-                       coalesce((
-                           select status
-                           from cdc_audit.cdc_ingest_runs
-                           order by started_at desc limit 1
-                       ), 'none')
-                union all
-                select 'transform_runs', count(*)::text
-                from cdc_audit.cdc_transform_runs
-                union all
-                select 'last_transform_status',
-                       coalesce((
-                           select status
-                           from cdc_audit.cdc_transform_runs
-                           order by started_at desc limit 1
-                       ), 'none')
-                union all
-                select 'open_dead_letters', count(*)::text
-                from cdc_audit.cdc_dead_letters
-                where resolution_status = 'OPEN'
-                union all
-                select 'watermarks', count(*)::text
-                from cdc_audit.cdc_partition_watermarks
-                order by metric
-                """
+        bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+        registry_url = os.environ.get(
+            "APICURIO_CCOMPAT_URL",
+            "http://127.0.0.1:8081/apis/ccompat/v7",
+        )
+        group_id = "olist-j1-capture-" + str(int(time.time()))
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.capture_runtime",
+                "--bootstrap-servers",
+                bootstrap_servers,
+                "--registry-url",
+                registry_url,
+                "--output",
+                str(capture_root),
+                "--group-id",
+                group_id,
+                "--timeout-seconds",
+                str(args.timeout),
+                "--expected-business-records",
+                "79",
+            ],
+            timeout=args.timeout + 30,
+        )
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.writer_schemas",
+                "capture-bundle",
+                "--bundle",
+                str(capture_root),
+            ],
+            timeout=60,
+        )
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.writer_schemas",
+                "validate",
+                "--require-captured",
+            ],
+            timeout=60,
+        )
+        contracts_root = ROOT / "streaming" / "schemas" / "contracts"
+        if not any(
+            (contracts_root / entity / "v2.json").exists() for entity in ALL_ENTITIES
+        ):
+            _run(
+                [
+                    sys.executable,
+                    "-m",
+                    "streaming.schemas.generate_contracts",
+                    "--write",
+                    "--new-version",
+                    "2",
+                ],
+                timeout=60,
             )
-            audit_summary = {str(metric): str(value) for metric, value in cursor}
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.generate_contracts",
+                "--check",
+            ],
+            timeout=60,
+        )
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.contracts",
+                "--require-captured-writers",
+            ],
+            timeout=60,
+        )
     finally:
-        control.close()
-        clickhouse.close()
+        shutil.rmtree(capture_root, ignore_errors=True)
+    return {"capture_state": "captured", "contract_version": 2}
 
-    print(
-        json.dumps(
+
+def _bootstrap(args: argparse.Namespace) -> int:
+    try:
+        _archive_or_fail(args.archive)
+        _compose_up(profiles=PLATFORM_PROFILES, build=True, timeout=args.timeout)
+        seed_details = _run_seed(args)
+        _connector_bootstrap(args)
+        capture_details = _capture_and_contracts(args)
+        _compose_up(profiles=SERVING_PROFILES, build=True, timeout=args.timeout)
+        validation = _validate_runtime(args, include_expensive=False)
+    except (LabError, ImportError) as exc:
+        return _emit("bootstrap", "failed", error=redact_text(str(exc)))
+    return _emit(
+        "bootstrap",
+        "ready" if validation["status"] == "ready" else "failed",
+        readiness_level="wave1_platform",
+        seed=seed_details,
+        capture=capture_details,
+        validation=validation,
+    )
+
+
+def _writer_capture_state() -> str:
+    from streaming.schemas.writer_schemas import load_writer_schema_repository
+
+    repository = load_writer_schema_repository()
+    return "captured" if repository.capture_complete else "pending_runtime_capture"
+
+
+def _iceberg_status() -> dict[str, Any]:
+    return {
+        "migration": "compose-managed",
+        "namespaces": ["bronze", "silver", "reference", "audit"],
+        "expected_table_count": 26,
+    }
+
+
+def _status(args: argparse.Namespace) -> int:
+    details: dict[str, Any] = {"project": _compose_env()["COMPOSE_PROJECT_NAME"]}
+    compose_records: list[dict[str, Any]] = []
+    try:
+        compose_records = _compose_records(COMPOSE_PROFILES)
+        details["compose"] = [
             {
-                "event": "warehouse_status",
-                "raw_cdc": raw_counts,
-                "realtime": realtime_counts,
-                "cdc_audit": audit_summary,
-            },
-            indent=2,
-            sort_keys=True,
-        )
+                "service": item.get("Service"),
+                "state": item.get("State"),
+                "health": item.get("Health"),
+                "exit_code": item.get("ExitCode"),
+            }
+            for item in compose_records
+        ] or "unavailable"
+        details["mysql"] = _mysql_counts(args)
+    except (LabError, ImportError) as exc:
+        details["mysql"] = {"status": "unavailable"}
+        details["error"] = redact_text(str(exc))
+    details["connector"] = _connector_state()
+    registry_url = os.environ.get(
+        "APICURIO_REGISTRY_URL",
+        "http://127.0.0.1:8081/apis/registry/v3",
     )
-    return 0
+    rule_status, rule_body = _http_json(
+        f"{registry_url.rstrip('/')}/groups/olist_cdc/rules/COMPATIBILITY"
+    )
+    details["registry"] = {
+        "status_code": rule_status,
+        "compatibility": rule_body.get("config")
+        if isinstance(rule_body, dict)
+        else None,
+    }
+    details["writer_schema_capture"] = _writer_capture_state()
+    details["iceberg"] = _iceberg_status()
+    service_health = {
+        str(item.get("Service")): item.get("Health")
+        for item in compose_records
+        if item.get("Service")
+    }
+    details["polaris"] = 200 if service_health.get("polaris") == "healthy" else 0
+    details["clickhouse"] = _http_json("http://127.0.0.1:8123/")[0]
+    ready = (
+        details.get("writer_schema_capture") == "captured"
+        and details["connector"].get("connector_state") == "RUNNING"
+        and details["connector"].get("task_0_state") == "RUNNING"
+        and details["registry"].get("compatibility") == "BACKWARD_TRANSITIVE"
+    )
+    return _emit("status", "ready" if ready else "blocked", **details)
 
 
-def warehouse_status(_: argparse.Namespace) -> int:
-    run(
-        [
-            "docker",
-            "compose",
-            "exec",
-            "-T",
-            "airflow",
-            "python",
-            "scripts/cdc/local_lab.py",
-            "_warehouse-status-in-container",
+def _run_static(command: Sequence[str], *, timeout: float = 300.0) -> dict[str, Any]:
+    result = _run(command, timeout=timeout, check=False)
+    return {
+        "command": " ".join(command[:3]),
+        "exit_code": result.returncode,
+        "status": "passed" if result.returncode == 0 else "failed",
+        "diagnostic": redact_text((result.stderr or result.stdout or "").strip())[
+            -500:
         ],
-        env=compose_env(),
+    }
+
+
+def _validate_runtime(
+    args: argparse.Namespace, *, include_expensive: bool
+) -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+    commands: list[tuple[Sequence[str], float]] = [
+        (["uv", "lock", "--check"], 120),
+        ([sys.executable, "-m", "streaming.schemas.generate_contracts", "--check"], 60),
+        (
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.writer_schemas",
+                "validate",
+                "--require-captured",
+            ],
+            60,
+        ),
+        (
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.contracts",
+                "--require-captured-writers",
+            ],
+            60,
+        ),
+        (compose_command("config", "--quiet", profiles=COMPOSE_PROFILES), 60),
+        (["git", "diff", "--check"], 60),
+    ]
+    if include_expensive:
+        commands.extend(
+            [
+                (
+                    [
+                        "uv",
+                        "run",
+                        "ruff",
+                        "check",
+                        "scripts/simulation",
+                        "streaming",
+                        "tests",
+                    ],
+                    300,
+                ),
+                (
+                    [
+                        "uv",
+                        "run",
+                        "ruff",
+                        "format",
+                        "--check",
+                        "scripts/simulation",
+                        "streaming",
+                        "tests",
+                    ],
+                    300,
+                ),
+            ]
+        )
+    for command, timeout in commands:
+        checks.append(_run_static(command, timeout=timeout))
+    passed = all(item["status"] == "passed" for item in checks)
+    return {"status": "ready" if passed else "failed", "checks": checks}
+
+
+def _validate(args: argparse.Namespace) -> int:
+    validation = _validate_runtime(args, include_expensive=True)
+    return _emit("validate", validation["status"], checks=validation["checks"])
+
+
+def _not_available(args: argparse.Namespace) -> int:
+    exc = NotAvailableUntil(args.phase, args.command)
+    return _emit(
+        args.command,
+        "not_available_until",
+        not_available_until=exc.phase,
+        error=str(exc),
     )
-    return 0
 
 
-def status(args: argparse.Namespace) -> int:
-    env = compose_env()
-    print_status(env)
-    if not args.compose_only:
-        run_nonfatal("connector-status", stage2_command("connector-status"), env)
-        run_nonfatal(
-            "kafka-lag",
-            [
-                "docker",
-                "compose",
-                "exec",
-                "-T",
-                "kafka",
-                "/opt/kafka/bin/kafka-consumer-groups.sh",
-                "--bootstrap-server",
-                "kafka:29092",
-                "--describe",
-                "--group",
-                str(args.group),
-            ],
-            env,
-        )
-        for dag_id in ACTIVE_CDC_DAGS:
-            print_airflow_runs_nonfatal(dag_id, limit=int(args.limit), env=env)
-        run_nonfatal(
-            "warehouse-status",
-            [
-                "docker",
-                "compose",
-                "exec",
-                "-T",
-                "airflow",
-                "python",
-                "scripts/cdc/local_lab.py",
-                "_warehouse-status-in-container",
-            ],
-            env,
-        )
-    return 0
-
-
-def main() -> int:
-    if len(sys.argv) > 1 and sys.argv[1] == "_warehouse-status-in-container":
-        return warehouse_status_in_container(argparse.Namespace())
-
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(dest="command", required=True)
 
-    start_parser = subparsers.add_parser(
-        "start",
-        help="Build images, start the local CDC stack, deploy NiFi, and run checks.",
-    )
-    start_parser.add_argument(
-        "--skip-build",
-        action="store_true",
-        help="Do not rebuild local runtime images before starting services.",
-    )
-    start_parser.add_argument(
-        "--skip-nifi-bootstrap",
-        action="store_true",
-        help="Do not deploy the version-controlled NiFi process group.",
-    )
-    start_parser.add_argument(
-        "--skip-checks",
-        action="store_true",
-        help="Do not run Airflow, registry, and Kafka topic smoke checks.",
-    )
-    start_parser.add_argument(
-        "--status",
-        action="store_true",
-        help="Print docker compose ps -a after startup and checks.",
-    )
-    start_parser.set_defaults(func=start)
+    doctor = commands.add_parser("doctor")
+    doctor.add_argument("--archive", default=str(SMALL_ARCHIVE))
+    doctor.set_defaults(func=_doctor)
 
-    stop_parser = subparsers.add_parser(
-        "stop",
-        help="Stop and remove the local CDC Compose stack.",
-    )
-    stop_parser.add_argument(
-        "--volumes",
-        "-v",
-        action="store_true",
-        help="Also delete local Compose volumes for a clean restart.",
-    )
-    stop_parser.set_defaults(func=stop)
+    reset = commands.add_parser("reset")
+    reset.add_argument("--yes", action="store_true")
+    reset.set_defaults(func=_reset)
 
-    seed_parser = subparsers.add_parser(
-        "seed",
-        help="Seed the OLTP source from the full local olist.zip archive.",
-    )
-    seed_parser.add_argument("--archive", default=relative_or_absolute(FULL_ARCHIVE))
-    seed_parser.add_argument("--seed", type=int, default=101)
-    seed_parser.add_argument("--run-id", default="e2e_initial_seed")
-    seed_parser.add_argument("--start-time", default="2020-01-01T00:00:00")
-    seed_parser.add_argument(
-        "--password-file",
-        default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
-    )
-    seed_parser.set_defaults(func=seed)
+    up = commands.add_parser("up")
+    up.add_argument("--build", action="store_true")
+    up.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)
+    up.set_defaults(func=_up)
 
-    seed_small_parser = subparsers.add_parser(
-        "seed-small",
-        help="Seed the OLTP source from the committed small fixture archive.",
-    )
-    seed_small_parser.add_argument(
-        "--archive",
-        default=relative_or_absolute(SMALL_ARCHIVE),
-    )
-    seed_small_parser.add_argument("--seed", type=int, default=101)
-    seed_small_parser.add_argument("--run-id", default="e2e_small_seed")
-    seed_small_parser.add_argument("--start-time", default="2020-01-01T00:00:00")
-    seed_small_parser.add_argument(
-        "--password-file",
-        default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
-    )
-    seed_small_parser.set_defaults(func=seed)
+    down = commands.add_parser("down")
+    down.set_defaults(func=_down)
 
-    workload_parser = subparsers.add_parser(
-        "run-workload",
-        help="Generate a finite synthetic OLTP workload after the CDC snapshot.",
+    bootstrap = commands.add_parser("bootstrap")
+    bootstrap.add_argument("--archive", default=str(SMALL_ARCHIVE))
+    bootstrap.add_argument("--run-id", default="wave1_j1_small_seed")
+    bootstrap.add_argument(
+        "--random-seed", "--seed", dest="random_seed", type=int, default=20260801
     )
-    workload_parser.add_argument("--seed", type=int, default=20260717)
-    workload_parser.add_argument("--run-id")
-    workload_parser.add_argument(
-        "--start-time",
-        help="Logical source start time. Defaults to the current UTC time.",
-    )
-    workload_parser.add_argument("--rate", type=float, default=5.0)
-    workload_limit = workload_parser.add_mutually_exclusive_group()
-    workload_limit.add_argument("--event-limit", type=int)
-    workload_limit.add_argument("--duration-seconds", type=float)
-    workload_parser.add_argument(
-        "--no-pacing",
-        action="store_true",
-        help="Generate the workload as fast as possible instead of sleeping by rate.",
-    )
-    workload_parser.add_argument(
-        "--password-file",
-        default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
-    )
-    workload_parser.set_defaults(func=run_workload)
+    bootstrap.add_argument("--start-time", default="2020-01-01T00:00:00")
+    bootstrap.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    bootstrap.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)
+    bootstrap.set_defaults(func=_bootstrap)
 
-    check_parser = subparsers.add_parser(
-        "check",
-        help="Run Airflow, registry, and Kafka topic smoke checks only.",
+    seed = commands.add_parser("seed")
+    seed.add_argument("--archive", default=str(SMALL_ARCHIVE))
+    seed.add_argument("--run-id", required=True)
+    seed.add_argument(
+        "--random-seed", "--seed", dest="random_seed", type=int, required=True
     )
-    check_parser.set_defaults(func=check)
+    seed.add_argument("--start-time", default="2020-01-01T00:00:00")
+    seed.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    seed.set_defaults(func=_seed)
 
-    bootstrap_nifi_parser = subparsers.add_parser(
-        "bootstrap-nifi",
-        help="Deploy or update the version-controlled NiFi CDC process group.",
-    )
-    bootstrap_nifi_parser.set_defaults(func=bootstrap_nifi_command)
+    status = commands.add_parser("status")
+    status.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    status.set_defaults(func=_status)
 
-    register_parser = subparsers.add_parser(
-        "register-connector",
-        help="Create or update the Debezium PostgreSQL connector and wait for RUNNING.",
-    )
-    register_parser.add_argument("--url", default="http://localhost:8083")
-    register_parser.add_argument(
-        "--password-file",
-        default=relative_or_absolute(DEFAULT_PASSWORD_FILE),
-    )
-    register_parser.set_defaults(func=register_connector)
+    validate = commands.add_parser("validate")
+    validate.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    validate.set_defaults(func=_validate)
 
-    connector_status_parser = subparsers.add_parser(
-        "connector-status",
-        help="Print Debezium connector and task state from Kafka Connect.",
+    for command, phase in (
+        ("start-streaming", "J2"),
+        ("wait-caught-up", "J2"),
+        ("sync-serving", "E"),
+        ("rebuild-serving", "E"),
+        ("run-maintenance", "E"),
+        ("final-parity", "E"),
+    ):
+        deferred = commands.add_parser(command)
+        deferred.add_argument("--phase", default=phase, help=argparse.SUPPRESS)
+        deferred.set_defaults(func=_not_available, phase=phase)
+    commands.choices["wait-caught-up"].add_argument(
+        "--timeout", type=float, default=1200
     )
-    connector_status_parser.add_argument("--url", default="http://localhost:8083")
-    connector_status_parser.set_defaults(func=connector_status)
+    commands.choices["sync-serving"].add_argument("--run-id")
+    commands.choices["final-parity"].add_argument(
+        "--confirm-destructive", action="store_true"
+    )
 
-    wait_connector_parser = subparsers.add_parser(
-        "wait-connector-running",
-        help="Wait until the Debezium connector and task are RUNNING.",
-    )
-    wait_connector_parser.add_argument("--url", default="http://localhost:8083")
-    wait_connector_parser.add_argument("--timeout", type=float, default=120)
-    wait_connector_parser.set_defaults(func=wait_connector_running)
+    # Compatibility aliases are retained as thin lifecycle aliases; they do
+    # not re-enable the removed PostgreSQL/NiFi path.
+    start = commands.add_parser("start", help=argparse.SUPPRESS)
+    start.add_argument("--build", action="store_true")
+    start.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)
+    start.set_defaults(func=_up)
+    stop = commands.add_parser("stop", help=argparse.SUPPRESS)
+    stop.set_defaults(func=_down)
+    return parser
 
-    restart_parser = subparsers.add_parser(
-        "restart-failed-connector",
-        help="Restart only failed Debezium connector tasks and wait for RUNNING.",
-    )
-    restart_parser.add_argument("--url", default="http://localhost:8083")
-    restart_parser.set_defaults(func=restart_failed_connector)
 
-    enable_parser = subparsers.add_parser(
-        "enable-dags",
-        help="Unpause the CDC DAGs needed for near-realtime local flow.",
-    )
-    enable_parser.add_argument(
-        "--include-backfill",
-        action="store_true",
-        help="Also unpause the manual CDC backfill DAG.",
-    )
-    enable_parser.set_defaults(func=enable_dags)
-
-    trigger_parser = subparsers.add_parser(
-        "trigger-ingest",
-        help="Trigger one olist_cdc_ingest_local DAG run.",
-    )
-    trigger_parser.add_argument("--run-id")
-    trigger_parser.add_argument(
-        "--conf",
-        help="Optional JSON string passed to Airflow as DAG run conf.",
-    )
-    trigger_parser.set_defaults(func=trigger_ingest)
-
-    airflow_runs_parser = subparsers.add_parser(
-        "airflow-runs",
-        help="List recent runs for CDC DAGs.",
-    )
-    airflow_runs_parser.add_argument(
-        "--dag-id",
-        action="append",
-        help="DAG id to inspect. Can be repeated.",
-    )
-    airflow_runs_parser.add_argument("--limit", type=int, default=5)
-    airflow_runs_parser.set_defaults(func=airflow_runs)
-
-    kafka_lag_parser = subparsers.add_parser(
-        "kafka-lag",
-        help="Show Kafka offsets and lag for the NiFi CDC consumer group.",
-    )
-    kafka_lag_parser.add_argument("--group", default=DEFAULT_CONSUMER_GROUP)
-    kafka_lag_parser.set_defaults(func=kafka_lag)
-
-    warehouse_parser = subparsers.add_parser(
-        "warehouse-status",
-        help="Print raw_cdc row counts and cdc_audit run counters.",
-    )
-    warehouse_parser.set_defaults(func=warehouse_status)
-
-    status_parser = subparsers.add_parser(
-        "status",
-        help="Print compose, connector, Kafka, Airflow, and warehouse status.",
-    )
-    status_parser.add_argument("--compose-only", action="store_true")
-    status_parser.add_argument("--group", default=DEFAULT_CONSUMER_GROUP)
-    status_parser.add_argument("--limit", type=int, default=3)
-    status_parser.set_defaults(func=status)
-
-    args = parser.parse_args()
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
     try:
         return int(args.func(args))
-    except subprocess.CalledProcessError as exc:
-        print(
-            f"Command failed with exit code {exc.returncode}: {exc.cmd}",
-            file=sys.stderr,
-        )
-        return exc.returncode
-    except Exception as exc:
-        print(f"Local CDC stack command failed: {exc}", file=sys.stderr)
-        return 1
+    except (LabError, ImportError, OSError) as exc:
+        return _emit(str(args.command), "failed", error=redact_text(str(exc)))
 
 
 if __name__ == "__main__":

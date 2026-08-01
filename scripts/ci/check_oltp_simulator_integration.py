@@ -57,12 +57,11 @@ def required_value(row: tuple[Any, ...] | None, message: str) -> Any:
 
 def main() -> int:
     args = parse_args()
-    settings = DatabaseSettings.with_password_file(
+    settings = DatabaseSettings(
         host=args.host,
         port=args.port,
         database=args.database,
         user=args.user,
-        password=args.password,
         password_file=args.password_file,
     )
     connection = connect(settings)

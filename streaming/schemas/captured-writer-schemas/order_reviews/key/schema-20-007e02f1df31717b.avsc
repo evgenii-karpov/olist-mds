@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.order_reviews",
+  "fields": [
+    {
+      "name": "review_id",
+      "type": "string"
+    },
+    {
+      "name": "order_id",
+      "type": "string"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.order_reviews.Key"
+}

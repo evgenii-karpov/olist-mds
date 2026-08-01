@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -14,44 +16,77 @@ from scripts.simulation.database import (
     SimulatorRepository,
     connect,
 )
-from scripts.simulation.domain import SimulationConfig
+from scripts.simulation.domain import SimulationConfig, normalize_speed_multiplier
 from scripts.simulation.engine import RunEngine, deterministic_run_id
 from scripts.simulation.seeding import seed_archive
 
 DEFAULT_LOGICAL_START = "2020-01-01T00:00:00"
+REDACTED = "[REDACTED]"
 
 
 def emit(event: str, **fields: object) -> None:
     print(json.dumps({"event": event, **fields}, sort_keys=True, default=str))
 
 
+def sanitize_error_message(message: str, password_file: str | None) -> str:
+    sanitized = message
+    if password_file:
+        try:
+            secret = Path(password_file).read_text(encoding="utf-8").rstrip("\r\n")
+        except OSError:
+            secret = ""
+        if secret:
+            sanitized = sanitized.replace(secret, REDACTED)
+    sanitized = re.sub(
+        r"(?i)\b(password|passwd|pwd)\s*([=:])\s*[^\s,;]+",
+        rf"\1\2{REDACTED}",
+        sanitized,
+    )
+    return re.sub(
+        r"(?i)(mysql(?:\+[a-z0-9_]+)?://[^:/@\s]+:)[^@\s]+@",
+        rf"\1{REDACTED}@",
+        sanitized,
+    )
+
+
 def add_database_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--host", default=os.environ.get("MYSQL_HOST", "localhost"))
     parser.add_argument(
-        "--host", default=os.environ.get("OLTP_POSTGRES_HOST", "localhost")
+        "--port", type=int, default=int(os.environ.get("MYSQL_PORT", "3306"))
     )
     parser.add_argument(
-        "--port", type=int, default=int(os.environ.get("OLTP_POSTGRES_PORT", "5433"))
+        "--database", default=os.environ.get("MYSQL_DATABASE", "olist_oltp")
     )
     parser.add_argument(
-        "--database", default=os.environ.get("OLTP_POSTGRES_DB", "olist_oltp")
+        "--user", default=os.environ.get("MYSQL_USER", "olist_simulator")
     )
     parser.add_argument(
-        "--user", default=os.environ.get("OLTP_POSTGRES_USER", "olist_simulator")
+        "--password-file", default=os.environ.get("MYSQL_PASSWORD_FILE")
     )
-    parser.add_argument("--password", default=os.environ.get("OLTP_POSTGRES_PASSWORD"))
     parser.add_argument(
-        "--password-file", default=os.environ.get("OLTP_POSTGRES_PASSWORD_FILE")
+        "--connect-timeout",
+        type=int,
+        default=int(os.environ.get("MYSQL_CONNECT_TIMEOUT", "10")),
     )
 
 
 def add_run_configuration(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument(
+        "--random-seed", "--seed", dest="random_seed", type=int, required=True
+    )
     parser.add_argument("--run-id")
     parser.add_argument("--start-time", default=DEFAULT_LOGICAL_START)
     parser.add_argument("--rate", type=float, default=5.0)
     limit = parser.add_mutually_exclusive_group()
     limit.add_argument("--event-limit", type=int)
     limit.add_argument("--duration-seconds", type=float)
+
+
+def speed_multiplier_argument(value: str) -> Decimal:
+    try:
+        return normalize_speed_multiplier(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
 def parser() -> argparse.ArgumentParser:
@@ -61,7 +96,9 @@ def parser() -> argparse.ArgumentParser:
     seed = commands.add_parser("seed", help="Idempotently seed Olist source data")
     add_database_arguments(seed)
     seed.add_argument("--archive", required=True)
-    seed.add_argument("--seed", type=int, required=True)
+    seed.add_argument(
+        "--random-seed", "--seed", dest="random_seed", type=int, required=True
+    )
     seed.add_argument("--run-id")
     seed.add_argument("--start-time", default=DEFAULT_LOGICAL_START)
 
@@ -78,7 +115,11 @@ def parser() -> argparse.ArgumentParser:
     replay = commands.add_parser("replay", help="Replay inferred seeded lifecycles")
     add_database_arguments(replay)
     add_run_configuration(replay)
-    replay.add_argument("--speed-multiplier", type=float, default=60.0)
+    replay.add_argument(
+        "--speed-multiplier",
+        type=speed_multiplier_argument,
+        default=Decimal("60.0000"),
+    )
 
     status = commands.add_parser("status", help="Report persisted simulator state")
     add_database_arguments(status)
@@ -91,13 +132,13 @@ def parser() -> argparse.ArgumentParser:
 
 
 def settings_from_args(args: argparse.Namespace) -> DatabaseSettings:
-    return DatabaseSettings.with_password_file(
+    return DatabaseSettings(
+        password_file=args.password_file,
         host=args.host,
         port=args.port,
         database=args.database,
         user=args.user,
-        password=args.password,
-        password_file=args.password_file,
+        connect_timeout=args.connect_timeout,
     )
 
 
@@ -121,7 +162,7 @@ def event_limit(args: argparse.Namespace) -> int | None:
 
 def simulation_config(args: argparse.Namespace) -> SimulationConfig:
     kwargs: dict[str, Any] = {
-        "random_seed": args.seed,
+        "random_seed": args.random_seed,
         "start_time": logical_time(args.start_time),
         "target_rate": args.rate,
     }
@@ -143,11 +184,13 @@ def execute(args: argparse.Namespace) -> int:
     try:
         if args.command == "seed":
             started_at = logical_time(args.start_time)
-            run_id = args.run_id or deterministic_run_id("seed", args.seed, started_at)
+            run_id = args.run_id or deterministic_run_id(
+                "seed", args.random_seed, started_at
+            )
             counts = seed_archive(
                 repository,
                 Path(args.archive),
-                random_seed=args.seed,
+                random_seed=args.random_seed,
                 run_id=run_id,
                 logical_time=started_at,
             )
@@ -156,7 +199,7 @@ def execute(args: argparse.Namespace) -> int:
         if args.command == "run":
             config = simulation_config(args)
             run_id = args.run_id or deterministic_run_id(
-                "run", args.seed, config.start_time
+                "run", args.random_seed, config.start_time
             )
             completed = RunEngine(repository).run(
                 run_id,
@@ -169,7 +212,7 @@ def execute(args: argparse.Namespace) -> int:
         if args.command == "replay":
             config = simulation_config(args)
             run_id = args.run_id or deterministic_run_id(
-                "replay", args.seed, config.start_time
+                "replay", args.random_seed, config.start_time
             )
             completed = RunEngine(repository).replay(
                 run_id,
@@ -205,6 +248,6 @@ def main() -> int:
             "command_failed",
             command=args.command,
             error_type=type(exc).__name__,
-            message=str(exc),
+            message=sanitize_error_message(str(exc), args.password_file),
         )
         return 1

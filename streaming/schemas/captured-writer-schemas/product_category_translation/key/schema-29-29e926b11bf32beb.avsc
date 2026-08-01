@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.product_category_translation",
+  "fields": [
+    {
+      "name": "product_category_name",
+      "type": "string"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.product_category_translation.Key"
+}

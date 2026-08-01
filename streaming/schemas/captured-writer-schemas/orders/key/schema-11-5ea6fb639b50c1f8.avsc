@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.orders",
+  "fields": [
+    {
+      "name": "order_id",
+      "type": "string"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.orders.Key"
+}

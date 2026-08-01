@@ -1,0 +1,443 @@
+{
+  "entity": "orders",
+  "contract_version": 1,
+  "topic": "olist_cdc.olist_oltp.orders",
+  "topic_partitions": 3,
+  "primary_key": [
+    "order_id"
+  ],
+  "mysql_database": "olist_oltp",
+  "mysql_table": "orders",
+  "mysql_columns": [
+    {
+      "name": "order_id",
+      "mysql_type": "VARCHAR(64)",
+      "nullable": false,
+      "spark_type": "string",
+      "iceberg_type": "string",
+      "primary_key_ordinal": 1
+    },
+    {
+      "name": "customer_id",
+      "mysql_type": "VARCHAR(64)",
+      "nullable": false,
+      "spark_type": "string",
+      "iceberg_type": "string",
+      "references": "olist_oltp.customers(customer_id)"
+    },
+    {
+      "name": "order_status",
+      "mysql_type": "VARCHAR(32)",
+      "nullable": false,
+      "spark_type": "string",
+      "iceberg_type": "string",
+      "checks": [
+        "IN ('created','approved','invoiced','processing','shipped','delivered','unavailable','canceled')"
+      ]
+    },
+    {
+      "name": "order_purchase_timestamp",
+      "mysql_type": "DATETIME(6)",
+      "nullable": false,
+      "spark_type": "timestamp",
+      "iceberg_type": "timestamp",
+      "type_metadata": {
+        "precision": "microseconds",
+        "timezone_semantics": "UTC"
+      }
+    },
+    {
+      "name": "order_approved_at",
+      "mysql_type": "DATETIME(6)",
+      "nullable": true,
+      "spark_type": "timestamp",
+      "iceberg_type": "timestamp",
+      "checks": [
+        "order_approved_at >= order_purchase_timestamp"
+      ],
+      "type_metadata": {
+        "precision": "microseconds",
+        "timezone_semantics": "UTC"
+      }
+    },
+    {
+      "name": "order_delivered_carrier_date",
+      "mysql_type": "DATETIME(6)",
+      "nullable": true,
+      "spark_type": "timestamp",
+      "iceberg_type": "timestamp",
+      "type_metadata": {
+        "precision": "microseconds",
+        "timezone_semantics": "UTC"
+      }
+    },
+    {
+      "name": "order_delivered_customer_date",
+      "mysql_type": "DATETIME(6)",
+      "nullable": true,
+      "spark_type": "timestamp",
+      "iceberg_type": "timestamp",
+      "checks": [
+        "order_delivered_customer_date >= order_purchase_timestamp"
+      ],
+      "type_metadata": {
+        "precision": "microseconds",
+        "timezone_semantics": "UTC"
+      }
+    },
+    {
+      "name": "order_estimated_delivery_date",
+      "mysql_type": "DATETIME(6)",
+      "nullable": false,
+      "spark_type": "timestamp",
+      "iceberg_type": "timestamp",
+      "type_metadata": {
+        "precision": "microseconds",
+        "timezone_semantics": "UTC"
+      }
+    }
+  ],
+  "avro": {
+    "wire_format": "confluent",
+    "magic_byte": 0,
+    "schema_id_bytes": 4,
+    "schema_id_byte_order": "big-endian",
+    "fingerprint_algorithm": "sha256-canonical-json-v1",
+    "reader_schema_role": "contractual_reader_not_writer_provenance",
+    "writer_schema_capture_state": "pending_runtime_capture",
+    "key_reader_schema": {
+      "type": "record",
+      "name": "Key",
+      "namespace": "olist_cdc.olist_oltp.orders",
+      "fields": [
+        {
+          "name": "order_id",
+          "type": "string"
+        }
+      ]
+    },
+    "value_reader_schema": {
+      "type": "record",
+      "name": "Envelope",
+      "namespace": "olist_cdc.olist_oltp.orders",
+      "fields": [
+        {
+          "name": "before",
+          "type": [
+            "null",
+            {
+              "type": "record",
+              "name": "Value",
+              "namespace": "olist_cdc.olist_oltp.orders",
+              "fields": [
+                {
+                  "name": "order_id",
+                  "type": "string"
+                },
+                {
+                  "name": "customer_id",
+                  "type": "string"
+                },
+                {
+                  "name": "order_status",
+                  "type": "string"
+                },
+                {
+                  "name": "order_purchase_timestamp",
+                  "type": {
+                    "type": "long",
+                    "logicalType": "timestamp-micros"
+                  }
+                },
+                {
+                  "name": "order_approved_at",
+                  "type": [
+                    "null",
+                    {
+                      "type": "long",
+                      "logicalType": "timestamp-micros"
+                    }
+                  ],
+                  "default": null
+                },
+                {
+                  "name": "order_delivered_carrier_date",
+                  "type": [
+                    "null",
+                    {
+                      "type": "long",
+                      "logicalType": "timestamp-micros"
+                    }
+                  ],
+                  "default": null
+                },
+                {
+                  "name": "order_delivered_customer_date",
+                  "type": [
+                    "null",
+                    {
+                      "type": "long",
+                      "logicalType": "timestamp-micros"
+                    }
+                  ],
+                  "default": null
+                },
+                {
+                  "name": "order_estimated_delivery_date",
+                  "type": {
+                    "type": "long",
+                    "logicalType": "timestamp-micros"
+                  }
+                }
+              ]
+            }
+          ],
+          "default": null
+        },
+        {
+          "name": "after",
+          "type": [
+            "null",
+            "Value"
+          ],
+          "default": null
+        },
+        {
+          "name": "source",
+          "type": {
+            "type": "record",
+            "name": "Source",
+            "namespace": "io.debezium.connector.mysql",
+            "fields": [
+              {
+                "name": "version",
+                "type": "string"
+              },
+              {
+                "name": "connector",
+                "type": "string"
+              },
+              {
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "name": "ts_ms",
+                "type": "long"
+              },
+              {
+                "name": "snapshot",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "db",
+                "type": "string"
+              },
+              {
+                "name": "sequence",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "ts_us",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "ts_ns",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "table",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "server_id",
+                "type": "long"
+              },
+              {
+                "name": "gtid",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "file",
+                "type": "string"
+              },
+              {
+                "name": "pos",
+                "type": "long"
+              },
+              {
+                "name": "row",
+                "type": "int"
+              },
+              {
+                "name": "thread",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "query",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              }
+            ]
+          }
+        },
+        {
+          "name": "transaction",
+          "type": [
+            "null",
+            {
+              "type": "record",
+              "name": "Transaction",
+              "namespace": "io.olist.cdc.debezium",
+              "fields": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "total_order",
+                  "type": "long"
+                },
+                {
+                  "name": "data_collection_order",
+                  "type": "long"
+                }
+              ]
+            }
+          ],
+          "default": null
+        },
+        {
+          "name": "op",
+          "type": "string"
+        },
+        {
+          "name": "ts_ms",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        },
+        {
+          "name": "ts_us",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        },
+        {
+          "name": "ts_ns",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        }
+      ]
+    },
+    "allowed_key_fingerprints": [],
+    "allowed_value_fingerprints": []
+  },
+  "spark_reader_schema": {
+    "key_schema_json_pointer": "#/avro/key_reader_schema",
+    "value_schema_json_pointer": "#/avro/value_reader_schema",
+    "strip_confluent_prefix_bytes": 5,
+    "from_avro_mode": "FAILFAST",
+    "writer_schema_source": "bronze.avro_schemas.spark_self_contained_schema_json"
+  },
+  "iceberg_projection": {
+    "changes_table": "silver.orders_changes",
+    "current_table": "silver.orders_current",
+    "business_columns": [
+      {
+        "name": "order_id",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "customer_id",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "order_status",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "order_purchase_timestamp",
+        "type": "timestamp",
+        "nullable": false
+      },
+      {
+        "name": "order_approved_at",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "order_delivered_carrier_date",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "order_delivered_customer_date",
+        "type": "timestamp",
+        "nullable": true
+      },
+      {
+        "name": "order_estimated_delivery_date",
+        "type": "timestamp",
+        "nullable": false
+      }
+    ]
+  },
+  "evolution": {
+    "registry_compatibility": "BACKWARD_TRANSITIVE",
+    "allowed": [
+      "add_nullable_field_with_default_null"
+    ],
+    "forbidden": [
+      "rename",
+      "drop",
+      "type_narrowing",
+      "primary_key_change",
+      "key_schema_change"
+    ],
+    "unknown_fingerprint_action": "stop_affected_silver_query",
+    "incompatible_registration_action": "stop_connector",
+    "key_schema_or_partition_change_action": "full_reset"
+  }
+}

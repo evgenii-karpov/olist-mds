@@ -16,6 +16,7 @@ dependencies = [
     "elementary-data[clickhouse,redshift]==0.23.4",
     "fastavro>=1.12,<2",
     "importlib-metadata>=6,<8.8",
+    "mysql-connector-python==9.7.0",
     "pandas>=2.2,<3",
     "pyarrow>=21,<24",
     "psycopg2-binary>=2.9,<3",

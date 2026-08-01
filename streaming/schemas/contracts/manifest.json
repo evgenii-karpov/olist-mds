@@ -1,0 +1,150 @@
+{
+  "manifest_version": 1,
+  "entity_count": 8,
+  "entities": [
+    {
+      "entity": "customers",
+      "contract_version": 2,
+      "path": "customers/v2.json",
+      "contract_sha256": "bba38506a4ae3fca4d36d1d6076e5bdd537c58e409d6aa0dd6d287b3bcfc8c78",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "customers/v1.json",
+          "contract_sha256": "667a0d53698f1ddd0627f0d662209ae26506642afa481d369071e1e6bbc4a5b3"
+        },
+        {
+          "contract_version": 2,
+          "path": "customers/v2.json",
+          "contract_sha256": "bba38506a4ae3fca4d36d1d6076e5bdd537c58e409d6aa0dd6d287b3bcfc8c78"
+        }
+      ]
+    },
+    {
+      "entity": "orders",
+      "contract_version": 2,
+      "path": "orders/v2.json",
+      "contract_sha256": "8eaf535a9841e801107f61044e6109c33bd3333f60811ae93470ccefaa5ec7ba",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "orders/v1.json",
+          "contract_sha256": "82558c4d111adf6a627d9ab15c05a544ae2de6c3752de72e4a05ecd408b755ab"
+        },
+        {
+          "contract_version": 2,
+          "path": "orders/v2.json",
+          "contract_sha256": "8eaf535a9841e801107f61044e6109c33bd3333f60811ae93470ccefaa5ec7ba"
+        }
+      ]
+    },
+    {
+      "entity": "order_items",
+      "contract_version": 2,
+      "path": "order_items/v2.json",
+      "contract_sha256": "948efd8bc1123a901ab4773da31c55c5775f179140cd091bb56acd4c7ceb7a47",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "order_items/v1.json",
+          "contract_sha256": "a216c978cec0269094e2a9c2b647569a98d1cfa225f4a4f896554e1f263cb827"
+        },
+        {
+          "contract_version": 2,
+          "path": "order_items/v2.json",
+          "contract_sha256": "948efd8bc1123a901ab4773da31c55c5775f179140cd091bb56acd4c7ceb7a47"
+        }
+      ]
+    },
+    {
+      "entity": "order_payments",
+      "contract_version": 2,
+      "path": "order_payments/v2.json",
+      "contract_sha256": "8b008d9d6ef76be6952cca4dffd5254a954f25c592a796396d0a9501c0252324",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "order_payments/v1.json",
+          "contract_sha256": "6b89cf29efce3fd9bd02ac553bf32411e0364defc82adb9444471aacba738d0f"
+        },
+        {
+          "contract_version": 2,
+          "path": "order_payments/v2.json",
+          "contract_sha256": "8b008d9d6ef76be6952cca4dffd5254a954f25c592a796396d0a9501c0252324"
+        }
+      ]
+    },
+    {
+      "entity": "order_reviews",
+      "contract_version": 2,
+      "path": "order_reviews/v2.json",
+      "contract_sha256": "403b3a1de1f36d24a40e9d59c2cd5025088d3feea864f64882387620bd9d5e5f",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "order_reviews/v1.json",
+          "contract_sha256": "7aa749360e5c0e105ff9306ed1ea79dde6d64430598acd0c421752b851a54493"
+        },
+        {
+          "contract_version": 2,
+          "path": "order_reviews/v2.json",
+          "contract_sha256": "403b3a1de1f36d24a40e9d59c2cd5025088d3feea864f64882387620bd9d5e5f"
+        }
+      ]
+    },
+    {
+      "entity": "products",
+      "contract_version": 2,
+      "path": "products/v2.json",
+      "contract_sha256": "22180b558c48c3b2b39e8c877da2810c48b562278e71adfeaaa751d1c712a19d",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "products/v1.json",
+          "contract_sha256": "2d3ddefa9c5435702662463b79ddb1e650686dba9a9d5486f52158d67bff14d2"
+        },
+        {
+          "contract_version": 2,
+          "path": "products/v2.json",
+          "contract_sha256": "22180b558c48c3b2b39e8c877da2810c48b562278e71adfeaaa751d1c712a19d"
+        }
+      ]
+    },
+    {
+      "entity": "sellers",
+      "contract_version": 2,
+      "path": "sellers/v2.json",
+      "contract_sha256": "4d55957e19128b1dd7e8930838e7d3f4ebe7f1893674f10f6b6fa4d839967a0b",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "sellers/v1.json",
+          "contract_sha256": "acabb0a77165f1dc25901b18efb8e6b1dc9c63ade83bedd136917ccd33d02e0b"
+        },
+        {
+          "contract_version": 2,
+          "path": "sellers/v2.json",
+          "contract_sha256": "4d55957e19128b1dd7e8930838e7d3f4ebe7f1893674f10f6b6fa4d839967a0b"
+        }
+      ]
+    },
+    {
+      "entity": "product_category_translation",
+      "contract_version": 2,
+      "path": "product_category_translation/v2.json",
+      "contract_sha256": "dd764dc1e33b6e366e1b0977611ab29f95ccfdcb6e700a4659998af20caf3e84",
+      "versions": [
+        {
+          "contract_version": 1,
+          "path": "product_category_translation/v1.json",
+          "contract_sha256": "ed141480dd440abd0151fe9f32201f66196f4d0057da8aa161f558db0ea7d8c2"
+        },
+        {
+          "contract_version": 2,
+          "path": "product_category_translation/v2.json",
+          "contract_sha256": "dd764dc1e33b6e366e1b0977611ab29f95ccfdcb6e700a4659998af20caf3e84"
+        }
+      ]
+    }
+  ]
+}

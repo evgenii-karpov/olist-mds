@@ -1,19 +1,27 @@
-# Local Kafka contract
+# Kafka topic contract
 
-Phase 2 runs `apache/kafka:4.3.1` as one persistent KRaft broker. Container
-clients use `kafka:29092`; host tools use `localhost:9092`. ZooKeeper and broker
-topic auto-creation are disabled.
+`topics.json` is the fixed machine-readable manifest for the MySQL lakehouse
+CDC generation. It contains exactly 15 topics. There are no DLQ topics and no
+`olist_cdc.public.*` PostgreSQL topics.
 
-`topics.json` is the machine-readable contract. `create-topics.sh` creates its
-22 topics idempotently before Connect starts. Source and reserved DLQ topics
-retain data for seven days. DLQ partitions match their source topic so Phase 3
-can preserve parallelism, but no producer is attached to them in Phase 2.
+`create-topics.sh` is dependency-free and runs inside `apache/kafka:4.3.1`.
+It creates missing topics and reapplies every explicit retention/cleanup
+property to existing topics. Before altering an existing topic it verifies the
+exact partition count and rejects dangerous retention, cleanup, compaction,
+segment, timestamp, message-size, ISR, or unclean-election overrides that are
+not declared for that topic. Broker auto-creation must be disabled before the
+script runs.
 
-Validate the live broker with:
+`validate_topics.py` compares a live `kafka-topics.sh --describe` response with
+the manifest and rejects missing topics, managed-topic extras, partition drift,
+replication drift, expected config drift, and dangerous unmanifested overrides.
+Example container commands:
 
 ```text
-python scripts/cdc/stage2_admin.py validate-topics
+/contract/create-topics.sh kafka:29092
+python /contract/validate_topics.py --bootstrap-server kafka:29092
 ```
 
-The validator checks names, partition counts, replication factor, cleanup
-policy, retention, and unexpected source or derived heartbeat topics.
+`olist_cdc.schema_history` deliberately uses `cleanup.policy=delete` with
+unbounded retention. It must never be compacted. Kafka Connect's three internal
+topics are the only compacted topics in this manifest.

@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.order_payments",
+  "fields": [
+    {
+      "name": "order_id",
+      "type": "string"
+    },
+    {
+      "name": "payment_sequential",
+      "type": "int"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.order_payments.Key"
+}
