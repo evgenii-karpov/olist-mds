@@ -1,0 +1,30 @@
+name: "olist_clickhouse"
+version: "1.0.0"
+config-version: 2
+
+profile: "olist_clickhouse"
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+vars:
+  sync_run_seq: 0
+  sync_run_id: ""
+
+models:
+  olist_clickhouse:
+    staging:
+      # Physical views make the ClickHouse adapter's dbt unit-test fixture
+      # introspection work while keeping staging non-persistent.
+      +materialized: view
+    intermediate:
+      +materialized: ephemeral
+    gold:
+      +schema: gold_store
+      +tags: ["gold_candidate"]

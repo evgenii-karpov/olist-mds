@@ -1,0 +1,139 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Candidate date dimension for one finite serving run.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, date_key]
+    columns:
+      - name: sync_run_seq
+        data_tests: [not_null]
+      - name: date_key
+        data_tests: [not_null]
+      - name: date_day
+        data_tests: [not_null]
+
+  - name: dim_order_status
+    description: Order-status reference values observed by the candidate run.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_status]
+    columns:
+      - name: order_status_key
+        data_tests: [not_null]
+      - name: order_status
+        data_tests: [not_null]
+
+  - name: dim_seller
+    description: Type-1 seller projection at candidate-run state.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, seller_id]
+    columns:
+      - name: seller_key
+        data_tests: [not_null]
+      - name: seller_id
+        data_tests: [not_null]
+
+  - name: dim_customer_scd2
+    description: Event-derived customer SCD2 keyed by customer_unique_id and opening event.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, customer_key]
+    columns:
+      - name: customer_key
+        data_tests: [not_null]
+      - name: customer_unique_id
+        data_tests: [not_null]
+      - name: valid_from
+        data_tests: [not_null]
+
+  - name: dim_product_scd2
+    description: Product SCD2 driven by both product and category-translation events.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, product_key]
+    columns:
+      - name: product_key
+        data_tests: [not_null]
+      - name: product_id
+        data_tests: [not_null]
+      - name: valid_from
+        data_tests: [not_null]
+
+  - name: fact_order_items
+    description: Full item-grain analytical projection for a candidate serving sequence.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_id, order_item_id]
+    columns:
+      - name: order_item_key
+        data_tests: [not_null]
+      - name: customer_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer_scd2')
+                field: customer_key
+      - name: product_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_product_scd2')
+                field: product_key
+      - name: seller_key
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_seller')
+                field: seller_key
+      - name: price
+        data_tests: [not_null, non_negative]
+      - name: freight_value
+        data_tests: [not_null, non_negative]
+      - name: gross_item_amount
+        data_tests: [not_null, non_negative]
+      - name: allocated_payment_value
+        data_tests: [non_negative]
+
+  - name: mart_daily_revenue
+    description: Daily revenue, customer, item, and delivery measures.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_purchase_date]
+    columns:
+      - name: order_purchase_date
+        data_tests: [not_null]
+      - name: gross_revenue
+        data_tests: [not_null, non_negative]
+      - name: allocated_payment_revenue
+        data_tests: [not_null, non_negative]
+      - name: orders_count
+        data_tests: [not_null, non_negative]
+
+  - name: mart_monthly_arpu
+    description: Monthly active-customer, ARPU, order, and repeat-customer measures.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_month]
+    columns:
+      - name: order_month
+        data_tests: [not_null]
+      - name: active_customers
+        data_tests: [not_null, non_negative]
+      - name: total_revenue
+        data_tests: [not_null, non_negative]
+      - name: orders_count
+        data_tests: [not_null, non_negative]

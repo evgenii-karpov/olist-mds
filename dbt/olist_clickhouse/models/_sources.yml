@@ -1,0 +1,29 @@
+version: 2
+
+sources:
+  - name: serving_cdc
+    schema: serving_cdc
+    description: Native ClickHouse copy of finite, transaction-complete Iceberg Silver runs.
+    tables:
+      - name: customers_events
+      - name: customers_current_versions
+      - name: orders_events
+      - name: orders_current_versions
+      - name: order_items_events
+      - name: order_items_current_versions
+      - name: order_payments_events
+      - name: order_payments_current_versions
+      - name: order_reviews_events
+      - name: order_reviews_current_versions
+      - name: products_events
+      - name: products_current_versions
+      - name: sellers_events
+      - name: sellers_current_versions
+      - name: product_category_translation_events
+      - name: product_category_translation_current_versions
+
+  - name: serving_control
+    schema: serving_control
+    description: Publication metadata; only published sequences may appear through stable views.
+    tables:
+      - name: published_runs_current
