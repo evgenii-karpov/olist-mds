@@ -40,3 +40,7 @@ aws_credentials*
 Thumbs.db
 .idea/
 .vscode/
+
+# Spark runtime status
+docker/spark/status/*/*.json
+!docker/spark/status/*/.gitkeep

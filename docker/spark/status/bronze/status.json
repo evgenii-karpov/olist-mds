@@ -2,7 +2,7 @@
   "application" : "spark-bronze",
   "contract_version" : 2,
   "overall_state" : "READY",
-  "updated_at_utc" : "2026-08-01T18:19:59.310111463Z",
+  "updated_at_utc" : "2026-08-01T18:49:01.675680501Z",
   "queries" : [ {
     "name" : "kafka_to_bronze",
     "query_id" : "81cb8236-06ea-414d-9403-793ba0fda1c3",
