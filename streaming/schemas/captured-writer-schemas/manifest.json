@@ -17,7 +17,7 @@
               "artifact_id": "olist_cdc.olist_oltp.customers-key",
               "artifact_version": "1",
               "schema_id": 7,
-              "captured_at_utc": "2026-08-01T00:47:43.643288Z",
+              "captured_at_utc": "2026-08-01T16:02:01.939086Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.customers"
             }
@@ -36,7 +36,7 @@
               "artifact_id": "olist_cdc.olist_oltp.customers-value",
               "artifact_version": "1",
               "schema_id": 10,
-              "captured_at_utc": "2026-08-01T00:47:43.829942Z",
+              "captured_at_utc": "2026-08-01T16:02:02.140279Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.customers"
             }
@@ -58,7 +58,7 @@
               "artifact_id": "olist_cdc.olist_oltp.orders-key",
               "artifact_version": "1",
               "schema_id": 11,
-              "captured_at_utc": "2026-08-01T00:47:43.876616Z",
+              "captured_at_utc": "2026-08-01T16:02:02.186376Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.orders"
             }
@@ -77,7 +77,7 @@
               "artifact_id": "olist_cdc.olist_oltp.orders-value",
               "artifact_version": "1",
               "schema_id": 13,
-              "captured_at_utc": "2026-08-01T00:47:43.991836Z",
+              "captured_at_utc": "2026-08-01T16:02:02.393159Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.orders"
             }
@@ -99,7 +99,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_items-key",
               "artifact_version": "1",
               "schema_id": 14,
-              "captured_at_utc": "2026-08-01T00:47:44.086168Z",
+              "captured_at_utc": "2026-08-01T16:02:02.422128Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_items"
             }
@@ -118,7 +118,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_items-value",
               "artifact_version": "1",
               "schema_id": 16,
-              "captured_at_utc": "2026-08-01T00:47:44.191241Z",
+              "captured_at_utc": "2026-08-01T16:02:02.578700Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_items"
             }
@@ -140,7 +140,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_payments-key",
               "artifact_version": "1",
               "schema_id": 17,
-              "captured_at_utc": "2026-08-01T00:47:44.272396Z",
+              "captured_at_utc": "2026-08-01T16:02:02.617833Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_payments"
             }
@@ -159,7 +159,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_payments-value",
               "artifact_version": "1",
               "schema_id": 19,
-              "captured_at_utc": "2026-08-01T00:47:44.393502Z",
+              "captured_at_utc": "2026-08-01T16:02:02.743321Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_payments"
             }
@@ -181,7 +181,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_reviews-key",
               "artifact_version": "1",
               "schema_id": 20,
-              "captured_at_utc": "2026-08-01T00:47:44.439805Z",
+              "captured_at_utc": "2026-08-01T16:02:02.766902Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_reviews"
             }
@@ -200,7 +200,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_reviews-value",
               "artifact_version": "1",
               "schema_id": 22,
-              "captured_at_utc": "2026-08-01T00:47:44.535205Z",
+              "captured_at_utc": "2026-08-01T16:02:02.865421Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_reviews"
             }
@@ -222,7 +222,7 @@
               "artifact_id": "olist_cdc.olist_oltp.products-key",
               "artifact_version": "1",
               "schema_id": 23,
-              "captured_at_utc": "2026-08-01T00:47:44.577509Z",
+              "captured_at_utc": "2026-08-01T16:02:02.888558Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.products"
             }
@@ -241,7 +241,7 @@
               "artifact_id": "olist_cdc.olist_oltp.products-value",
               "artifact_version": "1",
               "schema_id": 25,
-              "captured_at_utc": "2026-08-01T00:47:44.665657Z",
+              "captured_at_utc": "2026-08-01T16:02:02.954309Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.products"
             }
@@ -263,7 +263,7 @@
               "artifact_id": "olist_cdc.olist_oltp.sellers-key",
               "artifact_version": "1",
               "schema_id": 26,
-              "captured_at_utc": "2026-08-01T00:47:44.702263Z",
+              "captured_at_utc": "2026-08-01T16:02:02.994596Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.sellers"
             }
@@ -282,7 +282,7 @@
               "artifact_id": "olist_cdc.olist_oltp.sellers-value",
               "artifact_version": "1",
               "schema_id": 28,
-              "captured_at_utc": "2026-08-01T00:47:44.816801Z",
+              "captured_at_utc": "2026-08-01T16:02:03.065758Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.sellers"
             }
@@ -304,7 +304,7 @@
               "artifact_id": "olist_cdc.olist_oltp.product_category_translation-key",
               "artifact_version": "1",
               "schema_id": 29,
-              "captured_at_utc": "2026-08-01T00:47:44.844600Z",
+              "captured_at_utc": "2026-08-01T16:02:03.097470Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.product_category_translation"
             }
@@ -323,7 +323,7 @@
               "artifact_id": "olist_cdc.olist_oltp.product_category_translation-value",
               "artifact_version": "1",
               "schema_id": 31,
-              "captured_at_utc": "2026-08-01T00:47:44.968677Z",
+              "captured_at_utc": "2026-08-01T16:02:03.191519Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.product_category_translation"
             }

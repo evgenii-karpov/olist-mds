@@ -53,3 +53,13 @@ for required in \
         exit 1
     }
 done
+
+test -f "/opt/olist/jars/olist-spark-jobs.jar" || {
+    echo "Application JAR /opt/olist/jars/olist-spark-jobs.jar is missing" >&2
+    exit 1
+}
+
+if jar tf /opt/olist/jars/olist-spark-jobs.jar | grep -qE '^org/apache/(spark|iceberg|kafka|avro)/'; then
+    echo "Application JAR contains provided dependencies!" >&2
+    exit 1
+fi

@@ -15,4 +15,3 @@
     {"name":"_nifi_written_at","type":{"type":"long","logicalType":"timestamp-millis"}}
   ]
 }
-

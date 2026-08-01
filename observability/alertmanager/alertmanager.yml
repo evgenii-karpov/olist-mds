@@ -7,4 +7,3 @@ route:
 
 receivers:
   - name: local-log
-

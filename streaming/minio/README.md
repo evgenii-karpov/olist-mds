@@ -9,4 +9,3 @@ reintroduce a fixed privilege-escalation vulnerability.
 prefix-limited policy to the `olist_nifi` service identity. Credentials are
 read only from Docker secrets. Object versioning is a recovery guard; the NiFi
 writer also refuses to replace an existing key with different content.
-

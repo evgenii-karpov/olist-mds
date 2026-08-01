@@ -24,4 +24,3 @@
     {"name": "envelope_json", "type": ["null", "string"], "default": null}
   ]
 }
-

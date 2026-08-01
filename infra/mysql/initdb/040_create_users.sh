@@ -36,10 +36,12 @@ main() {
     local admin_password
     local simulator_password
     local cdc_reader_password
+    local reference_reader_password
     local root_password
     local admin_password_sql
     local simulator_password_sql
     local cdc_reader_password_sql
+    local reference_reader_password_sql
     local -a mysql_args
 
     admin_password="$(
@@ -57,6 +59,11 @@ main() {
             "${MYSQL_CDC_READER_PASSWORD_FILE:-/run/secrets/mysql_cdc_reader_password}" \
             'MySQL CDC reader password'
     )"
+    reference_reader_password="$(
+        read_secret \
+            "${MYSQL_REFERENCE_READER_PASSWORD_FILE:-/run/secrets/mysql_spark_reference_reader_password}" \
+            'MySQL reference reader password'
+    )"
 
     root_password="${MYSQL_ROOT_PASSWORD:-}"
     if [[ -z "$root_password" && -n "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
@@ -68,6 +75,7 @@ main() {
     admin_password_sql="$(sql_string "$admin_password")"
     simulator_password_sql="$(sql_string "$simulator_password")"
     cdc_reader_password_sql="$(sql_string "$cdc_reader_password")"
+    reference_reader_password_sql="$(sql_string "$reference_reader_password")"
 
     mysql_args=(--protocol=socket --user=root --batch --skip-column-names)
     if [[ -n "$root_password" ]]; then
@@ -84,6 +92,9 @@ ALTER USER 'olist_simulator'@'%' IDENTIFIED BY ${simulator_password_sql};
 CREATE USER IF NOT EXISTS 'olist_cdc_reader'@'%' IDENTIFIED BY ${cdc_reader_password_sql};
 ALTER USER 'olist_cdc_reader'@'%' IDENTIFIED BY ${cdc_reader_password_sql};
 
+CREATE USER IF NOT EXISTS 'olist_spark_reference_reader'@'%' IDENTIFIED BY ${reference_reader_password_sql};
+ALTER USER 'olist_spark_reference_reader'@'%' IDENTIFIED BY ${reference_reader_password_sql};
+
 GRANT ALL PRIVILEGES ON olist_oltp.* TO 'olist_admin'@'%';
 GRANT ALL PRIVILEGES ON olist_simulator.* TO 'olist_admin'@'%';
 
@@ -96,6 +107,8 @@ GRANT SELECT, LOCK TABLES ON olist_oltp.* TO 'olist_cdc_reader'@'%';
 GRANT INSERT, UPDATE ON olist_simulator.heartbeats TO 'olist_cdc_reader'@'%';
 # SELECT is required separately for MySQL's ON DUPLICATE KEY UPDATE evaluation.
 GRANT SELECT ON olist_simulator.heartbeats TO 'olist_cdc_reader'@'%';
+
+GRANT SELECT ON olist_oltp.geolocation TO 'olist_spark_reference_reader'@'%';
 SQL
 
     unset MYSQL_PWD

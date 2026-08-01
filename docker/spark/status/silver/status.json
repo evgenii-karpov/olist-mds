@@ -1,0 +1,79 @@
+{
+  "application" : "spark-silver",
+  "contract_version" : 2,
+  "overall_state" : "READY",
+  "updated_at_utc" : "2026-08-01T17:52:35.333988907Z",
+  "queries" : [ {
+    "name" : "bronze_to_silver_customers",
+    "query_id" : "13245a48-eb40-496b-bf0c-f68dd14c369d",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_order_items",
+    "query_id" : "fcc01531-d1d0-4667-883f-b3bbbca643e7",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_order_payments",
+    "query_id" : "48c25ac1-766d-449b-b882-283cfdcb9d07",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_order_reviews",
+    "query_id" : "a7bb37d2-ee54-45b1-8568-6e6770cc83dc",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_orders",
+    "query_id" : "d9d88982-8645-4ced-94f1-bf7f1200ca61",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_product_category_translation",
+    "query_id" : "2ed5d324-e0b7-4ebf-aa3a-9bae97bfce3c",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_products",
+    "query_id" : "6e8b67c7-d248-470e-99f5-6f004eced21c",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  }, {
+    "name" : "bronze_to_silver_sellers",
+    "query_id" : "65866846-af68-4c3f-ab26-a5cff44bdbe0",
+    "state" : "RUNNING",
+    "last_batch_id" : -1,
+    "last_progress_at_utc" : null,
+    "partition_offsets" : { },
+    "error_class" : null,
+    "error_code" : null
+  } ]
+}

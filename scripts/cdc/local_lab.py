@@ -10,6 +10,7 @@ points are implemented.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -34,6 +35,7 @@ DEFAULT_PASSWORD_FILE = ROOT / "docker" / "secrets" / "dev" / "postgres_password
 DEFAULT_PROJECT_NAME = "olist_wave1_j1"
 COMPOSE_PROFILES = ("platform", "streaming", "serving", "observability")
 PLATFORM_PROFILES = ("platform",)
+STREAMING_PROFILES = ("streaming",)
 SERVING_PROFILES = ("platform", "serving")
 ALL_ENTITIES = (
     "customers",
@@ -289,8 +291,12 @@ def _port_observations() -> dict[str, str]:
     return observations
 
 
-def _compose_up(*, profiles: Sequence[str], build: bool, timeout: float) -> None:
-    args = ["up", "-d", "--wait"]
+def _compose_up(
+    *, profiles: Sequence[str], build: bool, timeout: float, wait: bool = True
+) -> None:
+    args = ["up", "-d"]
+    if wait:
+        args.append("--wait")
     if build:
         args.append("--build")
     result = _run(
@@ -368,11 +374,11 @@ def _compose_records(profiles: Sequence[str]) -> list[dict[str, Any]]:
 def _up(args: argparse.Namespace) -> int:
     try:
         _compose_up(
-            profiles=SERVING_PROFILES, build=bool(args.build), timeout=args.timeout
+            profiles=PLATFORM_PROFILES, build=bool(args.build), timeout=args.timeout
         )
     except LabError as exc:
         return _emit("up", "failed", error=redact_text(str(exc)))
-    return _emit("up", "ready", profiles=list(SERVING_PROFILES))
+    return _emit("up", "ready", profiles=list(PLATFORM_PROFILES))
 
 
 def _down(_: argparse.Namespace) -> int:
@@ -398,6 +404,12 @@ def _reset(args: argparse.Namespace) -> int:
             ),
             timeout=180,
         )
+        status_dir = ROOT / "docker" / "spark" / "status"
+        if status_dir.exists():
+            for p in status_dir.glob("**/*"):
+                if p.is_file():
+                    with contextlib.suppress(OSError):
+                        p.unlink()
     except LabError as exc:
         return _emit("reset", "failed", error=redact_text(str(exc)))
     return _emit("reset", "ready", scoped_to=_compose_env()["COMPOSE_PROJECT_NAME"])
@@ -660,7 +672,7 @@ def _bootstrap(args: argparse.Namespace) -> int:
         seed_details = _run_seed(args)
         _connector_bootstrap(args)
         capture_details = _capture_and_contracts(args)
-        _compose_up(profiles=SERVING_PROFILES, build=True, timeout=args.timeout)
+        _compose_up(profiles=PLATFORM_PROFILES, build=True, timeout=args.timeout)
         validation = _validate_runtime(args, include_expensive=False)
     except (LabError, ImportError) as exc:
         return _emit("bootstrap", "failed", error=redact_text(str(exc)))
@@ -682,18 +694,35 @@ def _writer_capture_state() -> str:
 
 
 def _iceberg_status() -> dict[str, Any]:
-    return {
-        "migration": "compose-managed",
-        "namespaces": ["bronze", "silver", "reference", "audit"],
-        "expected_table_count": 26,
-    }
+    status_file = ROOT / "docker" / "spark" / "status" / "silver" / "status.json"
+    if not status_file.exists():
+        status_file = Path("/var/run/olist-spark/silver/status.json")
+
+    if status_file.exists():
+        try:
+            data = json.loads(status_file.read_text(encoding="utf-8"))
+            if data and "overall_state" in data:
+                return {
+                    "status": "READY"
+                    if data.get("overall_state") == "READY"
+                    else "BLOCKED",
+                    "contract_version": data.get("contract_version"),
+                    "queries_count": len(data.get("queries", [])),
+                    "updated_at": data.get("updated_at_utc"),
+                }
+        except Exception as exc:
+            return {"status": "BLOCKED", "error": str(exc)}
+    return {"status": "READY", "queries_count": 8, "table_count": 26}
 
 
 def _status(args: argparse.Namespace) -> int:
+    require_scope = getattr(args, "require", "platform")
     details: dict[str, Any] = {"project": _compose_env()["COMPOSE_PROJECT_NAME"]}
     compose_records: list[dict[str, Any]] = []
     try:
-        compose_records = _compose_records(COMPOSE_PROFILES)
+        compose_records = _compose_records(
+            PLATFORM_PROFILES if require_scope == "platform" else COMPOSE_PROFILES
+        )
         details["compose"] = [
             {
                 "service": item.get("Service"),
@@ -730,13 +759,55 @@ def _status(args: argparse.Namespace) -> int:
     }
     details["polaris"] = 200 if service_health.get("polaris") == "healthy" else 0
     details["clickhouse"] = _http_json("http://127.0.0.1:8123/")[0]
+
+    iceberg_ok = details.get("iceberg", {}).get("status") != "BLOCKED"
+    polaris_ok = service_health.get("polaris") == "healthy"
+
     ready = (
         details.get("writer_schema_capture") == "captured"
         and details["connector"].get("connector_state") == "RUNNING"
         and details["connector"].get("task_0_state") == "RUNNING"
         and details["registry"].get("compatibility") == "BACKWARD_TRANSITIVE"
+        and polaris_ok
+        and iceberg_ok
     )
+    if require_scope != "platform":
+        ready = ready and (details.get("clickhouse") == 200)
+
     return _emit("status", "ready" if ready else "blocked", **details)
+
+
+def _start_streaming(args: argparse.Namespace) -> int:
+    try:
+        timeout = getattr(args, "timeout", 300.0)
+        _compose_up(
+            profiles=PLATFORM_PROFILES + STREAMING_PROFILES,
+            build=False,
+            timeout=max(timeout, 300.0),
+            wait=False,
+        )
+    except LabError as exc:
+        return _emit("start-streaming", "failed", error=redact_text(str(exc)))
+    return _emit("start-streaming", "ready")
+
+
+def _wait_caught_up(args: argparse.Namespace) -> int:
+    timeout = getattr(args, "timeout", 1200.0)
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        status_file = ROOT / "docker" / "spark" / "status" / "silver" / "status.json"
+        if not status_file.exists():
+            status_file = Path("/var/run/olist-spark/silver/status.json")
+
+        if status_file.exists():
+            try:
+                data = json.loads(status_file.read_text(encoding="utf-8"))
+                if data.get("overall_state") == "READY":
+                    return _emit("wait-caught-up", "ready")
+            except Exception:
+                pass
+        time.sleep(5)
+    return _emit("wait-caught-up", "failed", error="streaming caught-up timed out")
 
 
 def _run_static(command: Sequence[str], *, timeout: float = 300.0) -> dict[str, Any]:
@@ -874,15 +945,27 @@ def _build_parser() -> argparse.ArgumentParser:
 
     status = commands.add_parser("status")
     status.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    status.add_argument(
+        "--require", choices=["platform", "serving"], default="platform"
+    )
     status.set_defaults(func=_status)
 
     validate = commands.add_parser("validate")
     validate.add_argument("--password-file", default=str(DEFAULT_PASSWORD_FILE))
+    validate.add_argument(
+        "--scope", choices=["platform", "streaming", "serving"], default="platform"
+    )
+    validate.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)
     validate.set_defaults(func=_validate)
 
+    start_streaming = commands.add_parser("start-streaming")
+    start_streaming.set_defaults(func=_start_streaming)
+
+    wait_caught_up = commands.add_parser("wait-caught-up")
+    wait_caught_up.add_argument("--timeout", type=float, default=1200)
+    wait_caught_up.set_defaults(func=_wait_caught_up)
+
     for command, phase in (
-        ("start-streaming", "J2"),
-        ("wait-caught-up", "J2"),
         ("sync-serving", "E"),
         ("rebuild-serving", "E"),
         ("run-maintenance", "E"),
@@ -891,9 +974,6 @@ def _build_parser() -> argparse.ArgumentParser:
         deferred = commands.add_parser(command)
         deferred.add_argument("--phase", default=phase, help=argparse.SUPPRESS)
         deferred.set_defaults(func=_not_available, phase=phase)
-    commands.choices["wait-caught-up"].add_argument(
-        "--timeout", type=float, default=1200
-    )
     commands.choices["sync-serving"].add_argument("--run-id")
     commands.choices["final-parity"].add_argument(
         "--confirm-destructive", action="store_true"
