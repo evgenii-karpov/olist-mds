@@ -291,7 +291,8 @@ Integration agent после завершения A-D:
 1. Проверяет, что ownership не нарушен.
 2. Добавляет dependencies в pyproject.toml и один раз обновляет uv.lock.
 3. Интегрирует services в compose.yaml.
-4. Добавляет CLI bootstrap/status contract.
+4. Добавляет CLI bootstrap/status surface; обнаруженные после J1 live-readiness
+   gaps исправляются только в обязательном S0/S8 scope ниже.
 5. Запускает static/unit/Compose checks.
 6. Исправляет только integration seams; component logic возвращает владельцу
    соответствующего потока.
@@ -350,6 +351,19 @@ Silver interface; изменение business SQL выходит за scope Wave
 реализует serving publication, Airflow maintenance, legacy deletion или полный
 legacy-versus-candidate parity.
 
+До объявления J2 завершённым обязательно исправить два унаследованных J1
+lifecycle gap, не меняя подтверждённые data/schema contracts:
+
+1. `status` и `validate` должны проверять живой runtime, включая фактический
+   Iceberg inventory/migration checksum; запрещено возвращать ожидаемые значения
+   из Python constants вместо чтения Compose/service/catalog state.
+2. Platform bootstrap должен быть независим от serving. Недоступные ClickHouse
+   или Airflow не могут заблокировать bootstrap, восстановление или validation
+   durability path MySQL → Kafka → Iceberg.
+
+Эти исправления входят в S0/S8 и acceptance J2. Они не откладываются до E и не
+могут быть закрыты ссылкой на исторический J1 report.
+
 ### 3.6 Запрещённая псевдопараллельность
 
 Не назначать разным агентам одновременно:
@@ -377,6 +391,19 @@ sequential parity runs не конфликтовали.
 - streaming: Bronze/Silver Spark drivers и one-shot replay/status ops;
 - serving: ClickHouse и Airflow;
 - observability: exporters, Prometheus, Grafana, Loki.
+
+Profile dependency разрешён только слева направо:
+
+~~~text
+streaming → platform
+serving → platform
+observability → наблюдаемые services
+~~~
+
+Ни один platform service и ни одна команда platform lifecycle не зависят от
+`serving` или `observability`. `platform` не включает ClickHouse/Airflow даже
+ради smoke-проверки. Cross-layer J1/J2/E acceptance поднимает следующий profile
+отдельной явной командой и не меняет базовый bootstrap contract.
 
 Service names:
 
@@ -423,8 +450,8 @@ wait-caught-up --timeout <seconds>
 sync-serving
 rebuild-serving
 run-maintenance
-status
-validate
+status [--require platform|streaming|serving]
+validate [--scope platform|streaming|serving] [--timeout <seconds>]
 final-parity --confirm-destructive
 ~~~
 
@@ -436,11 +463,36 @@ Command contract:
   platform, создаёт catalog/tables, seed'ит MySQL, загружает geolocation и
   регистрирует connector; continuous Spark запускается только отдельной
   `start-streaming`, serving — только командами стадии E;
+- `bootstrap` и `up` передают Compose ровно `--profile platform`; они не
+  создают, не запускают и не проверяют containers profiles `streaming`,
+  `serving` или `observability`;
+- `start-streaming` сначала требует живой platform readiness, затем явно
+  запускает `--profile platform --profile streaming`; он не запускает serving;
 - seed отказывается работать, если connector зарегистрирован или business
   tables непусты;
 - down сохраняет volume;
 - rebuild-serving удаляет и перестраивает только ClickHouse derived state;
 - команды имеют bounded timeout, secret redaction и JSON result/status.
+
+`status` и `validate` имеют следующий обязательный scope contract:
+
+- default для обеих команд — `platform`, чтобы сохранённый J1 CLI вызов оставался
+  совместимым;
+- `--require streaming`/`--scope streaming` включает platform как prerequisite;
+- `--require serving`/`--scope serving` включает platform и streaming, потому
+  что serving публикует только transaction-complete Silver;
+- состояние необязательного, не запрошенного profile возвращается как
+  `NOT_STARTED|READY|DEGRADED|BLOCKED`, но не влияет на top-level exit code;
+- top-level `status=ready` и exit `0` допустимы только если все обязательные
+  checks запрошенного scope прочитаны из живого runtime и прошли; missing,
+  timeout, stale evidence или неполный inventory дают non-zero
+  `blocked|failed`, а не warning.
+
+`status` выполняет bounded low-cost live probes и catalog metadata inventory,
+но не сканирует Silver business rows. `validate` повторяет status checks и
+добавляет read-only contract/invariant checks соответствующего scope. Python
+может оркестрировать проверки и собирать JSON, но не подменять ответы заранее
+известными counts, namespace names, table count или checksum.
 
 Happy path:
 
@@ -452,7 +504,7 @@ python scripts/cdc/local_lab.py bootstrap --archive tests/fixtures/olist_small/o
 python scripts/cdc/local_lab.py start-streaming
 python scripts/cdc/local_lab.py wait-caught-up --timeout 1200
 python scripts/cdc/local_lab.py sync-serving
-python scripts/cdc/local_lab.py validate
+python scripts/cdc/local_lab.py validate --scope serving --timeout 1200
 ~~~
 
 ### 4.3 Disposable-state policy
@@ -2164,10 +2216,85 @@ schema archive и transaction states. Exit codes: `0=READY`,
 `blocked`, хотя offsets/checkpoints покрыты. JSON перечисляет только
 entity/event_id/error_code, не business row.
 
-`status` включает Bronze/Silver overall/query states и last offsets, но не
-запускает дорогое full table scan. `validate` вызывает finite status check.
+#### 8.14.1 Живой `status` вместо ожидаемых constants
+
+Удалить текущий `_iceberg_status()`, который возвращает namespace/table count
+без обращения к каталогу. `status --require platform` каждый раз собирает и
+проверяет следующие фактические данные:
+
+1. Compose inventory текущего project: все обязательные long-running services
+   profile `platform` имеют `running/healthy`, обязательные one-shot services —
+   `exited/0`; container другого Compose project не учитывается.
+2. MySQL отвечает на authenticated `SELECT 1`; runtime settings
+   `binlog_format=ROW`, `binlog_row_image=FULL`, `gtid_mode=ON`, timezone UTC и
+   exact nine-table schema существуют. Business row counts возвращаются как
+   observations, но после bootstrap не сравниваются с initial fixture constants.
+3. Live topic validator подтверждает exact 15-topic manifest/config; Connect
+   connector и task 0 находятся в `RUNNING`.
+4. Apicurio отвечает, compatibility равна `BACKWARD_TRANSITIVE`, captured
+   writer repository complete и все 16 business key/value fingerprints доступны.
+5. Polaris health равен 200. `infra/polaris/bootstrap/bootstrap.sh` принимает
+   только subcommands `apply|validate`, default для существующего Compose
+   one-shot — `apply`. `local_lab` запускает
+   `docker compose run --rm --no-deps polaris-bootstrap validate`; `--no-deps`
+   обязателен, чтобы status не запускал остановленный platform. Этот режим не
+   вызывает create/update/delete API, возвращает один sanitized JSON object и
+   проверяет exact `expected-rbac.json` плюс authorization probes каждого
+   runtime principal.
+6. `local_lab` запускает `spark-ops` с `--no-deps` и
+   `LakehouseStatusMain --mode platform`; Main через Polaris REST читает actual
+   namespaces, таблицы, schema/partition/properties, строку
+   `audit.schema_migrations` и `reference.geolocation`. Он требует exact four
+   namespaces, 26 tables, migration version/id/checksum/status из J1 contract и
+   geolocation count/source SHA из текущего bootstrap. Никакое значение не
+   передаётся ему как «actual» из Python.
+
+Platform result содержит sanitized observations и `checked_at`, а не schema
+bodies/rows. Любая отсутствующая проверка, subprocess parse error или mismatch
+делает requested scope `BLOCKED`; catch-all, заменяющий ошибку на ожидаемый
+inventory, запрещён.
+
+`status` и `validate` не вызывают Compose `up`, `start` или `restart`. Все
+one-shot probes запускаются с `--no-deps`; остановленный prerequisite остаётся
+остановленным и даёт non-zero result.
+
+`status --require streaming` сначала требует platform checks выше, затем
+проверяет actual Compose state Bronze/Silver, application JAR SHA, atomic status
+files, exact 11 query IDs/checkpoint paths, отсутствие `FATAL`, а также возраст
+последнего status не более 180 seconds после пяти минут startup grace. Он
+возвращает last observed offsets, но не запускает full table scan и не объявляет
+catch-up по одному status file.
+
+До стадии E `status --require serving` и `validate --scope serving` возвращают
+structured non-zero `not_available_until=E`. Остановленные ClickHouse/Airflow
+возвращаются в необязательном поле `serving=NOT_STARTED` и не влияют на
+`platform`/`streaming` readiness.
+
+#### 8.14.2 Живой `validate`
+
+`validate --scope platform` сначала выполняет `status --require platform`, затем
+повторяет static/unit contract checks и read-only live validators topics,
+Registry, Polaris RBAC и Iceberg inventory. Результат каждого check содержит
+`name`, `source=live|static`, bounded duration и exit/status. Check не считается
+live, если он только сравнил Python constant с checked-in manifest.
+
+`validate --scope streaming --timeout N`:
+
+1. Выполняет весь platform validation.
+2. Один раз capture'ит Kafka high watermarks согласно `wait-caught-up` contract.
+3. Bounded ждёт coverage этих immutable targets.
+4. Запускает `LakehouseStatusMain --mode streaming --targets-file ...`, который
+   читает actual Iceberg snapshots/rows и проверяет duplicate event IDs/current
+   PK, progress, transaction state, schema archive и unresolved errors.
+5. Повторно читает supervisor status и требует все 11 queries `READY`.
+
+Temporary targets file содержит только topic/partition/offset, создаётся с
+permissions `0600` в project-scoped temporary/status volume и удаляется в
+`finally`. Timeout возвращает `timeout`, invariant violation — `blocked`,
+execution/parse failure — `failed`; все три результата non-zero.
+
 Все команды имеют bounded timeout и не печатают command environment, registry
-schema/payload или credentials.
+schema/payload, business rows или credentials.
 
 ### 8.15 Запрет Silver streaming reads
 
@@ -2526,7 +2653,8 @@ Wave 2 agent проверяет их regressions, но не выполняет �
 
 1. Объединить dependencies и обновить uv.lock один раз.
 2. Интегрировать Compose services.
-3. Реализовать local_lab platform/bootstrap/status.
+3. Реализовать local_lab platform/bootstrap/status surface; live-readiness gaps
+   этого historical результата закрываются в S0/S8 и повторно принимаются J2.
 4. Выполнить static, unit, Compose и component smoke tests.
 5. Зафиксировать common Spark normalization API.
 
@@ -2548,6 +2676,19 @@ Wave 2 agent проверяет их regressions, но не выполняет �
    обнаружил невозможность использовать существующую schema, остановить работу
    и оформить отдельную migration вместо silent ALTER.
 5. Не переносить PySpark migration/config renderer на Scala и не начинать D1-D3.
+6. До изменения `local_lab.py` добавить regression tests, воспроизводящие J1
+   lifecycle gaps в новых files
+   `tests/lakehouse_platform/test_local_lab_profile_boundaries.py` и
+   `tests/lakehouse_platform/test_local_lab_live_readiness.py`:
+   - platform `status` блокируется при недоступном Polaris, отсутствующей
+     Iceberg table или неверном migration checksum;
+   - ни `status`, ни `validate` не получают actual namespace/table/checksum из
+     hard-coded Python return value;
+   - `bootstrap` и `up` строят Compose command только с profile `platform`;
+   - недоступный или не созданный ClickHouse/Airflow не мешает platform
+     bootstrap/status/validate.
+7. Tests сначала должны падать на J1 implementation и пройти только после S8;
+   удалять или ослаблять их после интеграции запрещено.
 
 #### S1 — создать компилируемый Scala foundation
 
@@ -2754,6 +2895,7 @@ docker/spark/run-with-platform-config.sh
 compose.yaml
 infra/mysql/initdb/040_create_users.sh
 infra/mysql/README.md
+infra/polaris/bootstrap/bootstrap.sh
 scripts/cdc/local_lab.py
 tests/lakehouse_platform/
 tests/mysql/
@@ -2767,12 +2909,22 @@ docs/architecture.md
 2. Заменить `streaming_not_available` у Bronze/Silver, добавить health/status
    volume, dependencies, resources, `spark-geolocation` и `spark-ops`.
 3. Добавить MySQL reference-reader user/grant/secret и targeted security tests.
-4. Реализовать `start-streaming` и `wait-caught-up`; другие deferred commands
-   остаются `not_available_until=E`.
-5. Обновить README/architecture только фактическими commands/status schemas;
+4. Разделить lifecycle profiles по разделам 4.1-4.2: `bootstrap`/`up` — только
+   platform, `start-streaming` — platform+streaming, ни одна из этих команд не
+   запускает и не требует serving/observability.
+5. Удалить hard-coded Iceberg status, добавить read-only Polaris
+   `bootstrap.sh validate` и реализовать live `status`/`validate` точно по
+   пунктам 8.14.1-8.14.2. Нельзя считать Compose health заменой actual Polaris
+   RBAC/Iceberg inventory.
+6. Реализовать `start-streaming` и `wait-caught-up`; `status --require serving`,
+   `validate --scope serving` и другие команды стадии E остаются structured
+   `not_available_until=E`.
+7. Обновить README/architecture только фактическими commands/status schemas;
    не объявлять serving или migration полностью завершённой.
-6. Gate: Compose config, secret scan, Docker build без runtime downloads,
-   CLI JSON contract и existing Python tests проходят.
+8. Gate: Compose config, secret scan, Docker build без runtime downloads,
+   CLI JSON contract и existing Python tests проходят. Targeted tests обязаны
+   доказать, что platform readiness становится non-zero при каждом live
+   Polaris/Iceberg mismatch и остаётся ready при `serving=NOT_STARTED`.
 
 ### J2 — Wave 2 integration join и acceptance
 
@@ -2818,10 +2970,24 @@ $env:COMPOSE_PROJECT_NAME = 'olist_wave2_j2'
 python scripts/cdc/local_lab.py doctor
 python scripts/cdc/local_lab.py reset --yes
 python scripts/cdc/local_lab.py bootstrap --archive tests/fixtures/olist_small/olist_small.zip
+python scripts/cdc/local_lab.py status --require platform
+python scripts/cdc/local_lab.py validate --scope platform --timeout 600
 python scripts/cdc/local_lab.py start-streaming
 python scripts/cdc/local_lab.py wait-caught-up --timeout 1200
-python scripts/cdc/local_lab.py validate
+python scripts/cdc/local_lab.py status --require streaming
+python scripts/cdc/local_lab.py validate --scope streaming --timeout 1200
 ~~~
+
+Сразу после `bootstrap` и до `start-streaming` сохранить `docker compose ps -a
+--format json` и проверить по полю `Service`: containers `spark-bronze`,
+`spark-silver`, `clickhouse`, `clickhouse-init`, `airflow` отсутствуют. Platform
+status/validation при этом обязаны быть `ready`. Нельзя предварительно запускать
+serving ради прохождения bootstrap.
+
+После `start-streaming` должны появиться только два continuous streaming
+services и необходимые explicit one-shot `spark-ops`; ClickHouse/Airflow всё ещё
+не созданы. Любая скрытая зависимость platform/streaming от serving блокирует
+J2, даже если последующий full-profile Compose up успешен.
 
 Acceptance после captured initial targets:
 
@@ -3002,6 +3168,12 @@ existing native DDL, оставить восемь serving event/current tables 
 public views её не показывают без `PUBLISHED`, затем удалить disposable Gold
 candidate перед final J2 status.
 
+После dbt gate остановить ClickHouse/Airflow, не останавливая platform/streaming,
+и повторить `status --require streaming` и `validate --scope streaming`. Оба
+должны остаться `ready`, а JSON должен показать `serving=NOT_STARTED` или
+`BLOCKED` как необязательное состояние. Это обязательное доказательство
+отсутствия reverse dependency; запуск serving ранее в J2.6 его не отменяет.
+
 #### J2.7 Report и exit criteria
 
 J2 report должен содержать только sanitized evidence:
@@ -3015,14 +3187,20 @@ J2 report должен содержать только sanitized evidence:
 - transaction/restart/failpoint/replay outcomes;
 - geolocation count/source archive SHA;
 - dbt regression result;
+- доказательство, что clean bootstrap не создал serving containers и что
+  остановка serving не изменила platform/streaming readiness;
+- actual Polaris RBAC, Iceberg namespace/table inventory и migration checksum с
+  `source=live`, а не ожидаемые Python constants;
 - secret scan scope/result;
 - explicit deferred scope E/L/V/F.
 
 J2 PASS только если все J2.1-J2.6 gates прошли в текущем implementation commit,
-final `local_lab status`/`validate` возвращают ready, `git diff --check` проходит,
-а report не содержит credential, raw Kafka bytes, decoded business payload или
-schema JSON. При failed gate report имеет status FAIL/BLOCKED; нельзя объявлять
-Wave 2 завершённой по unit tests без clean component run.
+final `local_lab status --require streaming` и `validate --scope streaming`
+возвращают ready при остановленном serving, `git diff --check` проходит, а report
+не содержит credential, raw Kafka bytes, decoded business payload или schema
+JSON. При failed/missing live gate report имеет status FAIL/BLOCKED; нельзя
+объявлять Wave 2 завершённой по unit tests, hard-coded inventory или clean
+full-profile Compose up без component run.
 
 ### E — serial serving integration
 
@@ -3144,6 +3322,13 @@ credentials или production payload dumps.
 - J1 table schemas/partition/properties/migration checksum;
 - Python normalization API/event ID/checkpoint golden parity со Scala;
 - `local_lab` bounded JSON, deferred E commands и secret redaction;
+- `bootstrap`/`up` используют только platform profile, а `start-streaming` не
+  создаёт serving/observability containers;
+- platform status становится blocked при mocked/live Polaris failure, RBAC
+  mismatch, Iceberg inventory drift и migration checksum drift; ClickHouse или
+  Airflow failure не меняет requested platform/streaming result;
+- tests запрещают возврат hard-coded Iceberg inventory и требуют propagation
+  timeout/subprocess/JSON parse failure как non-zero result;
 - dbt parse, graph, unit/data contract и ClickHouse DDL regressions;
 - Compose config, healthchecks и отсутствие fixed `container_name`;
 - Airflow import tests для неизменённой части проекта;
@@ -3183,7 +3368,14 @@ timeouts, но не ClickHouse serving/final parity.
 - fail-once after changes/current;
 - one fatal fingerprint isolation scenario;
 - finite replay one-way correction;
-- `LakehouseStatusMain` ready/not-caught-up/invariant exit codes.
+- `LakehouseStatusMain` ready/not-caught-up/invariant exit codes;
+- clean platform bootstrap и streaming catch-up без созданных serving
+  containers;
+- остановка явно поднятого serving с последующим успешным live
+  `status --require streaming` и `validate --scope streaming`;
+- deliberate removal одной disposable Iceberg table или подмена migration
+  checksum даёт non-zero platform validation; после полного reset/bootstrap
+  исходный inventory восстанавливается и validation снова ready.
 
 Component artifacts — sanitized JSON/counts/snapshot IDs only. Kafka bytes,
 decoded business rows, schema JSON, Docker inspect и secret-bearing environment
@@ -3397,6 +3589,10 @@ References:
 - PostgreSQL обслуживает только Airflow/Polaris/control plane;
 - существующие Docker volume не нужны;
 - clean reset → bootstrap воспроизводит stack;
+- bootstrap/up не запускают и не требуют ClickHouse/Airflow; serving failure не
+  блокирует живые platform/streaming status и validation;
+- `local_lab status`/`validate` читают actual Compose, service, Polaris RBAC и
+  Iceberg inventory/checksum; hard-coded readiness evidence отсутствует;
 - все новые Wave 2 Spark data-plane jobs собраны из Scala 2.13.17 одним pinned
   sbt project; Python используется только в оговорённом control plane/J1 path;
 - J2 validation report имеет PASS и содержит доказательства build, initial
