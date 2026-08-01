@@ -36,6 +36,8 @@ E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Fina
 - Валидный статус `status --require serving` и `validate --scope serving`.
 
 ### 1.4 Applicable Contracts
+
+- [Детальный план реализации Stage E](stage-e-serving-integration.md)
 - [Контракт слоя публикаций и восстановления](../contracts/serving-and-recovery.md)
 - [Контракт модели данных Iceberg](../contracts/iceberg-data-model.md)
 
