@@ -18,7 +18,7 @@ publication, maintenance, and final parity remain deferred.
 | --- | --- |
 | Validation timestamp (UTC) | 2026-08-01T01:15:20Z |
 | Git base before integration commit | `685cd6f26c24412634b01e70acbf828d87bdff23` |
-| Implementation commit | `6088ebe3dcaee0345bedfb0524caa4aa96842e50` |
+| Implementation commits | `6088ebe3dcaee0345bedfb0524caa4aa96842e50` (platform/integration), `b1cd1ab1b6f59166aa6dfad60bc02419bd0bfcf8` (dbt skeleton) |
 | Docker / Compose | Docker Server 29.6.2 / Compose 5.3.1 |
 | Compose project | `olist_wave1_j1` |
 | Fixed `container_name` entries | 0 |
