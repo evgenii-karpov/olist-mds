@@ -902,6 +902,115 @@ def _not_available(args: argparse.Namespace) -> int:
     )
 
 
+def _sync_serving(args: argparse.Namespace) -> int:
+    try:
+        from scripts.serving.airflow_api import AirflowApiClient
+        from scripts.serving.control import ServingControlRepository
+
+        client = AirflowApiClient()
+        run_id = getattr(args, "run_id", None)
+        res = client.trigger_dag_run("olist_lakehouse_serving_sync", run_id=run_id)
+        dag_run_id = str(
+            (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
+        )
+
+        timeout = getattr(args, "timeout", 1800.0)
+        state = client.poll_dag_run(
+            "olist_lakehouse_serving_sync", dag_run_id, timeout_seconds=timeout
+        )
+
+        if state == "success":
+            runtime = ServingControlRepository.get_runtime_state()
+            if not runtime.get("schedules_activated_at"):
+                client.unpause_dag("olist_lakehouse_serving_sync")
+                client.unpause_dag("olist_lakehouse_serving_quality")
+                client.unpause_dag("olist_iceberg_maintenance")
+
+            return _emit(
+                "sync-serving",
+                "succeeded",
+                dag_run_id=dag_run_id,
+                sync_run_seq=runtime.get("last_published_sync_run_seq"),
+                is_noop=False,
+            )
+        else:
+            return _emit(
+                "sync-serving",
+                "failed",
+                dag_run_id=dag_run_id,
+                error=f"DAG run state: {state}",
+            )
+    except Exception as exc:
+        return _emit("sync-serving", "failed", error=redact_text(str(exc)))
+
+
+def _rebuild_serving(args: argparse.Namespace) -> int:
+    if not getattr(args, "yes", False):
+        return _emit(
+            "rebuild-serving", "failed", error="rebuild-serving requires --yes flag"
+        )
+
+    try:
+        from scripts.serving.airflow_api import AirflowApiClient
+
+        client = AirflowApiClient()
+        run_id = getattr(args, "run_id", None)
+        res = client.trigger_dag_run(
+            "olist_clickhouse_rebuild",
+            run_id=run_id,
+            conf={"confirm_destructive": True},
+        )
+        dag_run_id = str(
+            (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
+        )
+
+        timeout = getattr(args, "timeout", 5400.0)
+        state = client.poll_dag_run(
+            "olist_clickhouse_rebuild", dag_run_id, timeout_seconds=timeout
+        )
+
+        if state == "success":
+            return _emit("rebuild-serving", "succeeded", dag_run_id=dag_run_id)
+        else:
+            return _emit(
+                "rebuild-serving",
+                "failed",
+                dag_run_id=dag_run_id,
+                error=f"DAG run state: {state}",
+            )
+    except Exception as exc:
+        return _emit("rebuild-serving", "failed", error=redact_text(str(exc)))
+
+
+def _run_maintenance(args: argparse.Namespace) -> int:
+    try:
+        from scripts.serving.airflow_api import AirflowApiClient
+
+        client = AirflowApiClient()
+        run_id = getattr(args, "run_id", None)
+        res = client.trigger_dag_run("olist_iceberg_maintenance", run_id=run_id)
+        dag_run_id = str(
+            (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
+        )
+
+        timeout = getattr(args, "timeout", 5400.0)
+        state = client.poll_dag_run(
+            "olist_iceberg_maintenance", dag_run_id, timeout_seconds=timeout
+        )
+
+        if state == "success":
+            return _emit("run-maintenance", "succeeded", dag_run_id=dag_run_id)
+        else:
+            return _emit(
+                "run-maintenance",
+                "failed",
+                dag_run_id=dag_run_id,
+                error=f"DAG run state: {state}",
+            )
+    except Exception as exc:
+        return _emit("run-maintenance", "failed", error=redact_text(str(exc)))
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -965,19 +1074,26 @@ def _build_parser() -> argparse.ArgumentParser:
     wait_caught_up.add_argument("--timeout", type=float, default=1200)
     wait_caught_up.set_defaults(func=_wait_caught_up)
 
-    for command, phase in (
-        ("sync-serving", "E"),
-        ("rebuild-serving", "E"),
-        ("run-maintenance", "E"),
-        ("final-parity", "E"),
-    ):
-        deferred = commands.add_parser(command)
-        deferred.add_argument("--phase", default=phase, help=argparse.SUPPRESS)
-        deferred.set_defaults(func=_not_available, phase=phase)
-    commands.choices["sync-serving"].add_argument("--run-id")
-    commands.choices["final-parity"].add_argument(
-        "--confirm-destructive", action="store_true"
-    )
+    sync_serving = commands.add_parser("sync-serving")
+    sync_serving.add_argument("--run-id")
+    sync_serving.add_argument("--timeout", type=float, default=1800.0)
+    sync_serving.set_defaults(func=_sync_serving)
+
+    rebuild_serving = commands.add_parser("rebuild-serving")
+    rebuild_serving.add_argument("--yes", action="store_true")
+    rebuild_serving.add_argument("--run-id")
+    rebuild_serving.add_argument("--timeout", type=float, default=5400.0)
+    rebuild_serving.set_defaults(func=_rebuild_serving)
+
+    run_maintenance = commands.add_parser("run-maintenance")
+    run_maintenance.add_argument("--run-id")
+    run_maintenance.add_argument("--timeout", type=float, default=5400.0)
+    run_maintenance.set_defaults(func=_run_maintenance)
+
+    final_parity = commands.add_parser("final-parity")
+    final_parity.add_argument("--phase", default="F", help=argparse.SUPPRESS)
+    final_parity.add_argument("--confirm-destructive", action="store_true")
+    final_parity.set_defaults(func=_not_available, phase="F")
 
     # Compatibility aliases are retained as thin lifecycle aliases; they do
     # not re-enable the removed PostgreSQL/NiFi path.

@@ -19,7 +19,9 @@ def _property_line(name: str, value: str) -> str:
     return f"{name} {value}\n"
 
 
-def render_properties(output: Path, config: SparkPlatformConfig) -> None:
+def render_properties(
+    output: Path, config: SparkPlatformConfig, mode: str = "streaming"
+) -> None:
     """Write properties without ever placing credentials in process arguments."""
 
     output = output.absolute()
@@ -28,7 +30,8 @@ def render_properties(output: Path, config: SparkPlatformConfig) -> None:
         raise ValueError(f"refusing non-regular output path: {output}")
 
     contents = "".join(
-        _property_line(name, value) for name, value in config.spark_properties().items()
+        _property_line(name, value)
+        for name, value in config.spark_properties(mode=mode).items()
     )
     temporary = output.with_name(f".{output.name}.{secrets.token_hex(8)}.tmp")
     previous_umask = os.umask(0o077)
@@ -70,8 +73,15 @@ def main() -> int:
         type=Path,
         default=Path("/run/spark/conf/olist-lakehouse.properties"),
     )
+    parser.add_argument(
+        "--mode",
+        choices=["streaming", "maintenance"],
+        default="streaming",
+    )
     arguments = parser.parse_args()
-    render_properties(arguments.output, SparkPlatformConfig.from_environment())
+    render_properties(
+        arguments.output, SparkPlatformConfig.from_environment(), mode=arguments.mode
+    )
     return 0
 
 

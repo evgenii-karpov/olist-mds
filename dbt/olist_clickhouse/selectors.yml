@@ -1,0 +1,11 @@
+version: 2
+
+selectors:
+  - name: serving_candidate
+    description: "Gold models and downstream tests for Stage E serving candidate publication flow"
+    definition:
+      union:
+        - method: tag
+          value: gold_candidate
+        - method: tag
+          value: serving_candidate

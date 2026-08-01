@@ -99,26 +99,22 @@ def _validate_checkpoint_root(value: str) -> str:
 
 
 @dataclass(frozen=True)
-class SparkPlatformConfig:
-    """Complete, validated properties needed by Spark lakehouse drivers."""
+class SparkCatalogConfig:
+    """Polaris REST catalog configuration without checkpoint credentials."""
 
     catalog_uri: str
     catalog_name: str
     warehouse: str
-    checkpoint_root: str
     object_store_endpoint: str
     object_store_region: str
     object_store_path_style: bool
-    object_store_credential_provider: str
     polaris_client_id: str
     polaris_client_secret: str
-    checkpoint_access_key: str
-    checkpoint_secret_key: str
 
     @classmethod
     def from_environment(
         cls, environment: Mapping[str, str] | None = None
-    ) -> SparkPlatformConfig:
+    ) -> SparkCatalogConfig:
         env = os.environ if environment is None else environment
         catalog_uri = _validate_service_url(
             env.get("ICEBERG_CATALOG_URI", DEFAULT_CATALOG_URI),
@@ -133,9 +129,6 @@ class SparkPlatformConfig:
         if not _SAFE_IDENTIFIER.fullmatch(catalog_name):
             raise ConfigurationError("ICEBERG_CATALOG_NAME is not a safe identifier")
 
-        checkpoint_root = _validate_checkpoint_root(
-            env.get("SPARK_CHECKPOINT_ROOT", DEFAULT_CHECKPOINT_ROOT)
-        )
         endpoint = _validate_service_url(
             env.get("OBJECT_STORE_ENDPOINT", DEFAULT_OBJECT_STORE_ENDPOINT),
             "OBJECT_STORE_ENDPOINT",
@@ -143,13 +136,6 @@ class SparkPlatformConfig:
         region = env.get("OBJECT_STORE_REGION", DEFAULT_OBJECT_STORE_REGION)
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,62}", region):
             raise ConfigurationError("OBJECT_STORE_REGION has invalid syntax")
-        provider = env.get(
-            "OBJECT_STORE_CREDENTIAL_PROVIDER", DEFAULT_S3A_CREDENTIAL_PROVIDER
-        )
-        if provider != DEFAULT_S3A_CREDENTIAL_PROVIDER:
-            raise ConfigurationError(
-                "local checkpoint access requires SimpleAWSCredentialsProvider"
-            )
 
         client_id = _secret_from_file(env, "POLARIS_SPARK_CLIENT_ID_FILE")
         if ":" in client_id:
@@ -159,26 +145,16 @@ class SparkPlatformConfig:
             catalog_uri=catalog_uri,
             catalog_name=catalog_name,
             warehouse=warehouse,
-            checkpoint_root=checkpoint_root,
             object_store_endpoint=endpoint,
             object_store_region=region,
             object_store_path_style=_boolean(env, "OBJECT_STORE_PATH_STYLE", True),
-            object_store_credential_provider=provider,
             polaris_client_id=client_id,
             polaris_client_secret=_secret_from_file(
                 env, "POLARIS_SPARK_CLIENT_SECRET_FILE"
             ),
-            checkpoint_access_key=_secret_from_file(
-                env, "OBJECT_STORE_ACCESS_KEY_FILE"
-            ),
-            checkpoint_secret_key=_secret_from_file(
-                env, "OBJECT_STORE_SECRET_KEY_FILE"
-            ),
         )
 
     def spark_properties(self) -> dict[str, str]:
-        """Return deterministic Spark properties; the caller must keep them secret."""
-
         catalog_prefix = f"spark.sql.catalog.{CATALOG_ALIAS}"
         return {
             "spark.redaction.regex": _REDACTION_REGEX,
@@ -205,19 +181,72 @@ class SparkPlatformConfig:
             f"{catalog_prefix}.client.region": self.object_store_region,
             "spark.sql.session.timeZone": "UTC",
             "spark.sql.shuffle.partitions": "4",
-            "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
-            "spark.hadoop.fs.s3a.endpoint": self.object_store_endpoint,
-            "spark.hadoop.fs.s3a.endpoint.region": self.object_store_region,
-            "spark.hadoop.fs.s3a.path.style.access": str(
-                self.object_store_path_style
-            ).lower(),
-            "spark.hadoop.fs.s3a.connection.ssl.enabled": str(
-                self.object_store_endpoint.startswith("https://")
-            ).lower(),
-            "spark.hadoop.fs.s3a.aws.credentials.provider": (
-                self.object_store_credential_provider
-            ),
-            "spark.hadoop.fs.s3a.access.key": self.checkpoint_access_key,
-            "spark.hadoop.fs.s3a.secret.key": self.checkpoint_secret_key,
-            "spark.olist.checkpoint.root": self.checkpoint_root,
         }
+
+
+@dataclass(frozen=True)
+class SparkPlatformConfig:
+    """Complete, validated properties needed by Spark streaming drivers."""
+
+    catalog: SparkCatalogConfig
+    checkpoint_root: str
+    object_store_credential_provider: str
+    checkpoint_access_key: str
+    checkpoint_secret_key: str
+
+    @classmethod
+    def from_environment(
+        cls, environment: Mapping[str, str] | None = None
+    ) -> SparkPlatformConfig:
+        env = os.environ if environment is None else environment
+        catalog = SparkCatalogConfig.from_environment(env)
+        checkpoint_root = _validate_checkpoint_root(
+            env.get("SPARK_CHECKPOINT_ROOT", DEFAULT_CHECKPOINT_ROOT)
+        )
+        provider = env.get(
+            "OBJECT_STORE_CREDENTIAL_PROVIDER", DEFAULT_S3A_CREDENTIAL_PROVIDER
+        )
+        if provider != DEFAULT_S3A_CREDENTIAL_PROVIDER:
+            raise ConfigurationError(
+                "local checkpoint access requires SimpleAWSCredentialsProvider"
+            )
+
+        return cls(
+            catalog=catalog,
+            checkpoint_root=checkpoint_root,
+            object_store_credential_provider=provider,
+            checkpoint_access_key=_secret_from_file(
+                env, "OBJECT_STORE_ACCESS_KEY_FILE"
+            ),
+            checkpoint_secret_key=_secret_from_file(
+                env, "OBJECT_STORE_SECRET_KEY_FILE"
+            ),
+        )
+
+    def spark_properties(self, mode: str = "streaming") -> dict[str, str]:
+        props = self.catalog.spark_properties()
+        if mode == "maintenance":
+            return props
+        if mode != "streaming":
+            raise ConfigurationError(f"invalid runtime mode: {mode!r}")
+
+        props.update(
+            {
+                "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+                "spark.hadoop.fs.s3a.endpoint": self.catalog.object_store_endpoint,
+                "spark.hadoop.fs.s3a.endpoint.region": self.catalog.object_store_region,
+                "spark.hadoop.fs.s3a.path.style.access": str(
+                    self.catalog.object_store_path_style
+                ).lower(),
+                "spark.hadoop.fs.s3a.connection.ssl.enabled": str(
+                    self.catalog.object_store_endpoint.startswith("https://")
+                ).lower(),
+                "spark.hadoop.fs.s3a.aws.credentials.provider": (
+                    self.object_store_credential_provider
+                ),
+                "spark.hadoop.fs.s3a.access.key": self.checkpoint_access_key,
+                "spark.hadoop.fs.s3a.secret.key": self.checkpoint_secret_key,
+                "spark.olist.checkpoint.root": self.checkpoint_root,
+            }
+        )
+        return props

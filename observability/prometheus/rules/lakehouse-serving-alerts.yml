@@ -1,0 +1,26 @@
+groups:
+  - name: lakehouse-serving-alerts
+    rules:
+      - alert: ServingSyncStalled
+        expr: (time() - olist_serving_last_publication_timestamp_seconds) > 600
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Serving sync has been stalled for over 10 minutes"
+
+      - alert: ServingRejectedBoundary
+        expr: olist_serving_next_boundary_status == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Serving boundary hit a REJECTED transaction"
+
+      - alert: ServingPublicationDrift
+        expr: olist_serving_watermark_drift == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL control cursor and ClickHouse marker drift detected"

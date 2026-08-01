@@ -19,8 +19,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.customers_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (customer_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, customer_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.orders_current_versions
 (
@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.orders_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (order_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, order_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.order_items_current_versions
 (
@@ -72,8 +72,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.order_items_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (order_id, order_item_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, order_id, order_item_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.order_payments_current_versions
 (
@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.order_payments_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (order_id, payment_sequential);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, order_id, payment_sequential);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.order_reviews_current_versions
 (
@@ -122,8 +122,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.order_reviews_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (review_id, order_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, review_id, order_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.products_current_versions
 (
@@ -150,8 +150,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.products_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (product_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, product_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.sellers_current_versions
 (
@@ -173,8 +173,8 @@ CREATE TABLE IF NOT EXISTS serving_cdc.sellers_current_versions
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (seller_id);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, seller_id);
 
 CREATE TABLE IF NOT EXISTS serving_cdc.product_category_translation_current_versions
 (
@@ -194,5 +194,5 @@ CREATE TABLE IF NOT EXISTS serving_cdc.product_category_translation_current_vers
     updated_at DateTime64(6, 'UTC')
 )
 ENGINE = ReplacingMergeTree(kafka_offset)
-PARTITION BY tuple()
-ORDER BY (product_category_name);
+PARTITION BY sync_run_seq
+ORDER BY (sync_run_seq, product_category_name);

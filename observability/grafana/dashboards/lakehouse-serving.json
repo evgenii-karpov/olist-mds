@@ -1,0 +1,45 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Last Published Sync Run Seq",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "olist_serving_last_published_sync_run_seq",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Active Mutation Lease",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "olist_serving_active_lease",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["lakehouse", "serving"],
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Lakehouse Serving Integration",
+  "uid": "lakehouse-serving"
+}

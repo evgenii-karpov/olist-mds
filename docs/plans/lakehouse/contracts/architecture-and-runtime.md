@@ -201,7 +201,7 @@ python scripts/cdc/local_lab.py seed --archive tests/fixtures/olist_small/olist_
 python scripts/cdc/local_lab.py start-streaming
 python scripts/cdc/local_lab.py wait-caught-up --timeout <seconds>
 python scripts/cdc/local_lab.py sync-serving
-python scripts/cdc/local_lab.py rebuild-serving
+python scripts/cdc/local_lab.py rebuild-serving --yes
 python scripts/cdc/local_lab.py run-maintenance
 python scripts/cdc/local_lab.py status [--require platform|streaming|serving]
 python scripts/cdc/local_lab.py validate [--scope platform|streaming|serving] [--timeout <seconds>]

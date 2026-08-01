@@ -80,6 +80,17 @@ sbt package
 - Проверка конечного повтора (replay);
 - Проверка работы `LakehouseStatusMain`.
 
+### 1.5 Задача проверки компонентов публикации Stage E (`Serving component job`)
+
+Запускается для PR, затрагивающих контрольную схему `serving`, публикацию в ClickHouse, dbt, DAGs Airflow или команды `sync-serving` / `rebuild-serving`:
+- Инициализация схемы `olist_control.serving`;
+- Ограниченный запуск `wait-caught-up` и формирование границы транзакций;
+- Публикация candidate партиций в ClickHouse;
+- Запуск candidate графа dbt (`dbt build --select tag:serving_candidate`);
+- Публикация маркера `PUBLISHED` и проверка переключения стабильных витрин `gold`;
+- Выполнение проверок восстановления после сбоев (failpoints);
+- Проверка исполнения `rebuild-serving --yes`.
+
 ---
 
 ## 2. Защитный механизм рамок (Scope Guard)

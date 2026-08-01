@@ -23,7 +23,7 @@ E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Fina
 - Прохождение `status --require streaming` и `validate --scope streaming` со статусом `READY`.
 
 ### 1.2 Scope
-- Реализация схемы базы данных управления в PostgreSQL (`olist_control`).
+- Реализация узкой схемы базы данных управления в PostgreSQL (`olist_control.serving`, подробнее см. [stage-e-serving-integration.md](stage-e-serving-integration.md)).
 - Реализация транзакционно-завершенной синхронизации Airflow (`olist_lakehouse_serving_sync`).
 - Интеграция таблиц событий и текущего состояния ClickHouse (`serving_cdc`).
 - Интеграция витрин dbt-clickhouse (`gold_store` / `gold`).

@@ -7,6 +7,8 @@ import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
+import java.sql.Timestamp
+import java.time.Instant
 
 object SilverBatchWriter {
 
@@ -38,15 +40,19 @@ object SilverBatchWriter {
     }
 
     val rows = topicRows.collect()
+    if (rows.isEmpty) return
+
     val decodedRows = rows.map { row =>
       val eventId = row.getAs[String]("event_id")
       val keyBytes = row.getAs[Array[Byte]]("key_bytes")
       val valBytes = row.getAs[Array[Byte]]("value_bytes")
-      val kafkaTs = row.getAs[java.sql.Timestamp]("kafka_timestamp")
+      val kafkaTs = row.getAs[Timestamp]("kafka_timestamp")
       val kafkaOffset = row.getAs[Long]("offset")
+      val partition = row.getAs[Int]("partition")
+      val topic = row.getAs[String]("topic")
 
       val decoded = SilverDecoder.decodeRow(eventId, keyBytes, valBytes, contract)
-      (decoded, kafkaTs, kafkaOffset)
+      (decoded, kafkaTs, kafkaOffset, partition, topic)
     }
 
     val changesTable = s"lakehouse.silver.${contract.entity}_changes"
@@ -58,7 +64,7 @@ object SilverBatchWriter {
 
     // Build changes DF
     val sparkSchema = contract.toChangesSparkSchema
-    val rddRows = spark.sparkContext.parallelize(decodedRows.toVector.map { case (dec, kTs, _) =>
+    val rddRows = spark.sparkContext.parallelize(decodedRows.toVector.map { case (dec, kTs, _, _, _) =>
       val values = Vector(
         dec.eventId,
         dec.opType,
@@ -71,12 +77,15 @@ object SilverBatchWriter {
     val changesDf = spark.createDataFrame(rddRows, sparkSchema)
 
     // 1. Append changes to silver.<entity>_changes
-    changesDf.writeTo(changesTable).append()
+    IcebergCommitCoordinator.withLock(changesTable) {
+      changesDf.writeTo(changesTable).append()
+    }
+    val changesSnapshotId = SilverProgressWriter.getLatestSnapshotId(spark, changesTable)
 
     // 2. Compute latest state per primary key in this micro-batch
     val pkJoinExpr = pkCols.map(pk => s"target.$pk = inc.$pk").mkString(" AND ")
 
-    // Partition by PK, order by kafka_timestamp desc, offset desc
+    // Partition by PK, order by kafka_timestamp desc, event_id desc
     val windowSpec = org.apache.spark.sql.expressions.Window
       .partitionBy(pkCols.map(col): _*)
       .orderBy(col("kafka_timestamp").desc, col("event_id").desc)
@@ -107,6 +116,34 @@ object SilverBatchWriter {
          |WHEN NOT MATCHED AND inc.op_type != 'delete' THEN INSERT ($businessInsertCols) VALUES ($businessInsertVals)
          |""".stripMargin
 
-    spark.sql(mergeSql)
+    IcebergCommitCoordinator.withLock(currentTable) {
+      spark.sql(mergeSql)
+    }
+    val currentSnapshotId = SilverProgressWriter.getLatestSnapshotId(spark, currentTable)
+
+    // 3. Write progress to lakehouse.audit.silver_progress
+    val partitionGrouped = decodedRows.groupBy(_._4)
+    val progressRecords = partitionGrouped.map { case (partition, items) =>
+      val offsets = items.map(_._3)
+      val topic = items.head._5
+      SilverProgressRecord(
+        queryName = s"bronze_to_silver_${contract.entity}",
+        entity = contract.entity,
+        contractVersion = 2,
+        sourceTopic = topic,
+        kafkaPartition = partition,
+        sparkBatchId = batchId,
+        changesSnapshotId = changesSnapshotId,
+        currentSnapshotId = currentSnapshotId,
+        firstKafkaOffset = offsets.min,
+        lastKafkaOffset = offsets.max,
+        recordsProcessed = items.length.toLong,
+        appliedRecords = items.length.toLong,
+        rejectedRecords = 0L,
+        status = "COMMITTED"
+      )
+    }.toSeq
+
+    SilverProgressWriter.writeProgress(spark, progressRecords)
   }
 }

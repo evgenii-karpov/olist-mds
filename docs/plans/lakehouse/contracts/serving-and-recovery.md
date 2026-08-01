@@ -30,9 +30,9 @@ SETTINGS catalog_type = 'rest', warehouse = 'olist_lakehouse';
 - `gold`: стабильные представления (views) над последним успешно опубликованным прогоном.
 
 Таблицы `serving_cdc`:
-- 8 таблиц журналов событий `events_<entity>` (`ENGINE = MergeTree`).
-- 8 таблиц текущих версий `current_<entity>` (`ENGINE = ReplacingMergeTree(last_source_ts)`).
-- 8 стабильных представлений `v_<entity>`, фильтрующих удаленные записи (`is_deleted = 0`) и неопубликованные запуски.
+- 8 таблиц журналов событий `<entity>_events` (`ENGINE = MergeTree`).
+- 8 таблиц текущих версий `<entity>_current_versions` (`ENGINE = ReplacingMergeTree(kafka_offset)` с `PARTITION BY sync_run_seq` и `ORDER BY (sync_run_seq, <business primary key>)`).
+- 8 стабильных представлений `<entity>_current`, фильтрующих удаленные записи (`is_deleted = 0`) и неопубликованные запуски.
 
 ---
 
