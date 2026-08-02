@@ -8,7 +8,6 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 import java.sql.Timestamp
-import java.time.Instant
 
 object SilverBatchWriter {
 
@@ -64,15 +63,16 @@ object SilverBatchWriter {
 
     // Build changes DF
     val sparkSchema = contract.toChangesSparkSchema
-    val rddRows = spark.sparkContext.parallelize(decodedRows.toVector.map { case (dec, kTs, _, _, _) =>
-      val values = Vector(
-        dec.eventId,
-        dec.opType,
-        dec.sourceTsMs.map(java.lang.Long.valueOf).orNull,
-        kTs
-      ) ++ contract.businessColumns.map(c => dec.businessValues.getOrElse(c.name, null))
-      Row.fromSeq(values)
-    })
+    val rddRows =
+      spark.sparkContext.parallelize(decodedRows.toVector.map { case (dec, kTs, _, _, _) =>
+        val values = Vector(
+          dec.eventId,
+          dec.opType,
+          dec.sourceTsMs.map(java.lang.Long.valueOf).orNull,
+          kTs
+        ) ++ contract.businessColumns.map(c => dec.businessValues.getOrElse(c.name, null))
+        Row.fromSeq(values)
+      })
 
     val changesDf = spark.createDataFrame(rddRows, sparkSchema)
 

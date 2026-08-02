@@ -71,4 +71,13 @@ object ConfluentFrame {
       }
     }
   }
+
+  def sha256Hex(bytes: Array[Byte]): String = {
+    if (bytes == null || bytes.isEmpty) ""
+    else {
+      val digest = java.security.MessageDigest.getInstance("SHA-256")
+      val hash = digest.digest(bytes)
+      hash.map("%02x".format(_)).mkString
+    }
+  }
 }

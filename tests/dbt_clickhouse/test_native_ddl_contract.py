@@ -79,7 +79,7 @@ class NativeLakehouseDdlContractTests(unittest.TestCase):
             self.current_ddl.count("ENGINE = ReplacingMergeTree(kafka_offset)"),
             8,
         )
-        self.assertEqual(self.current_ddl.count("PARTITION BY tuple()"), 8)
+        self.assertEqual(self.current_ddl.count("PARTITION BY sync_run_seq"), 8)
         self.assertEqual(self.current_ddl.count("sync_run_seq UInt64"), 8)
         self.assertEqual(self.current_ddl.count("is_deleted Bool"), 8)
 

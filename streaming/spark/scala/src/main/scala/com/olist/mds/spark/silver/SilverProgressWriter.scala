@@ -111,7 +111,9 @@ object SilverProgressWriter {
 
   def getLatestSnapshotId(spark: SparkSession, tableName: String): Option[Long] = {
     try {
-      val df = spark.sql(s"SELECT snapshot_id FROM $tableName.snapshots ORDER BY committed_at DESC LIMIT 1")
+      val df = spark.sql(
+        s"SELECT snapshot_id FROM $tableName.snapshots ORDER BY committed_at DESC LIMIT 1"
+      )
       val rows = df.collect()
       if (rows.nonEmpty) Some(rows(0).getAs[Long]("snapshot_id")) else None
     } catch {

@@ -20,7 +20,9 @@ object SilverMain {
 
     val queryStatuses = scala.collection.mutable.Map[String, QueryStatus]()
 
-    println(s"DEBUG: SilverMain starting 10 queries (${contracts.size} entities + schemas + transactions)...")
+    println(
+      s"DEBUG: SilverMain starting 10 queries (${contracts.size} entities + schemas + transactions)..."
+    )
 
     // 1-8. Entity Queries
     val entityQueries = contracts.values.map { contract =>
@@ -87,7 +89,9 @@ object SilverMain {
     val schemaCheckpoint = s"${config.sparkCheckpointRoot}/silver_capture_avro_schemas/contract-v2/"
     val schemaStream = spark.readStream
       .table("lakehouse.bronze.mysql_cdc_records")
-      .filter(org.apache.spark.sql.functions.col("topic").isin("olist_cdc.__schemas__", "__schemas__"))
+      .filter(
+        org.apache.spark.sql.functions.col("topic").isin("olist_cdc.__schemas__", "__schemas__")
+      )
       .writeStream
       .queryName(schemaQueryName)
       .trigger(Trigger.ProcessingTime("2 seconds"))
@@ -99,10 +103,13 @@ object SilverMain {
 
     // 10. normalize_mysql_transactions
     val txQueryName = "normalize_mysql_transactions"
-    val txCheckpoint = s"${config.sparkCheckpointRoot}/silver_normalize_mysql_transactions/contract-v2/"
+    val txCheckpoint =
+      s"${config.sparkCheckpointRoot}/silver_normalize_mysql_transactions/contract-v2/"
     val txStream = spark.readStream
       .table("lakehouse.bronze.mysql_cdc_records")
-      .filter(org.apache.spark.sql.functions.col("topic").isin("olist_cdc.transaction", "transaction"))
+      .filter(
+        org.apache.spark.sql.functions.col("topic").isin("olist_cdc.transaction", "transaction")
+      )
       .writeStream
       .queryName(txQueryName)
       .trigger(Trigger.ProcessingTime("2 seconds"))

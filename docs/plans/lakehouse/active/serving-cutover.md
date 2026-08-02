@@ -1,6 +1,6 @@
 # Операционный план: Переключение витрин, сквозная валидация, удаление устаревших компонентов и итоговый паритет (E → V → L → F)
 
-- **Статус**: Активный операционный план (Active operational plan)
+- **Статус**: Активный операционный план (Stage E и Stage V завершены со статусом PASS, следующая стадия: Stage L)
 - **Назначение**: Описание порядка выполнения оставшихся последовательных стадий миграции: E (Serving integration), V (Candidate E2E validation), L (Legacy removal) и F (Final parity).
 - **Порядок авторитетности**: Определяет порядок выполнения нереализованных стадий. Не дублирует полные технические контракты; при реализации ссылается на файлы из `lakehouse/contracts/`.
 
@@ -9,7 +9,7 @@
 ## Последовательность стадий
 
 ```text
-E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Final Parity)
+E (Complete) → V (Complete) → L (Next / In Progress) → F (Pending)
 ```
 
 Каждая стадия начинается строго после полного выполнения критериев приемки предыдущей стадии.
@@ -17,6 +17,8 @@ E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Fina
 ---
 
 ## 1. Стадия E — Интеграция витрин публикаций (Serving Integration)
+
+- **Статус стадии**: `COMPLETE PASS` ([отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md))
 
 ### 1.1 Preconditions
 - Успешное завершение Wave 1 / J1 и Wave 2 / J2 ([J2 report](../../../reports/mysql-spark-iceberg-wave2-j2-validation.md)).
@@ -46,11 +48,13 @@ E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Fina
 - Запрещено публиковать транзакции со статусом `REJECTED` или `OPEN` в ClickHouse.
 
 ### 1.6 Condition to proceed to V
-- Успешное прохождение `validate --scope serving` в чистом домене Docker Compose.
+- Успешное прохождение `validate --scope serving` в чистом домене Docker Compose (`PASS`).
 
 ---
 
 ## 2. Стадия V — Сквозная валидация кандидата (Candidate E2E Validation)
+
+- **Статус стадии**: `COMPLETE PASS` ([отчёт Stage V](../../../reports/mysql-spark-iceberg-stage-v-validation.md))
 
 ### 2.1 Preconditions
 - Успешное завершение и приемка стадии E.
@@ -73,10 +77,10 @@ E (Serving Integration) → V (Candidate E2E) → L (Legacy Removal) → F (Fina
 14. Выполнение полного перестроения ClickHouse строго из Iceberg (`rebuild-serving`).
 
 ### 2.3 Deliverables
-- Отчет о сквозной валидации целевой системы со статусом `PASS`.
+- [Отчёт о сквозной валидации целевой системы](../../../reports/mysql-spark-iceberg-stage-v-validation.md) со статусом `PASS`.
 
 ### 2.4 Condition to proceed to L
-- Полный проход всех 14 шагов сквозного сценария на чистом стенде.
+- Полный проход всех ворот V0-V10 сквозного сценария на чистом стенде со статусом `PASS` (выполнено, переход к Stage L разрешён).
 
 ---
 

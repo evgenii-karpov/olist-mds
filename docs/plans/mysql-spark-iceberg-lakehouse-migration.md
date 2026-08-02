@@ -4,12 +4,14 @@
 
 | Поле | Значение |
 | --- | --- |
-| Статус | Wave 1/J1 завершены; Wave 2/J2 завершены (`J2 ACCEPTANCE PASS`) |
-| Последнее обновление | 2026-08-01 |
-| Базовый commit текущей архитектуры | `1400d08345ad81a0121f0ee85ee9ae81cd575a73e` |
+| Статус | Wave 1/J1, Wave 2/J2, Stage E, Stage V завершены (`Stage V ACCEPTANCE PASS`) |
+| Последнее обновление | 2026-08-02 |
+| Базовый commit текущей архитектуры | `c18766c276ef4edc828ccb0f46ea64460cd33a41` |
 | Ветка реализации | `feature/mysql-spark-iceberg` |
 | Evidence J1 | [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | Evidence J2 | [docs/reports/mysql-spark-iceberg-wave2-j2-validation.md](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
+| Evidence Stage E | [docs/reports/mysql-spark-iceberg-stage-e-validation.md](../reports/mysql-spark-iceberg-stage-e-validation.md) |
+| Evidence Stage V | [docs/reports/mysql-spark-iceberg-stage-v-validation.md](../reports/mysql-spark-iceberg-stage-v-validation.md) |
 | Основная аудитория | ИИ-агенты реализации и maintainers |
 | Финальный fixture | `tests/fixtures/olist_small/olist_small.zip` |
 | SHA-256 fixture | `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976` |
@@ -99,15 +101,15 @@ flowchart LR
 | --- | --- | --- | --- |
 | **Wave 1 / J1** | Complete | [lakehouse/completed/wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | [J1 report](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | **Wave 2 / J2** | Complete | [lakehouse/completed/wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | [J2 report](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
-| **E / Serving integration** | Next | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) | — |
-| **V / Candidate E2E** | Pending (после E) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) | — |
-| **L / Legacy removal** | Pending (после V) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) | — |
+| **E / Serving integration** | Complete | [lakehouse/active/stage-e-serving-integration.md](lakehouse/active/stage-e-serving-integration.md) | [Stage E report](../reports/mysql-spark-iceberg-stage-e-validation.md) |
+| **V / Candidate E2E** | Complete | [lakehouse/active/stage-v-candidate-e2e-validation.md](lakehouse/active/stage-v-candidate-e2e-validation.md) | [Stage V report](../reports/mysql-spark-iceberg-stage-v-validation.md) |
+| **L / Legacy removal** | Next (после V PASS) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) | — |
 | **F / Final parity** | Pending (после L) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
 
 Граф последовательности стадий:
 
 ```text
-Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → Stage E → Stage V → Stage L → Stage F
+Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → Stage E (Complete) → Stage V (Complete) → Stage L (Next) → Stage F
 ```
 
 ---
