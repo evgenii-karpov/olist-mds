@@ -4,9 +4,10 @@
 
 | Поле | Значение |
 | --- | --- |
-| Статус | Wave 1/J1, Wave 2/J2, Stage E, Stage V завершены (`Stage V ACCEPTANCE PASS`) |
+| Статус | Wave 1/J1 и Wave 2/J2 завершены; Stage E/V требуют повторной приёмки перед F0/L |
 | Последнее обновление | 2026-08-02 |
-| Базовый commit текущей архитектуры | `c18766c276ef4edc828ccb0f46ea64460cd33a41` |
+| Аудированный commit candidate до обновления планов | `f33a2c8f2efabdc8b48b06798245c68fd930d5db` |
+| Frozen baseline source | `main` commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (фиксируется на Stage F0) |
 | Ветка реализации | `feature/mysql-spark-iceberg` |
 | Evidence J1 | [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | Evidence J2 | [docs/reports/mysql-spark-iceberg-wave2-j2-validation.md](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
@@ -101,15 +102,15 @@ flowchart LR
 | --- | --- | --- | --- |
 | **Wave 1 / J1** | Complete | [lakehouse/completed/wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | [J1 report](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | **Wave 2 / J2** | Complete | [lakehouse/completed/wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | [J2 report](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
-| **E / Serving integration** | Complete | [lakehouse/active/stage-e-serving-integration.md](lakehouse/active/stage-e-serving-integration.md) | [Stage E report](../reports/mysql-spark-iceberg-stage-e-validation.md) |
-| **V / Candidate E2E** | Complete | [lakehouse/active/stage-v-candidate-e2e-validation.md](lakehouse/active/stage-v-candidate-e2e-validation.md) | [Stage V report](../reports/mysql-spark-iceberg-stage-v-validation.md) |
-| **L / Legacy removal** | Next (после V PASS) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) | — |
-| **F / Final parity** | Pending (после L) | [lakehouse/active/serving-cutover.md](lakehouse/active/serving-cutover.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
+| **E/V / Revalidation** | **Next** | [lakehouse/active/stage-ev-validation-repair.md](lakehouse/active/stage-ev-validation-repair.md) | существующие [Stage E](../reports/mysql-spark-iceberg-stage-e-validation.md) / [Stage V](../reports/mysql-spark-iceberg-stage-v-validation.md) reports являются историческими до полного повторного V0–V10 |
+| **F0 / Baseline freeze** | Pending (после E/V) | [lakehouse/active/stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | — |
+| **L / Legacy removal + CI cutover** | Pending (после F0) | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | — |
+| **F1 / Final parity** | Pending (после L) | [lakehouse/active/stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
 
 Граф последовательности стадий:
 
 ```text
-Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → Stage E (Complete) → Stage V (Complete) → Stage L (Next) → Stage F
+Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Next) → F0 baseline freeze → L cleanup + CI cutover → F1 candidate-only parity
 ```
 
 ---
@@ -126,10 +127,14 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → Stage E (Complete) → Sta
 | **Contracts** | [spark-streaming.md](lakehouse/contracts/spark-streaming.md) | Спецификация движка Spark Structured Streaming на Scala, алгоритмы декодирования и коммитов в Iceberg. |
 | **Contracts** | [serving-and-recovery.md](lakehouse/contracts/serving-and-recovery.md) | Интеграция ClickHouse, витрины dbt-clickhouse Gold, регламенты Airflow и обработка сбоев. |
 | **Contracts** | [validation-and-ci.md](lakehouse/contracts/validation-and-ci.md) | Автоматические тесты, структура проверок CI и защитные барьеры. |
-| **Contracts** | [final-parity.md](lakehouse/contracts/final-parity.md) | Контракт и алгоритм итогового сравнения паритета между legacy и candidate. |
+| **Contracts** | [final-parity.md](lakehouse/contracts/final-parity.md) | Контракт одноразового frozen baseline F0 и candidate-only итогового сравнения F1. |
 | **Completed** | [wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | Завершенный исторический runbook интеграции Wave 1 / J1 (зафиксирован). |
 | **Completed** | [wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | Завершенный исторический runbook Scala data plane Wave 2 / J2 (зафиксирован). |
-| **Active** | [serving-cutover.md](lakehouse/active/serving-cutover.md) | Активный операционный план реализации стадий E, V, L и F. |
+| **Active** | [serving-cutover.md](lakehouse/active/serving-cutover.md) | Координационный порядок E/V repair → F0 → L → F1 и переходные барьеры. |
+| **Active** | [stage-ev-validation-repair.md](lakehouse/active/stage-ev-validation-repair.md) | Исправление Stage E/V evidence и обязательный полный прогон V0–V10. |
+| **Active** | [stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | Одноразовый экспорт baseline из точного commit `main` до cleanup. |
+| **Active** | [stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | Инвентарь удаления legacy и точная целевая матрица workflows/jobs. |
+| **Active** | [stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) | Финальный candidate-only прогон против frozen oracle после cleanup. |
 | **Deferred** | [gcp-spark-iceberg-bigquery-migration.md](gcp-spark-iceberg-bigquery-migration.md) | Отложенная программа облачной миграции на GCP / BigQuery (out of local scope). |
 
 ---
@@ -139,18 +144,22 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → Stage E (Complete) → Sta
 При возникновении разночтений между документами действует следующий приоритет:
 
 1. **Действующие контракты (`lakehouse/contracts/`)** определят действующее нормативное поведение системы.
-2. **Активный план (`lakehouse/active/serving-cutover.md`)** определяет порядок невыполненных стадий (E/V/L/F).
-3. **Отчеты о валидации (`docs/reports/`)** подтверждают фактически выполненные проверки и достигнутые результаты.
-4. **Завершенные runbooks (`lakehouse/completed/`)** хранят исторический контекст выполнения и не используются как активные инструкции.
+2. **Координационный план (`lakehouse/active/serving-cutover.md`)** определяет порядок невыполненных стадий (E/V repair, F0, L, F1).
+3. **Детальные активные планы (`lakehouse/active/stage-*.md`)** определяют исполнимые пакеты работ и критерии перехода каждой стадии.
+4. **Отчеты о валидации (`docs/reports/`)** подтверждают только фактически представленные проверки; декларация без raw evidence не закрывает обязательные ворота.
+5. **Завершенные runbooks (`lakehouse/completed/`)** хранят исторический контекст выполнения и не используются как активные инструкции.
 
 ---
 
 ## 6. Общий Definition of Done программы
 
 Миграция признается полностью завершенной только если:
-- Вся реализация находится в ветке `feature/mysql-spark-iceberg`;
-- Слой Wave 1/J1 и Wave 2/J2 полностью функционируют и подтверждены отчетами;
-- Реализована транзакционная публикация в ClickHouse (Stage E);
-- Проведен чистый сквозной тест кандидата (Stage V);
-- Все компоненты устаревшего контура PostgreSQL/NiFi удалены из кода (Stage L);
-- Итоговый тест паритета `run_mysql_iceberg_final_parity.py` имеет статус **PASS** без расхождений по колонкам (Stage F).
+
+- Wave 1/J1 и Wave 2/J2 функционируют и подтверждены отчётами;
+- Stage E/V повторно приняты полным фактическим прогоном V0–V10;
+- frozen baseline F0 экспортирован из commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73`, проверен и зафиксирован;
+- legacy PostgreSQL OLTP/NiFi/Redshift runtime, old dbt/DAGs/tests/workflows удалены, но control PostgreSQL сохранён (Stage L);
+- `.github/workflows/ci.yml` является обязательным общим CI, bounded component workflow запускается автоматически по релевантным путям, а full acceptance — только вручную;
+- все обязательные target CI jobs проходят на очищенном дереве;
+- candidate-only Stage F1 против frozen oracle имеет **PASS** без отсутствующих/лишних ключей и расхождений бизнес-колонок;
+- итоговые evidence привязаны к точным baseline/candidate commit SHA и fixture SHA-256.

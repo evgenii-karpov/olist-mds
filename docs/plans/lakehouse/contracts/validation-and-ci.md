@@ -1,109 +1,124 @@
-# Технический контракт: Автоматическое тестирование и непрерывная интеграция (Validation & CI)
+# Технический контракт: Validation & CI
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Фиксация состава быстрых тестов, регулярных проверок в CI, правил изоляции тестовых задач и защитных механизмов.
-- **Порядок авторитетности**: Определяет действующие нормативные требования к автоматическому контролю качества в CI/CD pipeline.
-
----
-
-## 1. Структура проверок в CI (CI Pipeline)
-
-Проверки в Pull Request CI не запускают полный паритетный тест или неограниченный стек Docker Compose. Процесс CI состоит из следующих изолированных задач (jobs).
-
-### 1.1 Задача быстрых проверок Scala (`Scala fast job`)
-
-Рабочая директория: `streaming/spark/scala`. Ключ кэширования зависимостей включает `build.sbt`, `project/build.properties`, `project/plugins.sbt` и `.scalafmt.conf`.
-
-Обязательные команды:
-
-```text
-sbt scalafmtCheckAll scalafmtSbtCheck
-sbt Test/compile
-sbt test
-sbt package
-```
-
-Проверки собранного артефакта в CI:
-1. Проверка единственности файла JAR и стабильности его имени.
-2. Распаковка JAR и проверка наличия 5 главных классов, ресурсов манифестов, топиков и контрактов v2.
-3. Побайтовое сравнение упакованных ресурсов с исходными файлами в репозитории и их SHA-256.
-4. Ошибка сборки при обнаружении внутри артефакта скомпилированных классов `org/apache/spark`, `org/apache/iceberg`, `org/apache/kafka` или `org/apache/avro` (должны быть в `provided`).
-
-Тесты ScalaTest обязаны покрывать:
-- Все разветвления Confluent framing и префиксы ID схем;
-- Паритет SHA-256 fingerprints схем с Python;
-- Рекурсивные ссылки CCompat, циклические ссылки и fallback;
-- Загрузку ресурсов контрактов и валидацию метаданных;
-- 8 зафиксированных схем сущностей;
-- Валидацию Debezium envelope (`c/r/u/d/tombstone`);
-- Фиксированный порядок ошибок и маскирование сообщений;
-- Денежные хэши, таймзоны UTC и микросекунды;
-- Проверки дедупликации `event_id` и столкновений;
-- Правила порядковых номеров для смещений и партиций;
-- Идемпотентность MERGE и запрет перезаписи примененных записей;
-- Повторные попытки после частичных коммитов;
-- Переходы статусов транзакций (`COMPLETE` / `REJECTED`);
-- Атомарный вывод статуса `status.json`.
-
-### 1.2 Задача регрессионных проверок Python (`Python regression job`)
-
-Минимальный набор проверок:
-- DDL MySQL, пользователи, права, порядок симулятора и количество строк фикстур;
-- Проверка 8 топиков CDC, партиций и настроек коннектора;
-- Совместимость `BACKWARD_TRANSITIVE` в Apicurio;
-- Таблицы Iceberg J1, партиции и чексумма миграции;
-- Валидация вывода `local_lab.py` в формате JSON, проверка маскирования секретов;
-- Проверка запуска профилей Compose: `bootstrap`/`up` только `platform`, `start-streaming` без контейнеров `serving`;
-- Валидация работы проверок readiness при сбоях Polaris, RBAC или дрейфе чексуммы;
-- Регрессионные тесты dbt parse и DDL ClickHouse;
-- Проверка отсутствия фиксированных `container_name` в `compose.yaml`.
-
-### 1.3 Задача проверки контракта образа (`Image contract job`)
-
-Сборка образа `olist-spark:4.1.3-iceberg1.11.0`, запуск скрипта верификации `verify-runtime.sh` и запуск 5 главных классов с флагом `--help` при отключенной сети (`--network none`).
-
-Проверяется:
-- Отсутствие попыток скачивания внешних зависимостей во время запуска;
-- Права доступа к файлам свойств и секретов (`0600` / `0700`);
-- Отсутствие секретов в логах и метаданных образа;
-- Корректный код завершения при неверной конфигурации.
-
-### 1.4 Ограниченная интеграционная задача (`Bounded component job`)
-
-Запускается для PR, затрагивающих Scala runtime, контракты, образ Spark, Compose или `local_lab.py`. Использует уменьшенный набор фикстур и жесткие таймауты:
-- Реальная цепочка Kafka → Bronze с проверкой точности бинарных данных;
-- Реальный Apicurio → архивация 16 схем;
-- Bronze → 8 Silver сущностей (проверка точности 79/79/0 записей);
-- Проверка загрузки геопозиций (6 записей);
-- Завершение транзакций и коммит прогресса;
-- Перезапуск Bronze/Silver с сохранением чекпоинтов;
-- Проверка конечного повтора (replay);
-- Проверка работы `LakehouseStatusMain`.
-
-### 1.5 Задача проверки компонентов публикации Stage E (`Serving component job`)
-
-Запускается для PR, затрагивающих контрольную схему `serving`, публикацию в ClickHouse, dbt, DAGs Airflow или команды `sync-serving` / `rebuild-serving`:
-- Инициализация схемы `olist_control.serving`;
-- Ограниченный запуск `wait-caught-up` и формирование границы транзакций;
-- Публикация candidate партиций в ClickHouse;
-- Запуск candidate графа dbt (`dbt build --select tag:serving_candidate`);
-- Публикация маркера `PUBLISHED` и проверка переключения стабильных витрин `gold`;
-- Выполнение проверок восстановления после сбоев (failpoints);
-- Проверка исполнения `rebuild-serving --yes`.
+- **Статус**: Действующий нормативный контракт целевой архитектуры.
+- **Назначение**: определить обязательные автоматические проверки, bounded integrations и ручные acceptance-прогоны после отказа от PostgreSQL OLTP/NiFi/старого dbt.
 
 ---
 
-## 2. Защитный механизм рамок (Scope Guard)
+## 1. Уровни проверки
 
-- Никакие агрегированные подсчеты или успешные чекпоинты не заменяют построчную проверку паритета данных там, где это требуется.
-- Быстрые тесты в CI не запускают публикацию в витрины ClickHouse (`serving`), удаление legacy-компонентов или полный тест паритета до прохождения всех предыдущих стадий.
+| Уровень | Workflow | Trigger | Обязательность |
+| --- | --- | --- | --- |
+| Fast/common | `.github/workflows/ci.yml` | каждый PR, push в `main` | required branch protection |
+| Bounded components | `.github/workflows/lakehouse-components.yml` | PR/push по target path filters; ручной повтор | обязателен для релевантных изменений |
+| Full acceptance | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | перед контрольными переходами, не на каждый PR |
+
+Frozen baseline F0 создаётся одноразово и не регенерируется CI.
 
 ---
 
-## 3. Связанные документы
+## 2. Общий CI (`ci.yml`)
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт архитектуры и runtime](architecture-and-runtime.md)
-- [Контракт Spark Structured Streaming](spark-streaming.md)
-- [Контракт Serving layer и восстановления](serving-and-recovery.md)
-- [Контракт итогового паритета](final-parity.md)
+Workflow содержит стабильный агрегирующий check `ci-success` и следующие jobs:
+
+1. `docs-and-repository-contracts` — syntax/link checks, compileall, fixture/oracle metadata и запрет active legacy references.
+2. `python-quality` — Ruff lint/format и Pyright по target paths.
+3. `python-contract-tests` — pytest только по `tests/mysql`, `tests/cdc_contracts`, `tests/lakehouse_platform`, `tests/dbt_clickhouse`, `tests/serving`, `tests/stage_v`; нулевая коллекция является ошибкой.
+4. `scala-fast` — scalafmt, compile, ScalaTest, package и проверка содержимого JAR.
+5. `compose-contract` — `docker compose config` и статические инварианты services/profiles/images/secrets.
+6. `airflow-dag-imports` — сборка целевого образа, отсутствие import errors, exact inventory четырёх lakehouse DAGs и отсутствие old dbt path.
+7. `dbt-clickhouse-static` — deps, parse, compile и model/source/selector contracts проекта `dbt/olist_clickhouse`.
+
+Нельзя использовать `python -m unittest discover` как единственный test runner: он не гарантирует сбор module-level pytest tests.
+
+---
+
+## 3. Bounded components (`lakehouse-components.yml`)
+
+Jobs:
+
+1. `spark-image-contract` — pinned image, offline entrypoint help, JAR/resources/classes, filesystem permissions и secret leakage.
+2. `cdc-component` — bounded MySQL → Debezium → Kafka/Apicurio → Bronze/Silver, initial snapshot, restart и replay.
+3. `serving-component` — migration 005, real finite boundary, ClickHouse candidate/stable publish, dbt build, no-op retry и failpoints.
+4. `airflow-runtime` — запуск того же Airflow image, exact DAG inventory и bounded task path.
+5. `component-summary` — единое решение и публикация evidence.
+
+Workflow использует малый fixture, отдельный Compose project, жёсткие timeouts и cleanup в `always()`. Он не выполняет полный V0–V10 или F1.
+
+---
+
+## 4. Manual acceptance (`lakehouse-acceptance.yml`)
+
+Workflow принимает `suite=candidate-e2e|final-parity|all`, полный `candidate_sha` и явное destructive confirmation.
+
+Jobs:
+
+1. `preflight`;
+2. `stage-v-e2e` — полный clean V0–V10;
+3. `final-parity` — candidate-only F1 против frozen oracle;
+4. `publish-evidence` — выполняется всегда и не скрывает failure upstream job.
+
+Destructive jobs используют protected environment и общий concurrency lock. F1 не запускает legacy; F0 oracle не изменяется этим workflow.
+
+---
+
+## 5. Обязательные свойства всех workflows
+
+- `permissions: contents: read`, если job явно не требует большего;
+- фиксированные версии actions и dependency caches, привязанные к lockfiles;
+- job-level `timeout-minutes`;
+- уникальный `COMPOSE_PROJECT_NAME` на run/attempt;
+- загрузка JUnit/raw JSON/ограниченных логов при ошибке;
+- очистка Docker resources при `always()`;
+- отсутствие секретов в command output, artifacts и image metadata;
+- итоговый статус вычисляется из фактических проверок; missing/skipped mandatory check не равен `PASS`.
+
+---
+
+## 6. Минимальное функциональное покрытие
+
+### Python contracts
+
+- MySQL DDL, users/grants, deterministic seed и fixture SHA;
+- 8 CDC topics, Debezium MySQL connector и Apicurio compatibility;
+- Polaris/Iceberg tables, migrations, Spark config/image и CLI JSON/redaction;
+- Compose profile boundaries и readiness failures;
+- serving boundary, transaction state, no-op/retry/rebuild semantics;
+- dbt-clickhouse project и native ClickHouse DDL;
+- Stage V gate registry, fail-fast и report integrity.
+
+### Scala
+
+- Confluent framing/schema IDs/references/fingerprints;
+- 8 entity contracts и Debezium `c/r/u/d/tombstone`;
+- UTC/microseconds/decimal normalization;
+- event ID/dedup/order rules;
+- idempotent MERGE, partial commits, transaction states и atomic status output.
+
+### Repository architecture
+
+- нет runtime references на NiFi, PostgreSQL OLTP, Redshift, old dbt project и old Compose profiles;
+- разрешены только документированные historical/provenance references;
+- Airflow, dbt, Compose и documentation используют одинаковые target identifiers.
+
+---
+
+## 7. Выведенные из эксплуатации workflows
+
+После CI cutover удаляются:
+
+- `.github/workflows/batch-cdc-parity.yml`;
+- `.github/workflows/cdc-stage2-kafka-debezium.yml`;
+- `.github/workflows/cdc-stage6-operations.yml`.
+
+Их PostgreSQL/NiFi/raw-CDC сценарии не должны сохраняться как необязательные зелёные проверки. Актуальные инварианты переносятся в target contract/component suites до удаления.
+
+---
+
+## 8. Связанные документы
+
+- [Детальный план Stage L и CI cutover](../active/stage-l-legacy-removal-ci-cutover.md)
+- [План повторной приёмки E/V](../active/stage-ev-validation-repair.md)
+- [Контракт финального паритета](final-parity.md)
+- [Контракт Spark](spark-streaming.md)
+- [Контракт serving/recovery](serving-and-recovery.md)

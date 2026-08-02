@@ -1,139 +1,108 @@
-# Операционный план: Переключение витрин, сквозная валидация, удаление устаревших компонентов и итоговый паритет (E → V → L → F)
+# Координационный план финальных стадий миграции
 
-- **Статус**: Активный операционный план (Stage E и Stage V завершены со статусом PASS, следующая стадия: Stage L)
-- **Назначение**: Описание порядка выполнения оставшихся последовательных стадий миграции: E (Serving integration), V (Candidate E2E validation), L (Legacy removal) и F (Final parity).
-- **Порядок авторитетности**: Определяет порядок выполнения нереализованных стадий. Не дублирует полные технические контракты; при реализации ссылается на файлы из `lakehouse/contracts/`.
+- **Статус**: `ACTIVE`; следующая стадия — повторная приёмка E/V.
+- **Назначение**: задать порядок финальных стадий, точки запрета и ссылки на исполнимые детальные планы.
+- **Решение по parity**: legacy запускается один раз до cleanup для формирования frozen baseline; после cleanup выполняется только candidate-only сравнение.
 
 ---
 
-## Последовательность стадий
+## 1. Последовательность
 
-```text
-E (Complete) → V (Complete) → L (Next / In Progress) → F (Pending)
+```mermaid
+flowchart LR
+    EV["E/V repair и полный V0–V10"] --> F0["F0: frozen baseline из main 1400d08"]
+    F0 --> L["L: legacy removal и CI cutover"]
+    L --> F1["F1: candidate-only final parity"]
 ```
 
-Каждая стадия начинается строго после полного выполнения критериев приемки предыдущей стадии.
+| Стадия | Статус | Результат | Детальный план |
+| --- | --- | --- | --- |
+| E/V repair | `NEXT` | достоверный полный прогон V0–V10 и обновлённые evidence | [stage-ev-validation-repair.md](stage-ev-validation-repair.md) |
+| F0 | `PENDING` | неизменяемый oracle, экспортированный из точного commit `main` | [stage-f0-baseline-freeze.md](stage-f0-baseline-freeze.md) |
+| L | `PENDING` | очищенное дерево и CI только для target architecture | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
+| F1 | `PENDING` | `PASS` candidate против frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
+
+Переход через стадию запрещён, пока её критерии завершения не подтверждены evidence. Отчёт с отсутствующими обязательными воротами не считается `PASS`.
 
 ---
 
-## 1. Стадия E — Интеграция витрин публикаций (Serving Integration)
+## 2. Почему F разделена на F0 и F1
 
-- **Статус стадии**: `COMPLETE PASS` ([отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md))
+Текущее feature-дерево уже использует новый Compose/runtime и не является неизменённым legacy-контуром, хотя legacy-файлы ещё присутствуют. Поэтому сравнивать candidate с «legacy из текущей ветки» нельзя.
 
-### 1.1 Preconditions
-- Успешное завершение Wave 1 / J1 и Wave 2 / J2 ([J2 report](../../../reports/mysql-spark-iceberg-wave2-j2-validation.md)).
-- Прохождение `status --require streaming` и `validate --scope streaming` со статусом `READY`.
+Воспроизводимый источник legacy — точный Git commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73`, совпадающий с `main` на момент принятия решения. Git worktree позволяет запустить его независимо от последующего удаления файлов.
 
-### 1.2 Scope
-- Реализация узкой схемы базы данных управления в PostgreSQL (`olist_control.serving`, подробнее см. [stage-e-serving-integration.md](stage-e-serving-integration.md)).
-- Реализация транзакционно-завершенной синхронизации Airflow (`olist_lakehouse_serving_sync`).
-- Интеграция таблиц событий и текущего состояния ClickHouse (`serving_cdc`).
-- Интеграция витрин dbt-clickhouse (`gold_store` / `gold`).
-- Реализация механизмов очистки и перестроения (`rebuild-serving`, `run-maintenance`).
-- Подключение экспортеров метрик и мониторинга (Prometheus / Grafana).
+Оптимальный по времени порядок:
 
-### 1.3 Deliverables
-- Исполняемые DAGs Airflow для синхронизации и обслуживания.
-- Полностью работающий CLI функционал `local_lab.py sync-serving`, `rebuild-serving`, `run-maintenance`.
-- Валидный статус `status --require serving` и `validate --scope serving`.
+1. один раз поднять этот commit и экспортировать канонический baseline (F0);
+2. удалить legacy и заменить CI (L);
+3. поднять только candidate и сравнить с сохранённым baseline (F1).
 
-### 1.4 Applicable Contracts
-
-- [Детальный план реализации Stage E](stage-e-serving-integration.md)
-- [Контракт слоя публикаций и восстановления](../contracts/serving-and-recovery.md)
-- [Контракт модели данных Iceberg](../contracts/iceberg-data-model.md)
-
-### 1.5 Forbidden Premature Work
-- Запрещено удалять legacy-компоненты (PostgreSQL OLTP, NiFi) до успешной сквозной проверки кандидата (стадия V).
-- Запрещено публиковать транзакции со статусом `REJECTED` или `OPEN` в ClickHouse.
-
-### 1.6 Condition to proceed to V
-- Успешное прохождение `validate --scope serving` в чистом домене Docker Compose (`PASS`).
+Итоговая проверка остаётся после cleanup и тем самым проверяет конечное дерево, но больше не требует сборки legacy на каждом повторе.
 
 ---
 
-## 2. Стадия V — Сквозная валидация кандидата (Candidate E2E Validation)
+## 3. Контрольные точки
 
-- **Статус стадии**: `COMPLETE PASS` ([отчёт Stage V](../../../reports/mysql-spark-iceberg-stage-v-validation.md))
+### Gate EV → F0
 
-### 2.1 Preconditions
-- Успешное завершение и приемка стадии E.
+- устранены пробелы Stage E runtime и Stage V harness;
+- raw evidence содержит все V0–V10;
+- все ворота имеют фактический `PASS`;
+- отчёты построены из evidence, а не из декларативных значений.
 
-### 2.2 Scope & Scenario
-На чистом объеме Docker volumes (`reset --yes`):
-1. Загрузка небольшого набора фикстур (`seed`).
-2. Первоначальный снимок Debezium initial snapshot.
-3. Проверка 79 записей бизнес-сущностей в Silver current.
-4. Проверка 6 записей справочника геопозиций.
-5. Выполнение транзакции создание записей в нескольких таблицах.
-6. Выполнение транзакции обновления.
-7. Выполнение удаления и отправка tombstone.
-8. Одновременный перезапуск Bronze и Silver.
-9. Достижение состояния догона без дубликатов `event_id`.
-10. Выполнение синхронизации слоя витрин (`sync-serving`).
-11. Выполнение сборки и тестов `dbt build`.
-12. Проверка работы стабильных витрин ClickHouse (`FINAL` / `gold`).
-13. Проверка сценария аддитивного изменения схемы с `null`.
-14. Выполнение полного перестроения ClickHouse строго из Iceberg (`rebuild-serving`).
+### Gate F0 → L
 
-### 2.3 Deliverables
-- [Отчёт о сквозной валидации целевой системы](../../../reports/mysql-spark-iceberg-stage-v-validation.md) со статусом `PASS`.
+- baseline привязан к полному commit SHA и fixture SHA-256;
+- oracle покрывает 8 current-state сущностей, fact и 2 marts;
+- канонические строки и metadata прошли независимую проверку;
+- legacy Compose domain и worktree очищены.
 
-### 2.4 Condition to proceed to L
-- Полный проход всех ворот V0-V10 сквозного сценария на чистом стенде со статусом `PASS` (выполнено, переход к Stage L разрешён).
+### Gate L → F1
 
----
+- legacy runtime/tests/workflows удалены согласно inventory;
+- общий CI зелёный;
+- релевантные bounded component workflows зелёные;
+- ручной acceptance workflow прошёл preflight;
+- F0 oracle и reader не удалены.
 
-## 3. Стадия L — Удаление устаревших компонентов (Legacy Removal)
+### Gate F1 → Complete
 
-### 3.1 Preconditions
-- Успешная сквозная валидация кандидата на стадии V.
-
-### 3.2 Scope
-Удаление всех компонентов устаревшего контура:
-- Контейнеры, схемы и адаптеры PostgreSQL OLTP;
-- Процессоры, скрипты, инвентарь и секреты NiFi;
-- Старые протоколы загрузки MinIO (landing/normalized);
-- Поисковики и загрузчики манифестов;
-- Топики Kafka DLQ;
-- Загрузка `raw_cdc` в ClickHouse;
-- Устаревшие DAGs непрерывной загрузки Airflow;
-- Устаревшие модели и макросы dbt в `dbt/olist_analytics`;
-- Неактивные компоненты AWS/Redshift (поскольку облачная программа вынесена в GCP plan).
-
-### 3.3 Deliverables
-- Чистое дерево исходного кода без устаревших файлов NiFi, PostgreSQL OLTP и старых DAGs.
-- Обновленные конфигурационные файлы и CI-пайплайны.
-
-### 3.4 Forbidden Premature Work
-- Запрещено удалять исходные исторические коммиты из истории Git.
-
-### 3.5 Condition to proceed to F
-- Чистая сборка проекта, отсутствие неиспользуемых файлов, прохождение всех быстрых тестов CI.
+- отсутствующие/лишние ключи: `0`;
+- расхождения бизнес-колонок: `0`;
+- отчёт и raw diff согласованы и имеют `PASS`;
+- evidence привязан к точным baseline/candidate SHA.
 
 ---
 
-## 4. Стадия F — Финальный паритетный тест (Final Parity)
+## 4. Политика CI на финальных стадиях
 
-### 4.1 Preconditions
-- Успешное завершение удаления устаревших компонентов (стадия L).
+| Уровень | Workflow | Запуск | Назначение |
+| --- | --- | --- | --- |
+| Обязательный PR CI | `.github/workflows/ci.yml` | `pull_request`, `push main` | быстрые static/unit/contract проверки всех target-компонентов |
+| Bounded integration | `.github/workflows/lakehouse-components.yml` | автоматически по path filters; также `workflow_dispatch` | Spark image, CDC, serving и Airflow runtime на малом fixture |
+| Полная приёмка | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | полный V0–V10 и/или F1 на выделенном runner |
+| Baseline generation | не является регулярным workflow | одноразовый контролируемый F0 | frozen oracle; автоматическая регенерация запрещена |
 
-### 4.2 Scope
-- Последовательный запуск исходного (baseline из исторического Git commit) и целевого (candidate) контуров с помощью скрипта `scripts/parity/run_mysql_iceberg_final_parity.py --confirm-destructive`.
-- Построчное сравнение текущего состояния сущностей, таблиц фактов и витрин данных.
+Полная job/workflow матрица, судьба каждого старого job и порядок замены без слепой зоны определены в [плане Stage L](stage-l-legacy-removal-ci-cutover.md).
 
-### 4.3 Applicable Contracts
+---
+
+## 5. Правила изменения порядка
+
+- Stage L нельзя начинать до принятия F0.
+- F0 нельзя использовать для сокрытия дефекта candidate: baseline строится только из зафиксированного legacy commit.
+- F1 не регенерирует oracle и не запускает legacy.
+- Ошибка F1 возвращает работу в candidate implementation/L cleanup, но не меняет F0 без отдельного решения.
+- Исторические reports не удаляются; их статус и ограничения должны быть явно обозначены.
+
+---
+
+## 6. Связанные контракты и отчёты
+
+- [Дорожная карта миграции](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [Контракт Validation & CI](../contracts/validation-and-ci.md)
 - [Контракт финального паритета](../contracts/final-parity.md)
-
-### 4.4 Acceptance Criteria
-- Нулевое количество отсутствующих или лишних ключей.
-- Нулевое количество расхождений по колонкам бизнес-данных.
-- Статус отчета: `PASS`.
-
----
-
-## 5. Связанные документы
-
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт слоя публикаций и восстановления](../contracts/serving-and-recovery.md)
-- [Контракт итогового паритета](../contracts/final-parity.md)
+- [Контракт serving и recovery](../contracts/serving-and-recovery.md)
+- [Исторический отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
+- [Исторический отчёт Stage V](../../../reports/mysql-spark-iceberg-stage-v-validation.md)

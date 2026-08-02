@@ -1497,7 +1497,7 @@ Public CLI остаётся в `scripts/cdc/local_lab.py`; он вызывает
 ## 20. Связанные документы
 
 - [Дорожная карта миграции](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Операционный cutover-план E → V → L → F](serving-cutover.md)
+- [Координационный план E/V repair → F0 → L → F1](serving-cutover.md)
 - [Контракт Serving & Recovery](../contracts/serving-and-recovery.md)
 - [Контракт Spark Structured Streaming](../contracts/spark-streaming.md)
 - [Контракт Iceberg data model](../contracts/iceberg-data-model.md)

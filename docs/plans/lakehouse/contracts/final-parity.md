@@ -1,42 +1,41 @@
-# Технический контракт: Финальный паритетный тест (Final Parity Contract)
+# Технический контракт: финальный паритет (F0/F1)
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Фиксация требований к исполнителю финального теста паритета (`run_mysql_iceberg_final_parity.py`), правилам сравнения данных между исходным (legacy) и целевым (candidate) контурами.
-- **Порядок авторитетности**: Определяет действующие нормативные требования к заключительной приемке системы на этапе F.
-
----
-
-## 1. Алгоритм работы Parity Runner (`run_mysql_iceberg_final_parity.py`)
-
-1. Проверка состояния рабочей директории кандидата и хэша SHA-256 файла тестовых фикстур.
-2. Создание временного изолированного worktree для базового (legacy) коммита.
-3. Запуск legacy-стека с `COMPOSE_PROJECT_NAME=olist_parity_legacy`.
-4. Выполнение полного пакета пакетов batch-versus-CDC.
-5. Экспорт канонического JSON отчета legacy-контура.
-6. Выполнение `docker compose down -v` для legacy-контура.
-7. Запуск очищенного целевого кандидата с `COMPOSE_PROJECT_NAME=olist_parity_candidate`.
-8. Загрузка того же набора фикстур (`seed`).
-9. Ожидание нормализации в Silver, выполнение синхронизации витрин и dbt.
-10. Экспорт канонического JSON отчета кандидата.
-11. Построчное сравнение данных и формирование итогового отчета.
-12. Выполнение `docker compose down -v` для кандидата.
-13. Удаление временного worktree.
-
-### 1.1 Правила выполнения
-
-- Исходный и целевой контуры запускаются **последовательно**, а не одновременно.
-- Исполнитель паритетного теста требует явного флага `--confirm-destructive`.
-- Скрипт очищает только собственное окружение Docker Compose.
+- **Статус**: Действующий нормативный контракт.
+- **Назначение**: определить создание frozen legacy baseline на F0 и итоговое candidate-only сравнение на F1.
+- **Главный инвариант**: после принятия F0 финальный прогон не зависит от наличия legacy runtime в текущем дереве.
 
 ---
 
-## 2. Предмет сравнения (Comparison Surface)
+## 1. Разделение стадий
 
-### 2.1 Текущее состояние сущностей (Current State)
+### F0 — одноразовый экспорт baseline до cleanup
 
-Сравниваются все бизнес-колонки следующих сущностей:
+Legacy запускается из временного worktree на полном commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73`. Из результата строятся версионированные oracle и metadata. Symbolic branch `main` не используется после проверки SHA.
 
-| Сущность | Первичный ключ (Grain) |
+### F1 — итоговый тест после cleanup
+
+Очищенный candidate запускается с тем же fixture, экспортирует ту же поверхность данных и сравнивается построчно с frozen oracle. F1 не создаёт worktree, не запускает legacy и не обновляет oracle.
+
+---
+
+## 2. Артефакты baseline
+
+Нормативные пути:
+
+- `tests/fixtures/final_parity/main-1400d08.json`;
+- `tests/fixtures/final_parity/main-1400d08.metadata.json`.
+
+Metadata фиксирует полный baseline SHA, fixture SHA-256, версию canonicalization, versions images/tools, relation manifest, grains, business columns, row counts и SHA-256 канонических строк.
+
+Oracle считается неизменяемым входом F1. Его обновление требует повторного контролируемого F0 и review; автоматическая регенерация в CI запрещена.
+
+---
+
+## 3. Поверхность сравнения
+
+### 3.1 Current state
+
+| Сущность | Grain |
 | --- | --- |
 | `customers` | `customer_id` |
 | `orders` | `order_id` |
@@ -47,66 +46,90 @@
 | `sellers` | `seller_id` |
 | `product_category_translation` | `product_category_name` |
 
-Источники сравнения:
-- **Baseline**: `connection=oltp-postgres, database=olist_oltp, schema=public, table=<entity>`
-- **Candidate**: `silver.<entity>_current` где `is_deleted = false`
+Baseline берётся из бизнес-таблиц legacy PostgreSQL; candidate — из `silver.<entity>_current` с `is_deleted = false`. Сравниваются все явно описанные бизнес-колонки, но не transport/load metadata.
 
-Служебные метаданные транспортировки, binlog и загрузки не сравниваются.
+### 3.2 Fact
 
-### 2.2 Таблицы фактов (Fact)
+`fact_order_items`, grain `order_id, order_item_id`.
 
-Сравниваются `baseline core.fact_order_items` и `candidate gold.fact_order_items` по ключу `order_id, order_item_id`.
+Бизнес-колонки: `customer_id`, `customer_unique_id`, `product_id`, `seller_id`, `order_status`, `order_purchase_timestamp`, `order_approved_at`, `order_delivered_carrier_date`, `order_delivered_customer_date`, `order_estimated_delivery_date`, `shipping_limit_date`, `price`, `freight_value`, `gross_item_amount`, `allocated_payment_value`, `delivery_days`, `delivery_delay_days`, `is_delivered_late`.
 
-Сравниваемые нетехнические бизнес-колонки:
-`customer_id`, `customer_unique_id`, `product_id`, `seller_id`, `order_status`, `order_purchase_timestamp`, `order_approved_at`, `order_delivered_carrier_date`, `order_delivered_customer_date`, `order_estimated_delivery_date`, `shipping_limit_date`, `price`, `freight_value`, `gross_item_amount`, `allocated_payment_value`, `delivery_days`, `delivery_delay_days`, `is_delivered_late`.
+Surrogate keys, date keys, batch IDs и load timestamps исключаются.
 
-Суррогатные ключи, ключи дат, идентификаторы батчей и метки времени загрузки не сравниваются.
+### 3.3 Marts
 
-### 2.3 Витрины данных (Marts)
-
-Сравниваются таблицы `baseline marts.<model>` и `candidate gold.<model>`:
-
-1. `mart_daily_revenue`
-   - Ключ: `order_purchase_date`
-   - Колонки: `order_purchase_date`, `gross_revenue`, `allocated_payment_revenue`, `product_revenue`, `freight_revenue`, `orders_count`, `customers_count`, `items_count`, `average_order_value`, `average_paid_order_value`, `average_delivery_days`, `late_deliveries_count`
-2. `mart_monthly_arpu`
-   - Ключ: `order_month`
-   - Колонки: `order_month`, `active_customers`, `total_revenue`, `arpu`, `orders_count`, `orders_per_customer`, `average_order_value`, `repeat_customer_rate`
+1. `mart_daily_revenue`, grain `order_purchase_date`:
+   `order_purchase_date`, `gross_revenue`, `allocated_payment_revenue`, `product_revenue`, `freight_revenue`, `orders_count`, `customers_count`, `items_count`, `average_order_value`, `average_paid_order_value`, `average_delivery_days`, `late_deliveries_count`.
+2. `mart_monthly_arpu`, grain `order_month`:
+   `order_month`, `active_customers`, `total_revenue`, `arpu`, `orders_count`, `orders_per_customer`, `average_order_value`, `repeat_customer_rate`.
 
 ---
 
-## 3. Правила канонизации данных (Canonicalization Rules)
+## 4. Canonicalization
 
-Разрешены строго следующие приведения типов:
-- Метки времени (Timestamps) → UTC ISO-8601 с 6 знаками микросекунд;
-- Дробные числа (Decimals) → фиксированная точность контракта;
-- Булевы значения (Booleans) → `true` / `false`;
-- Сортировка → по естественному первичному ключу таблицы;
-- Свойства JSON → в алфавитном порядке ключей.
+Разрешены только:
 
-Запрещено:
-- Обрезка пробелов или изменение регистра строк;
-- Подмена значений `null` дефолтными значениями;
-- Дополнительное округление чисел;
-- Исключение расходящихся строк;
-- Приемка только по совпадению контрольной суммы (checksum-only acceptance).
+- timestamp → UTC ISO-8601 с шестью знаками микросекунд;
+- decimal → фиксированная точность контракта без дополнительного округления;
+- boolean → `true`/`false`;
+- строки и `null` сохраняются без trim/case/default substitutions;
+- JSON object keys сортируются;
+- строки relation сортируются по grain.
+
+Версия правил и manifest должны совпадать у F0 exporter и F1 candidate exporter. Нельзя исключать расходящиеся строки или принимать результат только по checksum.
 
 ---
 
-## 4. Критерий успешности теста (Acceptance Decision)
+## 5. Контракт runner F1
 
-Результат теста равен **PASS** только если одновременно:
-1. Код завершения скрипта равен `0`;
-2. Количество отсутствующих или лишних ключей равно `0`;
-3. Количество расхождений по колонкам равно `0`.
+Целевой интерфейс:
 
-При любом расхождении отчет получает статус **FAIL**, а выявленные дефекты исправляются в целевом кандидате с последующим повторным прогоном теста.
+```text
+python scripts/cdc/local_lab.py final-parity \
+  --run-id <run-id> \
+  --oracle tests/fixtures/final_parity/main-1400d08.json \
+  --confirm-destructive \
+  --timeout 5400
+```
+
+Runner обязан:
+
+1. проверить candidate SHA, fixture/oracle/metadata checksums и schema;
+2. создать уникальный candidate Compose project;
+3. выполнить clean seed → stream catch-up → serving sync → dbt build;
+4. экспортировать candidate по baseline manifest;
+5. сравнить grain, ключи и значения каждой бизнес-колонки;
+6. сохранить raw machine-readable diff до генерации summary;
+7. вычислить exit code и `PASS/FAIL` только из diff;
+8. очистить только собственные ресурсы при любом исходе.
 
 ---
 
-## 5. Связанные документы
+## 6. Acceptance
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт архитектуры и runtime](architecture-and-runtime.md)
-- [Контракт валидации и CI](validation-and-ci.md)
-- [Активный план E/L/V/F (Serving Cutover)](../active/serving-cutover.md)
+`PASS` требует одновременно:
+
+1. exit code `0`;
+2. все relations присутствуют и grain уникален;
+3. отсутствующих ключей `0`;
+4. лишних ключей `0`;
+5. расхождений по бизнес-колонкам `0`;
+6. checksums provenance совпадают;
+7. report согласован с raw diff.
+
+При `FAIL` исправляется candidate и повторяется F1 с тем же oracle. Перегенерация oracle для получения `PASS` запрещена.
+
+---
+
+## 7. CI policy
+
+F1 запускается только вручную job `final-parity` workflow `.github/workflows/lakehouse-acceptance.yml`. Он не входит в обычный PR CI. F0 не является регулярным GitHub workflow.
+
+---
+
+## 8. Связанные документы
+
+- [План F0](../active/stage-f0-baseline-freeze.md)
+- [План F1](../active/stage-f1-final-parity.md)
+- [Контракт Validation & CI](validation-and-ci.md)
+- [Координационный план](../active/serving-cutover.md)
