@@ -1,6 +1,6 @@
 # Координационный план финальных стадий миграции
 
-- **Статус**: `ACTIVE`; E/V завершены, следующая стадия — F0 baseline freeze.
+- **Статус**: `ACTIVE`; E/V и F0 завершены, следующая стадия — Stage L (legacy removal).
 - **Назначение**: задать порядок финальных стадий, точки запрета и ссылки на исполнимые детальные планы.
 - **Решение по parity**: legacy запускается один раз до cleanup для формирования frozen baseline; после cleanup выполняется только candidate-only сравнение.
 
@@ -18,8 +18,8 @@ flowchart LR
 | Стадия | Статус | Результат | Детальный план |
 | --- | --- | --- | --- |
 | E/V repair | `COMPLETE` | clean V0–V10 `PASS` на commit `e113c552cca990636f426b827456a77ddc9d594b`; raw evidence сохранён | [stage-ev-validation-repair.md](../completed/stage-ev-validation-repair.md) |
-| F0 | `NEXT` | неизменяемый oracle, экспортированный из точного commit `main` | [stage-f0-baseline-freeze.md](stage-f0-baseline-freeze.md) |
-| L | `PENDING` | очищенное дерево и CI только для target architecture | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
+| F0 | `COMPLETE` | неизменяемый oracle `main-1400d08.json` (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
+| L | `NEXT` | очищенное дерево и CI только для target architecture | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
 | F1 | `PENDING` | `PASS` candidate против frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
 
 Переход через стадию запрещён, пока её критерии завершения не подтверждены evidence. Отчёт с отсутствующими обязательными воротами не считается `PASS`.

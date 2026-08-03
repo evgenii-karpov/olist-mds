@@ -1,0 +1,103 @@
+{
+  "format_version": 1,
+  "dataset": "olist_small",
+  "relations": [
+    {
+      "schema": "public",
+      "name": "customers",
+      "grain": ["customer_id"]
+    },
+    {
+      "schema": "public",
+      "name": "orders",
+      "grain": ["order_id"]
+    },
+    {
+      "schema": "public",
+      "name": "order_items",
+      "grain": ["order_id", "order_item_id"]
+    },
+    {
+      "schema": "public",
+      "name": "order_payments",
+      "grain": ["order_id", "payment_sequential"]
+    },
+    {
+      "schema": "public",
+      "name": "order_reviews",
+      "grain": ["review_id", "order_id"]
+    },
+    {
+      "schema": "public",
+      "name": "products",
+      "grain": ["product_id"]
+    },
+    {
+      "schema": "public",
+      "name": "sellers",
+      "grain": ["seller_id"]
+    },
+    {
+      "schema": "public",
+      "name": "product_category_translation",
+      "grain": ["product_category_name"]
+    },
+    {
+      "schema": "core",
+      "name": "fact_order_items",
+      "grain": ["order_id", "order_item_id"],
+      "exclude_columns": [
+        "order_item_key",
+        "order_key",
+        "customer_key",
+        "product_key",
+        "seller_key",
+        "order_purchase_date_key",
+        "order_approved_date_key",
+        "order_delivered_carrier_date_key",
+        "order_delivered_customer_date_key",
+        "order_estimated_delivery_date_key",
+        "shipping_limit_date_key",
+        "_batch_id",
+        "_loaded_at"
+      ],
+      "measures": [
+        "price",
+        "freight_value",
+        "gross_item_amount",
+        "allocated_payment_value"
+      ],
+      "distinct_counts": [
+        "order_id",
+        "customer_unique_id",
+        "product_id",
+        "seller_id"
+      ]
+    },
+    {
+      "schema": "marts",
+      "name": "mart_daily_revenue",
+      "grain": ["order_purchase_date"],
+      "measures": [
+        "gross_revenue",
+        "allocated_payment_revenue",
+        "product_revenue",
+        "freight_revenue",
+        "orders_count",
+        "customers_count",
+        "items_count",
+        "late_deliveries_count"
+      ]
+    },
+    {
+      "schema": "marts",
+      "name": "mart_monthly_arpu",
+      "grain": ["order_month"],
+      "measures": [
+        "active_customers",
+        "total_revenue",
+        "orders_count"
+      ]
+    }
+  ]
+}

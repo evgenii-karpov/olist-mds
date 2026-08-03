@@ -129,7 +129,7 @@ F1 запускается только вручную job `final-parity` workflo
 
 ## 8. Связанные документы
 
-- [План F0](../active/stage-f0-baseline-freeze.md)
+- [План F0](../completed/stage-f0-baseline-freeze.md)
 - [План F1](../active/stage-f1-final-parity.md)
 - [Контракт Validation & CI](validation-and-ci.md)
 - [Координационный план](../active/serving-cutover.md)

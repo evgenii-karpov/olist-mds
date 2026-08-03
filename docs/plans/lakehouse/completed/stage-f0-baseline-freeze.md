@@ -1,10 +1,11 @@
 # Детальный план Stage F0: фиксация frozen baseline из `main`
 
-- **Статус**: `NEXT`, E/V clean acceptance завершена; выполняется до Stage L.
+- **Статус**: `COMPLETE` (завершено 2026-08-03; report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)).
 - **Candidate commit**: `e113c552cca990636f426b827456a77ddc9d594b`.
 - **Baseline commit**: `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (зафиксированный последний commit `main` на момент планирования).
 - **Fixture**: `tests/fixtures/olist_small/olist_small.zip`.
 - **Fixture SHA-256**: `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976`.
+- **Oracle SHA-256**: `629c36144e64fc9910b822e0907f8a1592b3ef6eb83e438d946267fa3d5b597b`.
 
 ---
 
@@ -20,13 +21,13 @@ Legacy-контур запускается один раз из отдельно
 
 ## 2. Артефакты F0
 
-Должны быть добавлены:
+Добавлены:
 
 - `tests/fixtures/final_parity/main-1400d08.json` — канонические строки и агрегаты;
 - `tests/fixtures/final_parity/main-1400d08.metadata.json` — provenance и контрольные суммы;
 - `docs/reports/mysql-spark-iceberg-f0-baseline.md` — человекочитаемый отчёт одноразового запуска.
 
-Metadata обязана содержать:
+Metadata содержит:
 
 - полный baseline commit SHA;
 - fixture path и SHA-256;
@@ -87,5 +88,5 @@ F0 завершена, если oracle и metadata проходят незави
 ## 7. Связанные документы
 
 - [Контракт финального паритета](../contracts/final-parity.md)
-- [План Stage F1](stage-f1-final-parity.md)
-- [Координационный план](serving-cutover.md)
+- [План Stage F1](../active/stage-f1-final-parity.md)
+- [Координационный план](../active/serving-cutover.md)

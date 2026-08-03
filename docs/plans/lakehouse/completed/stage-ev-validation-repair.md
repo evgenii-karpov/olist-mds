@@ -114,7 +114,7 @@ Stage E/V считается повторно принятой только ес
 ## 5. Связанные документы
 
 - [Координационный план финальных стадий](../active/serving-cutover.md)
-- [План фиксации baseline F0](../active/stage-f0-baseline-freeze.md)
+- [План фиксации baseline F0](stage-f0-baseline-freeze.md)
 - [Контракт Validation & CI](../contracts/validation-and-ci.md)
 
 ## 6. Фактическое подтверждение

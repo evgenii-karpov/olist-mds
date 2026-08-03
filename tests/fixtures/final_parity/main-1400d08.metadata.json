@@ -1,0 +1,116 @@
+{
+  "baseline_commit": "1400d08345ad81a0121f0ee85ee9ae81cd575a73",
+  "canonicalization_version": 1,
+  "finished_at": "2026-08-03T19:54:01.507835Z",
+  "fixture_path": "tests/fixtures/olist_small/olist_small.zip",
+  "fixture_sha256": "5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976",
+  "format_version": 1,
+  "oracle_sha256": "629c36144e64fc9910b822e0907f8a1592b3ef6eb83e438d946267fa3d5b597b",
+  "relation_summary": [
+    {
+      "aggregate_hash": "e52cc9e869649f77da6363d6690e837ef6671fe130585e386f8ee5d0ae528643",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "customer_id"
+      ],
+      "name": "public.customers",
+      "row_count": 8
+    },
+    {
+      "aggregate_hash": "878bbb9f417c0b9968b313a092955cd0db3360fd4d891adc7025d0f5f8c620b7",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_id"
+      ],
+      "name": "public.orders",
+      "row_count": 12
+    },
+    {
+      "aggregate_hash": "c6e854dae8d93d9f4c73039cffd0c7a574d2dfa51514079a68aa11d2fcbccec1",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_id",
+        "order_item_id"
+      ],
+      "name": "public.order_items",
+      "row_count": 16
+    },
+    {
+      "aggregate_hash": "a122c793fd89d49e168e823dd345162f957936cc6f927ce49ad1755e338a1551",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_id",
+        "payment_sequential"
+      ],
+      "name": "public.order_payments",
+      "row_count": 14
+    },
+    {
+      "aggregate_hash": "173ab20b61c14fc568bcb0e46ddcc90de41c861e49bc6e9bc68cc93f98527bb4",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "review_id",
+        "order_id"
+      ],
+      "name": "public.order_reviews",
+      "row_count": 12
+    },
+    {
+      "aggregate_hash": "9636250f6eed982d0e7f72bcd29af613052d7a7f115a7af1bafeef42483eb675",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "product_id"
+      ],
+      "name": "public.products",
+      "row_count": 8
+    },
+    {
+      "aggregate_hash": "42156d82102cbf4ee6829308a8af063ca1d346a2e4d36bb3772e566bf0039c48",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "seller_id"
+      ],
+      "name": "public.sellers",
+      "row_count": 4
+    },
+    {
+      "aggregate_hash": "c2d3098813fdabd96905444ec175371e65a1484aa94277d892cf3f63addf7dae",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "product_category_name"
+      ],
+      "name": "public.product_category_translation",
+      "row_count": 5
+    },
+    {
+      "aggregate_hash": "54e1b46cfa93c3cacc47d2bdf4e3e0faee84e11ee9b3d6017dd398f3835d8b9b",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_id",
+        "order_item_id"
+      ],
+      "name": "core.fact_order_items",
+      "row_count": 16
+    },
+    {
+      "aggregate_hash": "85c4ac1987b6ce0ee07be56aba78080cd6e79b4e27325928e6693cb2d423c187",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_purchase_date"
+      ],
+      "name": "marts.mart_daily_revenue",
+      "row_count": 12
+    },
+    {
+      "aggregate_hash": "12f6c72319748d18dcfccfbedbd3176d64d2cbd41a1fd433ce3a6afb7aea4fa3",
+      "duplicate_grain_count": 0,
+      "grain": [
+        "order_month"
+      ],
+      "name": "marts.mart_monthly_arpu",
+      "row_count": 6
+    }
+  ],
+  "started_at": "2026-08-03T19:54:01.007274Z",
+  "status": "PASS"
+}

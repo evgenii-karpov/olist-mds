@@ -95,6 +95,6 @@ F1 не входит в обычный PR CI: его длительность, d
 
 ## 8. Связанные документы
 
-- [План F0](stage-f0-baseline-freeze.md)
+- [План F0](../completed/stage-f0-baseline-freeze.md)
 - [Контракт финального паритета](../contracts/final-parity.md)
 - [План CI cutover](stage-l-legacy-removal-ci-cutover.md)
