@@ -1,6 +1,9 @@
 # Детальный план Stage V: Candidate E2E Validation
 
-- **Статус**: Active implementation and acceptance plan.
+- **Статус**: Completed / Frozen — clean V0–V10 PASS.
+- **Execution commit**: `e113c552cca990636f426b827456a77ddc9d594b` (`dirty=false`).
+- **Run ID**: `stage_v_clean_e113c55`.
+- **Evidence**: `data/stage-v-evidence/stage_v_clean_e113c55/`.
 - **Цель**: доказать на одном чистом и изолированном стенде, что кандидат
   `MySQL -> Debezium -> Kafka -> Spark Bronze/Silver -> Iceberg -> ClickHouse -> dbt Gold`
   корректно обрабатывает initial snapshot, транзакционный CRUD, tombstone,
@@ -9,7 +12,7 @@
 - **Предыдущая стадия**: Stage E, статус `PASS` в
   [отчёте Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md).
 - **Родительский порядок стадий**:
-  [serving-cutover.md](serving-cutover.md), строго `E -> V -> L -> F`.
+  [serving-cutover.md](../active/serving-cutover.md), строго `E -> V -> L -> F`.
 - **Порядок авторитетности**: действующие контракты из
   `docs/plans/lakehouse/contracts/` -> этот план -> фактические machine-readable
   evidence -> итоговый validation report.
@@ -816,33 +819,33 @@ JSON, SQL results и logs.
 
 ## 11. Definition of Done
 
-- [ ] V0 подтвердил свежий зелёный entry gate Stage E.
-- [ ] Validation harness имеет allowlists, redaction и unit tests.
-- [ ] Один clean-domain run связан с одним commit и Compose project.
-- [ ] Initial snapshot: 79 applied/current, 0 rejected, 6 geolocation.
-- [ ] CRUD дал ровно 7 create, 2 update и 1 delete events.
-- [ ] Tombstone существует, учтён progress и не создал business duplicate.
-- [ ] Bronze/Silver перезапущены с сохранением checkpoints.
-- [ ] После catch-up: 89 distinct changes, 85 visible current, 1 deleted.
-- [ ] MySQL и Silver совпадают построчно по business keys/values.
-- [ ] Serving publication tuple идентичен в PG/CH/Iceberg.
-- [ ] Candidate опубликован атомарно для всех восьми entities.
-- [ ] dbt candidate build и все tests прошли без errors/skips.
-- [ ] Stable current и Gold не видят unpublished rows.
-- [ ] Nullable schema зарегистрирована, архивирована и обработана без ошибок.
-- [ ] После schema event существует 90 distinct applied events.
-- [ ] Rebuild использовал Iceberg как единственный data source.
-- [ ] Pre/post rebuild manifests совпадают построчно.
-- [ ] Final serving status/validate готовы и evidence redaction чист.
-- [ ] Validation report создан со статусом `PASS` и evidence hashes.
-- [ ] Legacy не удалён, final parity не запускался.
-- [ ] Stage L разрешена явно и только после `PASS`.
+- [x] V0 подтвердил свежий зелёный entry gate Stage E.
+- [x] Validation harness имеет allowlists, redaction и unit tests.
+- [x] Один clean-domain run связан с одним commit и Compose project.
+- [x] Initial snapshot: 79 applied/current, 0 rejected, 6 geolocation.
+- [x] CRUD дал ровно 7 create, 2 update и 1 delete events.
+- [x] Tombstone существует, учтён progress и не создал business duplicate.
+- [x] Bronze/Silver перезапущены с сохранением checkpoints.
+- [x] После catch-up: 89 distinct changes, 85 visible current, 1 deleted.
+- [x] MySQL и Silver совпадают построчно по business keys/values.
+- [x] Serving publication tuple идентичен в PG/CH/Iceberg.
+- [x] Candidate опубликован атомарно для всех восьми entities.
+- [x] dbt candidate build и все tests прошли без errors/skips.
+- [x] Stable current и Gold не видят unpublished rows.
+- [x] Nullable schema зарегистрирована, архивирована и обработана без ошибок.
+- [x] После schema event существует 90 distinct applied events.
+- [x] Rebuild использовал Iceberg как единственный data source.
+- [x] Pre/post rebuild manifests совпадают построчно.
+- [x] Final serving status/validate готовы и evidence redaction чист.
+- [x] Validation report создан со статусом `PASS` и evidence hashes.
+- [x] Legacy не удалён, final parity не запускался.
+- [x] Stage L разрешена явно и только после `PASS`.
 
 ---
 
 ## 12. Связанные документы
 
-- [Операционный cutover E -> V -> L -> F](serving-cutover.md)
+- [Операционный cutover E -> V -> L -> F](../active/serving-cutover.md)
 - [Детальный план Stage E](stage-e-serving-integration.md)
 - [Отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
 - [Spark Structured Streaming contract](../contracts/spark-streaming.md)

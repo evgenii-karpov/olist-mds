@@ -1,11 +1,19 @@
 # Детальный план реализации Stage E: Serving Integration
 
-- **Статус документа**: Active implementation plan
+- **Статус документа**: Completed / Frozen
+- **Execution commit**: `e113c552cca990636f426b827456a77ddc9d594b`.
+- **Acceptance evidence**: clean Stage V run `stage_v_clean_e113c55`; Stage E report `PASS`.
 - **Стадия**: E — Serving Integration
 - **Дата фиксации решений**: 2026-08-01
 - **Предшествующие стадии**: Wave 1 / J1 и Wave 2 / J2
-- **Следующая стадия**: V — Candidate E2E Validation
+- **Следующая стадия**: F0 после принятой E/V revalidation
 - **Назначение**: дать исполнителю полностью определённую последовательность реализации транзакционно завершённой публикации Iceberg → ClickHouse → dbt Gold, её обслуживания, восстановления и наблюдаемости.
+
+> **Final implementation note.** The original design sections below describe
+> scheduled-DAG activation as a candidate approach. The accepted implementation
+> uses manual-only serving, quality, maintenance and rebuild DAGs with
+> `schedule=None` and `is_paused_upon_creation=False`; validation triggers the
+> required DAGs explicitly and never races the scheduler.
 - **Порядок авторитетности**: normative contracts из `docs/plans/lakehouse/contracts/` → этот implementation plan → validation report → runbooks.
 
 ---
@@ -36,7 +44,7 @@ stable serving_cdc / gold views
 6. Повтор после marker не материализует данные заново, а завершает control/audit metadata.
 7. Потерянный ClickHouse полностью восстанавливается из Iceberg командой `rebuild-serving --yes`.
 8. Iceberg maintenance не получает доступ к Spark checkpoint bucket.
-9. Legacy-контур не удаляется и не меняет роль до успешного завершения Stage V.
+9. Legacy-контур не удаляется и не меняет роль до Stage L после F0.
 
 ### 1.1 Зафиксированные продуктовые решения
 
@@ -44,8 +52,8 @@ stable serving_cdc / gold views
 | --- | --- |
 | PostgreSQL control state | Узкий ledger в новой схеме `olist_control.serving`; отдельный PostgreSQL не создаётся |
 | Transaction policy | Строгий barrier: не пересекать `OPEN`/`REJECTED` |
-| Serving cadence | Sync каждые 5 минут, quality ежечасно, maintenance ежедневно |
-| Активация schedules | Первый успешный ручной `sync-serving` снимает pause с трёх scheduled DAG |
+| Serving cadence | Serving, quality и maintenance DAGs запускаются вручную; scheduler cadence не используется |
+| Активация schedules | Не применяется: serving DAGs запускаются вручную и создаются unpaused |
 | Rebuild | Только вручную, двойной guard: CLI `--yes` и DAG conf `confirm_destructive=true` |
 | Timezone | UTC во всех timestamps, DAG schedules, reports и comparisons |
 | ClickHouse publication | Marker-based; experimental multi-table transaction не используется |
@@ -132,7 +140,7 @@ ClickHouse marker выбран вместо multi-table transaction, потом�
 
 - В `serving-and-recovery.md` закрепить фактические имена `<entity>_events`, `<entity>_current_versions`, `<entity>_current`.
 - Для current tables закрепить `ReplacingMergeTree(kafka_offset)`, `PARTITION BY sync_run_seq`, `ORDER BY (sync_run_seq, business PK)`.
-- В `architecture-and-runtime.md` закрепить `rebuild-serving --yes`, `status --require streaming|serving` и три serving schedules.
+- В `architecture-and-runtime.md` закрепить `rebuild-serving --yes`, `status --require streaming|serving` и manual-only serving DAGs.
 - В `validation-and-ci.md` добавить Stage E component gate, не смешивая его с полным Stage V E2E.
 - В `serving-cutover.md` заменить абстрактную «реализацию БД управления» на ссылку на узкую схему, описанную здесь.
 
@@ -406,7 +414,7 @@ Singleton row с `singleton_key=1`:
 | `lease_owner_sync_run_seq` | Nullable seq для sync/rebuild |
 | `lease_operation` | `SYNC|REBUILD|MAINTENANCE` |
 | `lease_acquired_at/heartbeat_at/expires_at` | Durable lease lifecycle |
-| `schedules_activated_at` | Первый successful manual sync |
+| `schedules_activated_at` | Не используется в accepted manual-only DAG flow |
 | `row_version` | Optimistic update counter |
 | `updated_at` | Audit timestamp |
 
@@ -712,9 +720,9 @@ Planning/candidate/failed statuses в ClickHouse не вставляются.
 | --- | --- |
 | Timezone | UTC |
 | `catchup` | `False` |
-| New DAG paused | `True` до первого successful manual sync |
+| New DAG paused | `False`; все serving DAGs запускаются только вручную |
 | Mutation pool | `olist_serving_mutation`, 1 slot |
-| Default retries | 2 |
+| Default retries | 0; terminal failures фиксируются в control plane |
 | Retry delay | 60 seconds, exponential backoff |
 | Sync DAG timeout | 30 minutes |
 | Quality timeout | 15 minutes |
@@ -724,7 +732,7 @@ Planning/candidate/failed statuses в ClickHouse не вставляются.
 
 ### 8.2 `olist_lakehouse_serving_sync`
 
-- Schedule: `*/5 * * * *`.
+- Schedule: `None`; sync запускается вручную.
 - `max_active_tasks=4` для восьми mapped entity tasks.
 
 Task graph и exact responsibilities:
@@ -776,7 +784,7 @@ Failure callback:
 
 ### 8.3 `olist_lakehouse_serving_quality`
 
-- Schedule: `7 * * * *`.
+- Schedule: `None`; quality запускается вручную.
 - Read-only проверки:
   - PG cursor = latest ClickHouse marker;
   - marker/report hash consistency;
@@ -791,7 +799,7 @@ Failure callback:
 
 ### 8.4 `olist_lakehouse_iceberg_maintenance`
 
-- Schedule: `0 3 * * *`.
+- Schedule: `None`; maintenance запускается вручную.
 - Захватывает mutation lease.
 - Получает inventory из `table_specs.py`.
 - Dynamic mapping выполняется последовательно (`max_active_tis_per_dag=1`) из-за локального Spark worker.
@@ -979,8 +987,8 @@ python scripts/cdc/local_lab.py sync-serving \
 5. Duplicate run ID присоединяется к существующему DagRun.
 6. Poll'ит stable REST API до terminal state.
 7. Читает authoritative result через serving report API/helper, не Airflow metadata SQL.
-8. После первого successful/no-op run, когда уже существует published snapshot, PATCH'ит три scheduled DAG в unpaused state и устанавливает `schedules_activated_at`.
-9. Если `schedules_activated_at` уже задан, deliberate operator pause не отменяется.
+8. Не изменяет pause state и не активирует расписания: все serving DAGs manual-only.
+9. Duplicate/stale DagRun не переиспользуется; ручной запуск должен иметь уникальный run ID.
 
 Использовать официальный Airflow API contract: [Stable REST API](https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html).
 
@@ -1270,7 +1278,7 @@ python scripts/cdc/local_lab.py validate --scope serving
 - fixture manifest counts совпадают в Silver/current/serving/gold;
 - PG cursor, CH marker и Iceberg report совпадают;
 - candidate partitions опубликованы одним seq;
-- три scheduled DAG unpaused, rebuild manual;
+- четыре serving DAGs manual-only, `schedule=None`, `is_paused=false`;
 - public views возвращают expected rows;
 - no secrets в reports/logs.
 
@@ -1474,30 +1482,30 @@ Public CLI остаётся в `scripts/cdc/local_lab.py`; он вызывает
 
 ## 19. Definition of Done
 
-- [ ] E0 J2 repair прошёл отдельный stop/go gate.
-- [ ] `olist_control.serving` содержит только control metadata и восстанавливается из marker/report.
-- [ ] Current candidates физически изолированы по `sync_run_seq`.
-- [ ] `olist_lakehouse_serving_sync` публикует только maximal COMPLETE prefix.
-- [ ] OPEN/REJECTED transaction не пересекается.
-- [ ] Initial snapshot публикуется только целиком.
-- [ ] Candidate невидим до marker.
-- [ ] Retry до marker использует тот же seq и не создаёт duplicates.
-- [ ] Retry после marker только финализирует metadata.
-- [ ] Все восемь dbt Gold models/tests встроены в candidate flow.
-- [ ] Первый successful manual sync активирует три schedules ровно один раз.
-- [ ] Maintenance использует Airflow Polaris principal без checkpoint access.
-- [ ] `rebuild-serving --yes` восстанавливает только derived ClickHouse databases.
-- [ ] `status --require serving` и `validate --scope serving` возвращают READY на clean domain.
-- [ ] Prometheus/Grafana/alerts работают без dangling targets.
-- [ ] Validation report имеет статус PASS.
-- [ ] Legacy-контур не удалён и Stage V остаётся отдельной следующей стадией.
+- [x] E0 J2 repair прошёл отдельный stop/go gate.
+- [x] `olist_control.serving` содержит только control metadata и восстанавливается из marker/report.
+- [x] Current candidates физически изолированы по `sync_run_seq`.
+- [x] `olist_lakehouse_serving_sync` публикует только maximal COMPLETE prefix.
+- [x] OPEN/REJECTED transaction не пересекается.
+- [x] Initial snapshot публикуется только целиком.
+- [x] Candidate невидим до marker.
+- [x] Retry до marker использует тот же seq и не создаёт duplicates.
+- [x] Retry после marker только финализирует metadata.
+- [x] Все восемь dbt Gold models/tests встроены в candidate flow.
+- [x] Serving, quality, maintenance и rebuild DAGs manual-only, `schedule=None`, `is_paused=false`.
+- [x] Maintenance использует Airflow Polaris principal без checkpoint access.
+- [x] `rebuild-serving --yes` восстанавливает только derived ClickHouse databases.
+- [x] `status --require serving` и `validate --scope serving` возвращают READY на clean domain.
+- [x] Prometheus/Grafana/alerts работают без dangling targets.
+- [x] Validation report имеет статус PASS.
+- [x] Legacy-контур не удалён; Stage L остаётся следующей стадией после F0.
 
 ---
 
 ## 20. Связанные документы
 
 - [Дорожная карта миграции](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Координационный план E/V repair → F0 → L → F1](serving-cutover.md)
+- [Координационный план E/V repair → F0 → L → F1](../active/serving-cutover.md)
 - [Контракт Serving & Recovery](../contracts/serving-and-recovery.md)
 - [Контракт Spark Structured Streaming](../contracts/spark-streaming.md)
 - [Контракт Iceberg data model](../contracts/iceberg-data-model.md)

@@ -118,7 +118,7 @@ Destructive jobs используют protected environment и общий concur
 ## 8. Связанные документы
 
 - [Детальный план Stage L и CI cutover](../active/stage-l-legacy-removal-ci-cutover.md)
-- [План повторной приёмки E/V](../active/stage-ev-validation-repair.md)
+- [План повторной приёмки E/V](../completed/stage-ev-validation-repair.md)
 - [Контракт финального паритета](final-parity.md)
 - [Контракт Spark](spark-streaming.md)
 - [Контракт serving/recovery](serving-and-recovery.md)

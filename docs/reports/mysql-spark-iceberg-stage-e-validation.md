@@ -55,5 +55,9 @@
 
 ## 4. Conclusion
 
-Stage E (Serving Integration) has been successfully implemented and verified in accordance with `docs/plans/lakehouse/active/stage-e-serving-integration.md`.
-System is ready to proceed to Stage V (Candidate E2E Validation).
+Stage E (Serving Integration) has been successfully implemented and verified in accordance with `docs/plans/lakehouse/completed/stage-e-serving-integration.md`.
+
+The subsequent clean Stage V run `stage_v_clean_e113c55` on commit
+`e113c552cca990636f426b827456a77ddc9d594b` revalidated the serving entry gate
+and the complete Iceberg → ClickHouse → dbt Gold path. Its raw evidence is
+stored under `data/stage-v-evidence/stage_v_clean_e113c55/`.

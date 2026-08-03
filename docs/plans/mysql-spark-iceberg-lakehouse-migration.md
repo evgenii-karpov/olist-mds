@@ -4,9 +4,9 @@
 
 | Поле | Значение |
 | --- | --- |
-| Статус | Wave 1/J1 и Wave 2/J2 завершены; Stage E/V требуют повторной приёмки перед F0/L |
-| Последнее обновление | 2026-08-02 |
-| Аудированный commit candidate до обновления планов | `f33a2c8f2efabdc8b48b06798245c68fd930d5db` |
+| Статус | Wave 1/J1, Wave 2/J2 и Stage E/V revalidation завершены; следующая стадия — F0 |
+| Последнее обновление | 2026-08-03 |
+| Аудированный commit candidate | `e113c552cca990636f426b827456a77ddc9d594b` |
 | Frozen baseline source | `main` commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (фиксируется на Stage F0) |
 | Ветка реализации | `feature/mysql-spark-iceberg` |
 | Evidence J1 | [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
@@ -102,15 +102,15 @@ flowchart LR
 | --- | --- | --- | --- |
 | **Wave 1 / J1** | Complete | [lakehouse/completed/wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | [J1 report](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | **Wave 2 / J2** | Complete | [lakehouse/completed/wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | [J2 report](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
-| **E/V / Revalidation** | **Next** | [lakehouse/active/stage-ev-validation-repair.md](lakehouse/active/stage-ev-validation-repair.md) | существующие [Stage E](../reports/mysql-spark-iceberg-stage-e-validation.md) / [Stage V](../reports/mysql-spark-iceberg-stage-v-validation.md) reports являются историческими до полного повторного V0–V10 |
-| **F0 / Baseline freeze** | Pending (после E/V) | [lakehouse/active/stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | — |
+| **E/V / Revalidation** | **Complete** | [lakehouse/completed/stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | clean `stage_v_clean_e113c55`: V0–V10 `PASS`, commit `e113c552cca990636f426b827456a77ddc9d594b`, raw evidence в `data/stage-v-evidence/stage_v_clean_e113c55/` |
+| **F0 / Baseline freeze** | **Next** | [lakehouse/active/stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | — |
 | **L / Legacy removal + CI cutover** | Pending (после F0) | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | — |
 | **F1 / Final parity** | Pending (после L) | [lakehouse/active/stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
 
 Граф последовательности стадий:
 
 ```text
-Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Next) → F0 baseline freeze → L cleanup + CI cutover → F1 candidate-only parity
+Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete) → F0 baseline freeze (Next) → L cleanup + CI cutover → F1 candidate-only parity
 ```
 
 ---
@@ -130,8 +130,10 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Next) �
 | **Contracts** | [final-parity.md](lakehouse/contracts/final-parity.md) | Контракт одноразового frozen baseline F0 и candidate-only итогового сравнения F1. |
 | **Completed** | [wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | Завершенный исторический runbook интеграции Wave 1 / J1 (зафиксирован). |
 | **Completed** | [wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | Завершенный исторический runbook Scala data plane Wave 2 / J2 (зафиксирован). |
+| **Completed** | [stage-e-serving-integration.md](lakehouse/completed/stage-e-serving-integration.md) | Завершенный план реализации Stage E Serving Integration. |
+| **Completed** | [stage-v-candidate-e2e-validation.md](lakehouse/completed/stage-v-candidate-e2e-validation.md) | Завершенный план и clean acceptance Stage V V0–V10. |
+| **Completed** | [stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | Завершенный план повторной приемки Stage E/V. |
 | **Active** | [serving-cutover.md](lakehouse/active/serving-cutover.md) | Координационный порядок E/V repair → F0 → L → F1 и переходные барьеры. |
-| **Active** | [stage-ev-validation-repair.md](lakehouse/active/stage-ev-validation-repair.md) | Исправление Stage E/V evidence и обязательный полный прогон V0–V10. |
 | **Active** | [stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | Одноразовый экспорт baseline из точного commit `main` до cleanup. |
 | **Active** | [stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | Инвентарь удаления legacy и точная целевая матрица workflows/jobs. |
 | **Active** | [stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) | Финальный candidate-only прогон против frozen oracle после cleanup. |
@@ -144,8 +146,8 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Next) �
 При возникновении разночтений между документами действует следующий приоритет:
 
 1. **Действующие контракты (`lakehouse/contracts/`)** определят действующее нормативное поведение системы.
-2. **Координационный план (`lakehouse/active/serving-cutover.md`)** определяет порядок невыполненных стадий (E/V repair, F0, L, F1).
-3. **Детальные активные планы (`lakehouse/active/stage-*.md`)** определяют исполнимые пакеты работ и критерии перехода каждой стадии.
+2. **Координационный план (`lakehouse/active/serving-cutover.md`)** определяет порядок оставшихся стадий (F0, L, F1) и сохраняет evidence перехода E/V.
+3. **Детальные планы** в `lakehouse/active/` определяют оставшиеся пакеты работ, а `lakehouse/completed/` хранит frozen планы принятых стадий.
 4. **Отчеты о валидации (`docs/reports/`)** подтверждают только фактически представленные проверки; декларация без raw evidence не закрывает обязательные ворота.
 5. **Завершенные runbooks (`lakehouse/completed/`)** хранят исторический контекст выполнения и не используются как активные инструкции.
 

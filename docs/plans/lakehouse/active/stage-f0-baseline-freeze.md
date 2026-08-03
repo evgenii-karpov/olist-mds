@@ -1,6 +1,7 @@
 # Детальный план Stage F0: фиксация frozen baseline из `main`
 
-- **Статус**: `PENDING`, выполняется после повторной приёмки E/V и до Stage L.
+- **Статус**: `NEXT`, E/V clean acceptance завершена; выполняется до Stage L.
+- **Candidate commit**: `e113c552cca990636f426b827456a77ddc9d594b`.
 - **Baseline commit**: `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (зафиксированный последний commit `main` на момент планирования).
 - **Fixture**: `tests/fixtures/olist_small/olist_small.zip`.
 - **Fixture SHA-256**: `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976`.

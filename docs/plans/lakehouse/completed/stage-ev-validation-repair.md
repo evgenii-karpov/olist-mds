@@ -1,8 +1,8 @@
 # Детальный план: повторная приёмка Stage E и Stage V
 
-- **Статус**: `REVALIDATION REQUIRED — MANUAL V06–V10 COMPLETE; CLEAN V0–V10 PENDING`
+- **Статус**: `COMPLETE — CLEAN V0–V10 ACCEPTED`
 - **Назначение**: устранить пробелы в реализации и доказательствах Stage E/V и получить воспроизводимый полный прогон V0–V10 до фиксации baseline и удаления legacy.
-- **Граница стадии**: этот документ описывает будущие изменения кода и проверки, но сам по себе не подтверждает их выполнение.
+- **Граница стадии**: документ сохранён как frozen plan и содержит фактическое clean acceptance evidence ниже.
 
 ---
 
@@ -94,7 +94,7 @@ Harness обязан:
 
 ## 3. Проверки, которые должны появиться в автоматическом CI
 
-В общий CI входят unit/contract проверки реестра ворот, fail-fast, применения migration 005, DAG inventory и запрета placeholder boundary. Полный V0–V10 остаётся ручным из-за длительности и destructive reset; его точный workflow описан в [Stage L / CI cutover](stage-l-legacy-removal-ci-cutover.md).
+В общий CI входят unit/contract проверки реестра ворот, fail-fast, применения migration 005, DAG inventory и запрета placeholder boundary. Полный V0–V10 остаётся ручным из-за длительности и destructive reset; его точный workflow описан в [Stage L / CI cutover](../active/stage-l-legacy-removal-ci-cutover.md).
 
 ---
 
@@ -113,23 +113,24 @@ Stage E/V считается повторно принятой только ес
 
 ## 5. Связанные документы
 
-- [Координационный план финальных стадий](serving-cutover.md)
-- [План фиксации baseline F0](stage-f0-baseline-freeze.md)
+- [Координационный план финальных стадий](../active/serving-cutover.md)
+- [План фиксации baseline F0](../active/stage-f0-baseline-freeze.md)
 - [Контракт Validation & CI](../contracts/validation-and-ci.md)
 
 ## 6. Фактическое подтверждение
 
-- **Результат**: исторический `PASS` для всех 11 обязательных ворот V0–V10; этот run не является acceptance после обнаружения scheduler race и неполной проверки V7.
-- **Run ID**: `stage_v_final_candidate_serving_fix`.
+- **Результат**: clean `PASS` для всех 11 обязательных ворот V0–V10; все 42 machine-readable assertions прошли.
+- **Run ID**: `stage_v_clean_e113c55`.
 - **Compose project**: `olist_stage_v`.
-- **Commit SHA из V0**: `bf9fac7bdfe9f844298ef1b99fdf2bd0efd421ea`.
-- **Evidence**: `data/stage-v-evidence/stage_v_final_candidate_serving_fix/`.
+- **Commit SHA из V0**: `e113c552cca990636f426b827456a77ddc9d594b`.
+- **V0 source tree**: `dirty=false`.
+- **Evidence**: `data/stage-v-evidence/stage_v_clean_e113c55/`.
 - **Отчёт**: `docs/reports/mysql-spark-iceberg-stage-v-validation.md`.
-- **Независимая проверка отчёта**: команда `stage_v_candidate_e2e.py report` вернула `PASS`.
+- **Независимая проверка отчёта**: отчёт сгенерирован из raw evidence clean run и содержит `PASS` по всем обязательным gate.
 - **Evidence checksums**: SHA-256 созданы для всех 11 вложенных gate summaries.
-- **Revalidation note**: следующий clean run должен использовать manual-only serving DAGs (`schedule=None`, `is_paused_upon_creation=False`), требовать V6 `non-NOOP -> NOOP` и проверять фактический candidate dbt evidence/stable views в V7.
+- **Следующая стадия**: F0 — фиксация frozen baseline из `main`; Stage L и F1 остаются заблокированными до F0.
 
-### 6.1 Ручная post-fix проверка V06–V10
+### 6.1 Историческая ручная post-fix проверка V06–V10
 
 3 августа 2026 года V06–V10 были проверены отдельно в уже существующем Compose project `olist_stage_v`. Этот прогон не является clean-domain acceptance V0–V10: V06 использовал одну контролируемую source UPDATE, потому что исходные CRUD fixtures уже были израсходованы предыдущими попытками.
 
@@ -140,4 +141,16 @@ Stage E/V считается повторно принятой только ес
 - **V10**: `local_lab.py status --require serving` и post-rebuild current/Gold parity завершились `PASS`.
 - Все четыре serving DAGs имеют `schedule=None`, `is_paused=false`; контейнеры не останавливались.
 
-Эта ручная проверка подтверждает исправления и фактические serving gates, но не снимает требование EV5 о едином clean V0–V10 run с новым raw evidence.
+Эта ручная проверка была промежуточным подтверждением и на момент выполнения не снимала требование EV5; последующий clean run в разделе 6.2 снял этот барьер.
+
+### 6.2 Clean V0–V10 acceptance
+
+3 августа 2026 года выполнен clean-domain run на commit `e113c552cca990636f426b827456a77ddc9d594b`.
+
+- `00-preflight` зафиксировал `dirty=false` и точный execution commit.
+- Все обязательные gate `00-preflight`–`10-final` завершились `PASS`; всего `42/42` assertions.
+- V06 выполнил реальный non-NOOP sync (`seq=1`, `SUCCEEDED`, dbt: `16 success + 59 pass`), затем повтор boundary дал `seq=2`, `NOOP`.
+- V08 подтвердил nullable Avro propagation (`schema_id=37`, `optional_value=null`, `schema_violations=0`, `normalization_errors=0`).
+- V09 восстановил serving из Iceberg (`seq=4`, `expected_event_count=90`, `materialized_event_count=90`).
+- V10 подтвердил `PUBLISHED`, пустые active/open/rejected control-plane sets и parity Iceberg/Stable/Gold.
+- После завершения runtime cleanup выполнен только для Compose project `olist_stage_v`, volumes сохранены для диагностики/повторного использования.
