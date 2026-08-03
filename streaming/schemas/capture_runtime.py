@@ -63,7 +63,7 @@ class RegistryMetadataClient:
             try:
                 with urlopen(request, timeout=self.timeout_seconds) as response:
                     raw = response.read().decode("utf-8", errors="replace")
-            except (HTTPError, URLError, TimeoutError):
+            except (HTTPError, URLError, TimeoutError, OSError, Exception):
                 continue
             try:
                 value = json.loads(raw)

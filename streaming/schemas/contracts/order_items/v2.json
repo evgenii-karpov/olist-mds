@@ -345,9 +345,9 @@
     ],
     "allowed_value_fingerprints": [
       {
-        "sha256": "4aa4857dfbae2506234b3d18818ca4db5344454805ab4bfb5b72b4c99f9562d7",
+        "sha256": "405694a7e8a40115616a392c6836b10979c6a52f33061ae1cec5ba4a5fe7c25b",
         "status": "captured_writer_schema",
-        "source": "captured-writer-schemas/order_items/value/schema-16-4aa4857dfbae2506.avsc",
+        "source": "captured-writer-schemas/order_items/value/schema-16-405694a7e8a40115.avsc",
         "provenance_ref": "captured-writer-schemas/manifest.json#/entities/2/value/schemas/0/provenance"
       }
     ]

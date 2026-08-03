@@ -1,5 +1,6 @@
 package com.olist.mds.spark.schema
 
+import com.olist.mds.spark.avro.RegistrySchemaResolver
 import com.olist.mds.spark.silver.IcebergCommitCoordinator
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.Row
@@ -12,58 +13,65 @@ import java.time.Instant
 object SchemaArchiveWriter {
   val SchemaTable = "lakehouse.bronze.avro_schemas"
 
-  def writeBatch(spark: SparkSession, batchDf: DataFrame, batchId: Long): Unit = {
-    val schemaTopicRows = batchDf.filter(col("topic").isin("olist_cdc.__schemas__", "__schemas__"))
-    if (schemaTopicRows.isEmpty) return
+  def writeBatch(
+      spark: SparkSession,
+      batchDf: DataFrame,
+      batchId: Long,
+      knownValueSchemaIds: Set[Int],
+      registryResolver: RegistrySchemaResolver
+  ): Unit = {
+    val schemaRows = batchDf
+      .filter(col("value_bytes").isNotNull)
+      .filter(col("value_schema_id").isNotNull)
+      .filter(!col("value_schema_id").isin(knownValueSchemaIds.toSeq: _*))
+    if (schemaRows.isEmpty) return
 
-    val rows = schemaTopicRows.collect()
-    if (rows.isEmpty) return
-
-    val archiveRows = scala.collection.mutable.ArrayBuffer[Row]()
     val now = Timestamp.from(Instant.now())
-
-    rows.foreach { row =>
-      val keyBytes = row.getAs[Array[Byte]]("key_bytes")
-      val valBytes = row.getAs[Array[Byte]]("value_bytes")
-      val topic = row.getAs[String]("topic")
-
-      if (valBytes != null && valBytes.nonEmpty) {
-        val valStr = new String(valBytes, "UTF-8")
-        // Basic parsing of schema definition payload if structured, or extract fingerprint
-        val fingerprint = com.olist.mds.spark.avro.ConfluentFrame.sha256Hex(valBytes)
-        archiveRows += Row(topic, 0, fingerprint, valStr, now)
+    val rows = schemaRows
+      .select("value_schema_id", "topic")
+      .distinct()
+      .collect()
+      .toSeq
+      .map { row =>
+        val schemaId = row.getAs[Int]("value_schema_id")
+        val resolved = registryResolver.resolve(schemaId)
+        Row(
+          schemaId,
+          resolved.fingerprintSha256,
+          row.getAs[String]("topic"),
+          1,
+          resolved.schemaJson,
+          resolved.referencesJson,
+          resolved.selfContainedSchemaJson,
+          now,
+          now
+        )
       }
-    }
 
-    if (archiveRows.isEmpty) return
-
-    val sparkSchema = StructType(
+    val schema = StructType(
       Seq(
-        StructField("topic", StringType, nullable = false),
         StructField("schema_id", IntegerType, nullable = false),
         StructField("fingerprint_sha256", StringType, nullable = false),
+        StructField("subject", StringType, nullable = false),
+        StructField("registry_version", IntegerType, nullable = false),
         StructField("schema_json", StringType, nullable = false),
-        StructField("captured_at", TimestampType, nullable = false)
+        StructField("references_json", StringType, nullable = false),
+        StructField("spark_self_contained_schema_json", StringType, nullable = false),
+        StructField("first_seen_at", TimestampType, nullable = false),
+        StructField("last_verified_at", TimestampType, nullable = false)
       )
     )
+    val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
 
-    val df = spark.createDataFrame(spark.sparkContext.parallelize(archiveRows.toSeq), sparkSchema)
-    df.createOrReplaceTempView("inc_schemas")
-
-    val mergeSql =
-      s"""
-         |MERGE INTO $SchemaTable AS target
-         |USING inc_schemas AS inc
-         |ON target.topic = inc.topic AND target.fingerprint_sha256 = inc.fingerprint_sha256
-         |WHEN NOT MATCHED THEN INSERT (
-         |  topic, schema_id, fingerprint_sha256, schema_json, captured_at
-         |) VALUES (
-         |  inc.topic, inc.schema_id, inc.fingerprint_sha256, inc.schema_json, inc.captured_at
-         |)
-         |""".stripMargin
-
+    // Keep one durable row per registry ID.  The query checkpoint normally
+    // makes this idempotent; the anti-join also protects a replay after a
+    // restart or a manual checkpoint repair.
+    val existingSchemaIds = spark.table(SchemaTable).select("schema_id").distinct()
+    val newSchemas = df
+      .join(existingSchemaIds, Seq("schema_id"), "left_anti")
+      .localCheckpoint(eager = true)
     IcebergCommitCoordinator.withLock(SchemaTable) {
-      spark.sql(mergeSql)
+      if (newSchemas.count() > 0) newSchemas.writeTo(SchemaTable).append()
     }
   }
 }

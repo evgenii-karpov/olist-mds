@@ -12,15 +12,15 @@ final case class SilverProgressRecord(
     contractVersion: Int,
     sourceTopic: String,
     kafkaPartition: Int,
+    lastKafkaOffset: Long,
+    lastEventId: String,
+    lastSourceTs: Option[Timestamp],
+    sparkQueryId: String,
     sparkBatchId: Long,
     changesSnapshotId: Option[Long],
     currentSnapshotId: Option[Long],
-    firstKafkaOffset: Long,
-    lastKafkaOffset: Long,
-    recordsProcessed: Long,
-    appliedRecords: Long,
-    rejectedRecords: Long,
-    status: String
+    status: String,
+    errorClass: Option[String]
 )
 
 object SilverProgressWriter {
@@ -33,16 +33,17 @@ object SilverProgressWriter {
       StructField("contract_version", IntegerType, nullable = false),
       StructField("source_topic", StringType, nullable = false),
       StructField("kafka_partition", IntegerType, nullable = false),
-      StructField("spark_batch_id", LongType, nullable = false),
-      StructField("changes_snapshot_id", LongType, nullable = true),
-      StructField("current_snapshot_id", LongType, nullable = true),
-      StructField("first_kafka_offset", LongType, nullable = false),
       StructField("last_kafka_offset", LongType, nullable = false),
-      StructField("records_processed", LongType, nullable = false),
-      StructField("applied_records", LongType, nullable = false),
-      StructField("rejected_records", LongType, nullable = false),
+      StructField("last_event_id", StringType, nullable = false),
+      StructField("last_source_ts", TimestampType, nullable = true),
+      StructField("spark_query_id", StringType, nullable = false),
+      StructField("spark_batch_id", LongType, nullable = false),
+      StructField("changes_snapshot_id", LongType, nullable = false),
+      StructField("current_snapshot_id", LongType, nullable = true),
       StructField("status", StringType, nullable = false),
-      StructField("committed_at", TimestampType, nullable = false)
+      StructField("error_class", StringType, nullable = true),
+      StructField("updated_at", TimestampType, nullable = false),
+      StructField("recorded_at", TimestampType, nullable = false)
     )
   )
 
@@ -57,56 +58,26 @@ object SilverProgressWriter {
         r.contractVersion,
         r.sourceTopic,
         r.kafkaPartition,
-        r.sparkBatchId,
-        r.changesSnapshotId.map(java.lang.Long.valueOf).orNull,
-        r.currentSnapshotId.map(java.lang.Long.valueOf).orNull,
-        r.firstKafkaOffset,
         r.lastKafkaOffset,
-        r.recordsProcessed,
-        r.appliedRecords,
-        r.rejectedRecords,
+        r.lastEventId,
+        r.lastSourceTs.orNull,
+        r.sparkQueryId,
+        r.sparkBatchId,
+        r.changesSnapshotId.map(java.lang.Long.valueOf).getOrElse {
+          throw new IllegalStateException(
+            s"Missing changes snapshot for ${r.entity} batch ${r.sparkBatchId}"
+          )
+        },
+        r.currentSnapshotId.map(java.lang.Long.valueOf).orNull,
         r.status,
+        r.errorClass.orNull,
+        now,
         now
       )
     }
 
     val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
-    df.createOrReplaceTempView("inc_progress")
-
-    val mergeSql =
-      s"""
-         |MERGE INTO $ProgressTable AS target
-         |USING inc_progress AS inc
-         |ON target.query_name = inc.query_name
-         |   AND target.entity = inc.entity
-         |   AND target.contract_version = inc.contract_version
-         |   AND target.source_topic = inc.source_topic
-         |   AND target.kafka_partition = inc.kafka_partition
-         |   AND target.spark_batch_id = inc.spark_batch_id
-         |WHEN MATCHED THEN UPDATE SET
-         |   changes_snapshot_id = inc.changes_snapshot_id,
-         |   current_snapshot_id = inc.current_snapshot_id,
-         |   first_kafka_offset = inc.first_kafka_offset,
-         |   last_kafka_offset = inc.last_kafka_offset,
-         |   records_processed = inc.records_processed,
-         |   applied_records = inc.applied_records,
-         |   rejected_records = inc.rejected_records,
-         |   status = inc.status,
-         |   committed_at = inc.committed_at
-         |WHEN NOT MATCHED THEN INSERT (
-         |   query_name, entity, contract_version, source_topic, kafka_partition, spark_batch_id,
-         |   changes_snapshot_id, current_snapshot_id, first_kafka_offset, last_kafka_offset,
-         |   records_processed, applied_records, rejected_records, status, committed_at
-         |) VALUES (
-         |   inc.query_name, inc.entity, inc.contract_version, inc.source_topic, inc.kafka_partition, inc.spark_batch_id,
-         |   inc.changes_snapshot_id, inc.current_snapshot_id, inc.first_kafka_offset, inc.last_kafka_offset,
-         |   inc.records_processed, inc.applied_records, inc.rejected_records, inc.status, inc.committed_at
-         |)
-         |""".stripMargin
-
-    IcebergCommitCoordinator.withLock(ProgressTable) {
-      spark.sql(mergeSql)
-    }
+    IcebergCommitCoordinator.withLock(ProgressTable) { df.writeTo(ProgressTable).append() }
   }
 
   def getLatestSnapshotId(spark: SparkSession, tableName: String): Option[Long] = {

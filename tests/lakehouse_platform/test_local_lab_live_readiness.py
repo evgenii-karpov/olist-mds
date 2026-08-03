@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 from scripts.cdc.local_lab import (
     _iceberg_status,
     _status,
+    _wait_streaming_ready,
 )
 
 
@@ -28,6 +29,51 @@ class TestLocalLabLiveReadiness(unittest.TestCase):
         # We verify that if live probe fails or returns unexpected data, status reflects it.
         result = _iceberg_status()
         self.assertNotIn("compose-managed", str(result.get("migration")))
+
+    @patch("scripts.cdc.local_lab.time.sleep")
+    @patch("scripts.cdc.local_lab.time.monotonic", side_effect=[0.0, 0.0, 1.0])
+    @patch("scripts.cdc.local_lab._read_streaming_status")
+    def test_restart_freshness_uses_status_timestamp_not_query_id(
+        self,
+        mock_read_status: MagicMock,
+        _mock_monotonic: MagicMock,
+        _mock_sleep: MagicMock,
+    ) -> None:
+        old_ids = {"bronze": "stable-bronze", "silver": "stable-silver"}
+        ready_status = {
+            "bronze": {
+                "overall_state": "READY",
+                "updated_at_utc": "2026-08-03T14:20:01+00:00",
+                "queries": [{"query_id": "stable-bronze", "state": "RUNNING"}],
+            },
+            "silver": {
+                "overall_state": "READY",
+                "updated_at_utc": "2026-08-03T14:20:02+00:00",
+                "queries": [{"query_id": "stable-silver", "state": "RUNNING"}],
+            },
+        }
+        stale_status = {
+            service: {
+                **status,
+                "updated_at_utc": "2026-08-03T14:19:59+00:00",
+            }
+            for service, status in ready_status.items()
+        }
+        mock_read_status.side_effect = [stale_status, ready_status]
+
+        result = _wait_streaming_ready(
+            60.0,
+            old_ids,
+            "2026-08-03T14:20:00+00:00",
+        )
+
+        self.assertTrue(result["freshness_verified"])
+        self.assertEqual(result["new_query_ids"], old_ids)
+        self.assertEqual(
+            result["freshness_basis"],
+            "status_updated_at_after_restart_barrier",
+        )
+        self.assertEqual(mock_read_status.call_count, 2)
 
     @patch("scripts.cdc.local_lab._iceberg_status")
     @patch("scripts.cdc.local_lab._http_json")

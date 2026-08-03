@@ -1,6 +1,6 @@
 # Детальный план: повторная приёмка Stage E и Stage V
 
-- **Статус**: `NEXT`
+- **Статус**: `REVALIDATION REQUIRED — MANUAL V06–V10 COMPLETE; CLEAN V0–V10 PENDING`
 - **Назначение**: устранить пробелы в реализации и доказательствах Stage E/V и получить воспроизводимый полный прогон V0–V10 до фиксации baseline и удаления legacy.
 - **Граница стадии**: этот документ описывает будущие изменения кода и проверки, но сам по себе не подтверждает их выполнение.
 
@@ -116,3 +116,28 @@ Stage E/V считается повторно принятой только ес
 - [Координационный план финальных стадий](serving-cutover.md)
 - [План фиксации baseline F0](stage-f0-baseline-freeze.md)
 - [Контракт Validation & CI](../contracts/validation-and-ci.md)
+
+## 6. Фактическое подтверждение
+
+- **Результат**: исторический `PASS` для всех 11 обязательных ворот V0–V10; этот run не является acceptance после обнаружения scheduler race и неполной проверки V7.
+- **Run ID**: `stage_v_final_candidate_serving_fix`.
+- **Compose project**: `olist_stage_v`.
+- **Commit SHA из V0**: `bf9fac7bdfe9f844298ef1b99fdf2bd0efd421ea`.
+- **Evidence**: `data/stage-v-evidence/stage_v_final_candidate_serving_fix/`.
+- **Отчёт**: `docs/reports/mysql-spark-iceberg-stage-v-validation.md`.
+- **Независимая проверка отчёта**: команда `stage_v_candidate_e2e.py report` вернула `PASS`.
+- **Evidence checksums**: SHA-256 созданы для всех 11 вложенных gate summaries.
+- **Revalidation note**: следующий clean run должен использовать manual-only serving DAGs (`schedule=None`, `is_paused_upon_creation=False`), требовать V6 `non-NOOP -> NOOP` и проверять фактический candidate dbt evidence/stable views в V7.
+
+### 6.1 Ручная post-fix проверка V06–V10
+
+3 августа 2026 года V06–V10 были проверены отдельно в уже существующем Compose project `olist_stage_v`. Этот прогон не является clean-domain acceptance V0–V10: V06 использовал одну контролируемую source UPDATE, потому что исходные CRUD fixtures уже были израсходованы предыдущими попытками.
+
+- **V06**: publish `sync_run_seq=6` (`is_noop=false`, boundary `file=binlog.000002,pos=38910`, `expected=materialized=90`) и repeat `sync_run_seq=7` (`NOOP`, та же boundary).
+- **V07**: `validate-serving` для seq 6 подтвердил фактический `dbt build --selector serving_candidate`: 75 результатов (`16 success`, `59 pass`), stable current parity и все 8 Gold interfaces.
+- **V08**: allowlisted nullable-column fixtures дали customer event offset 10, schema id 37, `NULL` в новой source column, `schema_violations=0`, `normalization_errors=0`; publish `sync_run_seq=9` дал `expected=materialized=91`, а повторная serving validation прошла.
+- **V09**: rebuild `sync_run_seq=10` завершился `SUCCEEDED`, `expected=materialized=91`, с восемью Iceberg snapshots.
+- **V10**: `local_lab.py status --require serving` и post-rebuild current/Gold parity завершились `PASS`.
+- Все четыре serving DAGs имеют `schedule=None`, `is_paused=false`; контейнеры не останавливались.
+
+Эта ручная проверка подтверждает исправления и фактические serving gates, но не снимает требование EV5 о едином clean V0–V10 run с новым raw evidence.

@@ -74,6 +74,11 @@ dbt/olist_analytics/edr_target/
 dbt/olist_analytics/logs/
 dbt/olist_analytics/profiles.yml
 dbt/olist_analytics/target/
+dbt/olist_clickhouse/target/
+dbt/olist_clickhouse/dbt_packages/
+dbt/olist_clickhouse/edr_target/
+dbt/olist_clickhouse/logs/
+dbt/olist_clickhouse/.user.yml
 logs/
 olist.zip
 venv/

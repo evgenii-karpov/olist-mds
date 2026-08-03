@@ -14,6 +14,8 @@ services:
       POLARIS_DB_PASSWORD_FILE: /run/secrets/polaris_db_password
       APICURIO_DB_USERNAME_FILE: /run/secrets/apicurio_db_user
       APICURIO_DB_PASSWORD_FILE: /run/secrets/apicurio_db_password
+    ports:
+      - "${PLATFORM_POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - platform_postgres_data:/var/lib/postgresql/data
       - ./infra/polaris/postgres/010_create_polaris_database.sh:/docker-entrypoint-initdb.d/010_create_polaris_database.sh:ro
@@ -794,7 +796,8 @@ services:
       AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/runtime/simple_auth_manager_passwords.json
       OLIST_PROJECT_ROOT: /opt/airflow/project
       OLIST_PYTHON_BIN: python
-      DBT_PROFILES_DIR: /opt/airflow/project/dbt/olist_analytics
+      PYTHONPATH: /opt/airflow/project
+      DBT_PROFILES_DIR: /opt/airflow/project/dbt/olist_clickhouse
       DBT_TARGET: local_clickhouse
       MYSQL_HOST: mysql
       MYSQL_PORT: "3306"

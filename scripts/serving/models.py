@@ -78,6 +78,7 @@ class ServingSyncReport:
     materialized_event_count: int
     entity_counts: dict[str, int]
     published_at: str
+    dbt_result: dict[str, object] | None = None
     report_sha256: str = ""
 
     def compute_sha256(self) -> str:

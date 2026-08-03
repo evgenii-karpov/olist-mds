@@ -17,7 +17,7 @@
               "artifact_id": "olist_cdc.olist_oltp.customers-key",
               "artifact_version": "1",
               "schema_id": 7,
-              "captured_at_utc": "2026-08-01T16:02:01.939086Z",
+              "captured_at_utc": "2026-08-03T17:47:57.626102Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.customers"
             }
@@ -28,15 +28,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "customers/value/schema-10-d622022d67322c94.avsc",
-            "sha256": "d622022d67322c944129b84a7e2e3dd2d485fd581ea37e5d5b3114af12efb7fd",
+            "path": "customers/value/schema-10-86778e42358beb24.avsc",
+            "sha256": "86778e42358beb24a9918b88c5f30e3ac3244398d4fe5c6ad7f0a07b35d4c970",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.customers-value",
               "artifact_version": "1",
               "schema_id": 10,
-              "captured_at_utc": "2026-08-01T16:02:02.140279Z",
+              "captured_at_utc": "2026-08-03T17:47:57.888884Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.customers"
             }
@@ -58,7 +58,7 @@
               "artifact_id": "olist_cdc.olist_oltp.orders-key",
               "artifact_version": "1",
               "schema_id": 11,
-              "captured_at_utc": "2026-08-01T16:02:02.186376Z",
+              "captured_at_utc": "2026-08-03T17:47:57.946283Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.orders"
             }
@@ -69,15 +69,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "orders/value/schema-13-27ab76afddf19535.avsc",
-            "sha256": "27ab76afddf19535a5359cfd286fbb5ecf57f0065ad556a428f795dac456b836",
+            "path": "orders/value/schema-13-36873a348c768312.avsc",
+            "sha256": "36873a348c7683126e63ececcc6d4a94110cdf596906410804f564d11ecf790d",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.orders-value",
               "artifact_version": "1",
               "schema_id": 13,
-              "captured_at_utc": "2026-08-01T16:02:02.393159Z",
+              "captured_at_utc": "2026-08-03T17:47:58.179511Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.orders"
             }
@@ -99,7 +99,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_items-key",
               "artifact_version": "1",
               "schema_id": 14,
-              "captured_at_utc": "2026-08-01T16:02:02.422128Z",
+              "captured_at_utc": "2026-08-03T17:47:58.229128Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_items"
             }
@@ -110,15 +110,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "order_items/value/schema-16-4aa4857dfbae2506.avsc",
-            "sha256": "4aa4857dfbae2506234b3d18818ca4db5344454805ab4bfb5b72b4c99f9562d7",
+            "path": "order_items/value/schema-16-405694a7e8a40115.avsc",
+            "sha256": "405694a7e8a40115616a392c6836b10979c6a52f33061ae1cec5ba4a5fe7c25b",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.order_items-value",
               "artifact_version": "1",
               "schema_id": 16,
-              "captured_at_utc": "2026-08-01T16:02:02.578700Z",
+              "captured_at_utc": "2026-08-03T17:47:58.388897Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_items"
             }
@@ -140,7 +140,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_payments-key",
               "artifact_version": "1",
               "schema_id": 17,
-              "captured_at_utc": "2026-08-01T16:02:02.617833Z",
+              "captured_at_utc": "2026-08-03T17:47:58.458047Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_payments"
             }
@@ -151,15 +151,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "order_payments/value/schema-19-c444ba8de505fbfb.avsc",
-            "sha256": "c444ba8de505fbfbe812fa5bab11d9e0c1976576eb7afdc338e292dcb7b94f54",
+            "path": "order_payments/value/schema-19-5788388ef63117c7.avsc",
+            "sha256": "5788388ef63117c72db4354a124d789b375e28dc11b5c69b3869b8b29ebe3968",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.order_payments-value",
               "artifact_version": "1",
               "schema_id": 19,
-              "captured_at_utc": "2026-08-01T16:02:02.743321Z",
+              "captured_at_utc": "2026-08-03T17:47:58.628773Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_payments"
             }
@@ -181,7 +181,7 @@
               "artifact_id": "olist_cdc.olist_oltp.order_reviews-key",
               "artifact_version": "1",
               "schema_id": 20,
-              "captured_at_utc": "2026-08-01T16:02:02.766902Z",
+              "captured_at_utc": "2026-08-03T17:47:58.671466Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_reviews"
             }
@@ -192,15 +192,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "order_reviews/value/schema-22-97d410a2eaad8459.avsc",
-            "sha256": "97d410a2eaad845907e1137ac4e65c6bcd1cb45388f69ef3e6219010fcd07390",
+            "path": "order_reviews/value/schema-22-60bc008106640ed5.avsc",
+            "sha256": "60bc008106640ed59b1f462e50c952e936e0f8e6dc419fbd2fadc118510a75d0",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.order_reviews-value",
               "artifact_version": "1",
               "schema_id": 22,
-              "captured_at_utc": "2026-08-01T16:02:02.865421Z",
+              "captured_at_utc": "2026-08-03T17:47:58.798133Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.order_reviews"
             }
@@ -222,7 +222,7 @@
               "artifact_id": "olist_cdc.olist_oltp.products-key",
               "artifact_version": "1",
               "schema_id": 23,
-              "captured_at_utc": "2026-08-01T16:02:02.888558Z",
+              "captured_at_utc": "2026-08-03T17:47:58.846936Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.products"
             }
@@ -233,15 +233,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "products/value/schema-25-c526d8632f372065.avsc",
-            "sha256": "c526d8632f372065580dd881260df9cefc3468fb51ae56207a0212962bf0d2fa",
+            "path": "products/value/schema-25-5518567779fd234c.avsc",
+            "sha256": "5518567779fd234cc6a8dfc0ef828d21435687d797f1156f4a5687f633ca5f2e",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.products-value",
               "artifact_version": "1",
               "schema_id": 25,
-              "captured_at_utc": "2026-08-01T16:02:02.954309Z",
+              "captured_at_utc": "2026-08-03T17:47:58.973745Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.products"
             }
@@ -263,7 +263,7 @@
               "artifact_id": "olist_cdc.olist_oltp.sellers-key",
               "artifact_version": "1",
               "schema_id": 26,
-              "captured_at_utc": "2026-08-01T16:02:02.994596Z",
+              "captured_at_utc": "2026-08-03T17:47:59.008420Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.sellers"
             }
@@ -274,15 +274,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "sellers/value/schema-28-53bf2a40e7c25964.avsc",
-            "sha256": "53bf2a40e7c259647b7042c0c452d30afb09f977ae42d9c61bc9e72272734d27",
+            "path": "sellers/value/schema-28-6b66dd6e45a4170d.avsc",
+            "sha256": "6b66dd6e45a4170d2fc65d43ae03c505ed11c3ce88a7f7759349c08ffc5c4a4b",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.sellers-value",
               "artifact_version": "1",
               "schema_id": 28,
-              "captured_at_utc": "2026-08-01T16:02:03.065758Z",
+              "captured_at_utc": "2026-08-03T17:47:59.160783Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.sellers"
             }
@@ -304,7 +304,7 @@
               "artifact_id": "olist_cdc.olist_oltp.product_category_translation-key",
               "artifact_version": "1",
               "schema_id": 29,
-              "captured_at_utc": "2026-08-01T16:02:03.097470Z",
+              "captured_at_utc": "2026-08-03T17:47:59.212804Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.product_category_translation"
             }
@@ -315,15 +315,15 @@
         "state": "captured",
         "schemas": [
           {
-            "path": "product_category_translation/value/schema-31-d0d04df645b86090.avsc",
-            "sha256": "d0d04df645b86090a5691bc61b06bd2635a0496765913726b7637de0fe4f989a",
+            "path": "product_category_translation/value/schema-31-6b9036c22e2ff6f4.avsc",
+            "sha256": "6b9036c22e2ff6f42b3afcfc7d1e77e54eafb0d537c9bcbd1b5bc7e8b16c6b1b",
             "provenance": {
               "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
               "registry_group": "olist_cdc",
               "artifact_id": "olist_cdc.olist_oltp.product_category_translation-value",
               "artifact_version": "1",
               "schema_id": 31,
-              "captured_at_utc": "2026-08-01T16:02:03.191519Z",
+              "captured_at_utc": "2026-08-03T17:47:59.347810Z",
               "connector_name": "olist-mysql-cdc",
               "topic": "olist_cdc.olist_oltp.product_category_translation"
             }

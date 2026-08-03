@@ -12,7 +12,9 @@ from unittest.mock import MagicMock, patch
 
 from scripts.cdc.local_lab import (
     PLATFORM_PROFILES,
+    SERVING_PROFILES,
     _bootstrap,
+    _start_serving,
     _status,
     _up,
     compose_command,
@@ -39,6 +41,20 @@ class TestLocalLabProfileBoundaries(unittest.TestCase):
         mock_compose_up.assert_called_once()
         _, kwargs = mock_compose_up.call_args
         self.assertEqual(kwargs.get("profiles"), PLATFORM_PROFILES)
+
+    @patch("scripts.cdc.local_lab._compose_up")
+    def test_start_serving_requires_serving_services(
+        self, mock_compose_up: MagicMock
+    ) -> None:
+        """Serving startup must use both profiles and wait for Airflow/ClickHouse."""
+        args = MagicMock()
+        args.build = True
+        args.timeout = 100.0
+        _start_serving(args)
+        mock_compose_up.assert_called_once()
+        _, kwargs = mock_compose_up.call_args
+        self.assertEqual(kwargs.get("profiles"), SERVING_PROFILES)
+        self.assertEqual(kwargs.get("required_services"), ("clickhouse", "airflow"))
 
     @patch("scripts.cdc.local_lab._validate_runtime")
     @patch("scripts.cdc.local_lab._capture_and_contracts")

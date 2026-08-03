@@ -1,5 +1,6 @@
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import scala.jdk.CollectionConverters._
 
 organization := "com.olist.mds"
 name := "olist-spark-jobs"
@@ -67,6 +68,30 @@ Compile / resourceGenerators += Def.task {
     v2Target.getParentFile.mkdirs()
     Files.copy(v2Src.toPath, v2Target.toPath, StandardCopyOption.REPLACE_EXISTING)
     copiedFiles = copiedFiles :+ v2Target
+  }
+
+  // The Bronze contract stores the durable fingerprint while the Kafka
+  // payload carries a numeric writer schema ID.  Package the captured writer
+  // schemas so Silver can use Avro's writer/reader resolution instead of
+  // incorrectly decoding writer bytes with the contractual reader schema.
+  val capturedSchemasSource = streamingDir / "schemas" / "captured-writer-schemas"
+  if (capturedSchemasSource.exists()) {
+    val schemaFiles = Files.walk(capturedSchemasSource.toPath)
+    try {
+      schemaFiles.iterator().asScala.foreach { sourcePath =>
+        if (Files.isRegularFile(sourcePath)) {
+          val relative = capturedSchemasSource.toPath.relativize(sourcePath)
+          val targetPath = managedDir.toPath
+            .resolve("captured-writer-schemas")
+            .resolve(relative)
+          targetPath.toFile.getParentFile.mkdirs()
+          Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING)
+          copiedFiles = copiedFiles :+ targetPath.toFile
+        }
+      }
+    } finally {
+      schemaFiles.close()
+    }
   }
 
   // Copy topics.json

@@ -7,5 +7,7 @@ selectors:
       union:
         - method: tag
           value: gold_candidate
+          parents: true
         - method: tag
           value: serving_candidate
+          parents: true

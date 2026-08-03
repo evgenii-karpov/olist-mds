@@ -100,8 +100,12 @@ object BronzeBatchWriter {
       // Left-anti join to append only NEW rows
       val newRows = deduplicated.join(existing, Seq("event_id"), "left_anti")
 
-      if (!newRows.isEmpty) {
-        newRows.writeTo(TargetTable).append()
+      // Spark 4.1 can invalidate the analyzed plan when a V2 table-backed
+      // anti-join is inspected and then reused by DataFrameWriterV2.  Cut
+      // the lineage after the existence check so the append receives a
+      // stable, already-materialized batch plan.
+      if (newRows.count() > 0) {
+        newRows.localCheckpoint(eager = true).writeTo(TargetTable).append()
       }
     } else {
       deduplicated.writeTo(TargetTable).append()

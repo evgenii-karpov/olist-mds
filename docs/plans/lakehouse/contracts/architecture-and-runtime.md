@@ -199,12 +199,14 @@ python scripts/cdc/local_lab.py up
 python scripts/cdc/local_lab.py down
 python scripts/cdc/local_lab.py seed --archive tests/fixtures/olist_small/olist_small.zip --run-id <id> --random-seed <n>
 python scripts/cdc/local_lab.py start-streaming
+python scripts/cdc/local_lab.py start-serving [--build] [--timeout <seconds>]
 python scripts/cdc/local_lab.py wait-caught-up --timeout <seconds>
 python scripts/cdc/local_lab.py sync-serving
 python scripts/cdc/local_lab.py rebuild-serving --yes
 python scripts/cdc/local_lab.py run-maintenance
 python scripts/cdc/local_lab.py status [--require platform|streaming|serving]
 python scripts/cdc/local_lab.py validate [--scope platform|streaming|serving] [--timeout <seconds>]
+python scripts/cdc/local_lab.py validate-serving --sync-run-seq <seq> --sync-run-id <id>
 python scripts/cdc/local_lab.py final-parity --confirm-destructive
 ```
 
@@ -214,6 +216,9 @@ python scripts/cdc/local_lab.py final-parity --confirm-destructive
 - `bootstrap` проверяет чистоту домена, запускает `platform`, создаёт таблицы/каталоги, выполняет seed в MySQL, загружает geolocation и регистрирует коннектор.
 - `bootstrap` и `up` передают в Compose строго `--profile platform`.
 - `start-streaming` требует готовности `platform`, затем запускает `--profile platform --profile streaming`.
+- `start-serving` запускает `--profile platform --profile serving` и ждёт healthy `clickhouse`/`airflow` и успешного завершения serving one-shot-зависимостей.
+- `sync-serving`, `rebuild-serving` и `run-maintenance` разрешены только после готовности serving-профиля и запускают DAG вручную.
+- Serving, quality, maintenance and rebuild DAGs имеют `schedule=None` и запускаются только вручную; это исключает scheduler race без переключения pause во время validation.
 - `status` и `validate` проверяют реальное состояние запущенных сервисов и инвентаря метаданных.
 - Все команды используют таймауты, маскируют секреты и возвращают результат в формате JSON.
 

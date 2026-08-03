@@ -38,7 +38,7 @@ WHERE
             WHERE publication_status = 'PUBLISHED'
         )
     )
-    AND apply_status = 'applied'
+    AND lower(apply_status) = 'applied'
 {%- endmacro %}
 
 {% macro event_order_tuple(alias) -%}
@@ -52,7 +52,10 @@ WHERE
 
 {% macro scd_valid_from(alias) -%}
     if(
-        {{ alias }}.is_snapshot,
+        {{ alias }}.is_snapshot
+            OR {{ alias }}.source_ts = min({{ alias }}.source_ts) OVER (
+                PARTITION BY {{ alias }}.customer_unique_id
+            ),
         toDateTime64('1900-01-01 00:00:00', 6, 'UTC'),
         {{ alias }}.source_ts
     )

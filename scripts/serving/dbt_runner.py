@@ -27,8 +27,10 @@ def run_dbt_candidate_build(sync_run_seq: int, sync_run_id: str) -> dict[str, ob
         "build",
         "--project-dir",
         str(DBT_PROJECT_DIR),
-        "--select",
-        "tag:serving_candidate",
+        "--profiles-dir",
+        str(DBT_PROJECT_DIR),
+        "--selector",
+        "serving_candidate",
         "--vars",
         vars_json,
     ]
@@ -39,20 +41,36 @@ def run_dbt_candidate_build(sync_run_seq: int, sync_run_id: str) -> dict[str, ob
     success = res.success
     results_summary: list[dict[str, str | float]] = []
     res_result = getattr(res, "result", None)
-    if isinstance(res_result, list):
-        for r in res_result:
+    # dbt 1.11 wraps build node results in RunExecutionResult.results,
+    # whereas older dbt versions exposed a list directly.  Treating only the
+    # latter as evidence produced success=true with an empty result list and
+    # allowed a false-positive serving validation.
+    raw_results = (
+        res_result
+        if isinstance(res_result, list)
+        else getattr(res_result, "results", None)
+    )
+    status_counts: dict[str, int] = {}
+    if isinstance(raw_results, list):
+        for r in raw_results:
             node = getattr(r, "node", None)
             node_name = getattr(node, "name", "unknown") if node else "unknown"
+            result_status = str(getattr(r, "status", "unknown")).lower()
+            status_counts[result_status] = status_counts.get(result_status, 0) + 1
             results_summary.append(
                 {
                     "node": str(node_name),
-                    "status": str(getattr(r, "status", "unknown")),
+                    "status": result_status,
                     "execution_time": float(getattr(r, "execution_time", 0.0)),
                 }
             )
 
     return {
         "success": success,
+        "command": cli_args,
+        "selector": "serving_candidate",
+        "vars": vars_dict,
+        "status_counts": status_counts,
         "results": results_summary,
         "exception": str(res.exception) if res.exception else None,
     }

@@ -109,31 +109,41 @@ class JsonHttpClient:
         if payload is not None:
             body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        request = Request(
-            f"{self.base_url}/{path.lstrip('/')}",
-            data=body,
-            headers=headers,
-            method=method,
-        )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                status = response.status
-                raw_body = response.read()
-        except HTTPError as exc:
+        deadline = time.monotonic() + self.timeout_seconds
+        while True:
+            request = Request(
+                f"{self.base_url}/{path.lstrip('/')}",
+                data=body,
+                headers=headers,
+                method=method,
+            )
             try:
-                raw_error = exc.read().decode("utf-8", errors="replace")
-            finally:
-                exc.close()
-            if exc.code in expected:
-                return HttpResponse(exc.code, _parse_json(raw_error))
-            message = f"{method} {path} returned HTTP {exc.code}"
-            if not sensitive_values:
-                safe_body = redact_text(raw_error)
-                message += f": {safe_body[:1000]}"
-            raise BootstrapError(message) from None
-        except URLError as exc:
-            safe_reason = redact_text(str(exc.reason), sensitive_values)
-            raise BootstrapError(f"{method} {path} failed: {safe_reason}") from None
+                with urlopen(
+                    request, timeout=min(5.0, self.timeout_seconds)
+                ) as response:
+                    status = response.status
+                    raw_body = response.read()
+                    break
+            except HTTPError as exc:
+                try:
+                    raw_error = exc.read().decode("utf-8", errors="replace")
+                finally:
+                    exc.close()
+                if exc.code in expected:
+                    return HttpResponse(exc.code, _parse_json(raw_error))
+                message = f"{method} {path} returned HTTP {exc.code}"
+                if not sensitive_values:
+                    safe_body = redact_text(raw_error)
+                    message += f": {safe_body[:1000]}"
+                raise BootstrapError(message) from None
+            except (URLError, Exception) as exc:
+                if time.monotonic() < deadline:
+                    time.sleep(1.0)
+                    continue
+                safe_reason = redact_text(
+                    str(getattr(exc, "reason", exc)), sensitive_values
+                )
+                raise BootstrapError(f"{method} {path} failed: {safe_reason}") from None
 
         if status not in expected:
             message = f"{method} {path} returned HTTP {status}"
@@ -375,13 +385,22 @@ def ensure_connector(
         sensitive_values=(password,),
     )
     if existing.status == 404:
-        client.request(
-            "POST",
-            "connectors",
-            payload,
-            expected=frozenset({200, 201}),
-            sensitive_values=(password,),
-        )
+        deadline = monotonic() + readiness_timeout_seconds
+        while True:
+            post_res = client.request(
+                "POST",
+                "connectors",
+                payload,
+                expected=frozenset({200, 201, 404, 409, 500, 503}),
+                sensitive_values=(password,),
+            )
+            if post_res.status in (200, 201, 409):
+                break
+            if monotonic() >= deadline:
+                raise BootstrapError(
+                    f"POST connectors failed with HTTP {post_res.status}"
+                )
+            sleep(readiness_poll_interval_seconds)
         result = "created"
     else:
         existing_config = existing.body

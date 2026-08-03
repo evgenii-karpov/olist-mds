@@ -6,7 +6,7 @@
       "entity": "customers",
       "contract_version": 2,
       "path": "customers/v2.json",
-      "contract_sha256": "bba38506a4ae3fca4d36d1d6076e5bdd537c58e409d6aa0dd6d287b3bcfc8c78",
+      "contract_sha256": "682b1230c60530ecc22678b5c64798698f5624b29ce0e843a65cb227eebce214",
       "versions": [
         {
           "contract_version": 1,
@@ -16,7 +16,7 @@
         {
           "contract_version": 2,
           "path": "customers/v2.json",
-          "contract_sha256": "bba38506a4ae3fca4d36d1d6076e5bdd537c58e409d6aa0dd6d287b3bcfc8c78"
+          "contract_sha256": "682b1230c60530ecc22678b5c64798698f5624b29ce0e843a65cb227eebce214"
         }
       ]
     },
@@ -24,7 +24,7 @@
       "entity": "orders",
       "contract_version": 2,
       "path": "orders/v2.json",
-      "contract_sha256": "8eaf535a9841e801107f61044e6109c33bd3333f60811ae93470ccefaa5ec7ba",
+      "contract_sha256": "02d8818df97f179ae65a8b1d0c48df26aac543c8b6bc795cbdaeb080ffaa97a9",
       "versions": [
         {
           "contract_version": 1,
@@ -34,7 +34,7 @@
         {
           "contract_version": 2,
           "path": "orders/v2.json",
-          "contract_sha256": "8eaf535a9841e801107f61044e6109c33bd3333f60811ae93470ccefaa5ec7ba"
+          "contract_sha256": "02d8818df97f179ae65a8b1d0c48df26aac543c8b6bc795cbdaeb080ffaa97a9"
         }
       ]
     },
@@ -42,7 +42,7 @@
       "entity": "order_items",
       "contract_version": 2,
       "path": "order_items/v2.json",
-      "contract_sha256": "948efd8bc1123a901ab4773da31c55c5775f179140cd091bb56acd4c7ceb7a47",
+      "contract_sha256": "661d136d70d3c82b0ae3339283991cbf4615084b1c2b4f8c519fd4e533f38fd1",
       "versions": [
         {
           "contract_version": 1,
@@ -52,7 +52,7 @@
         {
           "contract_version": 2,
           "path": "order_items/v2.json",
-          "contract_sha256": "948efd8bc1123a901ab4773da31c55c5775f179140cd091bb56acd4c7ceb7a47"
+          "contract_sha256": "661d136d70d3c82b0ae3339283991cbf4615084b1c2b4f8c519fd4e533f38fd1"
         }
       ]
     },
@@ -60,7 +60,7 @@
       "entity": "order_payments",
       "contract_version": 2,
       "path": "order_payments/v2.json",
-      "contract_sha256": "8b008d9d6ef76be6952cca4dffd5254a954f25c592a796396d0a9501c0252324",
+      "contract_sha256": "24f3c18d7d99039c41fe0f80da643189582dc156a97972a40243dca2063632a6",
       "versions": [
         {
           "contract_version": 1,
@@ -70,7 +70,7 @@
         {
           "contract_version": 2,
           "path": "order_payments/v2.json",
-          "contract_sha256": "8b008d9d6ef76be6952cca4dffd5254a954f25c592a796396d0a9501c0252324"
+          "contract_sha256": "24f3c18d7d99039c41fe0f80da643189582dc156a97972a40243dca2063632a6"
         }
       ]
     },
@@ -78,7 +78,7 @@
       "entity": "order_reviews",
       "contract_version": 2,
       "path": "order_reviews/v2.json",
-      "contract_sha256": "403b3a1de1f36d24a40e9d59c2cd5025088d3feea864f64882387620bd9d5e5f",
+      "contract_sha256": "2f7bd257a3f728b74821a366fd0504252e7ef9dea6a923e3811ab8366be5cd15",
       "versions": [
         {
           "contract_version": 1,
@@ -88,7 +88,7 @@
         {
           "contract_version": 2,
           "path": "order_reviews/v2.json",
-          "contract_sha256": "403b3a1de1f36d24a40e9d59c2cd5025088d3feea864f64882387620bd9d5e5f"
+          "contract_sha256": "2f7bd257a3f728b74821a366fd0504252e7ef9dea6a923e3811ab8366be5cd15"
         }
       ]
     },
@@ -96,7 +96,7 @@
       "entity": "products",
       "contract_version": 2,
       "path": "products/v2.json",
-      "contract_sha256": "22180b558c48c3b2b39e8c877da2810c48b562278e71adfeaaa751d1c712a19d",
+      "contract_sha256": "4eb6b0ade33f80cecc8bb983ccf57668ddafcce7bbc5ee32da94a12614f63f83",
       "versions": [
         {
           "contract_version": 1,
@@ -106,7 +106,7 @@
         {
           "contract_version": 2,
           "path": "products/v2.json",
-          "contract_sha256": "22180b558c48c3b2b39e8c877da2810c48b562278e71adfeaaa751d1c712a19d"
+          "contract_sha256": "4eb6b0ade33f80cecc8bb983ccf57668ddafcce7bbc5ee32da94a12614f63f83"
         }
       ]
     },
@@ -114,7 +114,7 @@
       "entity": "sellers",
       "contract_version": 2,
       "path": "sellers/v2.json",
-      "contract_sha256": "4d55957e19128b1dd7e8930838e7d3f4ebe7f1893674f10f6b6fa4d839967a0b",
+      "contract_sha256": "21ad6d0476c77fd0f75def8698e2de528bd397af2fcdafc93f99c73e3262e0f5",
       "versions": [
         {
           "contract_version": 1,
@@ -124,7 +124,7 @@
         {
           "contract_version": 2,
           "path": "sellers/v2.json",
-          "contract_sha256": "4d55957e19128b1dd7e8930838e7d3f4ebe7f1893674f10f6b6fa4d839967a0b"
+          "contract_sha256": "21ad6d0476c77fd0f75def8698e2de528bd397af2fcdafc93f99c73e3262e0f5"
         }
       ]
     },
@@ -132,7 +132,7 @@
       "entity": "product_category_translation",
       "contract_version": 2,
       "path": "product_category_translation/v2.json",
-      "contract_sha256": "dd764dc1e33b6e366e1b0977611ab29f95ccfdcb6e700a4659998af20caf3e84",
+      "contract_sha256": "f80dbe6feca984e028135273e80e6b528618c01e0b04e47af4b4089aecb2e9b9",
       "versions": [
         {
           "contract_version": 1,
@@ -142,7 +142,7 @@
         {
           "contract_version": 2,
           "path": "product_category_translation/v2.json",
-          "contract_sha256": "dd764dc1e33b6e366e1b0977611ab29f95ccfdcb6e700a4659998af20caf3e84"
+          "contract_sha256": "f80dbe6feca984e028135273e80e6b528618c01e0b04e47af4b4089aecb2e9b9"
         }
       ]
     }

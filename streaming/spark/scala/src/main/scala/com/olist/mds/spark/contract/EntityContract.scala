@@ -18,7 +18,11 @@ final case class EntityContract(
     keyReaderSchema: String,
     valueReaderSchema: String,
     allowedKeyFingerprints: Set[String],
-    allowedValueFingerprints: Set[String]
+    allowedValueFingerprints: Set[String],
+    allowedKeySchemaIds: Set[Int],
+    allowedValueSchemaIds: Set[Int],
+    allowedKeyWriterSchemas: Map[Int, String],
+    allowedValueWriterSchemas: Map[Int, String]
 ) {
   def toChangesSparkSchema: org.apache.spark.sql.types.StructType = {
     import org.apache.spark.sql.types._

@@ -143,7 +143,10 @@ prepared_versions AS
     SELECT
         *,
         if(
-            is_snapshot,
+            is_snapshot
+                OR source_ts = min(source_ts) OVER (
+                    PARTITION BY product_id
+                ),
             toDateTime64('1900-01-01 00:00:00', 6, 'UTC'),
             source_ts
         ) AS valid_from,

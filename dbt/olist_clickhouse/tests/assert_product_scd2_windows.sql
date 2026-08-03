@@ -2,7 +2,10 @@ WITH invalid_windows AS
 (
     SELECT *
     FROM {{ ref('dim_product_scd2') }}
-    WHERE valid_to IS NOT NULL AND valid_to <= valid_from
+    WHERE
+        sync_run_seq = {{ sync_run_seq_sql() }}
+        AND valid_to IS NOT NULL
+        AND valid_to <= valid_from
 ),
 
 overlaps AS
@@ -15,7 +18,8 @@ overlaps AS
     FROM {{ ref('dim_product_scd2') }} AS left_side
     INNER JOIN {{ ref('dim_product_scd2') }} AS right_side
         ON
-            left_side.sync_run_seq = right_side.sync_run_seq
+            left_side.sync_run_seq = {{ sync_run_seq_sql() }}
+            AND left_side.sync_run_seq = right_side.sync_run_seq
             AND left_side.product_id = right_side.product_id
             AND left_side.product_key < right_side.product_key
             AND left_side.valid_from

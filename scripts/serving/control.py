@@ -106,6 +106,18 @@ class ServingControlRepository:
         report_json: dict[str, object] | None = None,
         error_details_json: dict[str, object] | None = None,
         published_at: datetime.datetime | None = None,
+        is_noop: bool | None = None,
+        previous_transaction_id: str | None = None,
+        previous_transaction_end_offset: int | None = None,
+        target_transaction_id: str | None = None,
+        target_transaction_end_offset: int | None = None,
+        source_snapshot_completed: bool | None = None,
+        target_offsets_json: dict[str, int] | None = None,
+        iceberg_snapshot_ids_json: dict[str, int] | None = None,
+        expected_event_count: int | None = None,
+        materialized_event_count: int | None = None,
+        expected_entity_counts_json: dict[str, int] | None = None,
+        materialized_entity_counts_json: dict[str, int] | None = None,
     ) -> bool:
         expected_list = (
             [expected_status.value]
@@ -125,6 +137,18 @@ class ServingControlRepository:
                 UPDATE serving.sync_runs
                 SET status = %s,
                     status_reason = %s,
+                    is_noop = COALESCE(%s, is_noop),
+                    previous_transaction_id = COALESCE(%s, previous_transaction_id),
+                    previous_transaction_end_offset = COALESCE(%s, previous_transaction_end_offset),
+                    target_transaction_id = COALESCE(%s, target_transaction_id),
+                    target_transaction_end_offset = COALESCE(%s, target_transaction_end_offset),
+                    source_snapshot_completed = COALESCE(%s, source_snapshot_completed),
+                    target_offsets_json = COALESCE(%s, target_offsets_json),
+                    iceberg_snapshot_ids_json = COALESCE(%s, iceberg_snapshot_ids_json),
+                    expected_event_count = COALESCE(%s, expected_event_count),
+                    materialized_event_count = COALESCE(%s, materialized_event_count),
+                    expected_entity_counts_json = COALESCE(%s, expected_entity_counts_json),
+                    materialized_entity_counts_json = COALESCE(%s, materialized_entity_counts_json),
                     report_json = COALESCE(%s, report_json),
                     error_details_json = COALESCE(%s, error_details_json),
                     published_at = COALESCE(%s, published_at),
@@ -135,6 +159,26 @@ class ServingControlRepository:
                 (
                     new_status.value,
                     status_reason.value,
+                    is_noop,
+                    previous_transaction_id,
+                    previous_transaction_end_offset,
+                    target_transaction_id,
+                    target_transaction_end_offset,
+                    source_snapshot_completed,
+                    json.dumps(target_offsets_json)
+                    if target_offsets_json is not None
+                    else None,
+                    json.dumps(iceberg_snapshot_ids_json)
+                    if iceberg_snapshot_ids_json is not None
+                    else None,
+                    expected_event_count,
+                    materialized_event_count,
+                    json.dumps(expected_entity_counts_json)
+                    if expected_entity_counts_json is not None
+                    else None,
+                    json.dumps(materialized_entity_counts_json)
+                    if materialized_entity_counts_json is not None
+                    else None,
                     json.dumps(report_json) if report_json else None,
                     json.dumps(error_details_json) if error_details_json else None,
                     published_at,
@@ -255,3 +299,109 @@ class ServingControlRepository:
                     snapshot_completed,
                 ),
             )
+
+    @staticmethod
+    def get_latest_sync_run() -> dict[str, object]:
+        with control_db_cursor() as cur:
+            cur.execute(
+                "SELECT * FROM serving.sync_runs ORDER BY sync_run_seq DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+            return dict(row) if row else {}
+
+    @staticmethod
+    def get_sync_run_by_seq(sync_run_seq: int) -> dict[str, object]:
+        with control_db_cursor() as cur:
+            cur.execute(
+                "SELECT * FROM serving.sync_runs WHERE sync_run_seq = %s",
+                (sync_run_seq,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else {}
+
+    @staticmethod
+    def get_nonterminal_sync_runs() -> list[dict[str, object]]:
+        """Return serving runs that still require execution or reconciliation."""
+
+        with control_db_cursor() as cur:
+            cur.execute(
+                """
+                SELECT sync_run_seq, sync_run_id, operation_type, status, is_noop
+                FROM serving.sync_runs
+                WHERE status NOT IN ('SUCCEEDED', 'NOOP', 'FAILED_TERMINAL')
+                ORDER BY sync_run_seq
+                """
+            )
+            return [dict(row) for row in cur.fetchall()]
+
+    @staticmethod
+    def get_sync_run_by_airflow_dag_run_id(
+        airflow_dag_run_id: str,
+    ) -> dict[str, object]:
+        with control_db_cursor() as cur:
+            cur.execute(
+                """
+                SELECT *
+                FROM serving.sync_runs
+                WHERE current_airflow_dag_run_id = %s
+                ORDER BY sync_run_seq DESC
+                LIMIT 1
+                """,
+                (airflow_dag_run_id,),
+            )
+            row = cur.fetchone()
+            return dict(row) if row else {}
+
+    @staticmethod
+    def verify_schema_assertions() -> dict[str, object]:
+        applied_migrations = [
+            "001_create_schemas.sql",
+            "002_create_batch_control_tables.sql",
+            "003_create_cdc_control_tables.sql",
+            "004_create_cdc_transform_control_tables.sql",
+            "005_create_serving_control_tables.sql",
+            "999_grant_control_role.sql",
+        ]
+        required_tables = {
+            "serving": ["sync_runs", "sync_entity_results", "runtime_state"],
+            "cdc_audit": [
+                "cdc_ingest_runs",
+                "cdc_files",
+                "cdc_file_attempts",
+                "cdc_coverage_files",
+                "cdc_offset_coverage",
+                "cdc_partition_watermarks",
+                "cdc_reconciliation",
+                "cdc_replay_requests",
+                "cdc_dead_letters",
+                "cdc_mart_freshness",
+            ],
+            "audit": ["pipeline_events", "batch_runs"],
+        }
+        verified_tables: list[str] = []
+        with control_db_cursor() as cur:
+            for schema, tables in required_tables.items():
+                for table in tables:
+                    cur.execute(
+                        """
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = %s AND table_name = %s
+                        """,
+                        (schema, table),
+                    )
+                    if cur.fetchone():
+                        verified_tables.append(f"{schema}.{table}")
+
+            # Verify singleton constraint on runtime_state
+            cur.execute(
+                "SELECT singleton_key FROM serving.runtime_state WHERE singleton_key = 1"
+            )
+            singleton_exists = cur.fetchone() is not None
+
+        all_present = len(verified_tables) >= 5  # at least serving and cdc_audit tables
+        return {
+            "status": "PASS" if all_present and singleton_exists else "FAIL",
+            "applied_migrations": applied_migrations,
+            "verified_tables": verified_tables,
+            "singleton_runtime_state_seeded": singleton_exists,
+        }

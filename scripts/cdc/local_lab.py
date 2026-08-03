@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -21,6 +22,7 @@ import sys
 import tempfile
 import time
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -48,6 +50,16 @@ ALL_ENTITIES = (
     "product_category_translation",
 )
 MYSQL_TABLES = (*ALL_ENTITIES, "geolocation")
+GOLD_MODELS = (
+    "dim_customer_scd2",
+    "dim_date",
+    "dim_order_status",
+    "dim_product_scd2",
+    "dim_seller",
+    "fact_order_items",
+    "mart_daily_revenue",
+    "mart_monthly_arpu",
+)
 PINNED_IMAGES = {
     "postgres:17.10",
     "mysql:8.4.10",
@@ -194,7 +206,11 @@ def _run(
 def _emit(command: str, status: str, **fields: Any) -> int:
     payload: dict[str, Any] = {"command": command, "status": status, **fields}
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str))
-    return 0 if status == "ready" else 1
+    # Lifecycle commands use a small vocabulary of successful terminal
+    # states.  ``succeeded`` is the authoritative result for finite serving
+    # operations; treating it as a shell failure makes the E2E harness reject
+    # a successful Airflow run.
+    return 0 if status in {"ready", "succeeded", "success", "pass"} else 1
 
 
 def _read_single_line(path: Path, label: str) -> str:
@@ -292,27 +308,88 @@ def _port_observations() -> dict[str, str]:
 
 
 def _compose_up(
-    *, profiles: Sequence[str], build: bool, timeout: float, wait: bool = True
+    *,
+    profiles: Sequence[str],
+    build: bool,
+    timeout: float,
+    wait: bool = False,
+    required_services: Sequence[str] = (),
+    services: Sequence[str] = (),
 ) -> None:
     args = ["up", "-d"]
     if wait:
         args.append("--wait")
     if build:
         args.append("--build")
+    args.extend(services)
     result = _run(
         compose_command(*args, profiles=profiles),
         timeout=timeout,
         check=False,
     )
     if result.returncode == 0:
-        return
+        if not required_services:
+            return
+        deadline = time.monotonic() + max(timeout, 180.0)
+        required = set(required_services)
+        while True:
+            records = _compose_records(profiles)
+            by_service = {
+                str(item.get("Service")): item
+                for item in records
+                if item.get("Service")
+            }
+            missing = sorted(required - by_service.keys())
+            failures: list[str] = []
+            pending: list[str] = []
+            for item in records:
+                state = str(item.get("State", "")).lower()
+                exit_code = item.get("ExitCode")
+                if state == "exited" and exit_code not in (0, "0", None):
+                    failures.append(
+                        f"{item.get('Service', 'unknown')} exited {exit_code}"
+                    )
+            for service in sorted(required & by_service.keys()):
+                item = by_service[service]
+                state = str(item.get("State", "")).lower()
+                exit_code = item.get("ExitCode")
+                health = str(item.get("Health", "")).lower()
+                if state == "exited" and exit_code not in (0, "0", None):
+                    failures.append(f"{service} exited {exit_code}")
+                elif state != "running":
+                    pending.append(f"{service} {state or 'unknown'}")
+                elif health not in ("", "none", "healthy"):
+                    pending.append(f"{service} health {health}")
+            if failures:
+                raise LabError(
+                    "required Compose services failed: " + "; ".join(failures)
+                )
+            if not missing and not pending:
+                return
+            if time.monotonic() >= deadline:
+                details = [f"missing {service}" for service in missing] + pending
+                raise LabError(
+                    "required Compose services did not become ready before timeout"
+                    + (": " + "; ".join(details) if details else "")
+                )
+            time.sleep(2)
+
+    # A failed `up -d` is never a ready state.  In particular, a failed
+    # image build can leave the previously started platform containers
+    # running; treating those records as success hides the actual serving
+    # failure and makes the caller report a misleading connection error
+    # later (for example, Airflow status code 0).
+    if not wait:
+        detail = redact_text((result.stderr or result.stdout or "").strip())
+        detail = detail[-2000:] if detail else "no diagnostic output"
+        raise LabError(f"compose up exited {result.returncode}: {detail}")
 
     # Compose returns 1 from `up --wait` when the graph contains a
     # service_completed_successfully one-shot service that exited with code
     # zero.  That is a successful platform state for J1 (for example,
     # iceberg-migration).  A dependent service can still be health=starting
     # at that instant, so keep polling the bounded Compose state briefly.
-    deadline = time.monotonic() + min(timeout, 180.0)
+    deadline = time.monotonic() + max(timeout, 180.0)
     while True:
         records = _compose_records(profiles)
         failures: list[str] = []
@@ -325,6 +402,8 @@ def _compose_up(
                     failures.append(
                         f"{item.get('Service', 'unknown')} exited {exit_code}"
                     )
+            elif state in ("created", "starting", "restarting"):
+                transient = True
             elif state != "running":
                 failures.append(
                     f"{item.get('Service', 'unknown')} state {state or 'unknown'}"
@@ -341,7 +420,7 @@ def _compose_up(
         if records and not transient:
             return
         if time.monotonic() >= deadline:
-            pending = "; ".join(
+            pending_detail = "; ".join(
                 f"{item.get('Service', 'unknown')} {item.get('Health', item.get('State', 'unknown'))}"
                 for item in records
                 if item.get("State") == "running"
@@ -349,7 +428,7 @@ def _compose_up(
             )
             raise LabError(
                 "compose platform did not become ready before timeout"
-                + (f": {pending}" if pending else "")
+                + (f": {pending_detail}" if pending_detail else "")
             )
         time.sleep(2)
 
@@ -369,6 +448,39 @@ def _compose_records(profiles: Sequence[str]) -> list[dict[str, Any]]:
         if isinstance(item, dict):
             records.append(item)
     return records
+
+
+def _require_running_services(
+    profiles: Sequence[str], required_services: Sequence[str]
+) -> None:
+    """Verify already-started services without replaying one-shot bootstrap jobs."""
+
+    records = _compose_records(profiles)
+    by_service = {
+        str(item.get("Service")): item for item in records if item.get("Service")
+    }
+    missing = sorted(set(required_services) - by_service.keys())
+    if missing:
+        raise LabError(
+            "required Compose services are not present: " + ", ".join(missing)
+        )
+
+    failures: list[str] = []
+    for service in required_services:
+        item = by_service[service]
+        state = str(item.get("State", "")).lower()
+        health = str(item.get("Health", "")).lower()
+        exit_code = item.get("ExitCode")
+        if state != "running":
+            failures.append(f"{service} state={state or 'unknown'}")
+        elif health not in ("", "none", "healthy"):
+            failures.append(f"{service} health={health}")
+        elif exit_code not in (None, "", 0, "0"):
+            failures.append(f"{service} exit_code={exit_code}")
+    if failures:
+        raise LabError(
+            "required Compose services are not ready: " + "; ".join(failures)
+        )
 
 
 def _up(args: argparse.Namespace) -> int:
@@ -464,7 +576,7 @@ def _http_json(url: str, *, timeout: float = 10.0) -> tuple[int, Any]:
                 return response.status, None
     except HTTPError as exc:
         return exc.code, None
-    except (URLError, TimeoutError):
+    except (URLError, TimeoutError, OSError, Exception):
         return 0, None
 
 
@@ -777,7 +889,202 @@ def _status(args: argparse.Namespace) -> int:
     return _emit("status", "ready" if ready else "blocked", **details)
 
 
+def _streaming_status_paths() -> dict[str, Path]:
+    return {
+        "bronze": ROOT / "docker" / "spark" / "status" / "bronze" / "status.json",
+        "silver": ROOT / "docker" / "spark" / "status" / "silver" / "status.json",
+    }
+
+
+def _read_streaming_status() -> dict[str, dict[str, Any]]:
+    statuses: dict[str, dict[str, Any]] = {}
+    for name, path in _streaming_status_paths().items():
+        if not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            statuses[name] = value
+    return statuses
+
+
+def _streaming_query_ids(statuses: dict[str, dict[str, Any]]) -> dict[str, str]:
+    query_ids: dict[str, str] = {}
+    for service, status in statuses.items():
+        queries = status.get("queries")
+        if not isinstance(queries, list):
+            continue
+        ids = sorted(
+            str(query.get("query_id"))
+            for query in queries
+            if isinstance(query, dict)
+            and isinstance(query.get("query_id"), str)
+            and query.get("query_id")
+        )
+        if ids:
+            query_ids[service] = ",".join(ids)
+    return query_ids
+
+
+def _utc_timestamp(value: object) -> float | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _wait_streaming_ready(
+    timeout: float,
+    previous_query_ids: dict[str, str],
+    restart_barrier_at_utc: str | None = None,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + max(timeout, 30.0)
+    restart_barrier_epoch = _utc_timestamp(restart_barrier_at_utc)
+    if previous_query_ids and restart_barrier_epoch is None:
+        raise LabError("restart barrier is missing a valid stopped_at_utc timestamp")
+
+    while time.monotonic() < deadline:
+        statuses = _read_streaming_status()
+        query_ids = _streaming_query_ids(statuses)
+        ready = set(statuses) == {"bronze", "silver"} and set(query_ids) == {
+            "bronze",
+            "silver",
+        }
+        if ready:
+            for status in statuses.values():
+                queries = status.get("queries")
+                if status.get("overall_state") != "READY" or not isinstance(
+                    queries, list
+                ):
+                    ready = False
+                    break
+                if any(
+                    not isinstance(query, dict) or query.get("state") != "RUNNING"
+                    for query in queries
+                ):
+                    ready = False
+                    break
+        if ready:
+            status_timestamps = {
+                service: _utc_timestamp(status.get("updated_at_utc"))
+                for service, status in statuses.items()
+            }
+            freshness_verified = bool(previous_query_ids)
+            if previous_query_ids:
+                assert restart_barrier_epoch is not None
+                freshness_verified = all(
+                    timestamp is not None and timestamp > restart_barrier_epoch
+                    for timestamp in status_timestamps.values()
+                )
+            if previous_query_ids and not freshness_verified:
+                # Structured Streaming query IDs are stable across checkpoint
+                # recovery.  Freshness is therefore proven by status files
+                # written after the stop barrier, not by a changed query ID.
+                time.sleep(2)
+                continue
+            return {
+                "new_query_ids": query_ids,
+                "old_query_ids": previous_query_ids,
+                "freshness_verified": freshness_verified,
+                "freshness_basis": (
+                    "status_updated_at_after_restart_barrier"
+                    if previous_query_ids
+                    else "initial_start"
+                ),
+                "restart_barrier_at_utc": restart_barrier_at_utc,
+                "status_files": {
+                    service: {
+                        "updated_at_utc": status.get("updated_at_utc"),
+                        "query_count": len(status.get("queries", [])),
+                    }
+                    for service, status in statuses.items()
+                },
+            }
+        time.sleep(2)
+    raise LabError(
+        "streaming status files did not prove fresh READY queries before timeout"
+    )
+
+
+def _stop_streaming(_: argparse.Namespace) -> int:
+    barrier_path = ROOT / "docker" / "spark" / "status" / ".restart-barrier.json"
+    statuses = _read_streaming_status()
+    previous_query_ids = _streaming_query_ids(statuses)
+    try:
+        if set(previous_query_ids) != {"bronze", "silver"}:
+            raise LabError(
+                "cannot prove a streaming restart: Bronze/Silver READY query IDs are missing"
+            )
+        if set(statuses) != {"bronze", "silver"} or any(
+            status.get("overall_state") != "READY"
+            or not isinstance(status.get("queries"), list)
+            or any(
+                not isinstance(query, dict) or query.get("state") != "RUNNING"
+                for query in status.get("queries", [])
+            )
+            for status in statuses.values()
+        ):
+            raise LabError(
+                "cannot prove a streaming restart: Bronze/Silver are not both READY"
+            )
+        _run(
+            compose_command(
+                "stop",
+                "spark-bronze",
+                "spark-silver",
+                profiles=PLATFORM_PROFILES + STREAMING_PROFILES,
+            ),
+            timeout=180,
+        )
+        for path in _streaming_status_paths().values():
+            with contextlib.suppress(FileNotFoundError):
+                path.unlink()
+        stopped_at_utc = datetime.now(UTC).isoformat()
+        barrier_path.parent.mkdir(parents=True, exist_ok=True)
+        barrier_path.write_text(
+            json.dumps(
+                {
+                    "old_query_ids": previous_query_ids,
+                    "stopped_at_utc": stopped_at_utc,
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+    except (LabError, OSError) as exc:
+        return _emit("stop-streaming", "failed", error=redact_text(str(exc)))
+    return _emit(
+        "stop-streaming",
+        "ready",
+        old_query_ids=previous_query_ids,
+        status_files_removed=True,
+    )
+
+
 def _start_streaming(args: argparse.Namespace) -> int:
+    barrier_path = ROOT / "docker" / "spark" / "status" / ".restart-barrier.json"
+    previous_query_ids: dict[str, str] = {}
+    restart_barrier_at_utc: str | None = None
+    if barrier_path.is_file():
+        try:
+            barrier = json.loads(barrier_path.read_text(encoding="utf-8"))
+            raw_ids = barrier.get("old_query_ids") if isinstance(barrier, dict) else {}
+            raw_stopped_at = (
+                barrier.get("stopped_at_utc") if isinstance(barrier, dict) else None
+            )
+            if isinstance(raw_ids, dict):
+                previous_query_ids = {
+                    str(key): str(value) for key, value in raw_ids.items()
+                }
+            if isinstance(raw_stopped_at, str):
+                restart_barrier_at_utc = raw_stopped_at
+        except (OSError, json.JSONDecodeError):
+            previous_query_ids = {}
+            restart_barrier_at_utc = None
     try:
         timeout = getattr(args, "timeout", 300.0)
         _compose_up(
@@ -785,15 +1092,242 @@ def _start_streaming(args: argparse.Namespace) -> int:
             build=False,
             timeout=max(timeout, 300.0),
             wait=False,
+            required_services=("spark-bronze", "spark-silver"),
         )
+        readiness: dict[str, Any] = {}
+        if getattr(args, "wait_ready", False) is True:
+            readiness = _wait_streaming_ready(
+                timeout, previous_query_ids, restart_barrier_at_utc
+            )
+        with contextlib.suppress(FileNotFoundError):
+            barrier_path.unlink()
     except LabError as exc:
         return _emit("start-streaming", "failed", error=redact_text(str(exc)))
-    return _emit("start-streaming", "ready")
+    return _emit("start-streaming", "ready", **readiness)
+
+
+def _start_serving_observer(args: argparse.Namespace) -> int:
+    """Start ClickHouse's Iceberg read path without starting Airflow."""
+
+    try:
+        _compose_up(
+            profiles=SERVING_PROFILES,
+            build=False,
+            timeout=max(getattr(args, "timeout", 300.0), 300.0),
+            services=("clickhouse", "clickhouse-init"),
+            required_services=("clickhouse",),
+        )
+    except LabError as exc:
+        return _emit("start-serving-observer", "failed", error=redact_text(str(exc)))
+    return _emit(
+        "start-serving-observer",
+        "ready",
+        services=["clickhouse", "clickhouse-init"],
+        airflow_started=False,
+    )
+
+
+def _start_serving(args: argparse.Namespace) -> int:
+    try:
+        timeout = getattr(args, "timeout", DEFAULT_BOOTSTRAP_TIMEOUT)
+        _compose_up(
+            profiles=SERVING_PROFILES,
+            build=bool(getattr(args, "build", False)),
+            timeout=max(timeout, 300.0),
+            wait=False,
+            required_services=("clickhouse", "airflow"),
+        )
+    except LabError as exc:
+        return _emit("start-serving", "failed", error=redact_text(str(exc)))
+    return _emit(
+        "start-serving",
+        "ready",
+        profiles=list(SERVING_PROFILES),
+        required_services=["clickhouse", "airflow"],
+    )
+
+
+def _silver_audit_gap() -> int | None:
+    """Return Silver transactions that have no committed business audit row.
+
+    Spark can publish a Silver snapshot before the transaction-normalization
+    query records its corresponding audit boundary.  A status-file-only
+    readiness check can therefore let serving sync observe a false NOOP.  A
+    ``None`` result means the diagnostic query was unavailable; callers must
+    keep waiting rather than treating that as caught up.
+    """
+
+    try:
+        from scripts.serving.clickhouse import clickhouse_query
+
+        query = """
+        SELECT count() AS gap_count
+        FROM
+        (
+            SELECT DISTINCT transaction_id
+            FROM
+            (
+                SELECT transaction_id
+                FROM lakehouse.`silver.customers_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.orders_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.order_items_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.order_payments_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.order_reviews_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.products_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.sellers_changes`
+                WHERE transaction_id IS NOT NULL
+                UNION ALL
+                SELECT transaction_id
+                FROM lakehouse.`silver.product_category_translation_changes`
+                WHERE transaction_id IS NOT NULL
+            )
+        ) AS silver_transactions
+        WHERE silver_transactions.transaction_id NOT IN
+        (
+            SELECT transaction_id
+            FROM lakehouse.`audit.mysql_transactions`
+            WHERE status = 'COMPLETE' AND coalesce(event_count, 0) > 0
+        )
+        """
+        rows = clickhouse_query(query)
+        value = rows[0].get("gap_count") if rows else None
+        return int(value) if isinstance(value, (int, float, str)) else None
+    except Exception:
+        return None
+
+
+def _silver_kafka_lag() -> int | None:
+    """Return business-topic records not yet committed through Silver.
+
+    Bronze is compared with Kafka high-watermarks so a source record that has
+    not reached Spark at all is visible to the barrier.  Silver progress is
+    compared only with non-tombstone Bronze records because a tombstone is
+    intentionally represented by Bronze/progress metadata rather than a new
+    Silver business row.
+    """
+
+    try:
+        from confluent_kafka import Consumer, TopicPartition
+        from scripts.serving.clickhouse import clickhouse_query
+
+        progress_rows = clickhouse_query(
+            """
+            SELECT entity, kafka_partition, max(last_kafka_offset) AS last_kafka_offset
+            FROM lakehouse.`audit.silver_progress`
+            GROUP BY entity, kafka_partition
+            """
+        )
+        progress: dict[tuple[str, int], int] = {}
+        for row in progress_rows:
+            entity = row.get("entity")
+            partition = row.get("kafka_partition")
+            offset = row.get("last_kafka_offset")
+            if (
+                isinstance(entity, str)
+                and isinstance(partition, (int, float, str))
+                and isinstance(offset, (int, float, str))
+            ):
+                progress[(entity, int(partition))] = int(offset)
+
+        bronze_rows = clickhouse_query(
+            """
+            SELECT
+                topic,
+                partition,
+                max(offset) AS last_bronze_offset,
+                maxIf(offset, is_tombstone = 0) AS last_bronze_data_offset
+            FROM lakehouse.`bronze.mysql_cdc_records`
+            WHERE topic LIKE 'olist_cdc.olist_oltp.%'
+            GROUP BY topic, partition
+            """
+        )
+        bronze: dict[tuple[str, int], tuple[int, int]] = {}
+        for row in bronze_rows:
+            topic = row.get("topic")
+            partition = row.get("partition")
+            last_offset = row.get("last_bronze_offset")
+            last_data_offset = row.get("last_bronze_data_offset")
+            if (
+                isinstance(topic, str)
+                and isinstance(partition, (int, float, str))
+                and isinstance(last_offset, (int, float, str))
+                and isinstance(last_data_offset, (int, float, str))
+            ):
+                entity = topic.rsplit(".", 1)[-1]
+                bronze[(entity, int(partition))] = (
+                    int(last_offset),
+                    int(last_data_offset),
+                )
+
+        consumer = Consumer(
+            {
+                "bootstrap.servers": os.environ.get(
+                    "KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092"
+                ),
+                "group.id": "olist-local-lab-caught-up-check",
+                "enable.auto.commit": False,
+            }
+        )
+        try:
+            lag = 0
+            for entity in ALL_ENTITIES:
+                topic = f"olist_cdc.olist_oltp.{entity}"
+                metadata = consumer.list_topics(topic=topic, timeout=10)
+                topic_metadata = metadata.topics.get(topic)
+                if topic_metadata is None or topic_metadata.error is not None:
+                    return None
+                for partition in topic_metadata.partitions:
+                    high_watermark = consumer.get_watermark_offsets(
+                        TopicPartition(topic, partition), timeout=10, cached=False
+                    )[1]
+                    expected_offset = high_watermark - 1
+                    if expected_offset < 0:
+                        continue
+                    bronze_offsets = bronze.get((entity, int(partition)))
+                    if bronze_offsets is None or bronze_offsets[0] < expected_offset:
+                        lag += (
+                            expected_offset + 1
+                            if bronze_offsets is None
+                            else expected_offset - bronze_offsets[0]
+                        )
+                        continue
+                    expected_data_offset = bronze_offsets[1]
+                    if expected_data_offset < 0:
+                        continue
+                    observed_offset = progress.get((entity, int(partition)))
+                    if observed_offset is None:
+                        lag += expected_data_offset + 1
+                    elif observed_offset < expected_data_offset:
+                        lag += expected_data_offset - observed_offset
+            return lag
+        finally:
+            consumer.close()
+    except Exception:
+        return None
 
 
 def _wait_caught_up(args: argparse.Namespace) -> int:
     timeout = getattr(args, "timeout", 1200.0)
     deadline = time.monotonic() + timeout
+    ready_observations = 0
     while time.monotonic() < deadline:
         status_file = ROOT / "docker" / "spark" / "status" / "silver" / "status.json"
         if not status_file.exists():
@@ -803,9 +1337,18 @@ def _wait_caught_up(args: argparse.Namespace) -> int:
             try:
                 data = json.loads(status_file.read_text(encoding="utf-8"))
                 if data.get("overall_state") == "READY":
-                    return _emit("wait-caught-up", "ready")
+                    audit_gap = _silver_audit_gap()
+                    kafka_lag = _silver_kafka_lag()
+                    if audit_gap == 0 and kafka_lag == 0:
+                        ready_observations += 1
+                        if ready_observations >= 2:
+                            return _emit("wait-caught-up", "ready")
+                    else:
+                        ready_observations = 0
+                else:
+                    ready_observations = 0
             except Exception:
-                pass
+                ready_observations = 0
         time.sleep(5)
     return _emit("wait-caught-up", "failed", error="streaming caught-up timed out")
 
@@ -892,6 +1435,160 @@ def _validate(args: argparse.Namespace) -> int:
     return _emit("validate", validation["status"], checks=validation["checks"])
 
 
+def _validate_serving(args: argparse.Namespace) -> int:
+    """Validate the published candidate, dbt evidence and stable views."""
+    try:
+        from scripts.serving.clickhouse import (
+            ClickHouseServingMaterializer,
+            clickhouse_query,
+            format_ch_relation,
+        )
+        from scripts.serving.control import ServingControlRepository
+        from scripts.serving.entities import ALL_SERVING_ENTITIES
+
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
+        static_validation = _validate_runtime(args, include_expensive=True)
+        if static_validation["status"] != "ready":
+            return _emit(
+                "validate-serving",
+                "failed",
+                static_validation=static_validation,
+            )
+
+        sync_run_seq = int(args.sync_run_seq)
+        sync_run_id = str(args.sync_run_id)
+        sync_run = ServingControlRepository.get_sync_run_by_seq(sync_run_seq)
+        if not sync_run:
+            raise LabError(f"Serving sync run {sync_run_seq} was not found")
+        if (
+            sync_run.get("sync_run_id") != sync_run_id
+            or sync_run.get("operation_type") != "SYNC"
+            or sync_run.get("status") != "SUCCEEDED"
+            or sync_run.get("is_noop") is not False
+        ):
+            raise LabError(
+                "Serving sync run is not a published non-NOOP candidate: "
+                + json.dumps(
+                    {
+                        "sync_run_id": sync_run.get("sync_run_id"),
+                        "operation_type": sync_run.get("operation_type"),
+                        "status": sync_run.get("status"),
+                        "is_noop": sync_run.get("is_noop"),
+                    },
+                    sort_keys=True,
+                )
+            )
+
+        def json_mapping(value: object) -> dict[str, object]:
+            if isinstance(value, dict):
+                return dict(value)
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                except json.JSONDecodeError:
+                    return {}
+                return dict(parsed) if isinstance(parsed, dict) else {}
+            return {}
+
+        report = json_mapping(sync_run.get("report_json"))
+        dbt_result = json_mapping(report.get("dbt_result"))
+        dbt_results = dbt_result.get("results")
+        dbt_command = dbt_result.get("command")
+        dbt_vars = json_mapping(dbt_result.get("vars"))
+        status_counts = json_mapping(dbt_result.get("status_counts"))
+        dbt_ok = (
+            dbt_result.get("success") is True
+            and isinstance(dbt_command, list)
+            and "build" in dbt_command
+            and "--selector" in dbt_command
+            and "serving_candidate" in dbt_command
+            and dbt_vars.get("sync_run_seq") == sync_run_seq
+            and dbt_vars.get("sync_run_id") == sync_run_id
+            and isinstance(dbt_results, list)
+            and bool(dbt_results)
+            and all(
+                str(status_counts.get(status, 0)) in ("0", "0.0")
+                or status_counts.get(status) == 0
+                for status in ("error", "fail", "skipped", "warn")
+            )
+        )
+        if not dbt_ok:
+            raise LabError(
+                "Serving sync does not contain successful candidate dbt build evidence"
+            )
+
+        def scalar_count(sql: str) -> int:
+            rows = clickhouse_query(sql)
+            value = rows[0].get("row_count") if rows else None
+            if not isinstance(value, (int, float, str)):
+                raise LabError("ClickHouse count query returned no numeric row_count")
+            return int(value)
+
+        candidate_counts = ClickHouseServingMaterializer.fetch_candidate_current_counts(
+            sync_run_seq
+        )
+        stable_counts: dict[str, int] = {}
+        for spec in ALL_SERVING_ENTITIES:
+            stable_counts[spec.entity] = scalar_count(
+                f"SELECT count() AS row_count FROM {format_ch_relation(spec.ch_current_view)}"
+            )
+        if stable_counts != candidate_counts:
+            raise LabError(
+                "Stable current views do not match the published candidate: "
+                + json.dumps(
+                    {
+                        "candidate": candidate_counts,
+                        "stable": stable_counts,
+                    },
+                    sort_keys=True,
+                )
+            )
+
+        gold_counts: dict[str, dict[str, int]] = {}
+        for model in GOLD_MODELS:
+            physical_rows = clickhouse_query(
+                f"SELECT count() AS row_count FROM gold_store.`{model}` "
+                f"WHERE sync_run_seq = {sync_run_seq}"
+            )
+            physical_value = (
+                physical_rows[0].get("row_count") if physical_rows else None
+            )
+            if not isinstance(physical_value, (int, float, str)):
+                raise LabError(f"Gold candidate table is empty or missing: {model}")
+            physical_count = int(physical_value)
+            stable_count = scalar_count(
+                f"SELECT count() AS row_count FROM gold.`{model}`"
+            )
+            if physical_count <= 0 or stable_count != physical_count:
+                raise LabError(
+                    f"Gold stable view mismatch for {model}: "
+                    f"candidate={physical_count}, stable={stable_count}"
+                )
+            gold_counts[model] = {
+                "candidate": physical_count,
+                "stable": stable_count,
+            }
+
+        return _emit(
+            "validate-serving",
+            "ready",
+            sync_run_seq=sync_run_seq,
+            sync_run_id=sync_run_id,
+            dbt={
+                "command": dbt_command,
+                "status_counts": status_counts,
+                "result_count": len(dbt_results)
+                if isinstance(dbt_results, list)
+                else 0,
+            },
+            current_views=stable_counts,
+            gold_views=gold_counts,
+            static_validation=static_validation,
+        )
+    except Exception as exc:
+        return _emit("validate-serving", "failed", error=redact_text(str(exc)))
+
+
 def _not_available(args: argparse.Namespace) -> int:
     exc = NotAvailableUntil(args.phase, args.command)
     return _emit(
@@ -907,9 +1604,12 @@ def _sync_serving(args: argparse.Namespace) -> int:
         from scripts.serving.airflow_api import AirflowApiClient
         from scripts.serving.control import ServingControlRepository
 
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
         client = AirflowApiClient()
         run_id = getattr(args, "run_id", None)
-        res = client.trigger_dag_run("olist_lakehouse_serving_sync", run_id=run_id)
+        res = client.trigger_dag_run(
+            "olist_lakehouse_serving_sync", run_id=run_id, unpause=False
+        )
         dag_run_id = str(
             (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
         )
@@ -921,24 +1621,107 @@ def _sync_serving(args: argparse.Namespace) -> int:
 
         if state == "success":
             runtime = ServingControlRepository.get_runtime_state()
-            if not runtime.get("schedules_activated_at"):
-                client.unpause_dag("olist_lakehouse_serving_sync")
-                client.unpause_dag("olist_lakehouse_serving_quality")
-                client.unpause_dag("olist_iceberg_maintenance")
+            latest_run = ServingControlRepository.get_sync_run_by_airflow_dag_run_id(
+                dag_run_id
+            )
+            if not latest_run:
+                return _emit(
+                    "sync-serving",
+                    "failed",
+                    dag_run_id=dag_run_id,
+                    error="Airflow succeeded but no authoritative serving sync run was recorded",
+                )
+            run_status = str(latest_run.get("status", ""))
+            is_noop = latest_run.get("is_noop") is True
+            if run_status not in ("SUCCEEDED", "NOOP"):
+                return _emit(
+                    "sync-serving",
+                    "failed",
+                    dag_run_id=dag_run_id,
+                    error=f"Sync run status: {run_status}",
+                )
+
+            def json_mapping(value: object) -> dict[str, object]:
+                if isinstance(value, dict):
+                    return dict(value)
+                if isinstance(value, str):
+                    try:
+                        parsed = json.loads(value)
+                    except json.JSONDecodeError:
+                        return {}
+                    return dict(parsed) if isinstance(parsed, dict) else {}
+                return {}
+
+            report = json_mapping(latest_run.get("report_json"))
+            target_offsets = json_mapping(latest_run.get("target_offsets_json"))
+            snapshots = json_mapping(latest_run.get("iceberg_snapshot_ids_json"))
+
+            if run_status == "NOOP":
+                if not is_noop or report.get("status") != "NOOP":
+                    return _emit(
+                        "sync-serving",
+                        "failed",
+                        dag_run_id=dag_run_id,
+                        error="Authoritative NOOP run has inconsistent no-op report",
+                    )
+            else:
+                expected_count = latest_run.get("expected_event_count")
+                materialized_count = latest_run.get("materialized_event_count")
+                if (
+                    is_noop
+                    or report.get("status") != "SUCCEEDED"
+                    or not latest_run.get("target_transaction_id")
+                    or not target_offsets
+                    or set(snapshots) != set(ALL_ENTITIES)
+                    or not isinstance(expected_count, (int, float, str))
+                    or int(expected_count) <= 0
+                    or not isinstance(materialized_count, (int, float, str))
+                    or int(materialized_count) != int(expected_count)
+                ):
+                    return _emit(
+                        "sync-serving",
+                        "failed",
+                        dag_run_id=dag_run_id,
+                        error="Authoritative serving sync report failed boundary/materialization checks",
+                        sync_run_seq=latest_run.get("sync_run_seq"),
+                        report=report,
+                    )
 
             return _emit(
                 "sync-serving",
                 "succeeded",
                 dag_run_id=dag_run_id,
-                sync_run_seq=runtime.get("last_published_sync_run_seq"),
-                is_noop=False,
+                sync_run_seq=latest_run.get("sync_run_seq")
+                or runtime.get("last_published_sync_run_seq"),
+                sync_run_id=latest_run.get("sync_run_id"),
+                sync_run_status=run_status,
+                is_noop=is_noop,
+                target_transaction_id=latest_run.get("target_transaction_id"),
+                target_offsets=target_offsets,
+                iceberg_snapshot_ids=snapshots,
+                expected_event_count=latest_run.get("expected_event_count"),
+                materialized_event_count=latest_run.get("materialized_event_count"),
+                expected_entity_counts=json_mapping(
+                    latest_run.get("expected_entity_counts_json")
+                ),
+                materialized_entity_counts=json_mapping(
+                    latest_run.get("materialized_entity_counts_json")
+                ),
+                dbt_result=report.get("dbt_result"),
             )
         else:
+            cancellation_requested = False
+            if state == "timeout" and dag_run_id:
+                with contextlib.suppress(Exception):
+                    cancellation_requested = client.fail_dag_run(
+                        "olist_lakehouse_serving_sync", dag_run_id
+                    )
             return _emit(
                 "sync-serving",
                 "failed",
                 dag_run_id=dag_run_id,
                 error=f"DAG run state: {state}",
+                cancellation_requested=cancellation_requested,
             )
     except Exception as exc:
         return _emit("sync-serving", "failed", error=redact_text(str(exc)))
@@ -952,13 +1735,16 @@ def _rebuild_serving(args: argparse.Namespace) -> int:
 
     try:
         from scripts.serving.airflow_api import AirflowApiClient
+        from scripts.serving.control import ServingControlRepository
 
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
         client = AirflowApiClient()
         run_id = getattr(args, "run_id", None)
         res = client.trigger_dag_run(
-            "olist_clickhouse_rebuild",
+            "olist_lakehouse_serving_rebuild",
             run_id=run_id,
             conf={"confirm_destructive": True},
+            unpause=False,
         )
         dag_run_id = str(
             (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
@@ -966,46 +1752,625 @@ def _rebuild_serving(args: argparse.Namespace) -> int:
 
         timeout = getattr(args, "timeout", 5400.0)
         state = client.poll_dag_run(
-            "olist_clickhouse_rebuild", dag_run_id, timeout_seconds=timeout
+            "olist_lakehouse_serving_rebuild", dag_run_id, timeout_seconds=timeout
         )
 
         if state == "success":
-            return _emit("rebuild-serving", "succeeded", dag_run_id=dag_run_id)
+            rebuild_run = ServingControlRepository.get_sync_run_by_airflow_dag_run_id(
+                dag_run_id
+            )
+            if not rebuild_run:
+                return _emit(
+                    "rebuild-serving",
+                    "failed",
+                    dag_run_id=dag_run_id,
+                    error="Airflow succeeded but no authoritative rebuild run was recorded",
+                )
+
+            def json_mapping(value: object) -> dict[str, object]:
+                if isinstance(value, dict):
+                    return dict(value)
+                if isinstance(value, str):
+                    try:
+                        parsed = json.loads(value)
+                    except json.JSONDecodeError:
+                        return {}
+                    return dict(parsed) if isinstance(parsed, dict) else {}
+                return {}
+
+            report = json_mapping(rebuild_run.get("report_json"))
+            snapshots = json_mapping(rebuild_run.get("iceberg_snapshot_ids_json"))
+            expected_count = rebuild_run.get("expected_event_count")
+            materialized_count = rebuild_run.get("materialized_event_count")
+            if (
+                rebuild_run.get("operation_type") != "REBUILD"
+                or rebuild_run.get("status") != "SUCCEEDED"
+                or report.get("status") != "SUCCEEDED"
+                or not snapshots
+                or not isinstance(expected_count, (int, float, str))
+                or int(expected_count) <= 0
+                or not isinstance(materialized_count, (int, float, str))
+                or int(materialized_count) != int(expected_count)
+            ):
+                return _emit(
+                    "rebuild-serving",
+                    "failed",
+                    dag_run_id=dag_run_id,
+                    sync_run_seq=rebuild_run.get("sync_run_seq"),
+                    report=report,
+                    error="Authoritative rebuild report failed parity checks",
+                )
+
+            return _emit(
+                "rebuild-serving",
+                "succeeded",
+                dag_run_id=dag_run_id,
+                sync_run_seq=rebuild_run.get("sync_run_seq"),
+                sync_run_id=rebuild_run.get("sync_run_id"),
+                expected_event_count=expected_count,
+                materialized_event_count=materialized_count,
+                entity_counts=json_mapping(
+                    rebuild_run.get("materialized_entity_counts_json")
+                ),
+                iceberg_snapshot_ids=snapshots,
+            )
         else:
+            cancellation_requested = False
+            if state == "timeout" and dag_run_id:
+                with contextlib.suppress(Exception):
+                    cancellation_requested = client.fail_dag_run(
+                        "olist_lakehouse_serving_rebuild", dag_run_id
+                    )
             return _emit(
                 "rebuild-serving",
                 "failed",
                 dag_run_id=dag_run_id,
                 error=f"DAG run state: {state}",
+                cancellation_requested=cancellation_requested,
             )
     except Exception as exc:
         return _emit("rebuild-serving", "failed", error=redact_text(str(exc)))
+
+
+def _validate_rebuild(args: argparse.Namespace) -> int:
+    """Validate one completed rebuild against Iceberg, control and Gold parity."""
+
+    try:
+        from scripts.serving.clickhouse import (
+            ClickHouseServingMaterializer,
+            clickhouse_query,
+        )
+        from scripts.serving.control import ServingControlRepository
+        from scripts.serving.entities import ALL_SERVING_ENTITIES
+
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
+        sync_run_seq = int(args.sync_run_seq)
+        sync_run_id = str(args.sync_run_id)
+        rebuild_run = ServingControlRepository.get_sync_run_by_seq(sync_run_seq)
+        if not rebuild_run:
+            raise LabError(f"Serving rebuild run {sync_run_seq} was not found")
+
+        def json_mapping(value: object) -> dict[str, object]:
+            if isinstance(value, dict):
+                return dict(value)
+            if isinstance(value, str):
+                try:
+                    parsed = json.loads(value)
+                except json.JSONDecodeError:
+                    return {}
+                return dict(parsed) if isinstance(parsed, dict) else {}
+            return {}
+
+        def as_int(value: object, label: str) -> int:
+            if not isinstance(value, (int, float, str)):
+                raise LabError(f"{label} is not numeric")
+            try:
+                return int(value)
+            except (TypeError, ValueError) as exc:
+                raise LabError(f"{label} is not numeric") from exc
+
+        def is_true(value: object) -> bool:
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, (int, float)):
+                return bool(value)
+            return isinstance(value, str) and value.strip().lower() in {
+                "1",
+                "true",
+            }
+
+        report = json_mapping(rebuild_run.get("report_json"))
+        snapshots = json_mapping(rebuild_run.get("iceberg_snapshot_ids_json"))
+        expected_entity_counts = json_mapping(
+            rebuild_run.get("expected_entity_counts_json")
+        )
+        materialized_entity_counts = json_mapping(
+            rebuild_run.get("materialized_entity_counts_json")
+        )
+        expected_event_count = as_int(
+            rebuild_run.get("expected_event_count"), "rebuild expected_event_count"
+        )
+        materialized_event_count = as_int(
+            rebuild_run.get("materialized_event_count"),
+            "rebuild materialized_event_count",
+        )
+        required_entities = set(ALL_ENTITIES)
+        if (
+            rebuild_run.get("sync_run_id") != sync_run_id
+            or rebuild_run.get("operation_type") != "REBUILD"
+            or rebuild_run.get("status") != "SUCCEEDED"
+            or report.get("operation_type") != "REBUILD"
+            or report.get("status") != "SUCCEEDED"
+            or set(snapshots) != required_entities
+            or any(
+                as_int(value, f"snapshot {entity}") <= 0
+                for entity, value in snapshots.items()
+            )
+            or set(expected_entity_counts) != required_entities
+            or set(materialized_entity_counts) != required_entities
+            or expected_event_count <= 0
+            or materialized_event_count != expected_event_count
+            or sum(
+                as_int(value, f"expected entity count {entity}")
+                for entity, value in expected_entity_counts.items()
+            )
+            != expected_event_count
+            or sum(
+                as_int(value, f"materialized entity count {entity}")
+                for entity, value in materialized_entity_counts.items()
+            )
+            != materialized_event_count
+        ):
+            raise LabError(
+                "Authoritative rebuild ledger failed structural parity checks"
+            )
+
+        dbt_result = json_mapping(report.get("dbt_result"))
+        dbt_results = dbt_result.get("results")
+        dbt_command = dbt_result.get("command")
+        dbt_vars = json_mapping(dbt_result.get("vars"))
+        status_counts = json_mapping(dbt_result.get("status_counts"))
+
+        def status_zero(status: str) -> bool:
+            value = status_counts.get(status, 0)
+            return value == 0 or str(value) in {"0", "0.0"}
+
+        if not (
+            dbt_result.get("success") is True
+            and isinstance(dbt_command, list)
+            and "build" in dbt_command
+            and "--selector" in dbt_command
+            and "serving_candidate" in dbt_command
+            and dbt_vars.get("sync_run_seq") == sync_run_seq
+            and dbt_vars.get("sync_run_id") == sync_run_id
+            and isinstance(dbt_results, list)
+            and bool(dbt_results)
+            and all(
+                status_zero(status) for status in ("error", "fail", "skipped", "warn")
+            )
+        ):
+            raise LabError(
+                "Rebuild report does not contain successful candidate dbt evidence"
+            )
+
+        iceberg_current_counts = (
+            ClickHouseServingMaterializer.fetch_iceberg_current_counts()
+        )
+        candidate_current_counts = (
+            ClickHouseServingMaterializer.fetch_candidate_current_counts(sync_run_seq)
+        )
+        stable_current_counts = ClickHouseServingMaterializer.fetch_current_counts()
+        if candidate_current_counts != iceberg_current_counts:
+            raise LabError(
+                "Rebuild candidate current counts differ from Iceberg: "
+                + json.dumps(
+                    {
+                        "iceberg": iceberg_current_counts,
+                        "candidate": candidate_current_counts,
+                    },
+                    sort_keys=True,
+                )
+            )
+        if stable_current_counts != iceberg_current_counts:
+            raise LabError(
+                "Rebuild stable current counts differ from Iceberg: "
+                + json.dumps(
+                    {
+                        "iceberg": iceberg_current_counts,
+                        "stable": stable_current_counts,
+                    },
+                    sort_keys=True,
+                )
+            )
+
+        def canonical_rows(
+            rows: list[dict[str, object]],
+            primary_key: tuple[str, ...],
+            include_deleted: bool,
+        ) -> dict[str, object]:
+            normalized: list[dict[str, object]] = []
+            for row in rows:
+                is_deleted = is_true(row.get("is_deleted"))
+                if not include_deleted and is_deleted:
+                    continue
+                normalized.append(
+                    {
+                        **{column: row.get(column) for column in primary_key},
+                        "row_hash": str(row.get("row_hash") or ""),
+                        "is_deleted": is_deleted,
+                    }
+                )
+            normalized.sort(
+                key=lambda row: tuple(
+                    str(row.get(column, "")) for column in primary_key
+                )
+            )
+            manifest_bytes = json.dumps(
+                normalized,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                default=str,
+            ).encode("utf-8")
+            return {
+                "row_count": len(normalized),
+                "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+                "rows": normalized,
+            }
+
+        iceberg_rows = ClickHouseServingMaterializer.fetch_iceberg_current_rows()
+        candidate_rows = ClickHouseServingMaterializer.fetch_candidate_current_rows(
+            sync_run_seq
+        )
+        stable_rows = ClickHouseServingMaterializer.fetch_current_rows()
+        iceberg_physical_manifests: dict[str, dict[str, object]] = {}
+        candidate_physical_manifests: dict[str, dict[str, object]] = {}
+        iceberg_visible_manifests: dict[str, dict[str, object]] = {}
+        candidate_visible_manifests: dict[str, dict[str, object]] = {}
+        stable_visible_manifests: dict[str, dict[str, object]] = {}
+        for spec in ALL_SERVING_ENTITIES:
+            iceberg_entity_rows = iceberg_rows.get(spec.entity)
+            candidate_entity_rows = candidate_rows.get(spec.entity)
+            stable_entity_rows = stable_rows.get(spec.entity)
+            if (
+                not isinstance(iceberg_entity_rows, list)
+                or not isinstance(candidate_entity_rows, list)
+                or not isinstance(stable_entity_rows, list)
+            ):
+                raise LabError(f"Rebuild row manifest is missing {spec.entity}")
+            primary_key = tuple(spec.primary_key)
+            iceberg_physical_manifests[spec.entity] = canonical_rows(
+                iceberg_entity_rows, primary_key, True
+            )
+            candidate_physical_manifests[spec.entity] = canonical_rows(
+                candidate_entity_rows, primary_key, True
+            )
+            iceberg_visible_manifests[spec.entity] = canonical_rows(
+                iceberg_entity_rows, primary_key, False
+            )
+            candidate_visible_manifests[spec.entity] = canonical_rows(
+                candidate_entity_rows, primary_key, False
+            )
+            stable_visible_manifests[spec.entity] = canonical_rows(
+                stable_entity_rows, primary_key, False
+            )
+
+        def manifest_mismatches(
+            left: dict[str, dict[str, object]],
+            right: dict[str, dict[str, object]],
+        ) -> list[str]:
+            return sorted(
+                entity
+                for entity in required_entities
+                if left.get(entity, {}).get("row_count")
+                != right.get(entity, {}).get("row_count")
+                or left.get(entity, {}).get("manifest_sha256")
+                != right.get(entity, {}).get("manifest_sha256")
+            )
+
+        physical_candidate_mismatches = manifest_mismatches(
+            iceberg_physical_manifests, candidate_physical_manifests
+        )
+        visible_candidate_mismatches = manifest_mismatches(
+            iceberg_visible_manifests, candidate_visible_manifests
+        )
+        visible_stable_mismatches = manifest_mismatches(
+            iceberg_visible_manifests, stable_visible_manifests
+        )
+        if (
+            physical_candidate_mismatches
+            or visible_candidate_mismatches
+            or visible_stable_mismatches
+        ):
+            raise LabError(
+                "Rebuild row-level manifest parity failed: "
+                + json.dumps(
+                    {
+                        "physical_candidate_mismatches": physical_candidate_mismatches,
+                        "visible_candidate_mismatches": visible_candidate_mismatches,
+                        "visible_stable_mismatches": visible_stable_mismatches,
+                        "iceberg_physical": iceberg_physical_manifests,
+                        "candidate_physical": candidate_physical_manifests,
+                        "iceberg_visible": iceberg_visible_manifests,
+                        "candidate_visible": candidate_visible_manifests,
+                        "stable_visible": stable_visible_manifests,
+                    },
+                    sort_keys=True,
+                    default=str,
+                )
+            )
+
+        gold_counts: dict[str, dict[str, int]] = {}
+        for model in GOLD_MODELS:
+            candidate_rows = clickhouse_query(
+                f"SELECT count() AS row_count FROM gold_store.`{model}` "
+                f"WHERE sync_run_seq = {sync_run_seq}"
+            )
+            stable_rows = clickhouse_query(
+                f"SELECT count() AS row_count FROM gold.`{model}`"
+            )
+            if not candidate_rows or not stable_rows:
+                raise LabError(f"Gold parity query returned no rows for {model}")
+            candidate_count = as_int(
+                candidate_rows[0].get("row_count"), f"Gold candidate count {model}"
+            )
+            stable_count = as_int(
+                stable_rows[0].get("row_count"), f"Gold stable count {model}"
+            )
+            if candidate_count <= 0 or stable_count != candidate_count:
+                raise LabError(
+                    f"Gold rebuild parity mismatch for {model}: "
+                    f"candidate={candidate_count}, stable={stable_count}"
+                )
+            gold_counts[model] = {
+                "candidate": candidate_count,
+                "stable": stable_count,
+            }
+
+        runtime = ServingControlRepository.get_runtime_state()
+        if (
+            as_int(runtime.get("last_published_sync_run_seq"), "runtime published seq")
+            != sync_run_seq
+            or not is_true(runtime.get("source_snapshot_completed"))
+            or runtime.get("lease_owner_id") is not None
+        ):
+            raise LabError("Runtime state does not describe the completed rebuild")
+
+        return _emit(
+            "validate-rebuild",
+            "ready",
+            sync_run_seq=sync_run_seq,
+            sync_run_id=sync_run_id,
+            iceberg_snapshot_ids=snapshots,
+            expected_event_count=expected_event_count,
+            materialized_event_count=materialized_event_count,
+            iceberg_current_counts=iceberg_current_counts,
+            candidate_current_counts=candidate_current_counts,
+            stable_current_counts=stable_current_counts,
+            row_manifests={
+                "iceberg_physical": iceberg_physical_manifests,
+                "candidate_physical": candidate_physical_manifests,
+                "iceberg_visible": iceberg_visible_manifests,
+                "candidate_visible": candidate_visible_manifests,
+                "stable_visible": stable_visible_manifests,
+            },
+            gold_views=gold_counts,
+            dbt={
+                "command": dbt_command,
+                "status_counts": status_counts,
+                "result_count": len(dbt_results),
+            },
+            runtime={
+                "last_published_sync_run_seq": runtime.get(
+                    "last_published_sync_run_seq"
+                ),
+                "source_snapshot_completed": runtime.get("source_snapshot_completed"),
+                "lease_owner_id": runtime.get("lease_owner_id"),
+            },
+        )
+    except Exception as exc:
+        return _emit("validate-rebuild", "failed", error=redact_text(str(exc)))
+
+
+def _validate_final(args: argparse.Namespace) -> int:
+    """Run independent final control-plane and publication checks."""
+
+    try:
+        from scripts.serving.clickhouse import (
+            ClickHouseServingMaterializer,
+            clickhouse_query,
+        )
+        from scripts.serving.control import ServingControlRepository
+
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
+        sync_run_seq = int(args.sync_run_seq)
+        sync_run_id = str(args.sync_run_id)
+        rebuild_run = ServingControlRepository.get_sync_run_by_seq(sync_run_seq)
+        if (
+            not rebuild_run
+            or rebuild_run.get("sync_run_id") != sync_run_id
+            or rebuild_run.get("operation_type") != "REBUILD"
+            or rebuild_run.get("status") != "SUCCEEDED"
+        ):
+            raise LabError(
+                "Final control ledger does not identify the completed rebuild"
+            )
+
+        report = rebuild_run.get("report_json")
+        if isinstance(report, str):
+            try:
+                report = json.loads(report)
+            except json.JSONDecodeError as exc:
+                raise LabError("Final rebuild report is not valid JSON") from exc
+        if not isinstance(report, dict):
+            raise LabError("Final rebuild report is missing")
+        report_sha = report.get("report_sha256")
+        report_without_sha = dict(report)
+        report_without_sha.pop("report_sha256", None)
+        computed_sha = hashlib.sha256(
+            json.dumps(
+                report_without_sha,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=False,
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest()
+        if report_sha != computed_sha:
+            raise LabError("Final rebuild report SHA-256 does not match its contents")
+
+        marker_rows = clickhouse_query(
+            f"""
+            SELECT sync_run_seq, sync_run_id, publication_status,
+                   source_snapshot_completed, report_json
+            FROM serving_control.published_runs_current
+            WHERE sync_run_seq = {sync_run_seq}
+            """
+        )
+        if len(marker_rows) != 1:
+            raise LabError("Final publication marker is missing or duplicated")
+        marker = marker_rows[0]
+        if (
+            str(marker.get("sync_run_id")) != sync_run_id
+            or marker.get("publication_status") != "PUBLISHED"
+            or not (
+                marker.get("source_snapshot_completed") is True
+                or str(marker.get("source_snapshot_completed", "")).lower()
+                in {"1", "true"}
+            )
+        ):
+            raise LabError(
+                "Final publication marker does not match the completed rebuild: "
+                + json.dumps(marker, sort_keys=True, default=str)
+            )
+        marker_report = marker.get("report_json")
+        if isinstance(marker_report, str):
+            try:
+                marker_report = json.loads(marker_report)
+            except json.JSONDecodeError as exc:
+                raise LabError(
+                    "Final publication marker report is not valid JSON"
+                ) from exc
+        if (
+            not isinstance(marker_report, dict)
+            or marker_report.get("report_sha256") != report_sha
+        ):
+            raise LabError("Final publication marker and control report disagree")
+
+        runtime = ServingControlRepository.get_runtime_state()
+        if (
+            str(runtime.get("last_published_sync_run_seq")) != str(sync_run_seq)
+            or runtime.get("lease_owner_id") is not None
+            or runtime.get("lease_operation") is not None
+        ):
+            raise LabError("Final runtime cursor is not settled on the rebuild")
+
+        active_runs = ServingControlRepository.get_nonterminal_sync_runs()
+        if active_runs:
+            raise LabError(
+                "Final control ledger contains non-terminal serving runs: "
+                + json.dumps(active_runs, sort_keys=True, default=str)
+            )
+
+        transaction_rows = clickhouse_query(
+            """
+            SELECT status, count() AS row_count
+            FROM lakehouse."audit.mysql_transactions"
+            WHERE status IN ('OPEN', 'REJECTED')
+            GROUP BY status
+            """
+        )
+        open_or_rejected: list[dict[str, object]] = []
+        for row in transaction_rows:
+            raw_count = row.get("row_count")
+            if isinstance(raw_count, (int, float, str)) and int(raw_count) > 0:
+                open_or_rejected.append(dict(row))
+        if open_or_rejected:
+            raise LabError(
+                "Final audit transaction inventory contains OPEN/REJECTED rows: "
+                + json.dumps(open_or_rejected, sort_keys=True, default=str)
+            )
+
+        iceberg_counts = ClickHouseServingMaterializer.fetch_iceberg_current_counts()
+        stable_counts = ClickHouseServingMaterializer.fetch_current_counts()
+        if stable_counts != iceberg_counts:
+            raise LabError(
+                "Final stable views differ from Iceberg current state: "
+                + json.dumps(
+                    {"iceberg": iceberg_counts, "stable": stable_counts},
+                    sort_keys=True,
+                )
+            )
+
+        gold_counts: dict[str, int] = {}
+        for model in GOLD_MODELS:
+            rows = clickhouse_query(f"SELECT count() AS row_count FROM gold.`{model}`")
+            value = rows[0].get("row_count") if rows else None
+            if not isinstance(value, (int, float, str)) or int(value) <= 0:
+                raise LabError(f"Final Gold view is empty or invalid: {model}")
+            gold_counts[model] = int(value)
+
+        return _emit(
+            "validate-final",
+            "ready",
+            sync_run_seq=sync_run_seq,
+            sync_run_id=sync_run_id,
+            publication_marker={
+                "sync_run_seq": marker.get("sync_run_seq"),
+                "sync_run_id": marker.get("sync_run_id"),
+                "publication_status": marker.get("publication_status"),
+            },
+            runtime={
+                "last_published_sync_run_seq": runtime.get(
+                    "last_published_sync_run_seq"
+                ),
+                "lease_owner_id": runtime.get("lease_owner_id"),
+                "lease_operation": runtime.get("lease_operation"),
+            },
+            active_runs=active_runs,
+            open_or_rejected_transactions=open_or_rejected,
+            iceberg_current_counts=iceberg_counts,
+            stable_current_counts=stable_counts,
+            gold_views=gold_counts,
+        )
+    except Exception as exc:
+        return _emit("validate-final", "failed", error=redact_text(str(exc)))
 
 
 def _run_maintenance(args: argparse.Namespace) -> int:
     try:
         from scripts.serving.airflow_api import AirflowApiClient
 
+        _require_running_services(SERVING_PROFILES, ("clickhouse", "airflow"))
         client = AirflowApiClient()
         run_id = getattr(args, "run_id", None)
-        res = client.trigger_dag_run("olist_iceberg_maintenance", run_id=run_id)
+        res = client.trigger_dag_run(
+            "olist_lakehouse_maintenance", run_id=run_id, unpause=False
+        )
         dag_run_id = str(
             (res.get("dag_run_id") if isinstance(res, dict) else run_id) or ""
         )
 
         timeout = getattr(args, "timeout", 5400.0)
         state = client.poll_dag_run(
-            "olist_iceberg_maintenance", dag_run_id, timeout_seconds=timeout
+            "olist_lakehouse_maintenance", dag_run_id, timeout_seconds=timeout
         )
 
         if state == "success":
             return _emit("run-maintenance", "succeeded", dag_run_id=dag_run_id)
         else:
+            cancellation_requested = False
+            if state == "timeout" and dag_run_id:
+                with contextlib.suppress(Exception):
+                    cancellation_requested = client.fail_dag_run(
+                        "olist_lakehouse_maintenance", dag_run_id
+                    )
             return _emit(
                 "run-maintenance",
                 "failed",
                 dag_run_id=dag_run_id,
                 error=f"DAG run state: {state}",
+                cancellation_requested=cancellation_requested,
             )
     except Exception as exc:
         return _emit("run-maintenance", "failed", error=redact_text(str(exc)))
@@ -1067,8 +2432,29 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)
     validate.set_defaults(func=_validate)
 
+    validate_serving = commands.add_parser("validate-serving")
+    validate_serving.add_argument("--sync-run-seq", type=int, required=True)
+    validate_serving.add_argument("--sync-run-id", required=True)
+    validate_serving.set_defaults(func=_validate_serving)
+
     start_streaming = commands.add_parser("start-streaming")
+    start_streaming.add_argument("--wait-ready", action="store_true")
+    start_streaming.add_argument("--timeout", type=float, default=300.0)
     start_streaming.set_defaults(func=_start_streaming)
+
+    stop_streaming = commands.add_parser("stop-streaming")
+    stop_streaming.set_defaults(func=_stop_streaming)
+
+    start_serving_observer = commands.add_parser("start-serving-observer")
+    start_serving_observer.add_argument("--timeout", type=float, default=300.0)
+    start_serving_observer.set_defaults(func=_start_serving_observer)
+
+    start_serving = commands.add_parser("start-serving")
+    start_serving.add_argument("--build", action="store_true")
+    start_serving.add_argument(
+        "--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT
+    )
+    start_serving.set_defaults(func=_start_serving)
 
     wait_caught_up = commands.add_parser("wait-caught-up")
     wait_caught_up.add_argument("--timeout", type=float, default=1200)
@@ -1084,6 +2470,16 @@ def _build_parser() -> argparse.ArgumentParser:
     rebuild_serving.add_argument("--run-id")
     rebuild_serving.add_argument("--timeout", type=float, default=5400.0)
     rebuild_serving.set_defaults(func=_rebuild_serving)
+
+    validate_rebuild = commands.add_parser("validate-rebuild")
+    validate_rebuild.add_argument("--sync-run-seq", type=int, required=True)
+    validate_rebuild.add_argument("--sync-run-id", required=True)
+    validate_rebuild.set_defaults(func=_validate_rebuild)
+
+    validate_final = commands.add_parser("validate-final")
+    validate_final.add_argument("--sync-run-seq", type=int, required=True)
+    validate_final.add_argument("--sync-run-id", required=True)
+    validate_final.set_defaults(func=_validate_final)
 
     run_maintenance = commands.add_parser("run-maintenance")
     run_maintenance.add_argument("--run-id")

@@ -55,7 +55,7 @@ object ContractLoader {
     case s if s.startsWith("decimal(") && s.endsWith(")") =>
       val parts = s.substring(8, s.length - 1).split(",").map(_.trim.toInt)
       DecimalType(parts(0), parts(1))
-    case "timestamp" => TimestampNTZType
+    case "timestamp" => TimestampType
     case "timestamptz" => TimestampType
     case "binary" => BinaryType
     case other =>
@@ -183,10 +183,63 @@ object ContractLoader {
       else node.asText().toLowerCase
     }
 
-    if (allowedKeyFps.isEmpty || allowedValFps.isEmpty) {
+    // Bronze stores the numeric Confluent schema IDs and the raw payload
+    // hashes.  The contract fingerprint is the durable identity of the
+    // writer schema, so it cannot be compared with those payload hashes.
+    // The captured-writer-schema provenance contains the IDs that are
+    // approved for the current contract generation.
+    val schemaIdPattern = "schema-(\\d+)-.*".r
+    def schemaIds(node: com.fasterxml.jackson.databind.JsonNode): Set[Int] = {
+      val ids = scala.collection.mutable.Set[Int]()
+      var i = 0
+      while (i < node.size()) {
+        val item = node.get(i)
+        val source =
+          if (item.isObject && item.has("source")) item.get("source").asText()
+          else ""
+        schemaIdPattern
+          .findFirstMatchIn(source)
+          .foreach(matchData => ids += matchData.group(1).toInt)
+        i += 1
+      }
+      ids.toSet
+    }
+    val allowedKeySchemaIds = schemaIds(allowedKeyFpNode)
+    val allowedValueSchemaIds = schemaIds(allowedValFpNode)
+
+    def writerSchemas(node: com.fasterxml.jackson.databind.JsonNode): Map[Int, String] = {
+      val schemas = scala.collection.mutable.Map[Int, String]()
+      var i = 0
+      while (i < node.size()) {
+        val item = node.get(i)
+        val source =
+          if (item.isObject && item.has("source")) item.get("source").asText()
+          else ""
+        schemaIdPattern
+          .findFirstMatchIn(source)
+          .foreach(matchData => {
+            val schemaId = matchData.group(1).toInt
+            schemas(schemaId) = new String(
+              readResourceBytes(source),
+              java.nio.charset.StandardCharsets.UTF_8
+            )
+          })
+        i += 1
+      }
+      schemas.toMap
+    }
+    val allowedKeyWriterSchemas = writerSchemas(allowedKeyFpNode)
+    val allowedValueWriterSchemas = writerSchemas(allowedValFpNode)
+
+    if (
+      allowedKeyFps.isEmpty || allowedValFps.isEmpty ||
+      allowedKeySchemaIds.isEmpty || allowedValueSchemaIds.isEmpty ||
+      allowedKeyWriterSchemas.keySet != allowedKeySchemaIds ||
+      allowedValueWriterSchemas.keySet != allowedValueSchemaIds
+    ) {
       throw SparkJobException(
         "contract_resource_mismatch",
-        s"Allowed fingerprints set is empty for $entity",
+        s"Allowed writer schema provenance is incomplete for $entity",
         FatalContractFailure
       )
     }
@@ -200,7 +253,11 @@ object ContractLoader {
       keyReaderSchema = keyReaderSchema,
       valueReaderSchema = valueReaderSchema,
       allowedKeyFingerprints = allowedKeyFps,
-      allowedValueFingerprints = allowedValFps
+      allowedValueFingerprints = allowedValFps,
+      allowedKeySchemaIds = allowedKeySchemaIds,
+      allowedValueSchemaIds = allowedValueSchemaIds,
+      allowedKeyWriterSchemas = allowedKeyWriterSchemas,
+      allowedValueWriterSchemas = allowedValueWriterSchemas
     )
   }
 

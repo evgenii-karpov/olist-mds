@@ -280,9 +280,9 @@
     ],
     "allowed_value_fingerprints": [
       {
-        "sha256": "53bf2a40e7c259647b7042c0c452d30afb09f977ae42d9c61bc9e72272734d27",
+        "sha256": "6b66dd6e45a4170d2fc65d43ae03c505ed11c3ce88a7f7759349c08ffc5c4a4b",
         "status": "captured_writer_schema",
-        "source": "captured-writer-schemas/sellers/value/schema-28-53bf2a40e7c25964.avsc",
+        "source": "captured-writer-schemas/sellers/value/schema-28-6b66dd6e45a4170d.avsc",
         "provenance_ref": "captured-writer-schemas/manifest.json#/entities/6/value/schemas/0/provenance"
       }
     ]

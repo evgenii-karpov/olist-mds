@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -122,20 +123,28 @@ class ApicurioCCompatClient:
             headers={"Accept": "application/json"},
             method="GET",
         )
-        try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
-                body = response.read().decode("utf-8")
-        except HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")
-            if 400 <= exc.code < 500 and exc.code not in {408, 425, 429}:
-                raise RegistryContractViolation(
-                    f"registry GET {path} returned HTTP {exc.code}: {body[:500]}"
+        deadline = time.monotonic() + max(self.timeout_seconds, 30.0)
+        while True:
+            try:
+                with urlopen(request, timeout=self.timeout_seconds) as response:
+                    body = response.read().decode("utf-8")
+                    break
+            except HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="replace")
+                if 400 <= exc.code < 500 and exc.code not in {408, 425, 429}:
+                    raise RegistryContractViolation(
+                        f"registry GET {path} returned HTTP {exc.code}: {body[:500]}"
+                    ) from None
+                raise RegistryUnavailable(
+                    f"registry GET {path} returned HTTP {exc.code}"
                 ) from None
-            raise RegistryUnavailable(
-                f"registry GET {path} returned HTTP {exc.code}"
-            ) from None
-        except (URLError, TimeoutError) as exc:
-            raise RegistryUnavailable(f"registry GET {path} failed: {exc}") from None
+            except (URLError, TimeoutError, Exception) as exc:
+                if time.monotonic() < deadline:
+                    time.sleep(1.0)
+                    continue
+                raise RegistryUnavailable(
+                    f"registry GET {path} failed: {exc}"
+                ) from None
         try:
             value = json.loads(body)
         except json.JSONDecodeError as exc:
@@ -202,36 +211,51 @@ class ApicurioCCompatClient:
             # compatibility gap through the native v2 artifact endpoint.
             if "returned HTTP 404" not in str(exc):
                 raise
-            artifact_id = self._artifact_id_for_subject(subject)
             registry_base = self.base_url.replace(
                 "/apis/ccompat/v7", "/apis/registry/v2"
             )
-            request = Request(
-                f"{registry_base}/groups/{quote(self.REGISTRY_GROUP, safe='')}"
-                f"/artifacts/{quote(artifact_id, safe='')}"
-                f"/versions/{encoded_version}",
-                headers={"Accept": "application/json"},
-                method="GET",
-            )
-            try:
-                with urlopen(request, timeout=self.timeout_seconds) as response:
-                    raw = response.read().decode("utf-8")
-            except (HTTPError, URLError, TimeoutError):
-                raise exc from None
-            try:
-                schema = json.loads(raw)
-            except json.JSONDecodeError:
-                raise exc from None
-            if not isinstance(schema, Mapping):
-                raise exc from None
-            return self._document(
-                {
-                    "schema": schema,
-                    "references": [],
-                    "subject": subject,
-                    "version": str(version),
-                }
-            )
+            # References in Apicurio's native v2 API keep their exact
+            # artifact ID (for example ``topic.Value``).  The compatibility
+            # API's root subject uses TopicIdStrategy (``topic-value``), so
+            # trying the mapped ID first can silently return the root
+            # Envelope instead of the referenced Value record.
+            artifact_ids = (subject, self._artifact_id_for_subject(subject))
+            last_error: Exception | None = None
+            for artifact_id in dict.fromkeys(artifact_ids):
+                request = Request(
+                    f"{registry_base}/groups/{quote(self.REGISTRY_GROUP, safe='')}"
+                    f"/artifacts/{quote(artifact_id, safe='')}"
+                    f"/versions/{encoded_version}",
+                    headers={"Accept": "application/json"},
+                    method="GET",
+                )
+                try:
+                    with urlopen(request, timeout=self.timeout_seconds) as response:
+                        raw = response.read().decode("utf-8")
+                    schema = json.loads(raw)
+                    if not isinstance(schema, Mapping):
+                        raise RegistryContractViolation(
+                            f"registry artifact {artifact_id!r} is not an Avro object"
+                        )
+                    return self._document(
+                        {
+                            "schema": schema,
+                            "references": [],
+                            "subject": subject,
+                            "version": str(version),
+                        }
+                    )
+                except (
+                    HTTPError,
+                    URLError,
+                    TimeoutError,
+                    json.JSONDecodeError,
+                ) as error:
+                    last_error = error
+                    continue
+            if last_error is not None:
+                raise exc from last_error
+            raise exc
 
     @staticmethod
     def _artifact_id_for_subject(subject: str) -> str:
