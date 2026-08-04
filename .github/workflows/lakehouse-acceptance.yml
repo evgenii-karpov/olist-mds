@@ -1,0 +1,271 @@
+name: Lakehouse manual acceptance
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Acceptance suite to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - candidate-e2e
+          - final-parity
+          - all
+      candidate_sha:
+        description: Full candidate commit SHA to validate
+        required: true
+        type: string
+      confirm_destructive:
+        description: Confirm disposable Compose reset and destructive acceptance actions
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lakehouse-acceptance
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Acceptance preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      candidate_sha: ${{ steps.identity.outputs.candidate_sha }}
+      run_id: ${{ steps.identity.outputs.run_id }}
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install locked runtime dependencies
+        run: uv sync --locked --no-dev
+
+      - name: Validate destructive confirmation and candidate identity
+        id: identity
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha }}
+          CONFIRM_DESTRUCTIVE: ${{ inputs.confirm_destructive }}
+          RUN_ID: stage-l3-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          test "$CONFIRM_DESTRUCTIVE" = true
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$REQUESTED_SHA"
+          test -z "$(git status --porcelain)"
+          uv lock --check
+          fixture_sha="$(sha256sum tests/fixtures/olist_small/olist_small.zip | cut -d ' ' -f1)"
+          test "$fixture_sha" = "5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976"
+          uv run python scripts/utilities/validate_source_contract.py \
+            --archive tests/fixtures/olist_small/olist_small.zip \
+            --profile tests/fixtures/olist_small/source_profile_small.json
+          mkdir -p "data/stage-l-evidence/L3/$RUN_ID"
+          uv run python scripts/parity/validate_f0_oracle.py \
+            --oracle tests/fixtures/final_parity/main-1400d08.json \
+            --metadata tests/fixtures/final_parity/main-1400d08.metadata.json
+          docker compose \
+            --profile platform \
+            --profile streaming \
+            --profile serving \
+            --profile observability \
+            --profile logs \
+            config --quiet
+          cat > "data/stage-l-evidence/L3/$RUN_ID/preflight.json" <<EOF
+          {
+            "status": "PASS",
+            "candidate_sha": "$actual_sha",
+            "fixture_sha256": "$fixture_sha",
+            "run_id": "$RUN_ID",
+            "suite": "${{ inputs.suite }}",
+            "destructive_confirmation": true
+          }
+          EOF
+          echo "candidate_sha=$actual_sha" >> "$GITHUB_OUTPUT"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Upload preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehouse-acceptance-preflight
+          path: data/stage-l-evidence/L3/**
+          if-no-files-found: warn
+
+  stage-v-e2e:
+    name: Stage V candidate E2E
+    if: ${{ inputs.suite == 'candidate-e2e' || inputs.suite == 'all' }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: lakehouse-destructive
+    timeout-minutes: 120
+    env:
+      COMPOSE_PROJECT_NAME: stage-v-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install locked runtime dependencies
+        run: uv sync --locked --no-dev
+
+      - name: Run full Stage V candidate acceptance
+        run: >-
+          uv run python scripts/validation/stage_v_candidate_e2e.py run
+          --run-id ${{ needs.preflight.outputs.run_id }}
+          --evidence-dir data/stage-l-evidence/L3/${{ needs.preflight.outputs.run_id }}
+          --confirm-reset
+
+      - name: Upload Stage V evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehouse-acceptance-stage-v
+          path: data/stage-l-evidence/L3/**
+          if-no-files-found: warn
+
+      - name: Clean up Stage V resources
+        if: always()
+        run: >-
+          docker compose
+          --profile platform
+          --profile streaming
+          --profile serving
+          --profile observability
+          --profile logs
+          down -v --remove-orphans
+
+  final-parity:
+    name: Final candidate parity
+    if: ${{ inputs.suite == 'final-parity' || inputs.suite == 'all' }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    environment: lakehouse-destructive
+    timeout-minutes: 120
+    env:
+      COMPOSE_PROJECT_NAME: final-parity-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install locked runtime dependencies
+        run: uv sync --locked --no-dev
+
+      - name: Run candidate-only F1 parity
+        run: >-
+          uv run python scripts/cdc/local_lab.py final-parity
+          --run-id ${{ needs.preflight.outputs.run_id }}
+          --oracle tests/fixtures/final_parity/main-1400d08.json
+          --confirm-destructive
+          --timeout 5400
+
+      - name: Upload F1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehouse-acceptance-final-parity
+          path: |
+            data/reports/final-parity/**
+            data/stage-l-evidence/L3/**
+          if-no-files-found: warn
+
+      - name: Clean up F1 resources
+        if: always()
+        run: >-
+          docker compose
+          --profile platform
+          --profile streaming
+          --profile serving
+          --profile observability
+          --profile logs
+          down -v --remove-orphans
+
+  publish-evidence:
+    name: Publish acceptance evidence
+    if: ${{ always() }}
+    needs:
+      - preflight
+      - stage-v-e2e
+      - final-parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download upstream evidence
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: lakehouse-acceptance-*
+          path: data/lakehouse-acceptance-artifacts
+          merge-multiple: true
+
+      - name: Write aggregate acceptance status
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          SUITE: ${{ inputs.suite }}
+          CANDIDATE_SHA: ${{ needs.preflight.outputs.candidate_sha }}
+          RUN_ID: ${{ needs.preflight.outputs.run_id }}
+        run: |
+          mkdir -p data/lakehouse-acceptance-artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          result = {
+              "candidate_sha": os.environ.get("CANDIDATE_SHA", ""),
+              "run_id": os.environ.get("RUN_ID", ""),
+              "suite": os.environ["SUITE"],
+              "jobs": {name: value.get("result") for name, value in needs.items()},
+              "status": "PASS"
+              if all(value.get("result") == "success" for value in needs.values())
+              else "FAIL",
+          }
+          Path("data/lakehouse-acceptance-artifacts/acceptance-status.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          print(json.dumps(result, sort_keys=True))
+          PY
+
+      - name: Upload final acceptance bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehouse-acceptance-${{ github.run_id }}
+          path: data/lakehouse-acceptance-artifacts/**
+          if-no-files-found: warn

@@ -4,7 +4,7 @@
 
 | Поле | Значение |
 | --- | --- |
-| Статус | Wave 1/J1, Wave 2/J2, Stage E/V revalidation и F0 завершены; Stage L active, L0 baseline/inventory complete, L1 next |
+| Статус | Wave 1/J1, Wave 2/J2, Stage E/V revalidation и F0 завершены; Stage L active, L0/L1/L2 и CI-only L3 implementation recorded |
 | Последнее обновление | 2026-08-04 |
 | Аудированный commit candidate | `9214cd1de05ab37cdeae27a1a0b633963e8ae8d6` (Stage L plan baseline) |
 | Frozen baseline source | `main` commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (фиксируется на Stage F0) |
@@ -104,7 +104,7 @@ flowchart LR
 | **Wave 2 / J2** | Complete | [lakehouse/completed/wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | [J2 report](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
 | **E/V / Revalidation** | **Complete** | [lakehouse/completed/stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | clean `stage_v_clean_e113c55`: V0–V10 `PASS`, commit `e113c552cca990636f426b827456a77ddc9d594b`, raw evidence в `data/stage-v-evidence/stage_v_clean_e113c55/` |
 | **F0 / Baseline freeze** | **Complete** | [lakehouse/completed/stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | [F0 report](../reports/mysql-spark-iceberg-f0-baseline.md) |
-| **L / Legacy removal + CI cutover** | **Active (L1 pending)** | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | [L0 report](../reports/lakehouse-stage-l0-baseline.md) |
+| **L / Legacy removal + CI cutover** | **Active (L3 implementation recorded)** | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | [L0 report](../reports/lakehouse-stage-l0-baseline.md), [L3 report](../reports/lakehouse-stage-l3.md) |
 | **F1 / Final parity** | Pending (после L) | [lakehouse/active/stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
 
 Граф последовательности стадий:
@@ -140,6 +140,7 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete
 | **Completed** | [stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | Одноразовый экспорт baseline из точного commit `main` до cleanup. |
 | **Active** | [stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | Инвентарь удаления legacy и точная целевая матрица workflows/jobs. |
 | **Report** | [lakehouse-stage-l0-baseline.md](../reports/lakehouse-stage-l0-baseline.md) | Фактический baseline rollback/E2E и L0 static findings. |
+| **Report** | [lakehouse-stage-l3.md](../reports/lakehouse-stage-l3.md) | CI/workflow cutover, bounded jobs, static validation и L3 decision boundary. |
 | **Active** | [stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) | Финальный candidate-only прогон против frozen oracle после cleanup. |
 | **Future** | [gcp-spark-iceberg-bigquery-migration.md](gcp-spark-iceberg-bigquery-migration.md) | Отдельная будущая программа облачной миграции на GCP / BigQuery (out of local scope). |
 

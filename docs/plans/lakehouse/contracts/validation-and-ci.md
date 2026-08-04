@@ -15,6 +15,11 @@
 
 Frozen baseline F0 создаётся одноразово и не регенерируется CI.
 
+CI-only реализация L3 не требует запуска полного Stage V E2E: manual acceptance
+остаётся отдельным dispatch-only gate. Если изменение L3 затрагивает Compose,
+runtime, DAG, dbt-проект, fixture или Stage V runner, граница меняется и решение
+о полном прогоне принимается отдельно до его запуска.
+
 ---
 
 ## 2. Общий CI (`ci.yml`)

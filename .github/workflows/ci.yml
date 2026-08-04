@@ -7,20 +7,66 @@ on:
       - main
       - master
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  static-analysis:
-    name: Lint, type check, and ClickHouse dbt validation
+  docs-and-repository-contracts:
+    name: Docs and repository contracts
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-    env:
-      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_analytics
-      DBT_TARGET: local_clickhouse
-      CLICKHOUSE_HOST: localhost
-      CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_USER: olist
-      CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
-      CLICKHOUSE_DATABASE: analytics
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
 
+      - name: Install Python
+        run: uv python install
+
+      - name: Install contract dependencies
+        run: uv sync --locked --group quality
+
+      - name: Compile target Python tree
+        run: uv run python -m compileall -q airflow/dags scripts tests
+
+      - name: Validate repository contracts and active legacy guard
+        run: >-
+          uv run python scripts/ci/check_repository_contracts.py
+          --report data/reports/repository-contracts.json
+
+      - name: Validate frozen F0 oracle
+        run: >-
+          uv run python scripts/parity/validate_f0_oracle.py
+          --oracle tests/fixtures/final_parity/main-1400d08.json
+          --metadata tests/fixtures/final_parity/main-1400d08.metadata.json
+
+      - name: Validate small fixture metadata
+        run: >-
+          uv run python scripts/utilities/validate_source_contract.py
+          --archive tests/fixtures/olist_small/olist_small.zip
+          --profile tests/fixtures/olist_small/source_profile_small.json
+
+      - name: Upload repository contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-contracts
+          path: data/reports/repository-contracts.json
+          if-no-files-found: warn
+
+  python-quality:
+    name: Python quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -37,65 +83,19 @@ jobs:
       - name: Install quality dependencies
         run: uv sync --locked --group quality
 
-      - name: Prepare dbt profile
-        run: cp profiles.yml.example profiles.yml
-        working-directory: dbt/olist_analytics
-
-      - name: Validate dbt profiles for dbt and Elementary
-        run: >-
-          uv run python -c "import yaml;
-          profiles = yaml.safe_load(open('profiles.yml'));
-          assert 'olist_analytics' in profiles;
-          assert 'elementary' in profiles"
-        working-directory: dbt/olist_analytics
-
-      - name: Install dbt packages
-        run: uv run dbt deps
-        working-directory: dbt/olist_analytics
-
       - name: Run Ruff lint
-        run: uv run ruff check .
+        run: uv run ruff check airflow/dags scripts tests
 
       - name: Check Ruff formatting
-        run: uv run ruff format --check .
+        run: uv run ruff format --check airflow/dags scripts tests
 
       - name: Run Pyright
         run: uv run pyright
 
-      - name: Start ClickHouse
-        run: docker compose up -d --wait clickhouse
-
-      - name: Initialize ClickHouse schemas
-        run: docker compose run --rm clickhouse-init
-
-      - name: Parse dbt project
-        run: uv run dbt parse --no-partial-parse --show-all-deprecations
-        working-directory: dbt/olist_analytics
-
-      - name: Compile dbt project
-        run: uv run dbt compile --no-partial-parse
-        working-directory: dbt/olist_analytics
-
-      - name: Verify dbt selector boundaries
-        run: uv run python scripts/ci/check_dbt_selector_boundaries.py
-
-      - name: Lint SQL with SQLFluff
-        run: >-
-          uv run sqlfluff lint
-          dbt/olist_analytics/models
-          dbt/olist_analytics/snapshots
-          dbt/olist_analytics/tests
-          dbt/olist_analytics/analyses
-          dbt/olist_analytics/macros
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose down -v
-
-  python-unit:
-    name: Python unit and fixture contract
+  python-contract-tests:
+    name: Python target contract tests
     runs-on: ubuntu-latest
-
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -109,76 +109,68 @@ jobs:
       - name: Install Python
         run: uv python install
 
-      - name: Install dependencies
-        run: uv sync --locked --no-dev
+      - name: Install test dependencies
+        run: uv sync --locked --group quality
 
-      - name: Compile Python modules
-        run: uv run python -m compileall airflow/dags scripts tests
+      - name: Prepare test evidence directory
+        run: mkdir -p data/reports
 
-      - name: Validate realtime configuration scaffolding
-        run: uv run python scripts/ci/validate_realtime_configuration.py
-
-      - name: Validate Phase 6 observability and recovery configuration
-        run: uv run python scripts/ci/validate_stage6_configuration.py
-
-      - name: Validate NiFi flow and CDC schemas
-        run: uv run python scripts/ci/validate_nifi_flow.py
-
-      - name: Check Avro schema compatibility
-        run: uv run python scripts/ci/check_avro_schema_compatibility.py
-
-      - name: Validate small fixture contract
+      - name: Run explicit target test collection
         run: >-
-          uv run python scripts/utilities/validate_source_contract.py
-          --archive tests/fixtures/olist_small/olist_small.zip
-          --profile tests/fixtures/olist_small/source_profile_small.json
+          uv run pytest -q
+          tests/mysql
+          tests/cdc_contracts
+          tests/lakehouse_platform
+          tests/dbt_clickhouse
+          tests/serving
+          tests/stage_v
+          --junitxml=data/reports/python-contract-tests.xml
 
-      - name: Run Python unit tests
-        run: uv run python -m unittest discover -s tests -v
+      - name: Upload Python JUnit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-contract-tests
+          path: data/reports/python-contract-tests.xml
+          if-no-files-found: warn
 
-  airflow-imports:
-    name: Docker Compose and Airflow DAG imports
+  scala-fast:
+    name: Scala fast contract
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Validate Compose configuration
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Scala contract image
+        env:
+          IMAGE: olist-ci-spark-scala:${{ github.run_id }}-${{ github.run_attempt }}
+        run: >-
+          docker build --progress=plain --target scala-builder
+          --tag "$IMAGE" --file docker/spark/Dockerfile .
+
+      - name: Verify JAR content and dependency boundary
+        env:
+          IMAGE: olist-ci-spark-scala:${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          docker compose config --quiet
-          for profiles in \
-            realtime-core \
-            observability \
-            logs \
-            "realtime-core,observability" \
-            "realtime-core,observability,logs"; do
-            profile_args=()
-            IFS=',' read -ra profile_names <<< "$profiles"
-            for profile_name in "${profile_names[@]}"; do
-              profile_args+=(--profile "$profile_name")
-            done
-            docker compose "${profile_args[@]}" config --quiet
-          done
+          docker run --rm --entrypoint /bin/bash "$IMAGE" -lc '
+            set -euo pipefail
+            jar=/tmp/streaming/spark/scala/target/scala-2.13/olist-spark-jobs_2.13-0.1.0.jar
+            test -s "$jar"
+            jar tf "$jar" | grep -q "com/olist/mds/spark/app/BronzeMain.class"
+            jar tf "$jar" | grep -q "com/olist/mds/spark/transaction/TransactionState.class"
+            ! jar tf "$jar" | grep -qE "^org/apache/(spark|iceberg|kafka|avro)/"
+          '
 
-      - name: Build Airflow image
-        run: docker compose build airflow
-
-      - name: Start Airflow metadata database
-        run: docker compose up -d airflow-postgres
-
-      - name: Check Airflow DAG import errors
-        run: docker compose run --rm --no-deps airflow python scripts/ci/check_airflow_dag_imports.py
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose down -v
-
-  clickhouse-incremental-edges:
-    name: "ClickHouse batch fact insert_overwrite edges"
+  compose-contract:
+    name: Compose target contract
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
+    env:
+      COMPOSE_PROJECT_NAME: ci-compose-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -189,49 +181,69 @@ jobs:
           version: 0.11.28
           enable-cache: true
 
-      - name: Install Python and runtime dependencies
+      - name: Install contract dependencies
+        run: uv sync --locked --group quality
+
+      - name: Validate target Compose profile combinations
         run: |
-          uv python install
-          uv sync --locked --no-dev
+          set -euo pipefail
+          docker compose --profile platform --profile streaming config --quiet
+          docker compose --profile platform --profile serving config --quiet
+          docker compose --profile platform --profile observability config --quiet
+          docker compose --profile platform --profile logs config --quiet
+          docker compose \
+            --profile platform \
+            --profile streaming \
+            --profile serving \
+            --profile observability \
+            --profile logs config --quiet
 
-      - name: Prepare dbt profile
-        run: cp profiles.yml.example profiles.yml
-        working-directory: dbt/olist_analytics
-
-      - name: Install dbt packages
-        run: uv run dbt deps
-        working-directory: dbt/olist_analytics
-
-      - name: Start isolated ClickHouse service
-        run: docker compose up -d --wait clickhouse
-
-      - name: Initialize ClickHouse databases
-        run: docker compose run --rm clickhouse-init
-
-      - name: Verify ClickHouse incremental fact partition replacement edges
-        run: uv run python scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py
-
-      - name: Dump ClickHouse diagnostics
-        if: failure()
-        run: docker compose logs --no-color --tail=500 clickhouse clickhouse-init
+      - name: Validate target observability inventory
+        run: uv run python scripts/ci/validate_stage6_configuration.py
 
       - name: Clean up Compose resources
         if: always()
-        run: docker compose down -v
+        run: docker compose down -v --remove-orphans
 
-  clickhouse-runtime-contract:
-    name: "ClickHouse runtime: dbt compile and comparator contract"
+  airflow-dag-imports:
+    name: Airflow target DAG imports
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
-      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_analytics
+      COMPOSE_PROJECT_NAME: ci-airflow-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build target Airflow image
+        run: docker compose --profile platform --profile serving build airflow
+
+      - name: Check exact target DAG inventory and imports
+        run: >-
+          docker compose --profile platform --profile serving run --rm --no-deps
+          airflow python scripts/ci/check_airflow_dag_imports.py
+
+      - name: Upload Airflow diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail=500 airflow
+
+      - name: Clean up Compose resources
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  dbt-clickhouse-static:
+    name: dbt ClickHouse static contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: ci-dbt-${{ github.run_id }}-${{ github.run_attempt }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_clickhouse
       DBT_TARGET: local_clickhouse
       CLICKHOUSE_HOST: localhost
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_USER: olist
+      CLICKHOUSE_DATABASE: serving_cdc
       CLICKHOUSE_PASSWORD_FILE: docker/secrets/dev/clickhouse_password.txt
-      CLICKHOUSE_DATABASE: analytics
-
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -242,232 +254,83 @@ jobs:
           version: 0.11.28
           enable-cache: true
 
-      - name: Install Python and runtime dependencies
+      - name: Install Python and dbt dependencies
         run: |
           uv python install
           uv sync --locked --no-dev
 
-      - name: Prepare dbt profile
+      - name: Prepare target dbt profile
         run: cp profiles.yml.example profiles.yml
-        working-directory: dbt/olist_analytics
+        working-directory: dbt/olist_clickhouse
 
-      - name: Install dbt packages
-        run: uv run dbt deps
-        working-directory: dbt/olist_analytics
+      - name: Install target dbt packages
+        run: uv run dbt deps --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse
 
-      - name: Start isolated ClickHouse service
-        run: docker compose up -d --wait clickhouse
-
-      - name: Initialize ClickHouse databases
-        run: docker compose run --rm clickhouse-init
-
-      - name: Verify ClickHouse connection
-        run: uv run python scripts/ci/check_clickhouse_smoke.py
-
-      - name: Compile ClickHouse batch selector
+      - name: Start isolated ClickHouse
         run: >-
-          uv run dbt compile --target local_clickhouse --selector batch
-          --no-partial-parse --quiet
-          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
-        working-directory: dbt/olist_analytics
+          docker compose --profile platform --profile serving up -d --wait
+          clickhouse
 
-      - name: Compile ClickHouse realtime transform selector
+      - name: Initialize ClickHouse schemas
+        run: docker compose --profile platform --profile serving run --rm clickhouse-init
+
+      - name: Parse and compile target dbt project
+        run: |
+          set -euo pipefail
+          export CLICKHOUSE_PASSWORD="$(tr -d '\r\n' < "$CLICKHOUSE_PASSWORD_FILE")"
+          uv run dbt parse --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --show-all-deprecations
+          uv run dbt compile --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --vars '{sync_run_seq: 1, sync_run_id: ci-static-contract}'
+
+      - name: Validate target dbt model/source/selector contract
         run: >-
-          uv run dbt compile --target local_clickhouse --selector realtime_transform
-          --no-partial-parse --quiet
-          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
-        working-directory: dbt/olist_analytics
+          uv run python scripts/ci/check_dbt_clickhouse_contract.py
+          --report data/reports/dbt-clickhouse-contract.json
 
-      - name: Compile ClickHouse realtime parity selector
-        run: >-
-          uv run dbt compile --target local_clickhouse --selector realtime_parity
-          --no-partial-parse --quiet
-          --warn-error-options '{"error": ["NoNodesForSelectionCriteria"]}'
-        working-directory: dbt/olist_analytics
-
-      - name: Validate canonical comparator contract
-        run: >-
-          uv run python scripts/parity/compare_manifests.py
-          --oracle tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
-          --candidate tests/fixtures/postgresql_oracle/postgres_batch_oracle.json
-          --output data/reports/clickhouse-comparator-contract.json
-
-      - name: Upload ClickHouse runtime contract artifacts
+      - name: Upload dbt contract evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: clickhouse-runtime-contract
+          name: dbt-clickhouse-contract
           path: |
-            data/reports/clickhouse-comparator-contract.json
-            dbt/olist_analytics/target/manifest.json
-            dbt/olist_analytics/target/run_results.json
+            data/reports/dbt-clickhouse-contract.json
+            dbt/olist_clickhouse/target/manifest.json
+            dbt/olist_clickhouse/target/run_results.json
           if-no-files-found: warn
 
-      - name: Dump ClickHouse diagnostics
-        if: failure()
-        run: docker compose logs --no-color --tail=500 clickhouse clickhouse-init
-
       - name: Clean up Compose resources
         if: always()
-        run: docker compose down -v
+        run: docker compose --profile platform --profile serving down -v --remove-orphans
 
-  cdc-clickhouse-ingest-resilience:
-    name: "CDC ClickHouse ingest resilience"
+  ci-success:
+    name: ci-success
+    if: ${{ always() }}
+    needs:
+      - docs-and-repository-contracts
+      - python-quality
+      - python-contract-tests
+      - scala-fast
+      - compose-contract
+      - airflow-dag-imports
+      - dbt-clickhouse-static
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      DBT_TARGET: local_clickhouse
-      CDC_WAREHOUSE_TYPE: clickhouse
-
+    timeout-minutes: 5
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Prepare writable report path
-        run: mkdir -p data/reports && chmod -R a+rwX data
-
-      - name: Build minimal runtime images
-        run: docker compose --profile realtime-core build airflow minio
-
-      - name: Start ClickHouse, control database, and MinIO
-        run: >-
-          docker compose --profile realtime-core up -d --wait
-          clickhouse airflow-postgres minio
-
-      - name: Initialize ClickHouse, control database, and MinIO
+      - name: Fail on failed or skipped required jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
         run: |
-          docker compose run --rm clickhouse-init
-          docker compose run --rm control-db-init
-          docker compose --profile realtime-core run --rm minio-init
+          python - <<'PY'
+          import json
+          import os
+          import sys
 
-      - name: Verify ClickHouse CDC ingest retry, coverage, and replay
-        run: >-
-          docker compose --profile realtime-core run --rm --no-deps airflow
-          python scripts/ci/check_clickhouse_cdc_ingest_resilience.py
-          --s3-write-access-key olist_nifi
-          --s3-write-secret-file docker/secrets/dev/airflow_api_secret_key.txt
-          --report data/reports/clickhouse-cdc-ingest-resilience.json
-
-      - name: Upload ingest resilience report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: clickhouse-cdc-ingest-resilience
-          path: data/reports/clickhouse-cdc-ingest-resilience.json
-          if-no-files-found: warn
-
-      - name: Dump ClickHouse CDC ingest diagnostics
-        if: failure()
-        run: >-
-          docker compose --profile realtime-core logs --no-color --tail=500
-          clickhouse clickhouse-init airflow-postgres control-db-init minio minio-init
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose --profile realtime-core down -v --remove-orphans
-
-  cdc-source-oltp-simulator:
-    name: "CDC source: OLTP simulator"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: 0.11.28
-          enable-cache: true
-
-      - name: Install Python
-        run: uv python install
-
-      - name: Install runtime dependencies
-        run: uv sync --locked --no-dev
-
-      - name: Start isolated OLTP service
-        run: docker compose --profile realtime-core up -d --wait oltp-postgres
-
-      - name: Run bounded simulator integration
-        run: >-
-          uv run python scripts/ci/check_oltp_simulator_integration.py
-          --password-file docker/secrets/dev/postgres_password.txt
-
-      - name: Dump OLTP logs
-        if: failure()
-        run: docker compose --profile realtime-core logs --no-color --tail=500 oltp-postgres
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose --profile realtime-core down -v
-
-  batch-fixture-idempotency:
-    name: "Batch pipeline: small-fixture idempotency and replay"
-    runs-on: ubuntu-latest
-    env:
-      OLIST_AIRFLOW_RETRIES: "0"
-      OLIST_AIRFLOW_RETRY_DELAY_SECONDS: "1"
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Prepare writable Airflow workspace paths
-        run: |
-          mkdir -p \
-            airflow/logs \
-            airflow/plugins \
-            data \
-            dbt/olist_analytics/logs \
-            dbt/olist_analytics/target \
-            dbt/olist_analytics/dbt_packages
-          chmod -R a+rwX \
-            airflow/logs \
-            airflow/plugins \
-            data \
-            dbt/olist_analytics \
-            dbt/olist_analytics/logs \
-            dbt/olist_analytics/target \
-            dbt/olist_analytics/dbt_packages
-
-      - name: Validate Compose configuration
-        run: docker compose config
-
-      - name: Build Airflow image
-        run: docker compose build airflow
-
-      - name: Prepare dbt profile
-        run: cp profiles.yml.example profiles.yml
-        working-directory: dbt/olist_analytics
-
-      - name: Install dbt packages in mounted workspace
-        run: >-
-          docker compose run --rm --no-deps airflow
-          bash -lc 'cd /opt/airflow/project/dbt/olist_analytics && dbt deps'
-
-      - name: Start Airflow fixture stack
-        run: docker compose up -d --wait clickhouse airflow-postgres airflow
-
-      - name: Check Airflow DAG import errors
-        run: >-
-          docker compose exec -T airflow
-          python scripts/ci/check_airflow_dag_imports.py
-
-      - name: Register Airflow DAGs
-        run: docker compose exec -T airflow airflow dags reserialize
-
-      - name: Run small fixture DAG idempotency check
-        run: >-
-          docker compose exec -T airflow
-          python scripts/ci/check_fixture_pipeline_idempotency.py
-          --timeout-seconds 600
-          --poll-seconds 2
-
-      - name: Dump fixture stack logs
-        if: failure()
-        run: docker compose logs --no-color --tail=500 airflow clickhouse airflow-postgres clickhouse-init control-db-init
-
-      - name: Clean up Compose resources
-        if: always()
-        run: docker compose down -v
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          bad = {
+              name: value.get("result")
+              for name, value in needs.items()
+              if value.get("result") != "success"
+          }
+          if bad:
+              print(json.dumps({"status": "FAIL", "jobs": bad}, sort_keys=True))
+              sys.exit(1)
+          print(json.dumps({"status": "PASS", "jobs": sorted(needs)}))
