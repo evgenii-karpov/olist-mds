@@ -35,6 +35,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 concurrency:
   group: lakehouse-components-${{ github.ref }}
   cancel-in-progress: true
@@ -109,6 +112,11 @@ jobs:
           --wait-ready --timeout 900
           > data/reports/cdc-streaming-ready.json
 
+      - name: Start ClickHouse serving observer for catch-up barrier
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-serving-observer
+          > data/reports/cdc-serving-observer.json
+
       - name: Verify bounded CDC catch-up
         run: >-
           uv run python scripts/cdc/local_lab.py wait-caught-up
@@ -145,7 +153,7 @@ jobs:
 
       - name: Clean up CDC Compose resources
         if: always()
-        run: docker compose --profile platform --profile streaming down -v --remove-orphans
+        run: docker compose --profile platform --profile streaming --profile serving down -v --remove-orphans
 
   serving-component:
     name: Bounded serving component
@@ -190,6 +198,11 @@ jobs:
           uv run python scripts/cdc/local_lab.py start-streaming
           --wait-ready --timeout 900
           > data/reports/serving-streaming-ready.json
+
+      - name: Start ClickHouse serving observer for catch-up barrier
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-serving-observer
+          > data/reports/serving-observer.json
 
       - name: Wait for bounded Silver catch-up
         run: >-
@@ -274,10 +287,18 @@ jobs:
           docker compose --profile platform --profile serving run --rm --no-deps
           airflow python scripts/ci/check_airflow_dag_imports.py
 
+      - name: Start Airflow metadata database
+        run: docker compose --profile platform up -d --wait platform-postgres
+
+      - name: Initialize Airflow metadata database
+        run: >-
+          docker compose --profile platform --profile serving run --rm --no-deps
+          airflow airflow db migrate
+
       - name: Check target Airflow CLI path
         run: >-
           docker compose --profile platform --profile serving run --rm --no-deps
-          airflow airflow dags list --subdir /opt/airflow/dags
+          airflow airflow dags list
           --output table
 
       - name: Upload Airflow diagnostics

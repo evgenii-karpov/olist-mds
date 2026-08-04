@@ -25,6 +25,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 concurrency:
   group: lakehouse-acceptance
   cancel-in-progress: false

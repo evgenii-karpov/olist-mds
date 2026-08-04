@@ -10,6 +10,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -278,8 +281,9 @@ jobs:
         run: |
           set -euo pipefail
           export CLICKHOUSE_PASSWORD="$(tr -d '\r\n' < "$CLICKHOUSE_PASSWORD_FILE")"
-          uv run dbt parse --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --show-all-deprecations
-          uv run dbt compile --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --vars '{sync_run_seq: 1, sync_run_id: ci-static-contract}'
+          export DBT_CONTRACT_VARS='{"sync_run_seq": 1, "sync_run_id": "ci-static-contract"}'
+          uv run dbt parse --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --vars "$DBT_CONTRACT_VARS" --show-all-deprecations
+          uv run dbt compile --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse --no-partial-parse --vars "$DBT_CONTRACT_VARS"
 
       - name: Validate target dbt model/source/selector contract
         run: >-
