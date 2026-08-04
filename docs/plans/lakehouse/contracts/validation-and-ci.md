@@ -26,7 +26,7 @@ Workflow содержит стабильный агрегирующий check `c
 3. `python-contract-tests` — pytest только по `tests/mysql`, `tests/cdc_contracts`, `tests/lakehouse_platform`, `tests/dbt_clickhouse`, `tests/serving`, `tests/stage_v`; нулевая коллекция является ошибкой.
 4. `scala-fast` — scalafmt, compile, ScalaTest, package и проверка содержимого JAR.
 5. `compose-contract` — `docker compose config` и статические инварианты services/profiles/images/secrets.
-6. `airflow-dag-imports` — сборка целевого образа, отсутствие import errors, exact inventory четырёх lakehouse DAGs и отсутствие old dbt path.
+6. `airflow-dag-imports` — сборка целевого образа, отсутствие import errors, exact allowlist четырёх target DAG IDs (`olist_lakehouse_maintenance`, `olist_lakehouse_serving_sync`, `olist_lakehouse_quality`, `olist_lakehouse_serving_rebuild`) из двух target-файлов (`airflow/dags/olist_lakehouse_maintenance.py` и `airflow/dags/olist_lakehouse_serving.py`) и отсутствие old dbt path.
 7. `dbt-clickhouse-static` — deps, parse, compile и model/source/selector contracts проекта `dbt/olist_clickhouse`.
 
 Нельзя использовать `python -m unittest discover` как единственный test runner: он не гарантирует сбор module-level pytest tests.
@@ -97,7 +97,7 @@ Destructive jobs используют protected environment и общий concur
 
 ### Repository architecture
 
-- нет runtime references на NiFi, PostgreSQL OLTP, Redshift, old dbt project и old Compose profiles;
+- нет runtime references на NiFi, PostgreSQL OLTP, AWS cloud services/Redshift, old dbt project и old Compose profiles; локальные S3-compatible MinIO endpoints, `s3a://` paths и Iceberg S3 adapters разрешены как часть target object-store implementation;
 - разрешены только документированные historical/provenance references;
 - Airflow, dbt, Compose и documentation используют одинаковые target identifiers.
 
@@ -118,6 +118,9 @@ Destructive jobs используют protected environment и общий concur
 ## 8. Связанные документы
 
 - [Детальный план Stage L и CI cutover](../active/stage-l-legacy-removal-ci-cutover.md)
+- [Реестр disposition legacy-артефактов](legacy-disposition-register.md)
+- [Контракт target observability](observability.md)
+- [Контракт target tests и evidence](testing-and-evidence.md)
 - [План повторной приёмки E/V](../completed/stage-ev-validation-repair.md)
 - [Контракт финального паритета](final-parity.md)
 - [Контракт Spark](spark-streaming.md)

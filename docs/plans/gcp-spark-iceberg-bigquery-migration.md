@@ -1,10 +1,11 @@
-# Deferred GCP migration: Spark, Iceberg and BigQuery
+# Future GCP program: Spark, Iceberg and BigQuery
 
 ## Status
 
-Deferred. This document deliberately contains no implementation phases or GCP
-Definition of Done for the local MySQL/Spark/Iceberg migration. The local
-candidate must first pass its own clean-reset E2E and final parity gate.
+Future program, outside the local Stage L scope. This document deliberately
+contains no implementation phases or GCP Definition of Done for the local
+MySQL/Spark/Iceberg migration. The local candidate must first pass its own
+clean-reset E2E and final parity gate.
 
 ## Fixed portability boundary
 

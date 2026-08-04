@@ -123,6 +123,12 @@ org.apache.spark:spark-avro_2.13:4.1.3
 com.mysql:mysql-connector-j:9.7.0
 ```
 
+`iceberg-aws-bundle`, S3A and `s3://`/`s3a://` identifiers here are the
+S3-compatible adapter used by the local MinIO object store. They do not mean
+that AWS or Redshift is a supported cloud target. AWS cloud services,
+Redshift-specific runtime code, credentials and infrastructure are removed by
+Stage L; the future Google Cloud stack is specified separately.
+
 ---
 
 ## 3. Организация работы и правила совместного доступа (Git Rules)

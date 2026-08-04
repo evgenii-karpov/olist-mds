@@ -1,6 +1,6 @@
 # Координационный план финальных стадий миграции
 
-- **Статус**: `ACTIVE`; E/V и F0 завершены, следующая стадия — Stage L (legacy removal).
+- **Статус**: `ACTIVE`; E/V и F0 завершены, L0 baseline/inventory complete, L1 pending.
 - **Назначение**: задать порядок финальных стадий, точки запрета и ссылки на исполнимые детальные планы.
 - **Решение по parity**: legacy запускается один раз до cleanup для формирования frozen baseline; после cleanup выполняется только candidate-only сравнение.
 
@@ -18,8 +18,8 @@ flowchart LR
 | Стадия | Статус | Результат | Детальный план |
 | --- | --- | --- | --- |
 | E/V repair | `COMPLETE` | clean V0–V10 `PASS` на commit `e113c552cca990636f426b827456a77ddc9d594b`; raw evidence сохранён | [stage-ev-validation-repair.md](../completed/stage-ev-validation-repair.md) |
-| F0 | `COMPLETE` | неизменяемый oracle `main-1400d08.json` (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
-| L | `NEXT` | очищенное дерево и CI только для target architecture | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
+| F0 | `COMPLETE` | неизменяемый oracle `main-1400d08.json` (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
+| L | `ACTIVE (L1 pending)` | L0 baseline diagnostic/corrective E2E, disposition inventory и target contracts завершены; L1 target repair/tests следующий | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
 | F1 | `PENDING` | `PASS` candidate против frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
 
 Переход через стадию запрещён, пока её критерии завершения не подтверждены evidence. Отчёт с отсутствующими обязательными воротами не считается `PASS`.
@@ -27,6 +27,8 @@ flowchart LR
 Clean E/V acceptance зафиксирован в run `stage_v_clean_e113c55` для Compose project
 `olist_stage_v`. Все 11 gate и 42 assertions завершились `PASS`; следующий
 разрешённый переход — только F0.
+
+Текущий L0 baseline и inventory зафиксированы в [отчёте L0](../../../reports/lakehouse-stage-l0-baseline.md), [реестре disposition](../contracts/legacy-disposition-register.md), [контракте observability](../contracts/observability.md) и [контракте tests/evidence](../contracts/testing-and-evidence.md).
 
 ---
 

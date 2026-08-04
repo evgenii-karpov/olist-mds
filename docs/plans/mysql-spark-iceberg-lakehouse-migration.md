@@ -4,9 +4,9 @@
 
 | Поле | Значение |
 | --- | --- |
-| Статус | Wave 1/J1, Wave 2/J2 и Stage E/V revalidation завершены; следующая стадия — F0 |
-| Последнее обновление | 2026-08-03 |
-| Аудированный commit candidate | `e113c552cca990636f426b827456a77ddc9d594b` |
+| Статус | Wave 1/J1, Wave 2/J2, Stage E/V revalidation и F0 завершены; Stage L active, L0 baseline/inventory complete, L1 next |
+| Последнее обновление | 2026-08-04 |
+| Аудированный commit candidate | `9214cd1de05ab37cdeae27a1a0b633963e8ae8d6` (Stage L plan baseline) |
 | Frozen baseline source | `main` commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (фиксируется на Stage F0) |
 | Ветка реализации | `feature/mysql-spark-iceberg` |
 | Evidence J1 | [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
@@ -16,7 +16,7 @@
 | Основная аудитория | ИИ-агенты реализации и maintainers |
 | Финальный fixture | `tests/fixtures/olist_small/olist_small.zip` |
 | SHA-256 fixture | `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976` |
-| Cloud deployment | Вне локальной программы (см. [Deferred GCP plan](gcp-spark-iceberg-bigquery-migration.md)) |
+| Cloud deployment | Вне локальной программы (см. [Future GCP plan](gcp-spark-iceberg-bigquery-migration.md)) |
 
 ---
 
@@ -103,8 +103,8 @@ flowchart LR
 | **Wave 1 / J1** | Complete | [lakehouse/completed/wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | [J1 report](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
 | **Wave 2 / J2** | Complete | [lakehouse/completed/wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | [J2 report](../reports/mysql-spark-iceberg-wave2-j2-validation.md) |
 | **E/V / Revalidation** | **Complete** | [lakehouse/completed/stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | clean `stage_v_clean_e113c55`: V0–V10 `PASS`, commit `e113c552cca990636f426b827456a77ddc9d594b`, raw evidence в `data/stage-v-evidence/stage_v_clean_e113c55/` |
-| **F0 / Baseline freeze** | **Complete** | [lakehouse/active/stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | [F0 report](../reports/mysql-spark-iceberg-f0-baseline.md) |
-| **L / Legacy removal + CI cutover** | **Next** | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | — |
+| **F0 / Baseline freeze** | **Complete** | [lakehouse/completed/stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | [F0 report](../reports/mysql-spark-iceberg-f0-baseline.md) |
+| **L / Legacy removal + CI cutover** | **Active (L1 pending)** | [lakehouse/active/stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | [L0 report](../reports/lakehouse-stage-l0-baseline.md) |
 | **F1 / Final parity** | Pending (после L) | [lakehouse/active/stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
 
 Граф последовательности стадий:
@@ -127,6 +127,9 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete
 | **Contracts** | [spark-streaming.md](lakehouse/contracts/spark-streaming.md) | Спецификация движка Spark Structured Streaming на Scala, алгоритмы декодирования и коммитов в Iceberg. |
 | **Contracts** | [serving-and-recovery.md](lakehouse/contracts/serving-and-recovery.md) | Интеграция ClickHouse, витрины dbt-clickhouse Gold, регламенты Airflow и обработка сбоев. |
 | **Contracts** | [validation-and-ci.md](lakehouse/contracts/validation-and-ci.md) | Автоматические тесты, структура проверок CI и защитные барьеры. |
+| **Contracts** | [legacy-disposition-register.md](lakehouse/contracts/legacy-disposition-register.md) | Построчные решения L0 по workflow/script/test/fixture/secret и условия удаления. |
+| **Contracts** | [observability.md](lakehouse/contracts/observability.md) | Producer-to-scrape-to-alert/dashboard chain нового стека. |
+| **Contracts** | [testing-and-evidence.md](lakehouse/contracts/testing-and-evidence.md) | Ownership тестов, transfer rules и evidence boundaries L0–F1. |
 | **Contracts** | [final-parity.md](lakehouse/contracts/final-parity.md) | Контракт одноразового frozen baseline F0 и candidate-only итогового сравнения F1. |
 | **Completed** | [wave-1-j1-runbook.md](lakehouse/completed/wave-1-j1-runbook.md) | Завершенный исторический runbook интеграции Wave 1 / J1 (зафиксирован). |
 | **Completed** | [wave-2-j2-runbook.md](lakehouse/completed/wave-2-j2-runbook.md) | Завершенный исторический runbook Scala data plane Wave 2 / J2 (зафиксирован). |
@@ -134,10 +137,11 @@ Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete
 | **Completed** | [stage-v-candidate-e2e-validation.md](lakehouse/completed/stage-v-candidate-e2e-validation.md) | Завершенный план и clean acceptance Stage V V0–V10. |
 | **Completed** | [stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | Завершенный план повторной приемки Stage E/V. |
 | **Active** | [serving-cutover.md](lakehouse/active/serving-cutover.md) | Координационный порядок E/V repair → F0 → L → F1 и переходные барьеры. |
-| **Active** | [stage-f0-baseline-freeze.md](lakehouse/active/stage-f0-baseline-freeze.md) | Одноразовый экспорт baseline из точного commit `main` до cleanup. |
+| **Completed** | [stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | Одноразовый экспорт baseline из точного commit `main` до cleanup. |
 | **Active** | [stage-l-legacy-removal-ci-cutover.md](lakehouse/active/stage-l-legacy-removal-ci-cutover.md) | Инвентарь удаления legacy и точная целевая матрица workflows/jobs. |
+| **Report** | [lakehouse-stage-l0-baseline.md](../reports/lakehouse-stage-l0-baseline.md) | Фактический baseline rollback/E2E и L0 static findings. |
 | **Active** | [stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) | Финальный candidate-only прогон против frozen oracle после cleanup. |
-| **Deferred** | [gcp-spark-iceberg-bigquery-migration.md](gcp-spark-iceberg-bigquery-migration.md) | Отложенная программа облачной миграции на GCP / BigQuery (out of local scope). |
+| **Future** | [gcp-spark-iceberg-bigquery-migration.md](gcp-spark-iceberg-bigquery-migration.md) | Отдельная будущая программа облачной миграции на GCP / BigQuery (out of local scope). |
 
 ---
 

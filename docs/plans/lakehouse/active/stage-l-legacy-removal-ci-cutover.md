@@ -15,12 +15,22 @@
 
 ## 2. Target inventory и invariants
 
+Cloud boundary: AWS/Redshift cloud artifacts are removed in L4; GCP/BigQuery is a separate future program described in [GCP migration plan](../../gcp-spark-iceberg-bigquery-migration.md) and is not implemented by Stage L. Local MinIO S3-compatible endpoints, `s3a://` paths and the Iceberg S3 adapter remain where they are the target object-store implementation; they are not AWS cloud infrastructure.
+
+Нормативные артефакты L0:
+
+- [Отчёт baseline L0](../../../reports/lakehouse-stage-l0-baseline.md) — фактический rollback, запуск E2E и static findings; статус обновляется после завершения процесса.
+- [Реестр disposition legacy-артефактов](../contracts/legacy-disposition-register.md) — построчное решение `KEEP`, `REWRITE`, `REPLACE` или `DELETE` и условие удаления.
+- [Контракт target observability](../contracts/observability.md) — producer/exporter/scrape/rule/dashboard/evidence chain и текущие phantom-target gaps.
+- [Контракт target tests и evidence](../contracts/testing-and-evidence.md) — обязательные suites, transfer rules и разделение baseline diagnostic от acceptance evidence.
+- [Контракт validation и CI](../contracts/validation-and-ci.md) — required common/bounded/manual workflows и запрет skipped/missing acceptance jobs.
+
 Должны сохраниться и проходить проверки:
 
 - MySQL 8.4 source: базы olist_oltp и olist_simulator, binlog ROW/GTID, точная source schema и file-only secrets.
 - Target Debezium/Kafka Connect bootstrap, MySQL connector contract, Apicurio compatibility и Kafka topic manifest.
 - Kafka, Apicurio Registry 3.3.0, MinIO, Polaris, Spark master/worker/bronze/silver/geolocation/ops, ClickHouse serving и Airflow.
-- Control PostgreSQL и только target DAG inventory: olist_lakehouse_maintenance.py и olist_lakehouse_serving.py.
+- Target serving control PostgreSQL и только target DAG inventory: два target-файла `olist_lakehouse_maintenance.py` и `olist_lakehouse_serving.py`, экспортирующие ровно четыре DAG ID: `olist_lakehouse_maintenance`, `olist_lakehouse_serving_sync`, `olist_lakehouse_quality`, `olist_lakehouse_serving_rebuild`.
 - dbt/olist_clickhouse, scripts/serving и final parity/F0 readers.
 - ScalaTest и target suites tests/mysql, tests/cdc_contracts, tests/lakehouse_platform, tests/dbt_clickhouse, tests/serving и tests/stage_v.
 - Actual observability chain: metric producer → Compose service/exporter → Prometheus scrape job → recording/alert rule → dashboard/runbook → acceptance check.
@@ -31,20 +41,23 @@
 
 Это подготовительный gate, а не реализация нового runtime.
 
-- После явного подтверждения выполнить rollback текущего незавершённого набора изменений к чистому рабочему дереву.
-- Зафиксировать baseline commit, список целевых файлов, список legacy файлов и исходный Stage V E2E результат.
-- Сопоставить каждый legacy workflow, script, test, fixture и secret template с disposition KEEP, REWRITE, REPLACE, DELETE или HOLD/DEFER. Четыре первых решения фиксируют целевую судьбу артефакта, но не требуют заранее детализировать реализацию; HOLD/DEFER используется, когда сначала нужен дополнительный runtime или consumer evidence.
+- Rollback текущего незавершённого набора изменений выполнен к чистому дереву на baseline commit `9214cd1de05ab37cdeae27a1a0b633963e8ae8d6`; committed plan Stage L сохранён.
+- Сразу после rollback запущен baseline Stage V E2E `stage_l0_baseline_20260804`; он прошёл V0–V9 и упал на V10 из-за raw-vs-effective transaction-state проверки. Команда и evidence root зафиксированы в [реестре disposition](../contracts/legacy-disposition-register.md); этот failure является baseline diagnostic, а не acceptance evidence.
+- После анализа выполнен отдельный clean corrective run `stage_l0_v10fix_20260804`: targeted `validate-final` effective-state fix дал V0–V10 `PASS`, без ручной мутации данных. Этот результат не закрывает обязательные L1 writer/materializer/planner regression work.
+- Зафиксированы baseline commit, fixture SHA-256, target inventory, legacy inventory и исходный Stage V E2E run в [реестре disposition](../contracts/legacy-disposition-register.md).
+- Каждый legacy workflow, script, test, fixture и secret template сопоставлен ровно с одним из четырёх disposition: `KEEP`, `REWRITE`, `REPLACE` или `DELETE`. AWS/Redshift не являются совместимым или отложенным scope: для них зафиксирован только `DELETE`. Четыре решения фиксируют целевую судьбу артефакта, но не утверждают реализацию будущей стадии.
 - Проверить, что план Stage L находится в active, а serving-cutover и master plan не объявляют L complete.
 
-Disposition register для L0 должен содержать path, роль артефакта, найденных consumers, target contract, выбранное disposition, подстадию-владельца, replacement test/evidence и условие удаления. Неопределённый или неподтверждённый DELETE запрещён; HOLD/DEFER должен быть разрешён до L4.
+Disposition register для L0 должен содержать path, роль артефакта, найденных consumers, target contract, выбранное disposition, подстадию-владельца, replacement test/evidence и условие удаления. Неопределённый или неподтверждённый DELETE запрещён; новые исключения из четырёх решений требуют отдельного consumer evidence и не могут использоваться для сохранения AWS/Redshift.
 
 Exit criteria:
 
 - чистое baseline дерево;
-- inventory review с отсутствующими orphan consumers;
+- inventory review с зафиксированными consumers и явными orphan-scan gates перед каждым DELETE;
 - согласованный disposition register без неподтверждённых DELETE;
 - F0 oracle/readers не изменены;
-- известные baseline failures записаны отдельно от acceptance evidence.
+- известные baseline failures записаны отдельно от acceptance evidence;
+- baseline и corrective E2E outcomes дописаны в register/report; их статусы не подменяются декларацией о завершении Stage L.
 
 ## 4. L1 — target contracts, tests и runtime repair
 
@@ -72,7 +85,13 @@ Exit criteria:
 - Убрать PostgreSQL execute_values, ON CONFLICT, public.*, simulator_control и ::jsonb из target simulator.
 - Вернуть явные transaction boundaries, rollback/commit, failure persistence, graceful stop и Decimal-compatible replay speed. Не вводить plaintext --password/state в CLI или DatabaseSettings.
 - Вернуть target streaming/connect bootstrap и MySQL connector template, которые вызываются из local_lab. Удаление всего streaming/connect недопустимо.
-- Переписать stage2_admin на MySQL connector name/plugin/topic contract либо удалить его только вместе с доказанным отсутствием consumers.
+- Переписать `stage2_admin` на MySQL connector name/plugin/topic contract; его текущие `local_lab`/CDC consumers не удаляются в рамках этой стадии.
+- Перевести `docs/source_profile.json`, `tests/fixtures/olist_small/source_profile_small.json` и fixture generator на target-neutral metadata: активные `redshift_raw_type` поля не должны пережить L1.
+- Переписать `infra/control-postgres` bootstrap и `scripts/serving/control.py` на target-owned `serving.*` schema checks; legacy `audit`/`cdc_audit` migrations остаются до L4 только при наличии replacement evidence.
+- Разобрать failure baseline E2E: в run `stage_l0_baseline_20260804` все V0–V9 прошли, но V10/`10-final` увидел одну сырую `OPEN` audit observation. L0 diagnostic run `stage_l0_v10fix_20260804` подтвердил effective-state explanation и получил новый clean PASS без ручного SQL; L1 всё равно обязан закрепить это поведение в writer/materializer/planner contracts и regression tests.
+- Зафиксировать transaction-state invariant как отдельный L1 deliverable: `audit.mysql_transactions` может быть append-only observation history, но serving planner и V10 обязаны читать effective state. BEGIN и END, разделённые micro-batches, должны схлопываться в `COMPLETE`; настоящий незавершённый BEGIN не может исчезать из planner только потому, что у него `end_kafka_offset IS NULL`. Добавить regression coverage для split BEGIN/END, unresolved OPEN, `REJECTED → COMPLETE`, duplicate END и offset/order checks в Scala/serving tests.
+- Для этого адресно переписать `TransactionBatchWriter.scala`, `scripts/serving/clickhouse.py`, `scripts/serving/boundary.py`, target serving DAG и `local_lab.py`; остальные target data-plane/serving файлы не являются кандидатами на массовое удаление.
+- Устранить побочный эффект `_capture_and_contracts`: baseline/E2E capture не должен перезаписывать tracked `streaming/schemas/captured-writer-schemas/**` динамическими timestamp/provenance. Runtime capture должен оставаться в temp/evidence, а изменение frozen writer bundle допускается только отдельным contract-driven commit.
 - Согласовать Compose image, runtime-versions и contract versions; не делать silent Debezium downgrade.
 - Исправить env names: KAFKA_CONNECT_HOST_PORT должен совпадать с Compose, а все используемые secret source variables должны быть документированы.
 
@@ -90,6 +109,8 @@ Observability является обязательной частью мигра�
 ### Runtime mapping
 
 Для каждого target job сначала зафиксировать producer, endpoint, Compose service и healthcheck. Допустимы два решения: добавить pinned exporter service либо настроить реальный metrics endpoint существующего компонента. Нельзя оставлять ссылки на несуществующие services вроде mysql-exporter, spark-iceberg, cdc-component-exporter, cdc-pipeline-exporter, kafka-exporter, statsd-exporter, node-exporter или cadvisor без соответствующих Compose definitions.
+
+Для Alertmanager и Alloy решение уже принято: L2 добавляет реальные pinned services, потому что они входят в target alert/log chain. Для Airflow старый StatsD mapping заменяется health/API probe; нереализованный target нельзя оставить в контракте без owner, endpoint и acceptance evidence.
 
 Минимальный target coverage:
 
@@ -164,7 +185,8 @@ Exit criteria:
 - NiFi runtime, NiFi workflows/scripts/tests, NiFi-specific MinIO assets и runtime-version entries;
 - старые PostgreSQL/legacy DAGs;
 - dbt/olist_analytics и связанные old batch/realtime selectors;
-- Redshift infra, Redshift-only utilities/dependencies и old raw batch paths;
+- Redshift infra, Redshift-only utilities/dependencies и old raw batch paths, поскольку AWS/Redshift полностью выводятся из программы; будущий GCP stack является отдельным cloud-планом;
+- legacy control PostgreSQL `audit`/`cdc_audit` DDL после переноса их проверяемых invariants в Spark/serving target owners;
 - старые ClickHouse raw CDC/batch/runtime paths, если target dbt/serving paths не используют их;
 - deleted legacy GitHub workflows и их orphan CI scripts;
 - old PostgreSQL oracle fixtures после принятия F0 и подтверждения отсутствия consumers.
@@ -176,14 +198,14 @@ Exit criteria:
 - scripts/cdc/realtime_transform.py и scripts/ci/check_dbt_selector_boundaries.py;
 - scripts/cdc/warehouse_ingest.py и pipeline_metrics.py;
 - scripts/utilities/generate_redshift_raw_ddl.py;
-- streaming/minio/init.sh, streaming/minio/README.md и nifi-policy;
+- unused streaming/minio/init.sh, stale MinIO policies and old README instructions; retain only the target `streaming/minio/Dockerfile`/`start.sh` plus `infra/polaris/minio/**` initializer and policies;
 - streaming/runtime-versions.json entries for NiFi;
 - _nifi_written_at в active schemas/ClickHouse raw DDL;
 - old connector names, old DBT paths, redshift/public/simulator_control references.
 
 ### Что сохраняется
 
-- control PostgreSQL;
+- target serving control PostgreSQL с только target-owned schema/migrations;
 - target MySQL infra/schema/simulator;
 - target Debezium/Kafka Connect bootstrap and MySQL contract;
 - target Kafka/Apicurio/Spark/Iceberg/Polaris/ClickHouse serving/Airflow;
@@ -218,6 +240,8 @@ Stage L получает COMPLETE только если одновременно
 - Не удалять весь streaming/connect: там находятся target Debezium/MySQL bootstrap и contract artifacts.
 - Не переписывать simulator semantics в рамках cleanup без contract-driven tests.
 - Не понижать pinned runtime version без обновления всех contracts и acceptance checks.
+- Не переносить AWS/Redshift runtime в GCP автоматически в рамках Stage L: GCP — отдельная программа с собственными контрактами и consumer review.
 - Не добавлять plaintext secrets, --password CLI или password fields в state objects.
 - Не добавлять Prometheus targets, dashboards или chaos commands для несуществующих services.
+- Не удалять локальный MinIO S3-compatible adapter только из-за имён `AWS`/`S3` в библиотечном/API слое; удаляются AWS cloud/Redshift consumers, а не необходимый target object-store protocol.
 - Не объявлять Stage L complete при failed/missing E2E gates, только на основании handoff или локального unit-test count.
