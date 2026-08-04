@@ -134,7 +134,7 @@ Observability является обязательной частью мигра�
 
 - MySQL availability/binlog/replication health;
 - Debezium Connect REST, connector/task state и heartbeat;
-- Kafka broker/topic/consumer lag с фильтрацией только target consumer groups;
+- Kafka broker/topic end offsets и checkpoint-derived consumer lag с bounded topic ownership;
 - Spark Bronze/Silver/ops health и streaming progress;
 - MinIO/Polaris/ClickHouse serving;
 - Airflow/serving/control-plane metrics;
@@ -144,7 +144,7 @@ Observability является обязательной частью мигра�
 
 - Удалить или переписать NiFi dashboards, queue metrics, NiFi-specific MinIO policy/secret и PostgreSQL WAL alerts.
 - Удалить CdcRetainedWalHighAndGrowing и другие PostgreSQL source alerts, если их нельзя доказать на target source.
-- Не заменять scoped Kafka lag на sum всех kafka_consumergroup_lag; selector должен ограничивать target groups/topics.
+- Не использовать raw `kafka_consumergroup_lag` как источник lag для Spark Structured Streaming: его offsets живут в checkpoint, а не в обычной committed consumer group. Использовать реальный Kafka partition end offset, опубликованный Bronze checkpoint offset, и explicit target topic/owner selectors.
 - Проверять YAML/JSON schema, target host existence, alert metric existence, dashboard query references и runbook links.
 - Chaos commands должны использовать реальные Compose service names и уникальный project name. Например, kafka-connect, spark-bronze/spark-silver или выделенный target Spark service, а не fictitious debezium и spark-iceberg.
 
@@ -153,7 +153,30 @@ Exit criteria:
 - все configured scrape targets существуют и проверяемо UP в healthy stack;
 - target alerts fire and resolve на bounded fault injection;
 - Grafana dashboards не содержат 404/phantom metric panels;
-- clean Stage V E2E V0–V10 PASS плюс observability acceptance evidence в data/stage-l-evidence/L2/.
+- observability acceptance evidence сохранено в data/stage-l-evidence/L2/;
+- Stage V E2E script не изменён и не запускается в L2. Его независимая V0–V10
+  acceptance проверяется отдельным gate в L3.
+
+### L2 implementation result (2026-08-04)
+
+- [Stage L2 implementation report](../../../reports/lakehouse-stage-l2.md)
+  records the target observability implementation, runtime diagnostics and
+  evidence paths. Stage L remains `ACTIVE`; this is not a Stage L completion
+  claim.
+- The bounded acceptance run
+  `data/stage-l-evidence/L2/stage_l2_20260804_full/observability-acceptance-final.json`
+  passed. It verified 18 Prometheus jobs, 10 target probes, 23 alert rules,
+  Grafana dashboards/datasources, Loki labels/log query and Alertmanager
+  webhook delivery metrics.
+- `failure-connect.json` and `failure-minio.json` both proved `FIRING →
+  RESOLVED` transitions against real Compose services. The live stack also
+  confirmed the fresh-catalog `spark-ops` path after its self-creating status
+  table fix.
+- Kafka lag is deliberately implemented as a join of Kafka exporter partition
+  end offsets with Spark Bronze checkpoint progress. The plan does not treat a
+  synthetic or empty ordinary consumer-group lag metric as Spark truth.
+- `scripts/validation/stage_v_candidate_e2e.py` was not modified and the Stage
+  V E2E was not run. Its independent V0–V10 gate remains L3 scope.
 
 ## 6. L3 — CI и acceptance cutover
 

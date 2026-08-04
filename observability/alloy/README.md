@@ -1,9 +1,9 @@
 # Grafana Alloy
 
-Alloy discovers local Docker containers and forwards Docker-decoded log entries
-to Loki. It attaches only the stable `environment=local` and container-derived
-`service` labels. `simulation_run_id`, `_event_id`, `cdc_run_id`, object URIs,
-and error messages remain searchable in the log body and are never labels.
+Alloy discovers local Docker containers through a read-only Docker socket and
+forwards Docker-decoded logs to the real Loki service. It attaches only the
+bounded `environment` and `service` labels. Correlation IDs, business keys,
+object URIs and error messages remain in log bodies and are never labels.
 
-The Docker socket is mounted read-only; Alloy has no authority to start, stop,
-or mutate containers.
+The service exposes its own readiness and metrics endpoint on port `12345` and
+has no authority to start, stop or mutate containers.

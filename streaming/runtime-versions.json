@@ -53,9 +53,14 @@
       "version": "1.16.1",
       "image": "grafana/alloy:v1.16.1"
     },
+    "observability_probe": {
+      "version": "1.0.0",
+      "image": "olist-observability-probe:1.0.0",
+      "source": "scripts/observability/target_probe.py"
+    },
     "loki": {
-      "version": "3.5.0",
-      "image": "grafana/loki:3.5.0"
+      "version": "3.6.5",
+      "image": "grafana/loki:3.6.5"
     },
     "node_exporter": {
       "version": "1.10.2",

@@ -1,26 +1,29 @@
 groups:
-  - name: lakehouse-serving-alerts
+  - name: lakehouse-serving-health
     rules:
-      - alert: ServingSyncStalled
-        expr: (time() - olist_serving_last_publication_timestamp_seconds) > 600
-        for: 5m
+      - alert: LakehouseServingPublicationStalled
+        expr: olist_serving_publication_age_seconds > 600
+        for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "Serving sync has been stalled for over 10 minutes"
+          summary: Lakehouse serving publication is stale
+          runbook: docs/runbooks/lakehouse-serving-sync.md
 
-      - alert: ServingRejectedBoundary
-        expr: olist_serving_next_boundary_status == 2
-        for: 1m
+      - alert: LakehouseServingRejectedBoundary
+        expr: olist_serving_rejected_boundary == 1
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: "Serving boundary hit a REJECTED transaction"
+          summary: Lakehouse serving reached a rejected transaction boundary
+          runbook: docs/runbooks/lakehouse-serving-rejected-boundary.md
 
-      - alert: ServingPublicationDrift
-        expr: olist_serving_watermark_drift == 1
+      - alert: LakehouseServingLeaseStalled
+        expr: olist_serving_active_lease == 1 and olist_serving_publication_age_seconds > 600
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "PostgreSQL control cursor and ClickHouse marker drift detected"
+          summary: Lakehouse serving holds a lease while publication is stale
+          runbook: docs/runbooks/lakehouse-serving-sync.md

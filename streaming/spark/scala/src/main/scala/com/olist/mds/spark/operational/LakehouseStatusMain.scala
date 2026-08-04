@@ -75,6 +75,34 @@ object LakehouseStatusMain {
       }
     }
 
+    // The status collector is a one-shot operational writer. Keep its target
+    // relation self-healing so a fresh catalog does not turn a valid status
+    // snapshot into a failed spark-ops container before the first append.
+    spark.sql(
+      s"""
+         |CREATE TABLE IF NOT EXISTS $TargetTable (
+         |  application STRING NOT NULL,
+         |  contract_version INT NOT NULL,
+         |  overall_state STRING NOT NULL,
+         |  updated_at_utc TIMESTAMP NOT NULL,
+         |  query_name STRING NOT NULL,
+         |  query_id STRING NOT NULL,
+         |  query_state STRING NOT NULL,
+         |  last_batch_id BIGINT NOT NULL,
+         |  last_progress_at_utc TIMESTAMP,
+         |  recorded_at TIMESTAMP NOT NULL
+         |) USING iceberg
+         |TBLPROPERTIES (
+         |  'format-version' = '2',
+         |  'write.format.default' = 'parquet',
+         |  'write.parquet.compression-codec' = 'zstd',
+         |  'write.target-file-size-bytes' = '134217728',
+         |  'write.metadata.delete-after-commit.enabled' = 'true',
+         |  'write.metadata.previous-versions-max' = '20'
+         |)
+         |""".stripMargin
+    )
+
     if (rows.nonEmpty) {
       val schema = StructType(
         Seq(

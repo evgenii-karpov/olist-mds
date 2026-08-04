@@ -1,29 +1,37 @@
-# Realtime observability assets
+# Target observability stack
 
-This directory owns the complete local CDC telemetry stack: Prometheus,
-Alertmanager, Grafana, ClickHouse metrics, the OLTP PostgreSQL exporter,
-Kafka/NiFi/pipeline exporters, node exporter, cAdvisor, Airflow StatsD, Loki,
-and Alloy. Runtime image versions are pinned in `streaming/runtime-versions.json`.
+This directory owns the target telemetry chain for MySQL, Debezium/Kafka
+Connect, Kafka, Spark/Iceberg, MinIO, Polaris, ClickHouse serving, Airflow and
+the observability services themselves. It deliberately has no legacy source,
+OLTP or warehouse-exporter targets.
 
-The local stack uses stable committed development-only Docker secrets. Build
-the custom runtime images and start the three explicit profiles:
+The bounded `target-probe` service owns health and domain metrics for components
+that do not expose a stable Prometheus endpoint. It reads only bounded status
+and control-plane fields; credentials are provided through Compose secret files
+and are never emitted as labels or log values. Kafka exporter provides target
+partition end offsets; Spark Bronze publishes checkpoint end offsets and the
+probe computes scoped lag from the two real sources. Recording rules allowlist
+target topics and the fixed Bronze owner.
+
+Start the observability stack separately from the Stage V E2E harness:
 
 ```powershell
-$env:AIRFLOW_STATSD_ON="true"
-docker compose --profile realtime-core build airflow kafka-connect minio nifi
-docker compose --profile realtime-core --profile observability --profile logs up -d --wait
+$env:COMPOSE_PROJECT_NAME="olist_observability_l2"
+docker compose --profile platform --profile streaming --profile serving `
+  --profile observability --profile logs up -d --build --wait
 ```
 
-Grafana is on `http://localhost:3000`, Prometheus on `http://localhost:9090`,
-Alertmanager on `http://localhost:9093`, and Loki on `http://localhost:3100`.
-Grafana credentials come from the local Docker secret contract. Loki retains local logs
-for seven days. Alloy labels only `environment` and `service`; correlation IDs
-remain in log bodies to avoid unbounded cardinality.
+The local endpoints are Prometheus `http://localhost:9090`, Alertmanager
+`http://localhost:9093`, Grafana `http://localhost:3000`, Loki
+`http://localhost:3100`, Alloy `http://localhost:12345` and the target probe
+`http://localhost:9108`.
 
-Prometheus scrapes ClickHouse directly at `clickhouse:9363`. The warehouse
-PostgreSQL exporter is intentionally absent from the ClickHouse candidate path;
-the OLTP PostgreSQL exporter remains because Debezium source health still
-depends on the local OLTP database.
+Run the static contract validator before any live acceptance check:
 
-Run `uv run python scripts/ci/validate_stage6_configuration.py` after changing
-dashboards, alerts, log labels, retention, or runbook links.
+```powershell
+uv run python scripts/ci/validate_stage6_configuration.py
+```
+
+The bounded failure-injection helper uses real target service names and the
+`olist_observability_l2` project. It stops only the named service and never
+removes volumes unless an operator explicitly runs a separate cleanup command.

@@ -1,9 +1,12 @@
 route:
-  receiver: local-log
+  receiver: target-probe-webhook
   group_by: [alertname]
   group_wait: 10s
   group_interval: 1m
   repeat_interval: 4h
 
 receivers:
-  - name: local-log
+  - name: target-probe-webhook
+    webhook_configs:
+      - url: http://target-probe:9108/alertmanager/webhook
+        send_resolved: true

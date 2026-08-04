@@ -1,15 +1,18 @@
 {
-  "annotations": {"list": []}, "editable": false, "schemaVersion": 41,
-  "tags": ["olist", "cdc", "phase-6", "postgres", "debezium"],
-  "templating": {"list": []}, "time": {"from": "now-6h", "to": "now"},
-  "timezone": "browser", "title": "Olist CDC — Source and Debezium",
-  "uid": "olist-cdc-source", "version": 1,
+  "annotations": {"list": []},
+  "editable": false,
+  "schemaVersion": 41,
+  "tags": ["lakehouse", "mysql", "cdc"],
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "utc",
+  "title": "Lakehouse Source and CDC",
+  "uid": "olist-lakehouse-source",
   "panels": [
-    {"id": 1, "type": "stat", "title": "Connector running", "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_connect_connector_running"}]},
-    {"id": 2, "type": "stat", "title": "Task running", "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_connect_tasks_running"}]},
-    {"id": 3, "type": "stat", "title": "Replication slot active", "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}, "targets": [{"refId": "A", "expr": "olist_cdc_replication_slot_active"}]},
-    {"id": 4, "type": "stat", "title": "Heartbeat age", "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}, "fieldConfig": {"defaults": {"unit": "s"}}, "targets": [{"refId": "A", "expr": "olist_cdc_heartbeat_age_seconds{component_name=\"debezium\"}"}]},
-    {"id": 5, "type": "timeseries", "title": "Retained WAL", "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}, "fieldConfig": {"defaults": {"unit": "bytes"}}, "targets": [{"refId": "A", "expr": "olist_cdc_replication_slot_retained_wal_bytes"}]},
-    {"id": 6, "type": "timeseries", "title": "Source events by operation", "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}, "targets": [{"refId": "A", "expr": "olist_cdc_raw_events_total", "legendFormat": "{{table}} / {{operation}}"}]}
+    {"id": 1, "type": "stat", "title": "MySQL availability", "targets": [{"refId": "A", "expr": "olist_target_up{target=\"mysql\"}"}]},
+    {"id": 2, "type": "stat", "title": "Binlog position", "targets": [{"refId": "A", "expr": "olist_mysql_binlog_position"}]},
+    {"id": 3, "type": "stat", "title": "GTID enabled", "targets": [{"refId": "A", "expr": "olist_mysql_gtid_enabled"}]},
+    {"id": 4, "type": "stat", "title": "Kafka Connect", "targets": [{"refId": "A", "expr": "olist_target_up{target=\"kafka-connect\"}"}]},
+    {"id": 5, "type": "stat", "title": "Connector task", "targets": [{"refId": "A", "expr": "olist_connect_task_running{connector=\"olist-mysql-cdc\",task=\"0\"}"}]},
+    {"id": 6, "type": "stat", "title": "Registry compatibility", "targets": [{"refId": "A", "expr": "olist_apicurio_compatibility_ready"}]}
   ]
 }

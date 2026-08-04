@@ -8,11 +8,50 @@ import com.olist.mds.spark.contract.ContractLoader
 import com.olist.mds.spark.supervisor.QueryStatus
 import com.olist.mds.spark.supervisor.StatusPublisher
 import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.StreamingQuery
 import java.io.InputStream
 import java.time.Instant
+import scala.jdk.CollectionConverters._
 
 object BronzeMain {
   val QueryName = "kafka_to_bronze"
+
+  private val offsetMapper = new ObjectMapper()
+
+  // Structured Streaming owns Kafka offsets in its checkpoint rather than
+  // committing a normal consumer-group offset. Publish the source end
+  // offsets from the query progress so the target probe can calculate lag
+  // against Kafka's current partition offsets without inventing a consumer
+  // group that Spark does not maintain.
+  private def extractPartitionOffsets(query: StreamingQuery): Map[String, Long] = {
+    val progress = query.lastProgress
+    if (progress == null) {
+      Map.empty
+    } else {
+      progress.sources.toSeq.flatMap { source =>
+        val endOffset = offsetMapper.readTree(source.endOffset)
+        if (endOffset == null || !endOffset.isObject) {
+          Seq.empty
+        } else {
+          endOffset.properties().asScala.toSeq.flatMap { topicEntry =>
+            val topic = topicEntry.getKey
+            val partitions = topicEntry.getValue
+            if (!partitions.isObject) {
+              Seq.empty
+            } else {
+              partitions
+                .properties()
+                .asScala
+                .map { partitionEntry =>
+                  s"$topic:${partitionEntry.getKey}" -> partitionEntry.getValue.asLong()
+                }
+                .toSeq
+            }
+          }
+        }
+      }.toMap
+    }
+  }
 
   private def loadSubscribeTopics(): String = {
     val is: InputStream = getClass.getClassLoader.getResourceAsStream("topics.json")
@@ -76,7 +115,7 @@ object BronzeMain {
           state = "RUNNING",
           last_batch_id = batchId,
           last_progress_at_utc = Some(now.toString),
-          partition_offsets = Map.empty,
+          partition_offsets = extractPartitionOffsets(activeQuery),
           error_class = None,
           error_code = None
         )

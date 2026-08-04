@@ -1,13 +1,13 @@
 # Prometheus
 
-Prometheus scrapes Kafka, Connect, both PostgreSQL databases, NiFi, MinIO,
-Airflow StatsD, the warehouse audit exporter, node exporter, and cAdvisor.
+Prometheus scrapes native metrics from Prometheus, Alertmanager, Grafana, Loki,
+Alloy, MinIO and ClickHouse. The bounded `target-probe` service provides
+MySQL/binlog, Kafka Connect, Apicurio, Spark, Polaris, Airflow, control-plane
+and serving metrics. Kafka exporter provides target partition end offsets;
+Spark Bronze checkpoint offsets are joined by `target-probe` into scoped lag,
+which is recorded only for target topics and the fixed Bronze owner.
 
-Recording rules compute ten-minute p95 commit-to-mart latency, ten-minute latency
-error-budget burn, Kafka lag, and NiFi queue utilization. Initial thresholds
-remain those approved in the plan: 300-second p95, 512 MiB growing WAL, 70%
-NiFi queue utilization, 100 files/table/hour, 1 MiB median file size, and 85%
-disk use. Tune them only from committed benchmark evidence and record why.
-
-Correlation IDs, object URIs, error text, and business keys are forbidden as
-Prometheus labels.
+Every scrape target is a real Compose service or the explicitly owned
+`target-probe` exporter. Recording and alert rules use the `olist_` namespace,
+bounded labels and target connector/topic identities. Business keys, object
+URIs, exception text and secret values are never labels.

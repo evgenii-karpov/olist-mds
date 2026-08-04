@@ -11,6 +11,12 @@ discovery.relabel "local_containers" {
 	targets = discovery.docker.local.targets
 
 	rule {
+		source_labels = ["__meta_docker_container_state"]
+		regex         = "running"
+		action        = "keep"
+	}
+
+	rule {
 		source_labels = ["__meta_docker_container_name"]
 		regex         = "/(.*)"
 		target_label  = "service"
@@ -26,11 +32,6 @@ discovery.relabel "local_containers" {
 loki.source.docker "local" {
 	host       = "unix:///var/run/docker.sock"
 	targets    = discovery.relabel.local_containers.output
-	forward_to = [loki.process.local.receiver]
-}
-
-loki.process "local" {
-	stage.docker { }
 	forward_to = [loki.write.local.receiver]
 }
 
