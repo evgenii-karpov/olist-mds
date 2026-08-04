@@ -10,7 +10,9 @@
 | Уровень | Workflow | Trigger | Обязательность |
 | --- | --- | --- | --- |
 | Fast/common | `.github/workflows/ci.yml` | каждый PR, push в `main` | required branch protection |
-| Bounded components | `.github/workflows/lakehouse-components.yml` | PR/push по target path filters для быстрых jobs; `workflow_dispatch` для полного runtime | быстрые jobs обязательны для релевантных изменений; полный runtime запускается вручную |
+| Bounded component contracts | `.github/workflows/lakehouse-components.yml` | PR/push по target path filters | быстрые contract jobs обязательны для релевантных изменений |
+| Bounded CDC runtime | `.github/workflows/lakehouse-cdc.yml` | только `workflow_dispatch` | ручной bounded CDC acceptance |
+| Bounded serving runtime | `.github/workflows/lakehouse-serving.yml` | только `workflow_dispatch` | ручной bounded serving acceptance |
 | Full acceptance | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | перед контрольными переходами, не на каждый PR |
 
 Frozen baseline F0 создаётся одноразово и не регенерируется CI.
@@ -26,7 +28,7 @@ runtime, DAG, dbt-проект, fixture или Stage V runner, граница м
 
 Workflow содержит стабильный агрегирующий check `ci-success` и следующие jobs:
 
-1. `docs-and-repository-contracts` — syntax/link checks, compileall, fixture/oracle metadata и запрет active legacy references.
+1. `docs-and-repository-contracts` — syntax/link checks, compileall, fixture/oracle metadata, active legacy references and the independent L4 orphan inventory (`scripts/ci/check_legacy_orphans.py`).
 2. `python-quality` — Ruff lint/format и Pyright по target paths.
 3. `python-contract-tests` — pytest только по `tests/mysql`, `tests/cdc_contracts`, `tests/lakehouse_platform`, `tests/dbt_clickhouse`, `tests/serving`, `tests/stage_v`; нулевая коллекция является ошибкой.
 4. `scala-fast` — scalafmt, compile, ScalaTest, package и проверка содержимого JAR.
@@ -38,27 +40,36 @@ Workflow содержит стабильный агрегирующий check `c
 
 ---
 
-## 3. Bounded components (`lakehouse-components.yml`)
+## 3. Bounded component contracts (`lakehouse-components.yml`)
 
-Workflow смешанный: `spark-image-contract`, `airflow-runtime` и
-`observability-contract` остаются быстрыми PR/push-проверками. Тяжёлые
-`cdc-component` и `serving-component` запускаются только через
-`workflow_dispatch`, поскольку каждый job поднимает холодный Compose runtime и
-выполняет bounded end-to-end сценарий.
+Этот workflow содержит только быстрые PR/push-проверки:
 
-Jobs:
+1. `spark-image-contract` — pinned image, offline entrypoint help, JAR/resources/classes, filesystem permissions и secret leakage;
+2. `airflow-runtime` — запуск того же Airflow image, exact DAG inventory и bounded task path;
+3. `observability-contract` — Compose/config/contract checks для target observability;
+4. `component-summary` — итог только по реально запущенным contract jobs.
 
-1. `spark-image-contract` — pinned image, offline entrypoint help, JAR/resources/classes, filesystem permissions и secret leakage.
-2. `cdc-component` — bounded MySQL → Debezium → Kafka/Apicurio → Bronze/Silver, initial snapshot, restart и replay.
-3. `serving-component` — migration 005, real finite boundary, ClickHouse candidate/stable publish, dbt build, no-op retry и failpoints.
-4. `airflow-runtime` — запуск того же Airflow image, exact DAG inventory и bounded task path.
-5. `component-summary` — единое решение и публикация evidence.
-
-Workflow использует малый fixture, отдельный Compose project, жёсткие timeouts и cleanup в `always()`. Для Spark status mount CI заранее создаёт writable Bronze/Silver directories и проверяет запись от runtime UID до запуска streaming. Ошибка status publication не скрывается внутри Spark процесса, а readiness timeout ограничен пятью минутами. Workflow не выполняет полный V0–V10 или F1.
+В workflow нет manual-only jobs и job-level условий, превращающих обязательную
+проверку в `skipped`. Он использует path filters, отдельные Compose project
+names, жёсткие timeouts и cleanup в `always()`. Полный V0–V10 или F1 он не
+выполняет.
 
 ---
 
-## 4. Manual acceptance (`lakehouse-acceptance.yml`)
+## 4. Bounded runtime acceptance
+
+Тяжёлые runtime-проверки намеренно вынесены в отдельные workflow, чтобы они не
+создавали `skipped` jobs в PR CI и запускались независимо:
+
+1. `.github/workflows/lakehouse-cdc.yml` — `cdc-component`: bounded MySQL → Debezium → Kafka/Apicurio → Bronze/Silver, initial snapshot, catch-up и restart;
+2. `.github/workflows/lakehouse-serving.yml` — `serving-component`: bounded input, Silver catch-up, finite serving sync, authoritative no-op retry, rebuild и maintenance path.
+
+Оба workflow запускаются только через `workflow_dispatch`, используют малый
+fixture, уникальный Compose project, bounded timeouts, failure diagnostics,
+artifact evidence и cleanup в `always()`. В каждом workflow единственный
+runtime job является обязательным: отсутствие его успеха означает failure.
+
+## 5. Manual acceptance (`lakehouse-acceptance.yml`)
 
 Workflow принимает `suite=candidate-e2e|final-parity|all`, полный `candidate_sha` и явное destructive confirmation.
 
@@ -73,7 +84,7 @@ Destructive jobs используют protected environment и общий concur
 
 ---
 
-## 5. Обязательные свойства всех workflows
+## 6. Обязательные свойства всех workflows
 
 - `permissions: contents: read`, если job явно не требует большего;
 - фиксированные версии actions и dependency caches, привязанные к lockfiles;
@@ -82,11 +93,11 @@ Destructive jobs используют protected environment и общий concur
 - загрузка JUnit/raw JSON/ограниченных логов при ошибке;
 - очистка Docker resources при `always()`;
 - отсутствие секретов в command output, artifacts и image metadata;
-- итоговый статус вычисляется из фактических проверок; missing/skipped mandatory check не равен `PASS`. На PR/push пропущенные manual-only bounded runtime jobs не считаются ошибкой; при `workflow_dispatch` оба runtime jobs обязательны.
+- итоговый статус вычисляется из фактических проверок; missing/skipped mandatory check не равен `PASS`. Автоматический component-contract workflow не содержит manual-only runtime jobs, а каждый dispatch-only bounded runtime workflow завершается failure, если его component job не завершился успешно.
 
 ---
 
-## 6. Минимальное функциональное покрытие
+## 7. Минимальное функциональное покрытие
 
 ### Python contracts
 
@@ -114,7 +125,7 @@ Destructive jobs используют protected environment и общий concur
 
 ---
 
-## 7. Выведенные из эксплуатации workflows
+## 8. Выведенные из эксплуатации workflows
 
 После CI cutover удаляются:
 
@@ -126,7 +137,7 @@ Destructive jobs используют protected environment и общий concur
 
 ---
 
-## 8. Связанные документы
+## 9. Связанные документы
 
 - [Детальный план Stage L и CI cutover](../active/stage-l-legacy-removal-ci-cutover.md)
 - [Реестр disposition legacy-артефактов](legacy-disposition-register.md)

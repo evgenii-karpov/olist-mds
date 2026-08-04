@@ -1,0 +1,131 @@
+name: Lakehouse bounded CDC component
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+concurrency:
+  group: lakehouse-bounded-cdc-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cdc-component:
+    name: Bounded CDC component
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPOSE_PROJECT_NAME: ci-cdc-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and test dependencies
+        run: |
+          uv python install
+          uv sync --locked --group quality
+
+      - name: Prepare test evidence directory
+        run: mkdir -p data/reports
+
+      - name: Prepare Spark status mount
+        run: |
+          mkdir -p docker/spark/status/bronze docker/spark/status/silver
+          rm -f docker/spark/status/bronze/status.json docker/spark/status/silver/status.json
+          chmod 0777 docker/spark/status/bronze docker/spark/status/silver
+
+      - name: Run CDC contract tests
+        run: >-
+          uv run pytest -q tests/mysql tests/cdc_contracts tests/lakehouse_platform
+          --junitxml=data/reports/cdc-component-tests.xml
+
+      - name: Bootstrap bounded MySQL to Kafka platform
+        run: >-
+          uv run python scripts/cdc/local_lab.py bootstrap
+          --archive tests/fixtures/olist_small/olist_small.zip
+          --run-id ci-cdc-${{ github.run_id }}
+          --password-file docker/secrets/dev/mysql_simulator_password.txt
+          --timeout 1200
+          > data/reports/cdc-bootstrap.json
+
+      - name: Verify Spark status mount is writable
+        run: |
+          docker run --rm \
+            --user 185:185 \
+            --entrypoint /bin/sh \
+            --mount "type=bind,source=${GITHUB_WORKSPACE}/docker/spark/status,target=/var/run/olist-spark" \
+            olist-spark:4.1.3-iceberg1.11.0 \
+            -ec 'mkdir -p /var/run/olist-spark/bronze /var/run/olist-spark/silver; printf ready > /var/run/olist-spark/bronze/.write-test; printf ready > /var/run/olist-spark/silver/.write-test; rm -f /var/run/olist-spark/bronze/.write-test /var/run/olist-spark/silver/.write-test'
+
+      - name: Start bounded Spark streaming and wait for readiness
+        id: start-cdc-streaming
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-streaming
+          --wait-ready --timeout 300
+          > data/reports/cdc-streaming-ready.json
+
+      - name: Start ClickHouse serving observer for catch-up barrier
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-serving-observer
+          > data/reports/cdc-serving-observer.json
+
+      - name: Verify bounded CDC catch-up
+        run: >-
+          uv run python scripts/cdc/local_lab.py wait-caught-up
+          --timeout 900
+          > data/reports/cdc-caught-up.json
+
+      - name: Stop bounded streaming services
+        if: ${{ always() && steps.start-cdc-streaming.outcome == 'success' }}
+        run: >-
+          uv run python scripts/cdc/local_lab.py stop-streaming
+          > data/reports/cdc-streaming-stop.json
+
+      - name: Restart bounded streaming services
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-streaming
+          --wait-ready --timeout 900
+          > data/reports/cdc-streaming-restart.json
+
+      - name: Verify catch-up after bounded restart
+        run: >-
+          uv run python scripts/cdc/local_lab.py wait-caught-up
+          --timeout 900
+          > data/reports/cdc-caught-up-after-restart.json
+
+      - name: Capture bounded CDC diagnostics
+        if: failure()
+        run: |
+          docker compose --profile platform --profile streaming --profile serving ps -a \
+            > data/reports/cdc-compose-ps.txt || true
+          docker compose --profile platform --profile streaming --profile serving logs \
+            --no-color --tail=300 spark-bronze spark-silver \
+            > data/reports/cdc-spark.log || true
+          find docker/spark/status -maxdepth 3 -type f -print \
+            > data/reports/cdc-spark-status.txt || true
+
+      - name: Upload CDC evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdc-component
+          path: |
+            data/reports/cdc-*.json
+            data/reports/cdc-*.log
+            data/reports/cdc-*.txt
+            data/reports/cdc-component-tests.xml
+          if-no-files-found: warn
+
+      - name: Clean up CDC Compose resources
+        if: always()
+        run: docker compose --profile platform --profile streaming --profile serving down -v --remove-orphans

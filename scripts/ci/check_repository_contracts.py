@@ -22,6 +22,8 @@ REMOVED_WORKFLOWS = {
 REQUIRED_WORKFLOWS = {
     "ci.yml",
     "lakehouse-components.yml",
+    "lakehouse-cdc.yml",
+    "lakehouse-serving.yml",
     "lakehouse-acceptance.yml",
 }
 LEGACY_ACTIVE_TOKENS = (

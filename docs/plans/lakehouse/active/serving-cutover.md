@@ -88,7 +88,9 @@ Clean E/V acceptance зафиксирован в run `stage_v_clean_e113c55` д�
 | Уровень | Workflow | Запуск | Назначение |
 | --- | --- | --- | --- |
 | Обязательный PR CI | `.github/workflows/ci.yml` | `pull_request`, `push main` | быстрые static/unit/contract проверки всех target-компонентов |
-| Bounded integration | `.github/workflows/lakehouse-components.yml` | автоматически по path filters; также `workflow_dispatch` | Spark image, CDC, serving и Airflow runtime на малом fixture |
+| Bounded component contracts | `.github/workflows/lakehouse-components.yml` | автоматически по path filters | быстрые Spark image, Airflow и observability contract checks |
+| Bounded CDC runtime | `.github/workflows/lakehouse-cdc.yml` | только `workflow_dispatch` | MySQL → Debezium → Kafka/Apicurio → Spark catch-up/restart на малом fixture |
+| Bounded serving runtime | `.github/workflows/lakehouse-serving.yml` | только `workflow_dispatch` | finite serving sync, no-op retry, rebuild и maintenance на малом fixture |
 | Полная приёмка | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | полный V0–V10 и/или F1 на выделенном runner |
 | Baseline generation | не является регулярным workflow | одноразовый контролируемый F0 | frozen oracle; автоматическая регенерация запрещена |
 

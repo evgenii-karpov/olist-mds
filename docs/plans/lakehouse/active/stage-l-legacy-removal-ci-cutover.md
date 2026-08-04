@@ -32,7 +32,7 @@ Cloud boundary: AWS/Redshift cloud artifacts are removed in L4; GCP/BigQuery is 
 - Kafka, Apicurio Registry 3.3.0, MinIO, Polaris, Spark master/worker/bronze/silver/geolocation/ops, ClickHouse serving и Airflow.
 - Target serving control PostgreSQL и только target DAG inventory: два target-файла `olist_lakehouse_maintenance.py` и `olist_lakehouse_serving.py`, экспортирующие ровно четыре DAG ID: `olist_lakehouse_maintenance`, `olist_lakehouse_serving_sync`, `olist_lakehouse_quality`, `olist_lakehouse_serving_rebuild`.
 - dbt/olist_clickhouse, scripts/serving и final parity/F0 readers.
-- ScalaTest и target suites tests/mysql, tests/cdc_contracts, tests/lakehouse_platform, tests/dbt_clickhouse, tests/serving и tests/stage_v.
+- ScalaTest и target suites tests/mysql, tests/cdc_contracts, tests/lakehouse_platform, tests/dbt_clickhouse, tests/observability, tests/serving и tests/stage_v.
 - Actual observability chain: metric producer → Compose service/exporter → Prometheus scrape job → recording/alert rule → dashboard/runbook → acceptance check.
 
 Текущий runtime contract указывает Debezium Connect 3.6.0.Final в streaming/runtime-versions.json и architecture/runtime contracts. Версию нельзя понижать до 3.0.0.Final без отдельного изменения contract, image/plugin inventory и тестов.
@@ -197,9 +197,21 @@ Exit criteria:
 
 ### Bounded component CI
 
-Сохраняются четыре реальных bounded jobs: spark-image-contract, cdc-component, serving-component и airflow-runtime. Observability contract checks добавляются как отдельная bounded часть либо в cdc/serving component, но не заменяются echo-only summary.
+Bounded CI разделяется по режиму запуска и ownership:
 
-Path filters не должны позволять component-summary объявить успех при пропущенном или failed component. Manual component input airflow обязан запускать airflow-runtime.
+- `.github/workflows/lakehouse-components.yml` содержит только быстрые
+  PR/push-проверки Spark image, Airflow runtime и observability contract;
+- `.github/workflows/lakehouse-cdc.yml` содержит dispatch-only bounded
+  `cdc-component` с initial snapshot, catch-up и restart;
+- `.github/workflows/lakehouse-serving.yml` содержит dispatch-only bounded
+  `serving-component` с finite sync, authoritative no-op retry, rebuild и
+  maintenance path.
+
+Manual-only runtime jobs не встраиваются в PR workflow через job-level `if`:
+это создавало misleading `skipped` jobs. Каждый dispatch-only workflow имеет
+один обязательный runtime job, diagnostics, evidence и cleanup в `always()`.
+Path filters и summaries не должны позволять объявить успех при пропущенном или
+failed automatic contract job.
 
 ### Manual acceptance
 
@@ -212,7 +224,10 @@ Path filters не должны позволять component-summary объяви
 Exit criteria:
 
 - common CI и релевантные bounded workflow definitions проходят локальные contract checks;
-- component workflow содержит реальные bounded Spark, CDC, serving, Airflow и observability jobs, а summary не скрывает failed/skipped jobs;
+- automatic component-contract workflow содержит только быстрые bounded Spark,
+  Airflow и observability jobs без manual-only `skipped` jobs;
+- CDC и serving представлены отдельными dispatch-only workflows, которые можно
+  выбирать и запускать независимо на странице Actions;
 - manual acceptance workflow является dispatch-only и публикует upstream evidence даже при failure;
 - evidence статических L3-проверок сохранён в data/stage-l-evidence/L3/;
 - полный Stage V E2E для CI-only L3 не запускается автоматически и не считается обязательным условием этой подстадии.
@@ -222,7 +237,11 @@ Exit criteria:
 Статус: **CI/workflow cutover реализован; Stage L остаётся ACTIVE**. Реализация ограничена CI-owned файлами:
 
 - `.github/workflows/ci.yml` заменён на target common CI с `ci-success`, explicit target test paths, Scala image/JAR contract, Compose profile checks, exact Airflow DAG inventory и dbt-clickhouse static contract;
-- добавлен `.github/workflows/lakehouse-components.yml` с bounded Spark, CDC, serving, Airflow и отдельным observability job; CDC проверяет restart/catch-up, serving — finite sync, authoritative NOOP retry, rebuild и maintenance path;
+- добавлен `.github/workflows/lakehouse-components.yml` с быстрыми bounded
+  Spark, Airflow и observability contract jobs;
+- добавлены dispatch-only `.github/workflows/lakehouse-cdc.yml` и
+  `.github/workflows/lakehouse-serving.yml`, чтобы тяжёлые runtime-проверки не
+  появлялись как `skipped` jobs в PR workflow и запускались независимо;
 - добавлен dispatch-only `.github/workflows/lakehouse-acceptance.yml` с candidate SHA, destructive confirmation, candidate E2E/F1 job definitions и always-run evidence publication;
 - удалены только три legacy workflow, явно перечисленные в CI contract: `batch-cdc-parity.yml`, `cdc-stage2-kafka-debezium.yml`, `cdc-stage6-operations.yml`;
 - добавлены CI validators `check_repository_contracts.py` и `check_dbt_clickhouse_contract.py`, а `check_airflow_dag_imports.py` усилен до exact target DAG allowlist;
@@ -278,6 +297,28 @@ Exit criteria:
 - exact DAG/service/dbt inventory matches target architecture;
 - clean Stage V E2E V0–V10 PASS;
 - evidence сохранён в data/stage-l-evidence/L4/.
+
+### L4 implementation result (2026-08-05)
+
+Implementation is in progress. The current candidate removes the legacy
+PostgreSQL OLTP, Redshift/AWS, NiFi, old raw ClickHouse, old dbt and legacy
+control-migration families after the disposition review. It also removes the
+legacy DAGs, obsolete CI runners, old secret templates, old oracle fixtures and
+legacy root tests whose target ownership is recorded in the disposition
+register. The retained tests were moved into explicit target suite owners;
+observability tests remain a separate component suite and are not coupled to
+the Stage V runner.
+
+The candidate also adds an independent legacy-orphan guard, makes the control
+PostgreSQL bootstrap target-only, removes legacy runtime dependencies and
+updates active documentation/runbooks to the MySQL → Debezium → Kafka →
+Spark/Iceberg → serving path. AWS/Redshift is a definitive `DELETE` decision;
+no cloud runtime is deferred by L4, and GCP remains a separate future program.
+
+Final L4 status remains **ACTIVE** until the orphan guard, complete target
+static checks and a clean Stage V V0–V10 run pass. Results and evidence are
+recorded in [the L4 report](../../../reports/lakehouse-stage-l4.md) and
+`data/stage-l-evidence/L4/`.
 
 ## 8. L5 — final Stage L gate
 

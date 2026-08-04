@@ -34,11 +34,14 @@ stop at that boundary and receive a separate decision about a full E2E run.
 
 ### Bounded components
 
-`.github/workflows/lakehouse-components.yml` contains real bounded jobs for
-Spark image, CDC, serving, Airflow and observability. It uses unique Compose
-projects and cleanup in `always()` blocks. The CDC path covers bounded
-restart/catch-up; serving covers finite sync, authoritative NOOP retry,
+`.github/workflows/lakehouse-components.yml` contains the automatic bounded
+contract jobs for Spark image, Airflow and observability. The heavy runtime
+paths are separated into dispatch-only `.github/workflows/lakehouse-cdc.yml`
+and `.github/workflows/lakehouse-serving.yml` workflows. The CDC path covers
+bounded restart/catch-up; serving covers finite sync, authoritative NOOP retry,
 rebuild and maintenance; observability is tested independently of Stage V.
+This separation prevents manual-only jobs from appearing as `skipped` entries
+in ordinary PR workflow runs.
 
 ### Manual acceptance
 
