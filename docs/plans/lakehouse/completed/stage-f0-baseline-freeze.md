@@ -1,92 +1,92 @@
-# Детальный план Stage F0: фиксация frozen baseline из `main`
+# Detailed Stage F0 plan: freeze the baseline from `main`
 
-- **Статус**: `COMPLETE` (завершено 2026-08-03; report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)).
+- **Status**: `COMPLETE` (completed 2026-08-03; report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)).
 - **Candidate commit**: `e113c552cca990636f426b827456a77ddc9d594b`.
-- **Baseline commit**: `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (зафиксированный последний commit `main` на момент планирования).
+- **Baseline commit**: `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (the last `main` commit recorded when planning began).
 - **Fixture**: `tests/fixtures/olist_small/olist_small.zip`.
 - **Fixture SHA-256**: `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976`.
 - **Oracle SHA-256**: `629c36144e64fc9910b822e0907f8a1592b3ef6eb83e438d946267fa3d5b597b`.
 
 ---
 
-## 1. Решение
+## 1. Decision
 
-Legacy-контур запускается один раз из отдельного Git worktree на точном commit SHA. Его канонический результат сохраняется в репозитории как неизменяемый oracle. После этого Stage L может удалить legacy-файлы из рабочей ветки, а Stage F1 запускает только candidate и сравнивает его с oracle.
+The legacy stack is run once from a separate Git worktree at the exact commit SHA. Its canonical result is stored in the repository as an immutable oracle. Stage L can then remove legacy files from the working branch, while Stage F1 runs only the candidate and compares it with the oracle.
 
-Это быстрее и проще, чем при каждом финальном тесте заново собирать две архитектуры. История Git остаётся источником воспроизводимости, но не входит в обычный путь F1.
+This is faster and simpler than rebuilding both architectures for every final test. Git history remains the reproducibility source but is not part of the normal F1 path.
 
-Существующий `tests/fixtures/postgresql_oracle/postgres_batch_oracle.json` нельзя принять автоматически: он содержит legacy-specific surrogate/date keys, не покрывает единым контрактом восемь current-state сущностей и не имеет достаточных provenance metadata.
-
----
-
-## 2. Артефакты F0
-
-Добавлены:
-
-- `tests/fixtures/final_parity/main-1400d08.json` — канонические строки и агрегаты;
-- `tests/fixtures/final_parity/main-1400d08.metadata.json` — provenance и контрольные суммы;
-- `docs/reports/mysql-spark-iceberg-f0-baseline.md` — человекочитаемый отчёт одноразового запуска.
-
-Metadata содержит:
-
-- полный baseline commit SHA;
-- fixture path и SHA-256;
-- версии Docker images и инструментов;
-- UTC timestamps начала/завершения;
-- перечень таблиц, grains, колонок и row counts;
-- SHA-256 каждого канонического набора строк;
-- версию правил canonicalization;
-- итоговый статус экспорта.
+The existing `tests/fixtures/postgresql_oracle/postgres_batch_oracle.json` cannot be accepted automatically: it contains legacy-specific surrogate/date keys, does not cover the eight current-state entities under one contract, and lacks sufficient provenance metadata.
 
 ---
 
-## 3. Порядок выполнения
+## 2. F0 artifacts
 
-1. Проверить, что E/V повторно приняты и candidate commit зафиксирован.
-2. Проверить полный baseline SHA и fixture SHA-256; symbolic `main` после этого не используется.
-3. Создать временный worktree вне дерева candidate на commit `1400d083...`.
-4. Назначить уникальный `COMPOSE_PROJECT_NAME`, отдельные volumes и свободные порты.
-5. Поднять legacy stack последовательно, загрузить неизменённый fixture и дождаться завершения batch/dbt пути.
-6. Экспортировать восемь исходных сущностей, `fact_order_items`, `mart_daily_revenue` и `mart_monthly_arpu`.
-7. Применить правила canonicalization из final-parity contract.
-8. Проверить уникальность grain, отсутствие неразрешённых колонок и согласованность row counts/hash/rows.
-9. Записать oracle, metadata и отчёт; повторно прочитать их независимым валидатором.
-10. Выполнить `docker compose down -v` только для F0 project и удалить временный worktree.
-11. Просмотреть diff oracle: секреты, абсолютные пути, нестабильные timestamps и runtime IDs запрещены.
-12. Зафиксировать oracle отдельным reviewable commit до начала Stage L.
+Added:
+
+- `tests/fixtures/final_parity/main-1400d08.json` — canonical rows and aggregates;
+- `tests/fixtures/final_parity/main-1400d08.metadata.json` — provenance and checksums;
+- `docs/reports/mysql-spark-iceberg-f0-baseline.md` — human-readable one-shot run report.
+
+Metadata contains:
+
+- full baseline commit SHA;
+- fixture path and SHA-256;
+- Docker image and tool versions;
+- UTC start/end timestamps;
+- table, grain, column, and row-count inventory;
+- SHA-256 for every canonical row set;
+- canonicalization rules version;
+- final export status.
 
 ---
 
-## 4. Поверхность сравнения
+## 3. Execution order
 
-| Класс | Наборы | Grain |
+1. Verify that E/V is re-accepted and the candidate commit is recorded.
+2. Verify the full baseline SHA and fixture SHA-256; do not use symbolic `main` afterward.
+3. Create a temporary worktree outside the candidate tree at commit `1400d083...`.
+4. Assign a unique `COMPOSE_PROJECT_NAME`, separate volumes, and free ports.
+5. Start the legacy stack in order, load the unchanged fixture, and wait for the batch/dbt path to finish.
+6. Export the eight source entities, `fact_order_items`, `mart_daily_revenue`, and `mart_monthly_arpu`.
+7. Apply the canonicalization rules from the final-parity contract.
+8. Check grain uniqueness, absence of disallowed columns, and consistency of row counts/hash/rows.
+9. Write the oracle, metadata, and report; read them again with an independent validator.
+10. Run `docker compose down -v` only for the F0 project and remove the temporary worktree.
+11. Review the oracle diff: secrets, absolute paths, unstable timestamps, and runtime IDs are forbidden.
+12. Record the oracle in a separate reviewable commit before Stage L begins.
+
+---
+
+## 4. Comparison surface
+
+| Class | Datasets | Grain |
 | --- | --- | --- |
-| Current state | `customers`, `orders`, `order_items`, `order_payments`, `order_reviews`, `products`, `sellers`, `product_category_translation` | естественные ключи из final-parity contract |
+| Current state | `customers`, `orders`, `order_items`, `order_payments`, `order_reviews`, `products`, `sellers`, `product_category_translation` | natural keys from the final-parity contract |
 | Fact | `fact_order_items` | `order_id, order_item_id` |
 | Marts | `mart_daily_revenue`, `mart_monthly_arpu` | `order_purchase_date`; `order_month` |
 
-Сравниваются только явно перечисленные бизнес-колонки. Технические batch IDs, surrogate/date keys, load timestamps, binlog coordinates и engine-specific metadata в oracle не включаются.
+Only explicitly listed business columns are compared. Technical batch IDs, surrogate/date keys, load timestamps, binlog coordinates, and engine-specific metadata are excluded from the oracle.
 
 ---
 
-## 5. Защита baseline
+## 5. Baseline protection
 
-- Oracle никогда не регенерируется автоматически в PR или push CI.
-- Изменение oracle требует ручного запуска F0 с тем же baseline commit либо отдельного архитектурного решения о смене baseline.
-- Изменение только checksum без соответствующих канонических строк запрещено.
-- При расхождении F1 исправляется candidate; oracle не подгоняется под результат.
-- Git LFS не требуется, пока размер JSON позволяет обычный code review.
-
----
-
-## 6. Критерии завершения
-
-F0 завершена, если oracle и metadata проходят независимую валидацию, отчёт имеет `PASS`, cleanup выполнен, а review подтверждает отсутствие нестабильных/технических полей. После этого legacy runtime больше не является precondition для F1 и разрешён Stage L.
+- The oracle is never regenerated automatically in PR or push CI.
+- Changing the oracle requires a manual F0 run with the same baseline commit or a separate architectural decision to change the baseline.
+- Changing a checksum without the corresponding canonical rows is forbidden.
+- When F1 differs, fix the candidate; do not fit the oracle to the result.
+- Git LFS is not required while the JSON size permits ordinary code review.
 
 ---
 
-## 7. Связанные документы
+## 6. Completion criteria
 
-- [Контракт финального паритета](../contracts/final-parity.md)
-- [План Stage F1](../active/stage-f1-final-parity.md)
-- [Координационный план](../active/serving-cutover.md)
+F0 is complete when the oracle and metadata pass independent validation, the report has `PASS`, cleanup is complete, and review confirms the absence of unstable/technical fields. After that, the legacy runtime is no longer an F1 precondition and Stage L is permitted.
+
+---
+
+## 7. Related documents
+
+- [Final parity contract](../contracts/final-parity.md)
+- [Stage F1 plan](../active/stage-f1-final-parity.md)
+- [Coordination plan](../active/serving-cutover.md)

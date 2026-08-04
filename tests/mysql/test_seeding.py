@@ -158,10 +158,13 @@ class SeedTransactionContractTests(unittest.TestCase):
         self.assertEqual(repository.started, [("seed-small", "seed")])
         self.assertEqual(repository.transactions, len(SEED_SPECS) + 1)
         self.assertFalse(repository.finished)
-        statements = "\n".join(repository.cursor.statements).lower()
-        self.assertNotIn("public.", statements)
-        self.assertNotIn("simulator_control.", statements)
-        self.assertNotIn("on conflict", statements)
+        statements = [statement.lower() for statement in repository.cursor.statements]
+        self.assertTrue(
+            all(
+                "olist_oltp." in statement or "olist_simulator." in statement
+                for statement in statements
+            )
+        )
 
 
 if __name__ == "__main__":

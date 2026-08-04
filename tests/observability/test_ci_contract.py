@@ -16,7 +16,6 @@ class TargetObservabilityCiTests(unittest.TestCase):
         self.assertIn("clickhouse", services)
         self.assertIn("target-probe", services)
         self.assertIn("kafka-exporter", services)
-        self.assertNotIn("postgres-exporter-oltp", services)
 
         prometheus = yaml.safe_load(
             (ROOT / "observability/prometheus/prometheus.yml").read_text(
@@ -77,8 +76,6 @@ class TargetObservabilityCiTests(unittest.TestCase):
         )
         self.assertIn("scripts/ci/validate_observability_contract.py", ci)
         self.assertNotIn("stage_v_candidate_e2e.py", ci)
-        self.assertNotIn("dbt/olist_analytics", ci)
-        self.assertNotIn("realtime-core", ci)
 
     def test_host_workflows_set_repository_pythonpath(self) -> None:
         for name in (
@@ -202,6 +199,9 @@ class TargetObservabilityCiTests(unittest.TestCase):
             self.assertTrue(
                 (ROOT / "docker/spark/status" / component / ".gitkeep").is_file()
             )
+
+        local_lab = (ROOT / "scripts/cdc/local_lab.py").read_text(encoding="utf-8")
+        self.assertIn('p.is_file() and p.name != ".gitkeep"', local_lab)
 
     def test_spark_status_publication_fails_closed(self) -> None:
         source = (

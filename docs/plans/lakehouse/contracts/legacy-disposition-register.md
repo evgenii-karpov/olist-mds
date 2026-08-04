@@ -1,30 +1,30 @@
-# L0: Реестр решений по legacy-артефактам
+# L0: Legacy artifact disposition register
 
-- **Статус**: действующий реестр Stage L, зафиксирован на L0.
-- **Назначение**: сохранить проверяемое решение о судьбе каждого runtime/CI/test/fixture/secret артефакта, который относится к удаляемому PostgreSQL/NiFi/Redshift/старому raw batch или старому dbt контуру.
-- **Граница**: исторические планы, handoff-документы и отчёты не являются runtime-артефактами этого реестра. Они сохраняются как provenance, если на них нет требования удалить устаревшую активную инструкцию.
-- **Cloud boundary**: AWS/Redshift не являются deferred target и удаляются в L4; будущий GCP/BigQuery stack описан отдельно в [GCP migration plan](../../gcp-spark-iceberg-bigquery-migration.md). Это не запрещает локальный S3-compatible путь через MinIO и нужные для него Iceberg `S3FileIO`/S3A adapters: они не являются AWS cloud runtime и не должны быть удалены механически.
-- **Порядок авторитетности**: для disposition используется этот реестр; реализационные детали и gate-порядок находятся в [плане Stage L](../active/stage-l-legacy-removal-ci-cutover.md), а target contracts имеют приоритет над историческими документами.
+- **Status**: active Stage L register, recorded at L0.
+- **Purpose**: preserve a verifiable decision for every runtime/CI/test/fixture/secret artifact related to the PostgreSQL/NiFi/Redshift/old raw-batch or old dbt paths being removed.
+- **Boundary**: historical plans, handoff documents, and reports are not runtime artifacts in this register. They are retained as provenance unless an explicit requirement removes an obsolete active instruction.
+- **Cloud boundary**: AWS/Redshift are not a deferred target and are removed in L4; the future GCP/BigQuery stack is described separately in the [GCP migration plan](../../gcp-spark-iceberg-bigquery-migration.md). This does not prohibit the local S3-compatible MinIO path or its required Iceberg `S3FileIO`/S3A adapters: they are not AWS cloud runtime and must not be removed mechanically.
+- **Authority**: this register controls dispositions; implementation details and gate ordering are in the [Stage L plan](../completed/stage-l-legacy-removal-ci-cutover.md), while target contracts take precedence over historical documents.
 
-## 1. Правила disposition
+## 1. Disposition rules
 
-| Решение | Смысл на L0 | Условие перехода к удалению/замене |
+| Decision | Meaning at L0 | Condition for removal/replacement |
 | --- | --- | --- |
-| `KEEP` | Артефакт уже принадлежит target-стеку или является frozen provenance/F0 input. | Не удалять в Stage L; изменения допускаются только contract-driven. |
-| `REWRITE` | Путь и роль полезны, но реализация содержит legacy semantics, имена, endpoints или границы. | Переписать на указанного target owner и покрыть target test/evidence. |
-| `REPLACE` | Старый артефакт не должен сохраняться, но его проверяемая ответственность нужна target-стеку. | Сначала добавить/принять replacement, затем удалить старый путь после orphan scan. |
-| `DELETE` | У артефакта нет target ответственности; он не является F0/F1 provenance. | Удалять только после указанного consumer/removal check. |
+| `KEEP` | The artifact already belongs to the target stack or is frozen provenance/F0 input. | Do not remove it in Stage L; changes are allowed only when contract-driven. |
+| `REWRITE` | The path and role are useful, but the implementation contains legacy semantics, names, endpoints, or boundaries. | Rewrite it for the named target owner and cover it with target tests/evidence. |
+| `REPLACE` | The old artifact must not remain, but its verifiable responsibility is still needed by the target stack. | Add and accept the replacement first, then remove the old path after an orphan scan. |
+| `DELETE` | The artifact has no target responsibility and is not F0/F1 provenance. | Remove it only after the specified consumer/removal check. |
 
-Этот реестр намеренно использует только четыре решения. В нём нет статусов `HOLD` или `DEFER`: AWS/Redshift имеют только `DELETE`, а будущий GCP/BigQuery stack ведётся отдельной программой.
+This register intentionally uses only four decisions. It has no `HOLD` or `DEFER` statuses: AWS/Redshift are `DELETE` only, and the future GCP/BigQuery stack is handled by a separate program.
 
-`DELETE` в этом документе означает решение о целевой судьбе, а не разрешение удалить файл немедленно. До L4 запрещено удалять строку из реестра или сам файл без выполнения условия удаления.
+In this document, `DELETE` is a decision about the target disposition, not permission to remove a file immediately. Before L4, neither a register row nor the file itself may be removed without satisfying the removal condition.
 
 ## 2. Baseline L0
 
-| Поле | Значение |
+| Field | Value |
 | --- | --- |
 | Baseline commit | `9214cd1de05ab37cdeae27a1a0b633963e8ae8d6` (`docs(lakehouse): sequence Stage L into gated cutover stages`) |
-| Working tree | Чистое после возврата tracked и untracked изменений к baseline; committed Stage L plan сохранён. |
+| Working tree | Clean after tracked and untracked changes were returned to baseline; the committed Stage L plan was preserved. |
 | Frozen F0 source | `1400d08345ad81a0121f0ee85ee9ae81cd575a73` |
 | Frozen fixture | `tests/fixtures/olist_small/olist_small.zip` |
 | Fixture SHA-256 | `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976` |
@@ -37,33 +37,35 @@
 | Target test collection at L0 | 188 tests collected from the explicit target suite paths; collection-only command completed successfully. |
 | Target suite baseline at L0 | `186 passed, 2 skipped, 86 subtests passed`; no legacy tests were needed to obtain this result. |
 
-Этот baseline run отделён от будущего acceptance evidence. Если baseline E2E не проходит, failure фиксируется как baseline diagnostic и не превращается в acceptance `PASS`.
+This baseline run is separate from future acceptance evidence. If the baseline E2E fails, the failure is recorded as a baseline diagnostic and does not become an acceptance `PASS`.
 
-## 3. Workflows и DAGs
+## 3. Workflows and DAGs
 
-| Path | Текущая роль и consumers | Target contract / replacement evidence | Disposition | Owner stage | Условие удаления |
+| Path | Current role and consumers | Target contract / replacement evidence | Disposition | Owner stage | Removal condition |
 | --- | --- | --- | --- | --- | --- |
-| `.github/workflows/ci.yml` | Старый монолит: `dbt/olist_analytics`, NiFi, realtime-core и raw batch jobs; branch-protection entry point. | [Validation & CI](validation-and-ci.md): `ci-success`, repository contracts, target Python/Scala/Compose/Airflow/dbt-clickhouse jobs. | `REWRITE` | L3 | Старые jobs перенесены в target matrix, zero skipped required jobs доказан. |
-| `.github/workflows/batch-cdc-parity.yml` | Manual batch + NiFi/raw CDC parity workflow. | `lakehouse-components.yml` `cdc-component`/`serving-component` и manual Stage V/F1 acceptance. | `REPLACE` | L3 | Replacement workflow зелёный и все non-legacy invariants имеют target test/evidence. |
-| `.github/workflows/cdc-stage2-kafka-debezium.yml` | PostgreSQL/NiFi-era CDC capture drill. | Target MySQL → Debezium → Kafka/Apicurio bounded `cdc-component`. | `REPLACE` | L3 | Target connector/CRUD/restart checks green; legacy workflow has no consumer. |
-| `.github/workflows/cdc-stage6-operations.yml` | Phase 6 alert/failure-injection workflow с NiFi/PostgreSQL metrics. | [Observability contract](observability.md) и target bounded observability acceptance. | `REPLACE` | L2/L3 | Target fire/resolve evidence опубликован; old alert names and service references absent. |
-| `.github/workflows/lakehouse-components.yml` | Missing target bounded-component workflow required by the CI contract. | [Validation & CI](validation-and-ci.md): Spark, CDC, serving, Airflow and observability bounded jobs. | `REPLACE` | L3 | Add and pass the target workflow before deleting its legacy predecessors. |
+| `.github/workflows/ci.yml` | Old monolith: `dbt/olist_analytics`, NiFi, realtime-core, and raw-batch jobs; branch-protection entry point. | [Validation & CI](validation-and-ci.md): `ci-success`, repository contracts, target Python/Scala/Compose/Airflow/dbt-clickhouse jobs. | `REWRITE` | L3 | Old jobs are transferred to the target matrix, and zero skipped required jobs is proven. |
+| `.github/workflows/batch-cdc-parity.yml` | Manual batch + NiFi/raw CDC parity workflow. | Dispatch-only `lakehouse-cdc.yml`, `lakehouse-serving.yml`, and manual Stage V/F1 acceptance. | `REPLACE` | L3 | Replacement workflows are green and all non-legacy invariants have target tests/evidence. |
+| `.github/workflows/cdc-stage2-kafka-debezium.yml` | PostgreSQL/NiFi-era CDC capture drill. | Target MySQL → Debezium → Kafka/Apicurio dispatch-only bounded `lakehouse-cdc.yml`. | `REPLACE` | L3 | Target connector/CRUD/restart checks green; legacy workflow has no consumer. |
+| `.github/workflows/cdc-stage6-operations.yml` | Phase 6 alert/failure-injection workflow with NiFi/PostgreSQL metrics. | [Observability contract](observability.md) and target bounded observability acceptance. | `REPLACE` | L2/L3 | Target fire/resolve evidence is published; old alert names and service references are absent. |
+| `.github/workflows/lakehouse-components.yml` | Target fast bounded component-contract workflow. | [Validation & CI](validation-and-ci.md): Spark image, Airflow and observability contract jobs. | `REPLACE` | L3 | Automatic contract workflow passes without skipped manual-only jobs. |
+| `.github/workflows/lakehouse-cdc.yml` | Target dispatch-only bounded CDC acceptance workflow. | [Validation & CI](validation-and-ci.md): bounded MySQL → Debezium → Kafka/Apicurio → Spark CDC runtime. | `KEEP` | L3 | Manual CDC workflow passes and publishes bounded evidence. |
+| `.github/workflows/lakehouse-serving.yml` | Target dispatch-only bounded serving acceptance workflow. | [Validation & CI](validation-and-ci.md): bounded Silver/ClickHouse serving sync, retry, rebuild and maintenance runtime. | `KEEP` | L3 | Manual serving workflow passes and publishes bounded evidence. |
 | `.github/workflows/lakehouse-acceptance.yml` | Missing target manual full-acceptance workflow required by the CI contract. | [Validation & CI](validation-and-ci.md): preflight, full Stage V E2E, F1 and evidence publication. | `REPLACE` | L3 | Add and pass the target workflow before deleting legacy manual acceptance paths. |
 | `airflow/dags/olist_cdc_local.py` | NiFi/raw CDC ingest and backfill DAGs. | `olist_lakehouse_serving.py` + Spark continuous services; Airflow boundary in `serving-and-recovery.md`. | `DELETE` | L4 | Exact target DAG inventory passes and no workflow/script/doc runtime consumer remains. |
 | `airflow/dags/olist_cdc_dbt_local.py` | Old realtime dbt transform/quality DAGs. | Target finite serving/quality DAGs and Scala Spark Silver. | `DELETE` | L4 | Target DAG import check passes; old dbt project/selectors have no consumers. |
 | `airflow/dags/olist_modern_data_stack_local.py` | Old local raw batch pipeline. | Target `olist_lakehouse_serving.py` and `olist_lakehouse_maintenance.py`. | `DELETE` | L4 | Batch raw DAG path and its scripts are removed/replaced; exact DAG allowlist passes. |
 | `airflow/dags/olist_modern_data_stack_aws.py` | AWS/Redshift raw batch pipeline; AWS is explicitly out of the target architecture. | No target replacement in local Stage L; future cloud stack is GCP and is a separate program. | `DELETE` | L4 | Remove the DAG and all active AWS/Redshift consumers; retain only historical provenance in Git history. |
 
-## 4. CDC, simulator и orchestration scripts
+## 4. CDC, simulator, and orchestration scripts
 
-| Path | Текущая роль и consumers | Target contract / replacement evidence | Disposition | Owner stage | Условие удаления |
+| Path | Current role and consumers | Target contract / replacement evidence | Disposition | Owner stage | Removal condition |
 | --- | --- | --- | --- | --- | --- |
-| `scripts/cdc/local_lab.py` | Главный local target CLI, но содержит старые defaults/профили и является consumer bootstrap; его V10 final check должен проверять effective transaction state, а не исторические OPEN observations. | `architecture-and-runtime.md`, Stage V V0–V10, `tests/lakehouse_platform`, Stage E latest-effective transaction contract. | `REWRITE` | L1 | Local CLI contract, effective OPEN/REJECTED diagnostic and clean Stage V E2E PASS. |
-| `scripts/cdc/stage2_admin.py` | Регистрация connector; сейчас ссылается на PostgreSQL connector template/name. | `streaming/connect/olist-mysql-cdc.json`, `tests/cdc_contracts/test_connector_bootstrap.py`. | `REWRITE` | L1 | MySQL connector/topic contract и runtime status checks green. |
-| `scripts/cdc/avro_wire.py` | Старый helper, consumer только old Stage 2 integration. | `streaming.schemas.avro`/registry helpers и `tests/cdc_contracts`. | `REPLACE` | L1 | Target helper/tests cover framing, schema IDs and tombstones. |
-| `scripts/cdc/benchmark_local.py` | Benchmark old raw ingest/realtime transform latency. | Target observability/latency evidence from `observability.md`; no legacy warehouse query. | `REPLACE` | L2 | Target benchmark/probe exists or bounded observability suite owns the metric. |
+| `scripts/cdc/local_lab.py` | Main local target CLI, but it contains old defaults/profiles and is a consumer bootstrap; its V10 final check must validate effective transaction state rather than historical OPEN observations. | `architecture-and-runtime.md`, Stage V V0–V10, `tests/lakehouse_platform`, Stage E latest-effective transaction contract. | `REWRITE` | L1 | Local CLI contract, effective OPEN/REJECTED diagnostic, and clean Stage V E2E PASS. |
+| `scripts/cdc/stage2_admin.py` | Connector registration; currently refers to a PostgreSQL connector template/name. | `streaming/connect/olist-mysql-cdc.json`, `tests/cdc_contracts/test_connector_bootstrap.py`. | `REWRITE` | L1 | MySQL connector/topic contract and runtime status checks are green. |
+| `scripts/cdc/avro_wire.py` | Old helper consumed only by the old Stage 2 integration. | `streaming.schemas.avro`/registry helpers and `tests/cdc_contracts`. | `REPLACE` | L1 | Target helpers/tests cover framing, schema IDs, and tombstones; old helper is removed in L4. |
+| `scripts/cdc/benchmark_local.py` | Benchmark old raw ingest/realtime transform latency. | Target observability/latency evidence from `observability.md`; no legacy warehouse query. | `DELETE` | L4 | No target consumer remains; bounded observability tests own only the retained contract metrics. |
 | `scripts/cdc/failure_injection.py` | Compose failure drills use old service names and old alert model. | Target service names and fire/resolve checks in `observability.md`. | `REWRITE` | L2 | All scenarios use real target services and target alert identities. |
-| `scripts/cdc/pipeline_metrics.py` | Prometheus exporter for old raw CDC/warehouse/control tables. | Target Spark/Iceberg/serving metrics producer or explicit bounded exporter. | `REPLACE` | L2 | Every retained metric has a real producer and target scrape owner. |
+| `scripts/cdc/pipeline_metrics.py` | Prometheus exporter for old raw CDC/warehouse/control tables. | Target Spark/Iceberg/serving metrics producers and bounded observability contract. | `DELETE` | L4 | The exporter had no target consumer; retained metrics are produced by target services and checked by the observability contract. |
 | `scripts/cdc/realtime_transform.py` | Old dbt realtime transform over `dbt/olist_analytics` and control state. | Spark Silver is the transform owner; target dbt project is `dbt/olist_clickhouse`. | `DELETE` | L4 | Old DAG/selectors/project have no consumers and target serving evidence is green. |
 | `scripts/cdc/warehouse_ingest.py` | NiFi/MinIO Parquet manifest loader into raw ClickHouse. | Spark Bronze/Silver and target serving sync; `spark-streaming.md`, `serving-and-recovery.md`. | `DELETE` | L4 | Old ingest DAG, S3 layouts, tests and metrics replacement are all complete; orphan scan clean. |
 | `scripts/__init__.py` | Python package marker for repository automation. | Target scripts package imports. | `KEEP` | L1–L4 | Retain while target scripts remain in the repository. |
@@ -76,7 +78,7 @@
 | `scripts/ci/check_batch_cdc_parity_integration.py` | Full old batch-vs-NiFi/realtime integration runner. | Target bounded components + Stage V/F1; preserve only explicit invariants. | `REPLACE` | L3 | Invariants mapped to target tests/evidence; no old runner consumer. |
 | `scripts/ci/check_clickhouse_cdc_ingest_resilience.py` | Raw CDC S3/ClickHouse ingest resilience. | Target Spark/Iceberg durability and serving recovery checks. | `REPLACE` | L2/L3 | Target failure/replay evidence exists; old raw schema not referenced. |
 | `scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py` | Old batch dbt/ClickHouse partition edge runner. | `tests/dbt_clickhouse`, `tests/serving`, target serving-component job. | `REPLACE` | L1/L3 | Target partition/publication invariants pass. |
-| `scripts/ci/check_clickhouse_smoke.py` | Smoke check coupled to old ClickHouse/dbt profile. | Target ClickHouse serving health and `dbt/olist_clickhouse` static/runtime checks. | `REWRITE` | L3 | Target database/service contract is explicit and smoke check has no old profile. |
+| `scripts/ci/check_clickhouse_smoke.py` | Smoke check coupled to old ClickHouse/dbt profile. | Target ClickHouse serving health and `dbt/olist_clickhouse` static/runtime checks. | `DELETE` | L4 | dbt/serving contract jobs own the target checks; no separate legacy smoke runner remains. |
 | `scripts/ci/check_dbt_selector_boundaries.py` | Enforces old `batch`, `realtime_transform`, `realtime_quality`, `realtime_parity` selectors. | Target dbt-clickhouse selectors and model graph tests. | `REPLACE` | L3 | Target selector contract covers the same required boundary; old project removed. |
 | `scripts/ci/check_fixture_pipeline_idempotency.py` | Idempotency check for old Airflow raw batch DAG. | Target serving sync/rebuild no-op semantics and Stage V replay gates. | `REPLACE` | L1/L3 | Target idempotency test/evidence exists and old DAG is gone. |
 | `scripts/ci/check_oltp_cdc_configuration.py` | PostgreSQL OLTP publication/CDC configuration check. | MySQL binlog/GTID + Debezium connector contract. | `REPLACE` | L1 | MySQL source and connector tests pass. |
@@ -85,38 +87,38 @@
 | `scripts/ci/validate_nifi_flow.py` | Static NiFi flow/schema validator. | Target Spark schema/writer/Scala contracts. | `DELETE` | L4 | NiFi tree and all consumers removed; no target test needs flow JSON. |
 | `scripts/ci/validate_realtime_configuration.py` | Old realtime-core/NiFi/dbt configuration guard. | Target repository/Compose/Scala/Airflow/dbt-clickhouse contracts. | `REPLACE` | L3 | New guards cover target service/DAG/dbt inventories. |
 | `scripts/ci/validate_stage6_configuration.py` | Old observability dashboard/rule/alert validator. | [Observability contract](observability.md) and target observability test. | `REPLACE` | L2/L3 | Target mapping, metric existence and fire/resolve checks pass. |
-| `scripts/ingestion/correction_specs.py` | Raw S3 correction-feed definitions. | Target rejected-event/replay contract in Spark Bronze/Silver. | `REPLACE` | L1/L4 | Target replay fixture owns the required correction semantics. |
+| `scripts/ingestion/correction_specs.py` | Raw S3 correction-feed definitions. | Target rejected-event/replay contract in Spark Bronze/Silver. | `DELETE` | L4 | Target rejection, replay and serving-boundary tests own the required semantics; no old correction-feed API remains. |
 | `scripts/ingestion/generate_correction_feeds.py` | Generates old S3 correction feeds. | Target `ReplayMain`/bounded Bronze replay fixture. | `DELETE` | L4 | No active workflow or test consumes correction-feed files. |
 | `scripts/ingestion/ingest_olist_to_s3.py` | Old source-to-S3 raw ingestion. | MySQL seeding + Spark Bronze durability path. | `DELETE` | L4 | Source contract is validated by MySQL seed and Stage V. |
-| `scripts/ingestion/local_storage.py` | Old raw file/manifests/dead-letter storage helper. | Target Iceberg audit/rejected-event records and fixture contract tests. | `REPLACE` | L1 | Target rejected-record test has equivalent assertions. |
+| `scripts/ingestion/local_storage.py` | Old raw file/manifests/dead-letter storage helper. | Target Iceberg audit/rejected-event records and fixture contract tests. | `DELETE` | L4 | Target rejected-event tables and Spark/serving tests own the persisted evidence; no old storage API remains. |
 | `scripts/ingestion/prepare_olist_raw_files.py` | Prepares old S3 raw files. | `scripts/simulation/seeding.py` and source fixture contract. | `DELETE` | L4 | No target path reads prepared raw files. |
-| `scripts/ingestion/raw_files.py` | Old raw file discovery and row preparation. | MySQL source schema/seed and target event validation. | `REPLACE` | L1 | Required schema/row invariants transferred to target tests. |
-| `scripts/ingestion/record_validation.py` | Old raw batch validation/dead-letter thresholds. | Target `PermanentRecordFailure`/`normalization_errors` contract. | `REWRITE` | L1 | Validation is expressed against target event/partition semantics. |
+| `scripts/ingestion/raw_files.py` | Old raw file discovery and row preparation. | MySQL source schema/seed and target event validation. | `DELETE` | L4 | Source/seed and target event contracts own the required schema/row invariants; no old file-preparation API remains. |
+| `scripts/ingestion/record_validation.py` | Old raw batch validation/dead-letter thresholds. | Target `PermanentRecordFailure`/`normalization_errors` contract. | `DELETE` | L4 | Spark normalization/rejection and serving-boundary tests own target failure semantics; the old batch validator had no target consumer. |
 | `scripts/ingestion/s3_storage.py` | Old S3 raw upload client. | Polaris/MinIO/Iceberg storage path; no raw upload. | `DELETE` | L4 | No target workflow or test imports the client. |
 | `scripts/loading/load_raw_to_clickhouse.py` | Old CSV/raw batch loader into ClickHouse. | Finite `scripts/serving` sync + dbt-clickhouse serving component. | `DELETE` | L4 | Target serving path passes and old raw tables are removed. |
 | `scripts/loading/load_raw_to_redshift.py` | Redshift raw loader. | No target replacement; the future cloud stack is GCP, not Redshift. | `DELETE` | L4 | Remove after the AWS DAG and Redshift consumers are gone. |
-| `scripts/loading/raw_batch.py` | Shared old raw-batch schema/control/dead-letter model. | Target fixture/source/serving/replay contracts. | `REPLACE` | L1/L4 | All consumers moved and target tests cover required data-quality invariants. |
-| `scripts/loading/replay_dead_letters.py` | Replays old raw S3 dead letters. | Spark Bronze replay and Iceberg rejected-event ledger. | `REPLACE` | L1/L2 | Target replay command/evidence is accepted. |
-| `scripts/orchestration/batch_control.py` | Old raw batch status state machine. | Target serving/control transaction state in `scripts/serving/control.py`. | `REPLACE` | L1/L4 | Serving control tests cover status transitions and no-op/retry semantics. |
-| `scripts/orchestration/control_postgres.py` | Generic PostgreSQL control client shared by old paths. | PostgreSQL remains target control plane, but file-only credentials and target consumers must be explicit. | `REWRITE` | L1 | Rewrite it as the single hardened target control-plane client; no parallel legacy client remains. |
+| `scripts/loading/raw_batch.py` | Shared old raw-batch schema/control/dead-letter model. | Target fixture/source/serving/replay contracts. | `DELETE` | L4 | All target consumers use explicit target contracts; no old raw-batch API remains. |
+| `scripts/loading/replay_dead_letters.py` | Replays old raw S3 dead letters. | Spark Bronze replay and Iceberg rejected-event ledger. | `DELETE` | L4 | Spark replay and serving-quality tests own target rejection/replay semantics; the old command had no consumer. |
+| `scripts/orchestration/batch_control.py` | Old raw batch status state machine. | Target serving/control transaction state in `scripts/serving/control.py`. | `DELETE` | L4 | Serving control tests cover target status transitions; the old batch state machine is removed. |
+| `scripts/orchestration/control_postgres.py` | Generic PostgreSQL control client shared by old paths. | PostgreSQL remains target control plane through explicit serving consumers. | `DELETE` | L4 | Target control access is owned by the serving/control path; no parallel legacy client remains. |
 | `scripts/quality/reconcile_batch.py` | Raw batch/Redshift/ClickHouse reconciliation. | Stage V/F1 parity and target serving quality DAG. | `REPLACE` | L1/L3 | Target quality evidence covers source/current/fact/mart acceptance. |
 | `scripts/simulation/README.md` | Target simulator documentation, but it still contains stale J1/secret wording. | Target MySQL simulator secret and Stage V command contract. | `REWRITE` | L1/L3 | Align commands, secret names and integration prerequisites with the target stack. |
 | `scripts/simulation/__init__.py` | Target simulator package marker and public exports. | Target MySQL simulator package. | `KEEP` | L1 | Retain package API while hardening implementation. |
 | `scripts/simulation/__main__.py` | Target `python -m scripts.simulation` entry point. | Target simulator CLI contract. | `KEEP` | L1/L3 | Retain and cover the entry point in target CLI checks. |
-| `scripts/utilities/create_dead_letter_demo_archive.py` | Creates old raw-file corruption archive. | Target rejected-event/replay fixture. | `REWRITE` | L1 | Fixture is target-specific and contains no raw S3/NiFi assumptions. |
+| `scripts/utilities/create_dead_letter_demo_archive.py` | Creates old raw-file corruption archive. | Target rejected-event/replay fixture and Spark/serving contract tests. | `DELETE` | L4 | Target rejection fixtures are owned by the committed bounded fixture and Scala/serving tests; no archive helper is consumed. |
 | `scripts/utilities/fetch_aws_secret.py` | AWS-only secret helper with no target consumer. | Local target uses file-only secrets; future cloud stack is GCP. | `DELETE` | L4 | Remove after an active-consumer scan proves no GCP or local code imports it. |
 | `scripts/utilities/generate_redshift_raw_ddl.py` | Generates Redshift raw DDL. | No target replacement; the future cloud stack is GCP, not Redshift. | `DELETE` | L4 | Remove with Redshift infra and the AWS DAG. |
-| `scripts/utilities/profile_olist_zip.py` | Profiles source archive, but currently emits `redshift_raw_type` and warehouse-oriented metadata. | Target-neutral source/fixture contract and F0/F1 provenance. | `REWRITE` | L1 | Preserve deterministic read-only profiling, replace Redshift-specific field names/types with target-neutral source metadata, and update consumers before removing the old output shape. |
+| `scripts/utilities/profile_olist_zip.py` | Profiles source archive and emits target-neutral source type metadata. | Target-neutral source/fixture contract and F0/F1 provenance. | `REWRITE` | L1 | Preserve deterministic read-only profiling; generated documentation now describes source/seed metadata and target transformation ownership. |
 | `scripts/utilities/validate_source_contract.py` | Validates committed source fixture. | MySQL seed and Stage V preflight. | `KEEP` | L1/L3 | Keep as target fixture preflight; update only if target schema changes. |
-| `scripts/testing/create_small_fixture_dataset.py` | Creates/maintains bounded source fixture, but currently writes `redshift_raw_type` into the profile. | Stage V bounded fixture contract with target-neutral metadata. | `REWRITE` | L1/L3 | Keep deterministic fixture generation; remove Redshift-specific profile fields, then update the committed profile checksum under explicit fixture review. |
-| `docs/source_contract.md` | Active source contract documentation still describes old raw/warehouse metadata. | Target-neutral MySQL source and bounded fixture contract. | `REWRITE` | L1/L3 | Keep the source contract only after removing raw-loader/Redshift terminology and aligning it with the target source schema and fixture. |
-| `docs/source_profile.json` | Full source profile consumed by old raw-batch workflows and source utilities; includes Redshift-specific field names. | Target-neutral source profile, or explicit F0 provenance if no runtime consumer remains. | `REWRITE` | L1/L4 | Remove the Redshift-specific schema from active consumers; retain only if the rewritten source-contract path still needs the full profile. |
+| `scripts/testing/create_small_fixture_dataset.py` | Creates/maintains bounded source fixture and target-neutral type metadata. | Stage V bounded fixture contract with target-neutral metadata. | `REWRITE` | L1/L3 | Keep deterministic fixture generation; the committed profile remains checksum-governed and contains no cloud-specific type field. |
+| `docs/source_contract.md` | Active source contract documentation. | Target-neutral MySQL source and bounded fixture contract. | `REWRITE` | L1/L3 | Source/seed metadata and target transformation ownership are now explicit; archive and profile remain unchanged. |
+| `docs/source_profile.json` | Full source profile consumed by source-contract validation. | Target-neutral source profile and F0/F1 provenance. | `KEEP` | L1 | `raw_type` is a target-neutral source/seed type field; no cloud-specific field or consumer remains. |
 
 ## 5. Legacy and target tests
 
 The target suites below are not candidates for bulk deletion. Root tests with old names are mapped individually so that useful invariants are transferred before cleanup.
 
-| Path | Что реально проверяет / current consumer | Target owner and replacement evidence | Disposition | Owner stage | Условие удаления/замены |
+| Path | What it actually checks / current consumer | Target owner and replacement evidence | Disposition | Owner stage | Removal/replacement condition |
 | --- | --- | --- | --- | --- | --- |
 | `tests/mysql/test_cli.py` | Simulator CLI parsing, redaction and bounded options. | `tests/mysql` target suite; MySQL file-secret CLI contract. | `REWRITE` | L1 | Target CLI tests pass; do not remove by testpath narrowing. |
 | `tests/mysql/test_mysql_integration.py` | MySQL schema/user/seed integration. | `tests/mysql` + Stage V bootstrap evidence. | `REWRITE` | L1 | Target MySQL integration is green. |
@@ -124,40 +126,40 @@ The target suites below are not candidates for bulk deletion. Root tests with ol
 | `tests/mysql/test_seeding.py` | Seed conversion, batching and upsert SQL. | `tests/mysql`, target MySQL `ON DUPLICATE KEY UPDATE`. | `REWRITE` | L1 | No PostgreSQL SQL or plaintext password state remains. |
 | `tests/mysql/test_source_schema.py` | Source DDL and secret/schema assertions. | `tests/mysql` and `mysql-kafka-avro.md`. | `REWRITE` | L1 | Restore MySQL DML, file-only secret and exact grant invariants. |
 | `tests/cdc_contracts/test_connector_bootstrap.py` | Target MySQL connector template, topic/schema configuration. | `streaming/connect/olist-mysql-cdc.json`, bounded CDC job. | `REWRITE` | L1 | Test remains target-specific and passes against actual template. |
-| `tests/test_airflow_secret_bootstrap.py` | File-secret normalization in Airflow wrapper. | `tests/lakehouse_platform`/serving secret contract. | `REWRITE` | L1 | Move/rename only after target file-only behavior is covered. |
-| `tests/test_avro_schema_compatibility.py` | Backward-compatible Avro evolution rules. | `tests/cdc_contracts`, `mysql-kafka-avro.md`, Scala contract tests. | `REPLACE` | L1 | All compatibility cases have target suite ownership. |
-| `tests/test_batch_cdc_parity_integration.py` | Old batch vs CDC runner, status and parity gates. | Stage V/F1 and target component workflows. | `REPLACE` | L3 | Assertions mapped to candidate-only target evidence. |
-| `tests/test_ci_data_quality_failures.py` | Fixture contract/dead-letter/reconciliation failure behavior. | Target source/rejected-event/quality contracts. | `REWRITE` | L1/L3 | Preserve failure thresholds and report integrity with target storage. |
-| `tests/test_clickhouse_batch_phase3.py` | CSV/raw batch staging and old local DAG. | `tests/dbt_clickhouse`, `tests/serving`, target serving component. | `REPLACE` | L1/L3 | Only target serving/partition invariants survive. |
-| `tests/test_clickhouse_phase1_contracts.py` | Old ClickHouse/analytics db bootstrap and dbt profile. | `tests/dbt_clickhouse` and Compose/serving contracts. | `REPLACE` | L1/L3 | Target native DDL, secret and serving database checks pass. |
-| `tests/test_clickhouse_phase4_dbt_graph.py` | Old `dbt/olist_analytics` batch/realtime graph. | `tests/dbt_clickhouse`, `serving-and-recovery.md`. | `REPLACE` | L1/L3 | Target model graph/selectors cover business invariants. |
-| `tests/test_clickhouse_phase5_cdc_ingestion.py` | NiFi/S3/raw ClickHouse ingest and old local lab. | `tests/cdc_contracts`, `tests/lakehouse_platform`, Stage V. | `REPLACE` | L1/L3 | Transport/storage invariants moved to target stack. |
-| `tests/test_clickhouse_phase6_realtime_dbt_quality.py` | Old realtime dbt project quality/retry behavior. | Scala Spark tests + `tests/dbt_clickhouse` + serving tests. | `REPLACE` | L1/L3 | Target Silver/serving quality evidence is green. |
-| `tests/test_clickhouse_phase7_ci_observability.py` | Old ClickHouse/NiFi/PostgreSQL exporter/rule/workflow assumptions. | New target observability contract and acceptance test. | `REWRITE` | L2/L3 | Rewrite to actual producer→scrape→rule→dashboard chain. |
-| `tests/test_control_postgres_phase2.py` | Control DB separation and old batch-control integration. | `tests/lakehouse_platform`/serving control contract. | `REWRITE` | L1 | Target control PostgreSQL remains and raw warehouse is excluded. |
-| `tests/test_dead_letter_pipeline.py` | Old raw-file dead-letter/replay and batch status. | Target rejected records, Spark ReplayMain and serving quality. | `REWRITE` | L1/L2 | Preserve classification/replay/report assertions in target form. |
+| `tests/test_airflow_secret_bootstrap.py` | File-secret normalization in Airflow wrapper. | `tests/lakehouse_platform/test_secret_bootstrap.py`/serving secret contract. | `REWRITE` | L1 | Renamed target suite covers file-only behavior; old path removed in L4. |
+| `tests/test_avro_schema_compatibility.py` | Backward-compatible Avro evolution rules. | `tests/cdc_contracts/test_schema_evolution.py`, `test_avro_helpers.py`, Scala contract tests. | `REPLACE` | L1 | All compatibility cases have target suite ownership; old path removed in L4. |
+| `tests/test_batch_cdc_parity_integration.py` | Old batch vs CDC runner, status and parity gates. | Stage V/F1 and target component workflows. | `REPLACE` | L3 | Assertions are owned by candidate-only target evidence; old integration runner removed in L4. |
+| `tests/test_ci_data_quality_failures.py` | Fixture contract/dead-letter/reconciliation failure behavior coupled to deleted raw helpers. | `tests/lakehouse_platform/test_source_contract.py`, target normalization/table contracts, serving boundary and Scala transaction tests. | `REPLACE` | L1/L3 | Source failure, rejection state and transaction-boundary invariants have target owners; old raw-helper suite removed in L4. |
+| `tests/test_clickhouse_batch_phase3.py` | CSV/raw batch staging and old local DAG. | `tests/dbt_clickhouse`, `tests/serving`, target serving component. | `REPLACE` | L1/L3 | Only target serving/partition invariants survive; old path removed in L4. |
+| `tests/test_clickhouse_phase1_contracts.py` | Old ClickHouse/analytics db bootstrap and dbt profile. | `tests/dbt_clickhouse` and Compose/serving contracts. | `REPLACE` | L1/L3 | Target native DDL, secret and serving database checks pass; old path removed in L4. |
+| `tests/test_clickhouse_phase4_dbt_graph.py` | Old `dbt/olist_analytics` batch/realtime graph. | `tests/dbt_clickhouse`, `serving-and-recovery.md`. | `REPLACE` | L1/L3 | Target model graph/selectors cover business invariants; old path removed in L4. |
+| `tests/test_clickhouse_phase5_cdc_ingestion.py` | NiFi/S3/raw ClickHouse ingest and old local lab. | `tests/cdc_contracts`, `tests/lakehouse_platform`, Stage V. | `REPLACE` | L1/L3 | Transport/storage invariants moved to target stack; old path removed in L4. |
+| `tests/test_clickhouse_phase6_realtime_dbt_quality.py` | Old realtime dbt project quality/retry behavior. | Scala Spark tests + `tests/dbt_clickhouse` + serving tests. | `REPLACE` | L1/L3 | Target Silver/serving quality evidence is green; old path removed in L4. |
+| `tests/test_clickhouse_phase7_ci_observability.py` | Old ClickHouse/NiFi/PostgreSQL exporter/rule/workflow assumptions. | `tests/observability/test_contract.py`, `test_ci_contract.py` and observability CI job. | `REWRITE` | L2/L3 | Target producer→scrape→rule→dashboard chain is tested; old path removed in L4. |
+| `tests/test_control_postgres_phase2.py` | Control DB separation and old batch-control integration. | `tests/lakehouse_platform/test_control_postgres_contract.py`/serving control contract. | `REWRITE` | L1 | Target control PostgreSQL remains and raw warehouse is excluded; old path removed in L4. |
+| `tests/test_dead_letter_pipeline.py` | Old raw-file dead-letter/replay and batch status. | Target rejected records, Spark transaction state, normalization/table contracts and serving quality. | `REPLACE` | L1/L2 | Target rejection/replay boundary invariants have owners; old raw-file suite removed in L4. |
 | `tests/test_nifi_optimization.py` | NiFi processor/flow loading, codecs and fanout. | No target equivalent; Spark data plane owns the path. | `DELETE` | L4 | Delete only with `streaming/nifi/**` and old flow consumers. |
-| `tests/test_oltp_seed_contracts.py` | Source schema edge cases for old OLTP seed. | `tests/mysql`, MySQL DDL and seed contract. | `REWRITE` | L1 | Assertions run against MySQL target schema. |
-| `tests/test_postgres_oracle_export.py` | Canonical hash helpers plus old PostgreSQL/dbt inventory expectations. | New parity test for frozen F0/F1 artifacts. | `REPLACE` | L1/L4 | Keep hash semantics, drop old project assertions, preserve F0 oracle readers. |
+| `tests/test_oltp_seed_contracts.py` | Source schema edge cases for old OLTP seed. | `tests/mysql/test_schema_contract.py`, MySQL DDL and seed contract. | `REWRITE` | L1 | Assertions run against MySQL target schema; old path removed in L4. |
+| `tests/test_postgres_oracle_export.py` | Canonical hash helpers plus old PostgreSQL/dbt inventory expectations. | `tests/stage_v/test_f0_parity_contracts.py` and frozen F0/F1 artifacts. | `REPLACE` | L1/L4 | Hash semantics and F0 oracle readers are retained; old path removed in L4. |
 | `tests/test_simulation.py` | Workload planning, composite keys and graceful stop. | `tests/mysql`/simulation target tests. | `REWRITE` | L1 | Keep semantic coverage under target database contract. |
-| `tests/test_stage2_configuration.py` | Old Stage 2 PostgreSQL connector/status/topic assumptions. | `tests/cdc_contracts/test_connector_bootstrap.py` and target topics. | `REPLACE` | L1 | All target connector assertions transferred. |
+| `tests/test_stage2_configuration.py` | Old Stage 2 PostgreSQL connector/status/topic assumptions. | `tests/cdc_contracts/test_target_connector_contract.py` and target topics. | `REPLACE` | L1 | All target connector assertions transferred; old path removed in L4. |
 | `tests/test_stage3_configuration.py` | NiFi profile, MinIO raw bucket and flow configuration. | Target MinIO/Polaris/Spark platform contracts. | `REWRITE` | L1/L2 | Retain only target storage/security assertions. |
 | `tests/test_stage3_contracts.py` | NiFi landing/coverage manifest and raw bytes model. | Spark Bronze/Silver/transaction contracts and Scala tests. | `REPLACE` | L1 | No landing/coverage test is deleted before its target invariant is mapped. |
 | `tests/test_stage4_contracts.py` | Raw S3 manifest/offset reconciliation and old warehouse loader. | Iceberg Bronze/Silver progress/audit and target serving. | `REPLACE` | L1 | Target audit/progress contract has equivalent failure coverage. |
 | `tests/test_stage5_contracts.py` | Old realtime dbt model/publication graph. | Spark Silver + ClickHouse serving/dbt-clickhouse tests. | `REPLACE` | L1/L3 | Target graph/publication checks pass. |
-| `tests/test_stage6_contracts.py` | Old dashboards, alert rules and Loki/metrics labels. | `observability.md` and target observability contract test. | `REWRITE` | L2 | New chain is tested with real target names/metrics. |
+| `tests/test_stage6_contracts.py` | Old dashboards, alert rules and Loki/metrics labels. | `observability.md`, `tests/observability/test_contract.py` and target CI contract. | `REWRITE` | L2 | New chain is tested with real target names/metrics; old path removed in L4. |
 
 ### Target suites explicitly retained
 
-`tests/cdc_contracts/**`, `tests/dbt_clickhouse/**`, `tests/lakehouse_platform/**`, `tests/mysql/**`, `tests/serving/**`, `tests/stage_v/**` and `streaming/spark/scala/src/test/**` are `KEEP`. Their test collection must remain explicit in CI, and a zero-collection result is a failure. `tests/mysql/test_source_schema.py` is `REWRITE`, but the directory itself is not disposable.
+`tests/cdc_contracts/**`, `tests/dbt_clickhouse/**`, `tests/lakehouse_platform/**`, `tests/mysql/**`, `tests/observability/**`, `tests/serving/**`, `tests/stage_v/**` and `streaming/spark/scala/src/test/**` are `KEEP`. Their test collection must remain explicit in CI, and a zero-collection result is a failure. `tests/mysql/test_source_schema.py` is `REWRITE`, but the directory itself is not disposable. Observability tests run in the dedicated observability component job, not in the Stage V runner.
 
 ## 6. Fixtures and schema assets
 
-| Path | Role / consumer | Target contract / replacement evidence | Disposition | Owner stage | Условие удаления |
+| Path | Role / consumer | Target contract / replacement evidence | Disposition | Owner stage | Removal condition |
 | --- | --- | --- | --- | --- | --- |
 | `tests/fixtures/olist_small/olist_small.zip` | Frozen bounded source archive used by Stage V/F0. | Stage V and F0/F1 fixture contract. | `KEEP` | L0/F1 | Never replace without checksum-governed review. |
 | `tests/fixtures/olist_small/source/**` | Reviewable uncompressed copy of the bounded source CSVs. | Stage V source fixture contract. | `KEEP` | L0/F1 | Keep content aligned with the frozen archive; changes require checksum-governed fixture review. |
-| `tests/fixtures/olist_small/source_profile_small.json` | Bounded source profile used by legacy CI utilities; currently uses `redshift_raw_type`. | Target-neutral Stage V source profile. | `REWRITE` | L1/L3 | Rewrite field names/metadata and update the dependent validator/generator; do not change the archive without explicit fixture review. |
+| `tests/fixtures/olist_small/source_profile_small.json` | Bounded source profile used by Stage V source validation; uses target-neutral `raw_type` metadata. | Target-neutral Stage V source profile. | `KEEP` | L1/L3 | Keep the profile and archive checksum stable; changes require explicit fixture review. |
 | `tests/fixtures/olist_small/README.md` | Fixture usage/provenance documentation. | Target source/fixture contract. | `REWRITE` | L1/L3 | Keep provenance and regeneration instructions, but remove old ingestion/warehouse claims. |
 | `tests/fixtures/final_parity/main-1400d08.json` | Frozen F0 oracle. | `final-parity.md`. | `KEEP` | F1 | Immutable; no cleanup may regenerate or remove it. |
 | `tests/fixtures/final_parity/main-1400d08.metadata.json` | Frozen F0 provenance/checksums. | `final-parity.md`. | `KEEP` | F1 | Immutable and validated by preflight. |
@@ -171,13 +173,13 @@ The target suites below are not candidates for bulk deletion. Root tests with ol
 | `streaming/nifi/flow/olist-cdc-v1.json` | NiFi flow fixture. | Spark Scala data-plane contract. | `DELETE` | L4 | NiFi runtime and all flow consumers removed. |
 | `streaming/nifi/parameters/local.template.json` | NiFi parameter template. | Target Compose/env/secret contracts. | `DELETE` | L4 | No target workflow consumes it. |
 | `streaming/schemas/normalized/**` | Old NiFi normalized Avro assets. | Target captured writer schemas and Spark contracts. | `DELETE` | L4 | No active code/test reads the directory. |
-| `streaming/schemas/cdc-landing/v1.avsc` | Old NiFi landing schema. | Target Bronze raw record contract. | `REPLACE` | L1/L4 | Bronze contract/test owns raw bytes/tombstone semantics. |
-| `streaming/schemas/cdc-coverage/v1.schema.json` | Old NiFi coverage manifest schema. | Target Spark transaction/progress/audit tables. | `REPLACE` | L1/L4 | Equivalent target progress contract is accepted. |
+| `streaming/schemas/cdc-landing/v1.avsc` | Old NiFi landing schema. | Target Bronze record/table contract and Scala tests. | `DELETE` | L4 | Bronze table/schema contracts own bytes/tombstone semantics; no old landing-schema consumer remains. |
+| `streaming/schemas/cdc-coverage/v1.schema.json` | Old NiFi coverage manifest schema. | Target Spark transaction/progress/audit tables and Stage V harness. | `DELETE` | L4 | Target progress and transaction contracts own coverage semantics; no old manifest consumer remains. |
 | `streaming/schemas/captured-writer-schemas/**` | Captured Debezium/Apicurio writer schemas used by Scala and CDC contracts. | `mysql-kafka-avro.md`, `tests/cdc_contracts`. | `KEEP` | L1 | Frozen provenance; no rewrite during legacy cleanup. E2E capture must not mutate this path; a new bundle needs an explicit reviewed commit. |
 
 ## 7. Secret templates and secret sources
 
-| Path / variable | Current role or defect | Target contract / replacement evidence | Disposition | Owner stage | Условие удаления/замены |
+| Path / variable | Current role or defect | Target contract / replacement evidence | Disposition | Owner stage | Removal/replacement condition |
 | --- | --- | --- | --- | --- | --- |
 | `docker/secrets/dev/airflow_api_secret_key.txt` | Airflow API secret; also incorrectly used as current MinIO password default. | File-only target secrets; dedicated MinIO secret must be separate. | `KEEP` | L1 | Keep for Airflow; remove cross-service default. |
 | `docker/secrets/dev/airflow_postgres_password.txt` | Airflow metadata DB password. | Target Airflow/control plane. | `KEEP` | L1 | Keep file-only. |
@@ -283,7 +285,10 @@ These paths are not legacy deletion candidates. Some have a `REWRITE` dispositio
 | `scripts/serving/metrics.py` | Target serving metric producer exists, but no Compose endpoint currently owns or exposes it. | Target serving observability producer and real scrape owner. | `REWRITE` | L2 | Wire it to a real bounded service/endpoint or remove it with evidence that the target serving probe owns every required signal. |
 | `scripts/serving/clickhouse.py` | Target materializer reads transaction audit history, but its current fetch path drops `OPEN` observations without an end offset and can hide an unresolved boundary. | Effective transaction history and frozen serving boundary contract. | `REWRITE` | L1 | Preserve complete physical boundaries while exposing unresolved effective `OPEN`/`REJECTED` state to the planner. |
 | `scripts/serving/boundary.py` | Target boundary planner has the right state vocabulary, but its correctness depends on the materializer not discarding unresolved observations. | Stage E effective transaction/boundary contract. | `REWRITE` | L1 | Add explicit effective-state and rejected/open regression cases without weakening prefix blocking. |
-| `scripts/parity/**` | F0 validation and candidate-only F1 comparator/export readers. | `final-parity.md` | `KEEP` | F1 | F0 oracle/readers are immutable inputs; no regular F0 regeneration. |
+| `scripts/parity/export_f0_baseline.py` | One-shot F0/F1 parity-support exporter for controlled source-baseline regeneration and diagnostics. | Frozen `tests/fixtures/final_parity/**` and `validate_f0_oracle.py`. | `KEEP` | F1 | Retain until F1 parity is PASS and reviewed; remove only in a later cleanup if no further baseline regeneration or diagnostic use is required. |
+| `scripts/parity/final_parity_contract.json` | Relation manifest required by the retained one-shot F0/F1 parity exporter. | Frozen F0 oracle metadata and target candidate manifest. | `KEEP` | F1 | Retain with the exporter until F1 parity is PASS and reviewed; remove only together with the exporter in a later cleanup. |
+| `scripts/parity/canonical_stage5_relations.json` | Retired Stage 5 realtime relation manifest, including the old control audit relation. | Target F0/F1 manifest and Stage V contracts. | `DELETE` | L4 | No target exporter, workflow or runtime reads this manifest. |
+| `scripts/parity/{__init__.py,canonical_manifest.py,canonical_batch_relations.json,compare_manifests.py,export_clickhouse_candidate.py,validate_f0_oracle.py}` | F0 validation and candidate-only F1 comparator/export readers. | `final-parity.md` | `KEEP` | F1 | F0 oracle/readers are immutable inputs; no regular baseline regeneration. |
 | `scripts/validation/stage_v_candidate_e2e.py` | Full target V0–V10 acceptance runner. | `testing-and-evidence.md` | `KEEP` | L1–L4 | Every substage must run the full runner, not only `tests/stage_v`. |
 | `tests/cdc_contracts/**` | Target CDC contract suite. | `testing-and-evidence.md` | `KEEP` | L1/L3 | Explicit CI collection; zero collection fails. |
 | `tests/dbt_clickhouse/**` | Target dbt-clickhouse contract suite. | `testing-and-evidence.md` | `KEEP` | L1/L3 | Explicit CI collection; old dbt tests map here. |
@@ -298,7 +303,7 @@ These paths are not legacy deletion candidates. Some have a `REWRITE` dispositio
 | `scripts/ci/check_apicurio_compatibility.py` | Target registry compatibility validator. | `validation-and-ci.md` | `KEEP` | L1/L3 | Keep as a required CDC contract check. |
 | `scripts/ci/check_avro_schema_compatibility.py` | Target schema evolution validator. | `validation-and-ci.md` | `KEEP` | L1/L3 | Keep with target captured-writer/schema contracts. |
 | `scripts/utilities/airflow_config_cmd.py` | Target Airflow wrapper, but it currently permits plaintext environment/default fallbacks. | `validation-and-ci.md` | `REWRITE` | L1/L3 | Require file-only secrets, remove plaintext defaults and preserve import/config coverage. |
-| `scripts/validation/stage_v_probes.py` | Target Stage V probe module, but its default MySQL password path still uses the legacy `postgres_password.txt`. | `testing-and-evidence.md` | `REWRITE` | L1 | Use the dedicated target reader/simulator secret contract without changing probe semantics. |
+| `scripts/validation/stage_v_probes.py` | Target Stage V probe module with dedicated MySQL source and control-plane probes. | `testing-and-evidence.md` | `KEEP` | L1–L4 | Keep the dedicated MySQL reader/simulator secret contract and target control-plane checks. |
 
 ## 10. L0 decision summary
 

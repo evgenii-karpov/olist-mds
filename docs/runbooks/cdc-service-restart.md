@@ -1,20 +1,21 @@
-# CDC service restart
+# Target CDC service restart
 
-Use this procedure for Connect, NiFi, registry, or object-store availability
-alerts. Do not remove volumes, Connect offsets, the publication, or the
-replication slot.
+Use this procedure for MySQL, Kafka Connect, Apicurio, Spark, Polaris or MinIO
+availability alerts.
 
-1. Record the active alert, Kafka lag, slot WAL, offset gaps, and latest ingest
-   and transform timestamps in Grafana.
+1. Record the alert, connector/task state, Kafka lag, Spark status files and
+   target-probe output.
 2. Inspect bounded logs: `docker compose logs --no-color --tail=300 <service>`.
-3. Restart only the affected service with
-   `docker compose --profile realtime-core up -d --wait <service>`.
-4. For a failed connector task run
-   `uv run python scripts/cdc/stage2_admin.py restart-failed`.
-5. Confirm connector/task health, heartbeat recovery, draining lag, a decreasing
-   or stable retained-WAL value, and zero unexplained offset gaps.
-6. Confirm the alert resolves. If it does not, keep the evidence and stop; never
-   delete durable state as a health-check shortcut.
+3. Restart only the affected target service using its Compose profile and
+   preserve volumes/checkpoints.
+4. Re-run the relevant readiness command:
 
-Exercise a bounded alert transition with
+   ```powershell
+   uv run python scripts/cdc/local_lab.py status --require platform
+   uv run python scripts/cdc/local_lab.py start-streaming --wait-ready
+   ```
+
+5. Confirm lag drains, Spark status is fresh, and the relevant alert resolves.
+
+Exercise bounded failure/resolve behavior with
 `uv run python scripts/cdc/failure_injection.py --scenario connect --execute`.

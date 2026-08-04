@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Operate the disposable MySQL → Kafka → Spark/Iceberg Wave 1 lab.
+"""Operate the disposable target MySQL → Kafka → Spark/Iceberg lab.
 
 This is the only documented lifecycle entry point for the candidate runtime.
 Every command emits one bounded JSON result and never prints secret contents.
-Wave 2 and serving commands remain explicit non-zero guards until their join
-points are implemented.
 """
 
 from __future__ import annotations
@@ -102,7 +100,7 @@ class LabError(RuntimeError):
 
 
 class NotAvailableUntil(LabError):
-    """A deliberately deferred Wave 2/E command was requested."""
+    """A command outside the currently implemented lifecycle was requested."""
 
     def __init__(self, phase: str, command: str) -> None:
         super().__init__(f"{command} is not available until {phase}")
@@ -522,7 +520,7 @@ def _reset(args: argparse.Namespace) -> int:
         status_dir = ROOT / "docker" / "spark" / "status"
         if status_dir.exists():
             for p in status_dir.glob("**/*"):
-                if p.is_file():
+                if p.is_file() and p.name != ".gitkeep":
                     with contextlib.suppress(OSError):
                         p.unlink()
     except LabError as exc:
@@ -2550,8 +2548,8 @@ def _build_parser() -> argparse.ArgumentParser:
     final_parity.add_argument("--confirm-destructive", action="store_true")
     final_parity.set_defaults(func=_not_available, phase="F")
 
-    # Compatibility aliases are retained as thin lifecycle aliases; they do
-    # not re-enable the removed PostgreSQL/NiFi path.
+    # Compatibility aliases are retained as thin lifecycle aliases for the
+    # target local lifecycle commands.
     start = commands.add_parser("start", help=argparse.SUPPRESS)
     start.add_argument("--build", action="store_true")
     start.add_argument("--timeout", type=float, default=DEFAULT_BOOTSTRAP_TIMEOUT)

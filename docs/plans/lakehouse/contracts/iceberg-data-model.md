@@ -1,37 +1,37 @@
-# Технический контракт: Модель данных Iceberg, Polaris и MinIO
+# Technical Contract: Iceberg, Polaris and MinIO Data Model
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Фиксация структуры каталога Iceberg, бакетов MinIO, пространств имен (namespaces), схем таблиц Bronze/Silver/Audit/Reference и свойств таблиц.
-- **Порядок авторитетности**: Определяет действующие нормативные требования к структуре и схемам данных на уровне Lakehouse.
+- **Status**: Active normative contract
+- **Purpose**: Define the Iceberg catalog structure, MinIO buckets, namespaces, Bronze/Silver/Audit/Reference table schemas and table properties.
+- **Authority**: Defines the current normative requirements for Lakehouse data structures and schemas.
 
 ---
 
-## 1. Контур каталога Polaris и бакетов MinIO
+## 1. Polaris catalog and MinIO bucket boundary
 
-### 1.1 Параметры Polaris Catalog
+### 1.1 Polaris Catalog parameters
 
-- Каталог / параметр REST warehouse: `olist_lakehouse`
-- Базовый путь (default-base-location): `s3://olist-lakehouse/warehouse`
+- Catalog / REST warehouse parameter: `olist_lakehouse`
+- Default base location: `s3://olist-lakehouse/warehouse`
 - REST URI: `http://polaris:8181/api/catalog`
 - S3 endpoint: `http://minio:9000`
 - S3 region: `us-east-1`
 
-### 1.2 Бакеты MinIO
+### 1.2 MinIO buckets
 
-1. `olist-lakehouse`: Хранение данных таблиц Iceberg (warehouse).
-2. `olist-checkpoints`: Хранение чекпоинтов Spark Structured Streaming.
+1. `olist-lakehouse`: Iceberg table data (warehouse).
+2. `olist-checkpoints`: Spark Structured Streaming checkpoints.
 
-Чекпоинты физически изолированы от warehouse. Инструменты обслуживания Iceberg (maintenance) не имеют доступа к бакету чекпоинтов.
+Checkpoints are physically isolated from the warehouse. Iceberg maintenance tools do not have access to the checkpoint bucket.
 
-### 1.3 Пространства имен (Namespaces) и свойства таблиц
+### 1.3 Namespaces and table properties
 
-В каталоге создаются 4 пространства имен:
+The catalog contains four namespaces:
 - `bronze`
 - `silver`
 - `reference`
 - `audit`
 
-Общие свойства таблиц Iceberg:
+Common Iceberg table properties:
 
 ```text
 format-version=2
@@ -42,93 +42,93 @@ write.metadata.delete-after-commit.enabled=true
 write.metadata.previous-versions-max=20
 ```
 
-Партиционирование:
+Partitioning:
 - `bronze.mysql_cdc_records`: `days(ingested_at)`;
-- `bronze.avro_schemas`: без партиционирования;
+- `bronze.avro_schemas`: unpartitioned;
 - `silver.<entity>_changes`: `days(source_ts)`;
-- `silver.<entity>_current`: без партиционирования;
-- `reference.geolocation`: без партиционирования;
-- Растущие таблицы `audit`: `days(recorded_at)`.
+- `silver.<entity>_current`: unpartitioned;
+- `reference.geolocation`: unpartitioned;
+- Growing `audit` tables: `days(recorded_at)`.
 
 ---
 
-## 2. Схемы сырого слоя Bronze
+## 2. Bronze raw-layer schemas
 
-### 2.1 Таблица `bronze.mysql_cdc_records`
+### 2.1 Table `bronze.mysql_cdc_records`
 
-Хранит внешние CDC-топики Kafka в исходном бинарном виде (без декодирования payload).
+Stores external Kafka CDC topics in their original binary form (without decoding the payload).
 
-| Колонка | Тип | Назначение |
+| Column | Type | Purpose |
 | --- | --- | --- |
-| `event_id` | `string` | Составной ID (`topic:partition:offset`) |
+| `event_id` | `string` | Composite ID (`topic:partition:offset`) |
 | `record_kind` | `string` | `data`, `tombstone`, `transaction`, `heartbeat`, `schema_change` |
-| `topic` | `string` | Имя топика Kafka |
-| `partition` | `int` | Номер партиции Kafka |
-| `offset` | `long` | Смещение в партиции Kafka |
-| `kafka_timestamp` | `timestamptz` | Метка времени из Kafka |
-| `kafka_timestamp_type` | `string` | Тип метки времени Kafka |
-| `headers` | `map<string, binary>` | Заголовки сообщения Kafka |
-| `key_bytes` | `binary` | Сырые байты ключа |
-| `value_bytes` | `binary` | Сырые байты значения |
-| `is_tombstone` | `boolean` | `true` при null value для бизнес-топика |
-| `key_schema_id` | `int` | Извлеченный 4-байтовый ID схемы ключа |
-| `value_schema_id` | `int` | Извлеченный 4-байтовый ID схемы значения |
-| `key_sha256` | `string` | SHA-256 хэш ключа |
-| `value_sha256` | `string` | SHA-256 хэш значения |
-| `key_framing_valid` | `boolean` | Валидность обрамления Confluent Avro ключа |
-| `value_framing_valid` | `boolean` | Валидность обрамления Confluent Avro значения |
-| `framing_error` | `string` | Код ошибки фрейминга (если есть) |
-| `ingest_batch_id` | `long` | ID микробатча Spark |
-| `spark_query_id` | `string` | Устойчивый ID стриминг-запроса |
-| `ingested_at` | `timestamptz` | Метка времени записи в Bronze |
+| `topic` | `string` | Kafka topic name |
+| `partition` | `int` | Kafka partition number |
+| `offset` | `long` | Offset within the partition |
+| `kafka_timestamp` | `timestamptz` | Timestamp from Kafka |
+| `kafka_timestamp_type` | `string` | Kafka timestamp type |
+| `headers` | `map<string, binary>` | Kafka message headers |
+| `key_bytes` | `binary` | Raw key bytes |
+| `value_bytes` | `binary` | Raw value bytes |
+| `is_tombstone` | `boolean` | `true` for a null value on a business topic |
+| `key_schema_id` | `int` | Extracted 4-byte key schema ID |
+| `value_schema_id` | `int` | Extracted 4-byte value schema ID |
+| `key_sha256` | `string` | SHA-256 key hash |
+| `value_sha256` | `string` | SHA-256 value hash |
+| `key_framing_valid` | `boolean` | Confluent Avro key framing validity |
+| `value_framing_valid` | `boolean` | Confluent Avro value framing validity |
+| `framing_error` | `string` | Framing error code, if any |
+| `ingest_batch_id` | `long` | Spark micro-batch ID |
+| `spark_query_id` | `string` | Stable streaming-query ID |
+| `ingested_at` | `timestamptz` | Bronze write timestamp |
 
-### 2.2 Таблица `bronze.avro_schemas`
+### 2.2 Table `bronze.avro_schemas`
 
-Архив всех зарегистрированных и встреченных Avro-схем.
+Archive of all registered and observed Avro schemas.
 
-Колонки: `schema_id` (int), `fingerprint_sha256` (string), `subject` (string), `registry_version` (int), `schema_json` (string), `references_json` (string), `spark_self_contained_schema_json` (string), `first_seen_at` (timestamptz), `last_verified_at` (timestamptz).
-
----
-
-## 3. Схемы слоя Silver
-
-Для каждой из 8 бизнес-сущностей создаются две таблицы:
-1. `silver.<entity>_changes` — неизменяемый журнал бизнес-событий (event ledger).
-2. `silver.<entity>_current` — текущее срезовое состояние сущностей.
-
-### 3.1 Поля таблицы `silver.<entity>_changes`
-
-- Служебные идентификаторы и статус: `event_id`, `op` (`c/r/u/d`), `is_snapshot`, `is_deleted`, `apply_status` (`applied` / `rejected`), `error_code`, `error_message`.
-- Бизнес-колонки сущности (согласно типу MySQL, приведение к UTC/NTZ).
-- Метаданные источника binlog: `source_ts`, `source_server_id`, `source_gtid`, `source_binlog_file`, `source_binlog_file_index`, `source_binlog_pos`, `source_row`.
-- Метаданные транзакции и Kafka: `transaction_id`, `transaction_total_order`, `transaction_data_collection_order`, `kafka_topic`, `kafka_partition`, `kafka_offset`, `kafka_timestamp`.
-- Хэши и версии: `key_schema_id`, `value_schema_id`, `schema_fingerprint`, `contract_version`, `before_row_hash`, `after_row_hash`, `row_hash`, `bronze_ingested_at`, `normalized_at`.
-
-### 3.2 Поля таблицы `silver.<entity>_current`
-
-Бизнес-колонки сущности плюс метаданные версии: `is_deleted`, `deleted_at`, `last_event_id`, `last_source_ts`, `last_transaction_id`, `last_kafka_partition`, `last_kafka_offset`, `last_row_hash`, `contract_version`, `updated_at`.
+Columns: `schema_id` (int), `fingerprint_sha256` (string), `subject` (string), `registry_version` (int), `schema_json` (string), `references_json` (string), `spark_self_contained_schema_json` (string), `first_seen_at` (timestamptz), `last_verified_at` (timestamptz).
 
 ---
 
-## 4. Схемы служебных таблиц (Audit & Reference)
+## 3. Silver-layer schemas
 
-В пространстве имен `audit` содержатся:
-- `audit.mysql_transactions`: отслеживание статуса и границ транзакций (`OPEN`, `COMPLETE`, `REJECTED`).
-- `audit.silver_progress`: детальный прогресс обработки по сущностям, партициям и смещениям.
-- `audit.normalization_errors`: журнал ошибок нормализации и бизнес-валидации.
-- `audit.schema_violations`: журнал нарушений контрактов схем.
-- `audit.maintenance_runs`: журнал процедур обслуживания Iceberg.
-- `audit.serving_sync_reports`: отчеты о синхронизации с ClickHouse serving.
-- `audit.schema_migrations`: версия примененных миграций схемы Iceberg.
+Two tables are created for each of the eight business entities:
+1. `silver.<entity>_changes` — immutable business-event ledger.
+2. `silver.<entity>_current` — current entity snapshot.
 
-В пространстве имен `reference` содержится:
-- `reference.geolocation`: неизменяемый справочник геопозиций, загружаемый разовым плановым процессом из MySQL.
+### 3.1 Fields of `silver.<entity>_changes`
+
+- Operational identifiers and status: `event_id`, `op` (`c/r/u/d`), `is_snapshot`, `is_deleted`, `apply_status` (`applied` / `rejected`), `error_code`, `error_message`.
+- Entity business columns according to MySQL types, normalized to UTC/NTZ.
+- Binlog source metadata: `source_ts`, `source_server_id`, `source_gtid`, `source_binlog_file`, `source_binlog_file_index`, `source_binlog_pos`, `source_row`.
+- Transaction and Kafka metadata: `transaction_id`, `transaction_total_order`, `transaction_data_collection_order`, `kafka_topic`, `kafka_partition`, `kafka_offset`, `kafka_timestamp`.
+- Hashes and versions: `key_schema_id`, `value_schema_id`, `schema_fingerprint`, `contract_version`, `before_row_hash`, `after_row_hash`, `row_hash`, `bronze_ingested_at`, `normalized_at`.
+
+### 3.2 Fields of `silver.<entity>_current`
+
+Entity business columns plus version metadata: `is_deleted`, `deleted_at`, `last_event_id`, `last_source_ts`, `last_transaction_id`, `last_kafka_partition`, `last_kafka_offset`, `last_row_hash`, `contract_version`, `updated_at`.
 
 ---
 
-## 5. Связанные документы
+## 4. Audit and reference table schemas
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт архитектуры и runtime](architecture-and-runtime.md)
-- [Контракт MySQL, Kafka и Avro](mysql-kafka-avro.md)
-- [Контракт Spark Structured Streaming](spark-streaming.md)
+The `audit` namespace contains:
+- `audit.mysql_transactions`: transaction status and boundary tracking (`OPEN`, `COMPLETE`, `REJECTED`).
+- `audit.silver_progress`: detailed processing progress by entity, partition and offset.
+- `audit.normalization_errors`: normalization and business-validation error log.
+- `audit.schema_violations`: schema-contract violation log.
+- `audit.maintenance_runs`: Iceberg maintenance procedure log.
+- `audit.serving_sync_reports`: ClickHouse serving synchronization reports.
+- `audit.schema_migrations`: applied Iceberg schema migration version.
+
+The `reference` namespace contains:
+- `reference.geolocation`: immutable geolocation reference data loaded by a one-shot scheduled process from MySQL.
+
+---
+
+## 5. Related documents
+
+- [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [Architecture and runtime contract](architecture-and-runtime.md)
+- [MySQL, Kafka and Avro contract](mysql-kafka-avro.md)
+- [Spark Structured Streaming contract](spark-streaming.md)

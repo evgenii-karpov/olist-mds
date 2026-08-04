@@ -41,7 +41,7 @@ uv run python scripts/validation/stage_v_candidate_e2e.py run `
 - [Legacy disposition register](../plans/lakehouse/contracts/legacy-disposition-register.md) — individual KEEP/REWRITE/REPLACE/DELETE decisions and removal conditions.
 - [Target observability contract](../plans/lakehouse/contracts/observability.md) — current phantom-target audit and required target metric chain.
 - [Target tests and evidence contract](../plans/lakehouse/contracts/testing-and-evidence.md) — protected suites, transfer rules and evidence boundaries.
-- [Stage L detailed plan](../plans/lakehouse/active/stage-l-legacy-removal-ci-cutover.md) — stage ordering and exit criteria.
+- [Stage L detailed plan](../plans/lakehouse/completed/stage-l-legacy-removal-ci-cutover.md) — stage ordering and exit criteria.
 
 ## 4. Static findings recorded before runtime implementation
 

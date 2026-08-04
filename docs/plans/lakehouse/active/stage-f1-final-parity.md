@@ -1,21 +1,21 @@
-# Детальный план Stage F1: финальный candidate-only parity
+# Detailed Stage F1 Plan: Final Candidate-Only Parity
 
-- **Статус**: `PENDING`, выполняется после Stage L.
-- **Назначение**: доказать бизнес-паритет очищенного candidate с frozen oracle F0 без запуска legacy runtime.
+- **Status**: `PENDING`, runs after Stage L.
+- **Purpose**: prove business parity between the cleaned candidate and the frozen F0 oracle without starting legacy runtime.
 
 ---
 
 ## 1. Preconditions
 
-1. F0 oracle и metadata приняты и находятся в `tests/fixtures/final_parity`.
-2. Stage L завершён, общий CI и component workflows зелёные.
-3. Candidate указывается полным commit SHA; рабочее дерево не используется как неявный источник версии.
-4. Fixture SHA совпадает со значением в metadata.
-5. Доступен изолированный Docker runner с достаточным диском и уникальным Compose project.
+1. The F0 oracle and metadata are accepted and stored in `tests/fixtures/final_parity`.
+2. Stage L is complete, and common CI and component workflows are green.
+3. The candidate is specified by its full commit SHA; the working tree is not an implicit version source.
+4. The fixture SHA matches the value in metadata.
+5. An isolated Docker runner with sufficient disk and a unique Compose project is available.
 
 ---
 
-## 2. Целевой CLI
+## 2. Target CLI
 
 ```text
 python scripts/cdc/local_lab.py final-parity \
@@ -25,76 +25,76 @@ python scripts/cdc/local_lab.py final-parity \
   --timeout 5400
 ```
 
-Команда должна запускать только candidate. Любая попытка создать legacy worktree или обратиться к symbolic `main` в F1 считается нарушением контракта.
+The command must run only the candidate. Any attempt to create a legacy worktree or access the symbolic `main` in F1 violates the contract.
 
 ---
 
-## 3. Порядок выполнения
+## 3. Execution order
 
-1. Проверить candidate SHA, oracle/metadata schema и все checksums.
-2. Создать чистый Compose domain; выполнить scoped reset только для его ресурсов.
-3. Поднять platform и streaming, загрузить тот же fixture.
-4. Дождаться initial snapshot, committed Bronze/Silver progress и отсутствия rejects.
-5. Выполнить finite serving sync по реальной boundary и `dbt build`.
-6. Экспортировать candidate current state, fact и marts по тому же manifest, что использовался F0.
-7. Канонизировать значения одинаковой версией правил.
-8. Для каждого relation сравнить grain, набор ключей и каждую бизнес-колонку.
-9. Записать machine-readable diff и Markdown summary.
-10. Повторно проверить, что report status вычислен из diff, затем очистить Compose domain в любом исходе.
+1. Verify the candidate SHA, oracle/metadata schema and all checksums.
+2. Create a clean Compose domain; perform a scoped reset only for its resources.
+3. Start platform and streaming and load the same fixture.
+4. Wait for the initial snapshot, committed Bronze/Silver progress and no rejects.
+5. Run finite serving sync at the real boundary and `dbt build`.
+6. Export candidate current state, fact and marts with the same manifest used by F0.
+7. Canonicalize values with the same rules version.
+8. For each relation, compare the grain, key set and every business column.
+9. Write the machine-readable diff and Markdown summary.
+10. Recheck that report status is computed from the diff, then clean the Compose domain on every outcome.
 
 ---
 
-## 4. Обязательные артефакты
+## 4. Required artifacts
 
-Каталог `data/reports/final-parity/<run-id>/` содержит:
+The `data/reports/final-parity/<run-id>/` directory contains:
 
 - `preflight.json`;
 - `candidate-manifest.json`;
 - `comparison.json`;
 - `report.md`;
 - `junit.xml`;
-- ограниченные логи только нужных сервисов при ошибке.
+- bounded logs for only the required services on failure.
 
-`comparison.json` для каждого relation содержит row counts, missing keys, extra keys, column mismatch count, bounded samples различий и SHA-256 канонических строк. Секреты, connection strings и полные environment dumps запрещены.
+For each relation, `comparison.json` contains row counts, missing keys, extra keys, column mismatch count, bounded mismatch samples and SHA-256 hashes of canonical rows. Secrets, connection strings and full environment dumps are forbidden.
 
 ---
 
-## 5. Решение PASS/FAIL
+## 5. PASS/FAIL decision
 
-`PASS` возможен только при одновременном выполнении условий:
+`PASS` is possible only when all conditions hold:
 
 - process exit code `0`;
-- все relations из manifest присутствуют;
-- нет duplicate grain;
-- `missing_keys = 0` и `extra_keys = 0`;
+- all relations from the manifest are present;
+- there is no duplicate grain;
+- `missing_keys = 0` and `extra_keys = 0`;
 - `column_mismatches = 0`;
-- fixture, baseline и canonicalization checksums совпадают с metadata;
-- cleanup завершён либо отдельно отмечена инфраструктурная ошибка после уже вычисленного результата.
+- fixture, baseline and canonicalization checksums match metadata;
+- cleanup completed, or an infrastructure error is separately recorded after the result was computed.
 
-Checksum-only сравнение не является достаточным. При расхождении исправляется candidate и F1 повторяется с тем же oracle. Изменять F0 oracle для устранения расхождения запрещено.
-
----
-
-## 6. Ручной GitHub workflow
-
-F1 запускается job `final-parity` из `.github/workflows/lakehouse-acceptance.yml` с `suite=final-parity`. Workflow запускается только через `workflow_dispatch`, привязывает evidence к `candidate_sha`, сериализуется через concurrency и публикует артефакты даже при `FAIL`.
-
-F1 не входит в обычный PR CI: его длительность, destructive reset и полный стек несоразмерны каждой правке. Обязательными PR-барьерами остаются общий CI и релевантные bounded components.
+Checksum-only comparison is insufficient. On mismatch, fix the candidate and repeat F1 with the same oracle. Changing the F0 oracle to eliminate a mismatch is forbidden.
 
 ---
 
-## 7. Критерии завершения программы
+## 6. Manual GitHub workflow
 
-- F1 report имеет `PASS` и ссылается на точные candidate/baseline SHA;
-- опубликованные machine-readable артефакты согласованы с Markdown report;
-- повторный validator подтверждает решение;
-- cleanup выполнен;
-- итоговый отчёт добавлен в `docs/reports/`, а roadmap отмечает миграцию как завершённую.
+F1 runs as the `final-parity` job in `.github/workflows/lakehouse-acceptance.yml` with `suite=final-parity`. The workflow runs only through `workflow_dispatch`, binds evidence to `candidate_sha`, serializes through concurrency and publishes artifacts even on `FAIL`.
+
+F1 is not part of normal PR CI: its duration, destructive reset and full stack are disproportionate to every change. Common CI and relevant bounded components remain the required PR barriers.
 
 ---
 
-## 8. Связанные документы
+## 7. Program completion criteria
 
-- [План F0](../completed/stage-f0-baseline-freeze.md)
-- [Контракт финального паритета](../contracts/final-parity.md)
-- [План CI cutover](stage-l-legacy-removal-ci-cutover.md)
+- the F1 report has `PASS` and references the exact candidate/baseline SHAs;
+- published machine-readable artifacts agree with the Markdown report;
+- a repeat validator confirms the decision;
+- cleanup is complete;
+- the final report is added to `docs/reports/` and the roadmap marks the migration complete.
+
+---
+
+## 8. Related documents
+
+- [F0 plan](../completed/stage-f0-baseline-freeze.md)
+- [Final parity contract](../contracts/final-parity.md)
+- [CI cutover plan](../completed/stage-l-legacy-removal-ci-cutover.md)

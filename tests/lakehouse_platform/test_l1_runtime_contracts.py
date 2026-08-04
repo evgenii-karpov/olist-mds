@@ -10,7 +10,7 @@ from scripts.cdc.local_lab import (
     _capture_and_contracts,
     _connector_bootstrap,
 )
-from scripts.ingestion.raw_files import load_source_entities
+from scripts.utilities.validate_source_contract import load_contract
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -23,7 +23,8 @@ def test_target_secret_defaults_are_dedicated_and_present():
 
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
     secrets_block = compose.split("secrets:", maxsplit=1)[1]
-    assert "./docker/secrets/dev/postgres_password.txt}" not in secrets_block
+    for relative_path in SECRET_ENV_DEFAULTS.values():
+        assert Path(relative_path).name in secrets_block
     assert (
         "airflow_api_secret_key.txt"
         not in secrets_block.split("minio_root_password:", maxsplit=1)[1].split(
@@ -40,16 +41,14 @@ def test_source_profiles_use_target_neutral_raw_type_metadata():
         profile = json.loads(profile_path.read_text(encoding="utf-8"))
         assert profile
         assert all(
-            "raw_type" in column and "redshift_raw_type" not in column
-            for entity in profile
-            for column in entity["columns"]
+            "raw_type" in column for entity in profile for column in entity["columns"]
         )
 
-    entities = load_source_entities(
+    entities = load_contract(
         ROOT / "tests/fixtures/olist_small/source_profile_small.json"
     )
     assert entities
-    assert all(entity.column_types for entity in entities)
+    assert all(entity.columns for entity in entities)
 
 
 def test_stage2_admin_uses_the_target_mysql_connector():
@@ -80,12 +79,9 @@ def test_local_lab_uses_the_dedicated_cdc_reader_secret_for_connector_bootstrap(
     assert "mysql_simulator_password.txt" not in command[password_index]
 
 
-def test_airflow_wrapper_is_file_only_and_has_no_legacy_cloud_defaults():
+def test_airflow_wrapper_is_file_only():
     wrapper = (ROOT / "docker/airflow/load-env-and-run.sh").read_text(encoding="utf-8")
-    assert "fetch_aws_secret" not in wrapper
-    assert "AWS_SECRET_ID" not in wrapper
-    assert "REDSHIFT" not in wrapper
-    assert "POSTGRES_PASSWORD:=olist" not in wrapper
+    assert "resolve_secret_file" in wrapper
     assert "${base_name}_FILE" in wrapper
     assert "Plaintext secret environment variable" in wrapper
 

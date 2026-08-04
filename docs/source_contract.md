@@ -1,6 +1,7 @@
 # Source Contract
 
-This document is generated from the local Olist dataset archive.
+This document is generated from the local Olist dataset archive used by the
+MySQL seed and bounded Stage V fixture checks.
 
 Source archive: `olist.zip`
 
@@ -20,7 +21,7 @@ Source archive: `olist.zip`
 
 ## Expected Source Files
 
-The ingestion layer should fail fast if any of these files are missing:
+The source-contract check should fail fast if any of these files are missing:
 
 - `olist_customers_dataset.csv`
 - `olist_geolocation_dataset.csv`
@@ -35,8 +36,9 @@ The ingestion layer should fail fast if any of these files are missing:
 ## Entity Contracts
 
 The `Inferred type` column is based on sampled non-null values. The
-`Raw type` column is the recommended first-pass type for raw
-DDL. Staging models can cast to stricter business types where needed.
+`Raw type` column is the recommended first-pass type for the source/seed
+schema. Target transformations can cast to stricter business types where
+needed.
 
 ### customers
 
@@ -171,21 +173,22 @@ Rows: `71`
 | `product_category_name`         | varchar       | varchar(256)       | 0     | 0.00%  | `beleza_saude`, `informatica_acessorios`, `automotivo` |
 | `product_category_name_english` | varchar       | varchar(256)       | 0     | 0.00%  | `health_beauty`, `computers_accessories`, `auto`       |
 
-## Raw Metadata Columns
+## Source Metadata Columns
 
-Every raw table should include these ingestion metadata columns:
+The bounded source and seed contract uses these deterministic metadata fields
+when a source record is materialized:
 
 | Column           | Recommended type | Description                                   |
 | ---------------- | ---------------- | --------------------------------------------- |
 | `_batch_id`      | varchar(128)     | Deterministic batch identifier.               |
-| `_loaded_at`     | timestamp        | Warehouse load timestamp.                     |
-| `_source_file`   | varchar(512)     | Original raw object or source file.           |
+| `_loaded_at`     | timestamp        | Materialization timestamp.                   |
+| `_source_file`   | varchar(512)     | Original source file.                         |
 | `_source_system` | varchar(64)      | Source system name, initially `olist_kaggle`. |
 
 ## Contract Rules
 
-- Ingestion must fail if an expected file is missing.
-- Ingestion must fail if a source header changes unexpectedly.
-- Raw data should be append-only and batch-addressable.
-- dbt staging models own stricter type casting and business naming.
-- Correction feeds for SCD2 simulation should be versioned as separate source entities.
+- Source validation must fail if an expected file is missing.
+- Source validation must fail if a header changes unexpectedly.
+- Seed and fixture materialization must be deterministic and batch-addressable.
+- Target transformations own stricter type casting and business naming.
+- Rejected-event and replay semantics belong to the target Spark/Iceberg contracts.

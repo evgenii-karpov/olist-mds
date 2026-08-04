@@ -175,14 +175,22 @@ class ConnectorContractTests(unittest.TestCase):
         self.assertEqual("p@ss word", payload["config"]["database.password"])
         self.assertNotIn("database.password", self.template["config"])
 
-    def test_connect_image_selects_mysql_and_has_no_postgres_inventory(self) -> None:
+    def test_connect_image_declares_only_target_plugins(self) -> None:
         dockerfile = CONNECT_DOCKERFILE.read_text(encoding="utf-8")
         inventory = PLUGIN_INVENTORY.read_text(encoding="utf-8")
         self.assertIn("quay.io/debezium/connect:3.6.0.Final", dockerfile)
         self.assertIn("debezium-connector-mysql-3.6.0.Final.jar", dockerfile)
-        self.assertNotIn("connector-postgres", dockerfile)
-        self.assertNotIn("connector-postgres", inventory)
-        self.assertIn("apicurio-registry-utils-converter-3.2.5.jar", inventory)
+        self.assertEqual(
+            {
+                "apicurio-registry-utils-converter-3.2.5.jar",
+                "apicurio-registry-avro-serde-kafka-3.2.5.jar",
+                "avro-1.12.1.jar",
+            },
+            {
+                line.split()[-1].rsplit("/", maxsplit=1)[-1]
+                for line in inventory.splitlines()
+            },
+        )
 
     def test_password_file_preserves_spaces_and_removes_only_newline(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

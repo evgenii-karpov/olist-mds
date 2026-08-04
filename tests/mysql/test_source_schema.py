@@ -131,7 +131,7 @@ class MySQLBusinessSchemaTests(unittest.TestCase):
         self.assertEqual(self.ddl.count(" foreign key ("), 7)
         self.assertNotIn("deferrable", self.ddl)
 
-    def test_enum_checks_are_a_literal_port_of_the_postgres_contract(self) -> None:
+    def test_enum_checks_preserve_the_source_contract(self) -> None:
         for value in (
             "'created'",
             "'approved'",

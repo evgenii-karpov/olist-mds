@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class StageVHarnessUnitTests(unittest.TestCase):
     def test_secrets_redaction(self) -> None:
-        raw_log = "Error connecting with password=my_secret_pwd_123; postgres://user:pass123@localhost:5432/db"
+        raw_log = "Error connecting with password=my_secret_pwd_123; mysql://user:pass123@localhost:3306/db"
         sanitized = sanitize_text(raw_log)
         self.assertNotIn("my_secret_pwd_123", sanitized)
         self.assertNotIn("pass123", sanitized)

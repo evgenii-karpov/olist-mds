@@ -1,4 +1,4 @@
-# J1 runbook: финализация MySQL → Kafka → Spark/Iceberg Wave 1
+# J1 runbook: finalizing MySQL → Kafka → Spark/Iceberg Wave 1
 
 - **Status**: Completed / Frozen
 - **Purpose**: Historical execution and acceptance runbook for Wave 1/J1
@@ -8,52 +8,52 @@
 
 ---
 
-Основной архитектурный источник:
+Primary architecture source:
 [`mysql-spark-iceberg-lakehouse-migration.md`](../../mysql-spark-iceberg-lakehouse-migration.md).
-Этот документ описывает исторический порядок выполнения J1-сведений и является архивным материалом.
+This document describes the historical execution order for J1 integration and is archival material.
 
-## 1. Миссия J1
+## 1. J1 mission
 
-Завершить **только J1**:
+Complete **J1 only**:
 
-1. Зафиксировать уже написанные component changes потоков A-D.
-2. Один раз объединить shared dependencies и обновить `uv.lock`.
-3. Собрать новый platform runtime в `compose.yaml`.
-4. Перевести `scripts/cdc/local_lab.py` на Wave 1 lifecycle.
-5. Поднять чистый disposable Docker consistency domain.
-6. Проверить MySQL, Kafka, Connect, Apicurio, MinIO, Polaris, Spark/Iceberg и ClickHouse реальными component smoke tests.
-7. Получить из работающего Debezium/Apicurio все реальные writer schemas, сохранить evidence bundle и выпустить contract version `v2`.
-8. Зафиксировать общий Spark normalization API для будущих Wave 2 agents.
-9. Сохранить validation report без секретов и создать тематические commits.
+1. Record the component changes already written for streams A–D.
+2. Merge shared dependencies once and update `uv.lock`.
+3. Build the new platform runtime in `compose.yaml`.
+4. Move `scripts/cdc/local_lab.py` to the Wave 1 lifecycle.
+5. Start a clean disposable Docker consistency domain.
+6. Check MySQL, Kafka, Connect, Apicurio, MinIO, Polaris, Spark/Iceberg, and ClickHouse with real component smoke tests.
+7. Obtain all real writer schemas from the running Debezium/Apicurio stack, preserve the evidence bundle, and release contract version `v2`.
+8. Record the shared Spark normalization API for future Wave 2 agents.
+9. Preserve a secret-free validation report and create focused commits.
 
-## 2. Исходное состояние
+## 2. Starting state
 
-P0 зафиксирован коммитом: `685cd6f docs: add mysql spark iceberg migration plans`.
+P0 was recorded in commit `685cd6f docs: add mysql spark iceberg migration plans`.
 
-Component code A-D (владение путями):
+Component code A–D (path ownership):
 - A: `infra/mysql/**`, `scripts/simulation/**`, `tests/mysql/**`
 - B: `streaming/kafka/**`, `streaming/connect/**`, `streaming/schemas/**`, `tests/cdc_contracts/**`
 - C: `docker/spark/**`, `infra/polaris/**`, `streaming/spark/platform/**`, `tests/lakehouse_platform/**`
 - D: `infra/clickhouse/lakehouse/**`, `dbt/olist_clickhouse/**`, `tests/dbt_clickhouse/**`
 
-## 3. Непереговорные правила
+## 3. Non-negotiable rules
 
-1. Все persisted services входят в один disposable consistency domain.
-2. Потеря/рассогласование authoritative volume требует полного `reset --yes`.
-3. Пароли, tokens и secrets передаются строго через `*_FILE`.
-4. Складские данные (warehouse) доступны строго через vended credentials от Polaris.
+1. All persisted services belong to one disposable consistency domain.
+2. Loss or divergence of an authoritative volume requires a full `reset --yes`.
+3. Passwords, tokens, and secrets are passed strictly through `*_FILE`.
+4. Warehouse data is accessed strictly through credentials vended by Polaris.
 
-## 4. Обязательные deliverables
+## 4. Required deliverables
 
-1. Обновлённые `pyproject.toml` и `uv.lock`.
-2. Валидный `compose.yaml` с профилями `platform`, `streaming`, `serving`, `observability`.
-3. Реализация Wave 1 lifecycle в `scripts/cdc/local_lab.py`.
-4. Изолированные Polaris credential projections.
-5. Реально применённая Iceberg migration `0001_initial_lakehouse`.
-6. Созданный ClickHouse DataLakeCatalog `lakehouse`.
-7. Writer-schema evidence repository и контракт `v2`.
+1. Updated `pyproject.toml` and `uv.lock`.
+2. Valid `compose.yaml` with `platform`, `streaming`, `serving`, and `observability` profiles.
+3. Wave 1 lifecycle implementation in `scripts/cdc/local_lab.py`.
+4. Isolated Polaris credential projections.
+5. Applied Iceberg migration `0001_initial_lakehouse`.
+6. Created ClickHouse `DataLakeCatalog` named `lakehouse`.
+7. Writer-schema evidence repository and contract `v2`.
 8. Validation report `docs/reports/mysql-spark-iceberg-wave1-j1-validation.md`.
 
-## 5. Итог выполнения J1
+## 5. J1 completion result
 
-Wave 1 и J1 успешно выполнены и зафиксированы отчетом [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../../../reports/mysql-spark-iceberg-wave1-j1-validation.md).
+Wave 1 and J1 were completed successfully and recorded in [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../../../reports/mysql-spark-iceberg-wave1-j1-validation.md).

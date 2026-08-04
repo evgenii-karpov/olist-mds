@@ -1,27 +1,27 @@
-# Технический контракт: MySQL, Kafka и Avro (Source & Transport Contract)
+# Technical Contract: MySQL, Kafka and Avro (Source and Transport Contract)
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Описание контракта источниковой БД MySQL, параметров Debezium connector, структуры Kafka топиков и правил совместимости Avro/Apicurio.
-- **Порядок авторитетности**: Определяет действующие нормативные требования к OLTP источнику и транспортному слою.
+- **Status**: Active normative contract
+- **Purpose**: Define the MySQL source database contract, Debezium connector parameters, Kafka topic structure and Avro/Apicurio compatibility rules.
+- **Authority**: Defines the current normative requirements for the OLTP source and transport layer.
 
 ---
 
 ## 1. MySQL Source Contract
 
-### 1.1 Базы данных и пользователи
+### 1.1 Databases and users
 
-В единственном инстансе MySQL содержатся:
-- `olist_oltp` — только бизнес-таблицы;
-- `olist_simulator` — управляющие таблицы симулятора.
+The single MySQL instance contains:
+- `olist_oltp` — business tables only;
+- `olist_simulator` — simulator control tables.
 
-Учетные записи пользователей:
-- `olist_admin`: bootstrap схемы и миграции;
-- `olist_simulator`: DML бизнес/управляющих таблиц;
-- `olist_cdc_reader`: Debezium привилегии и SELECT;
-- `olist_spark_reference_reader`: строго чтение таблицы `geolocation` через Spark JDBC;
-- `root`: только entrypoint/bootstrap.
+User accounts:
+- `olist_admin`: schema bootstrap and migrations;
+- `olist_simulator`: business/control-table DML;
+- `olist_cdc_reader`: Debezium privileges and SELECT;
+- `olist_spark_reference_reader`: read-only access to `geolocation` through Spark JDBC;
+- `root`: entrypoint/bootstrap only.
 
-Минимальные права `olist_cdc_reader`:
+Minimum `olist_cdc_reader` privileges:
 
 ```sql
 GRANT RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.*
@@ -30,16 +30,16 @@ GRANT SELECT, LOCK TABLES ON olist_oltp.* TO 'olist_cdc_reader'@'%';
 GRANT INSERT, UPDATE ON olist_simulator.heartbeats TO 'olist_cdc_reader'@'%';
 ```
 
-Права `olist_spark_reference_reader`:
+`olist_spark_reference_reader` privileges:
 
 ```sql
 GRANT SELECT ON olist_oltp.geolocation
     TO 'olist_spark_reference_reader'@'%';
 ```
 
-Этот пользователь не имеет прав SELECT на другие таблицы, глобальных прав или DML. Пароль передается через `MYSQL_REFERENCE_READER_PASSWORD_FILE`.
+This user has no SELECT rights on other tables, global privileges or DML. The password is supplied through `MYSQL_REFERENCE_READER_PASSWORD_FILE`.
 
-### 1.2 Настройки сервера MySQL
+### 1.2 MySQL server settings
 
 ```text
 character-set-server=utf8mb4
@@ -58,31 +58,31 @@ sync_binlog=1
 innodb_flush_log_at_trx_commit=1
 ```
 
-Все таблицы используют движок InnoDB.
+All tables use the InnoDB engine.
 
-### 1.3 Бизнес-таблицы и контракты колонок
+### 1.3 Business tables and column contracts
 
-| Сущность | Первичный ключ (PK) | Бизнес-колонки | CDC Захват |
+| Entity | Primary key (PK) | Business columns | CDC capture |
 | --- | --- | --- | --- |
-| `customers` | `customer_id` | `customer_unique_id`, `customer_zip_code_prefix`, `customer_city`, `customer_state` | Да |
-| `orders` | `order_id` | `customer_id`, `order_status`, 5 timestamps | Да |
-| `order_items` | `order_id, order_item_id` | `product_id`, `seller_id`, `shipping_limit_date`, `price`, `freight_value` | Да |
-| `order_payments` | `order_id, payment_sequential` | `payment_type`, `payment_installments`, `payment_value` | Да |
-| `order_reviews` | `review_id, order_id` | `review_score`, `review_comment_title`, `review_comment_message`, `review_creation_date`, `review_answer_timestamp` | Да |
-| `products` | `product_id` | `product_category_name`, 7 атрибутов товара | Да |
-| `sellers` | `seller_id` | `seller_zip_code_prefix`, `seller_city`, `seller_state` | Да |
-| `product_category_translation` | `product_category_name` | `product_category_name_english` | Да |
-| `geolocation` | `geolocation_id` | `geolocation_zip_code_prefix`, `geolocation_lat`, `geolocation_lng`, `geolocation_city`, `geolocation_state` | Нет |
+| `customers` | `customer_id` | `customer_unique_id`, `customer_zip_code_prefix`, `customer_city`, `customer_state` | Yes |
+| `orders` | `order_id` | `customer_id`, `order_status`, 5 timestamps | Yes |
+| `order_items` | `order_id, order_item_id` | `product_id`, `seller_id`, `shipping_limit_date`, `price`, `freight_value` | Yes |
+| `order_payments` | `order_id, payment_sequential` | `payment_type`, `payment_installments`, `payment_value` | Yes |
+| `order_reviews` | `review_id, order_id` | `review_score`, `review_comment_title`, `review_comment_message`, `review_creation_date`, `review_answer_timestamp` | Yes |
+| `products` | `product_id` | `product_category_name`, 7 product attributes | Yes |
+| `sellers` | `seller_id` | `seller_zip_code_prefix`, `seller_city`, `seller_state` | Yes |
+| `product_category_translation` | `product_category_name` | `product_category_name_english` | Yes |
+| `geolocation` | `geolocation_id` | `geolocation_zip_code_prefix`, `geolocation_lat`, `geolocation_lng`, `geolocation_city`, `geolocation_state` | No |
 
-Точные типы и ограничения колонок переносятся дословно из `infra/oltp/initdb/020_create_oltp_schema.sql`. Денежные величины и координаты используют `DECIMAL(18,2)` и `DECIMAL(18,14)` соответственно (`FLOAT` запрещен).
+Exact column types and constraints match `infra/mysql/initdb/020_create_business_schema.sql`. Monetary values and coordinates use `DECIMAL(18,2)` and `DECIMAL(18,14)`, respectively (`FLOAT` is forbidden).
 
 ---
 
-## 2. Debezium, Kafka и Avro Contract
+## 2. Debezium, Kafka and Avro contract
 
-### 2.1 Конфигурация коннектора (`olist-mysql-cdc`)
+### 2.1 Connector configuration (`olist-mysql-cdc`)
 
-Параметры Debezium Connector:
+Debezium Connector parameters:
 
 ```text
 connector.class=io.debezium.connector.mysql.MySqlConnector
@@ -117,33 +117,33 @@ transforms.routeHeartbeat.predicate=isDerivedHeartbeat
 errors.tolerance=none
 ```
 
-SNT-трансформация unwrap в Debezium **запрещена**. Bronze получает полный envelope с полями `before`, `after`, `source`, `op` и `transaction`. Единственный разрешенный SMT — маршрутизация heartbeat.
+The Debezium unwrap SMT is **forbidden**. Bronze receives the complete envelope with `before`, `after`, `source`, `op` and `transaction` fields. The only allowed SMT is heartbeat routing.
 
-### 2.2 Инвентарь топиков Kafka
+### 2.2 Kafka topic inventory
 
-| Топик | Партиции | Очистка / Retention | Назначение |
+| Topic | Partitions | Cleanup / Retention | Purpose |
 | --- | ---: | --- | --- |
-| `olist_cdc.olist_oltp.customers` | 1 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.orders` | 3 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.order_items` | 3 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.order_payments` | 3 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.order_reviews` | 3 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.products` | 1 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.sellers` | 1 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.olist_oltp.product_category_translation` | 1 | `delete`, 7 дней | CDC бизнес-сущности |
-| `olist_cdc.transaction` | 1 | `delete`, 7 дней | Метаданные транзакций |
-| `olist_cdc.heartbeat` | 1 | `delete`, 7 дней | Служебный heartbeat |
-| `olist_cdc` | 1 | `delete`, unlim | Схемные изменения |
-| `olist_cdc.schema_history` | 1 | `delete`, unlim | История Debezium |
-| `olist_connect_configs` | 1 | `compact`, unlim | Внутренний Connect |
-| `olist_connect_offsets` | 25 | `compact`, unlim | Внутренний Connect |
-| `olist_connect_status` | 5 | `compact`, unlim | Внутренний Connect |
+| `olist_cdc.olist_oltp.customers` | 1 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.orders` | 3 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.order_items` | 3 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.order_payments` | 3 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.order_reviews` | 3 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.products` | 1 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.sellers` | 1 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.olist_oltp.product_category_translation` | 1 | `delete`, 7 days | CDC business entity |
+| `olist_cdc.transaction` | 1 | `delete`, 7 days | Transaction metadata |
+| `olist_cdc.heartbeat` | 1 | `delete`, 7 days | Operational heartbeat |
+| `olist_cdc` | 1 | `delete`, unlimited | Schema changes |
+| `olist_cdc.schema_history` | 1 | `delete`, unlimited | Debezium history |
+| `olist_connect_configs` | 1 | `compact`, unlimited | Internal Connect |
+| `olist_connect_offsets` | 25 | `compact`, unlimited | Internal Connect |
+| `olist_connect_status` | 5 | `compact`, unlimited | Internal Connect |
 
-Автоматическое создание топиков брокером выключено (`auto.create.topics.enable=false`). Bootstrap создаёт весь списочный состав перед запуском Connect.
+Automatic broker topic creation is disabled (`auto.create.topics.enable=false`). Bootstrap creates the complete inventory before Connect starts.
 
-### 2.3 Настройки Apicurio Registry
+### 2.3 Apicurio Registry settings
 
-Registry использует SQL-хранилище на базе PostgreSQL:
+The Registry uses a PostgreSQL-backed SQL store:
 
 ```text
 APICURIO_STORAGE_KIND=sql
@@ -151,20 +151,20 @@ APICURIO_STORAGE_SQL_KIND=postgresql
 APICURIO_DATASOURCE_URL=jdbc:postgresql://platform-postgres:5432/apicurio
 ```
 
-Правило совместимости для реестра схем: `BACKWARD_TRANSITIVE`.
-Конвертеры Kafka Connect в обязательном порядке используют формат Confluent Avro (`as-confluent=true`, magic byte `0`, 4-byte big-endian schema ID).
+The schema-registry compatibility rule is `BACKWARD_TRANSITIVE`.
+Kafka Connect converters must use Confluent Avro format (`as-confluent=true`, magic byte `0`, 4-byte big-endian schema ID).
 
-Правила эволюции схем:
-- Разрешено добавление nullable полей с дефолтом `null`;
-- Запрещены in-place переименования, удаление полей, сужение типов и изменения первичного ключа;
-- Неизвестный fingerprint останавливает обработку соответствующей сущности до обновления контракта;
-- Любое изменение схемы ключа или количества партиций требует полного сброса (`reset`).
+Schema-evolution rules:
+- Adding nullable fields with default `null` is allowed;
+- in-place renames, field removal, type narrowing and primary-key changes are forbidden;
+- an unknown fingerprint stops processing for the affected entity until the contract is updated;
+- any key-schema or partition-count change requires a full (`reset`) reset.
 
 ---
 
-## 3. Связанные документы
+## 3. Related documents
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт архитектуры и runtime](architecture-and-runtime.md)
-- [Контракт модели данных Iceberg](iceberg-data-model.md)
-- [Контракт Spark Structured Streaming](spark-streaming.md)
+- [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [Architecture and runtime contract](architecture-and-runtime.md)
+- [Iceberg data model contract](iceberg-data-model.md)
+- [Spark Structured Streaming contract](spark-streaming.md)

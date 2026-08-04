@@ -12,7 +12,7 @@ def _repository_with_table_results(*results: tuple[int, ...] | None):
 
 
 def test_schema_assertions_verify_only_target_serving_tables():
-    cursor, context = _repository_with_table_results(
+    _cursor, context = _repository_with_table_results(
         (1,),
         (1,),
         (1,),
@@ -28,8 +28,8 @@ def test_schema_assertions_verify_only_target_serving_tables():
         "serving.sync_entity_results",
         "serving.runtime_state",
     ]
-    assert all("cdc_audit" not in str(call) for call in cursor.execute.call_args_list)
     assert result["target_migrations"] == [
+        "001_create_schemas.sql",
         "005_create_serving_control_tables.sql",
         "999_grant_control_role.sql",
     ]

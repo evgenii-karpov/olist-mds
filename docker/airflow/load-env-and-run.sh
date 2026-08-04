@@ -64,8 +64,7 @@ while IFS='=' read -r key _; do
   esac
 done < <(env)
 
-: "${OLIST_S3_PREFIX:=olist}"
 : "${PYTHONPATH:=/opt/airflow/project}"
-export OLIST_S3_PREFIX PYTHONPATH
+export PYTHONPATH
 
 exec "$@"

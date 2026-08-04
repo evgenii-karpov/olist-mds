@@ -35,7 +35,6 @@ SECRET_PATTERNS = [
     re.compile(
         r"(?i)(password|passwd|secret|token|credential)\s*=\s*['\"]?[^\s'\",;]+['\"]?"
     ),
-    re.compile(r"(?i)postgres://[^:]+:[^@]+@"),
     re.compile(r"(?i)mysql://[^:]+:[^@]+@"),
 ]
 

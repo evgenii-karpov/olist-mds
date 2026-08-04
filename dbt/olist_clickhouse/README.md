@@ -1,8 +1,8 @@
 # Olist ClickHouse Gold
 
 This is the local ClickHouse-only dbt project for the Iceberg serving path. It
-does not contain Redshift, BigQuery, adapter dispatch, realtime widening, or
-manifest-based incremental logic.
+does not contain unrelated adapters, realtime widening, or manifest-based
+incremental logic.
 
 Each invocation must identify the finite serving candidate:
 

@@ -2,8 +2,8 @@
 
 This directory owns the target telemetry chain for MySQL, Debezium/Kafka
 Connect, Kafka, Spark/Iceberg, MinIO, Polaris, ClickHouse serving, Airflow and
-the observability services themselves. It deliberately has no legacy source,
-OLTP or warehouse-exporter targets.
+the observability services themselves. It deliberately has no retired source
+or phantom exporter targets.
 
 The bounded `target-probe` service owns health and domain metrics for components
 that do not expose a stable Prometheus endpoint. It reads only bounded status
@@ -29,7 +29,7 @@ The local endpoints are Prometheus `http://localhost:9090`, Alertmanager
 Run the static contract validator before any live acceptance check:
 
 ```powershell
-uv run python scripts/ci/validate_stage6_configuration.py
+uv run python scripts/ci/validate_observability_contract.py
 ```
 
 The bounded failure-injection helper uses real target service names and the

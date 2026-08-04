@@ -1,17 +1,18 @@
-# Технический контракт: target tests и evidence boundaries
+# Technical contract: target tests and evidence boundaries
 
-- **Статус**: действующий нормативный контракт Stage L; implementation owners — L1/L3.
-- **Назначение**: определить, какие тесты являются target contract tests, какие legacy assertions должны быть перенесены, и как E2E evidence отделяется от unit/CI результатов.
+- **Status**: active normative Stage L contract; implementation owners — L1/L3.
+- **Purpose**: define which tests are target contract tests, which legacy assertions must be transferred, and how E2E evidence is separated from unit/CI results.
 
 ## 1. Test collection policy
 
-Обязательный Python collection для target CI:
+Required Python collection for target CI:
 
 ```text
 tests/mysql
 tests/cdc_contracts
 tests/lakehouse_platform
 tests/dbt_clickhouse
+tests/observability
 tests/serving
 tests/stage_v
 ```
@@ -22,13 +23,13 @@ Scala target collection:
 streaming/spark/scala/src/test
 ```
 
-Target CI обязан использовать explicit paths, JUnit output и fail при нулевой collection. `python -m unittest discover` не является единственным runner: он не гарантирует сбор module-level pytest tests и скрывает организационные ошибки.
+Target CI must use explicit paths, JUnit output, and fail on zero collection. `python -m unittest discover` must not be the only runner: it does not guarantee collection of module-level pytest tests and can hide organizational errors.
 
-Root `tests/test_*.py` не являются автоматически legacy. Каждая строка из [legacy disposition register](legacy-disposition-register.md) имеет отдельное решение и target owner.
+Root `tests/test_*.py` are not automatically legacy. Every row in the [legacy disposition register](legacy-disposition-register.md) has an explicit decision and target owner.
 
 ## 2. Target test ownership
 
-| Suite / owner | Проверяемая ответственность | Evidence |
+| Suite / owner | Responsibility under test | Evidence |
 | --- | --- | --- |
 | `tests/mysql` | MySQL DDL/users/grants, deterministic seed, idempotency, transactions, CLI redaction and composite keys. | L1 JUnit + Stage V bootstrap/seed output. |
 | `tests/cdc_contracts` | Connector template/plugin, eight topics, Avro/Apicurio compatibility, entity keys/types/writer fingerprints. | L1 JUnit + bounded CDC component evidence. |
@@ -36,6 +37,7 @@ Root `tests/test_*.py` не являются автоматически legacy. 
 | `tests/dbt_clickhouse` | Target dbt project, native DDL, sources/selectors/model graph and file-only secret wrapper. | L1/L3 JUnit + dbt parse/compile output. |
 | `tests/serving` | Boundary selection, effective transaction states, no-op/retry/rebuild and Airflow serving API. | L1/L3 JUnit + serving component evidence. |
 | `tests/stage_v` | Gate registry, fail-fast/report integrity and Stage V assertions. | Each L1–L4 clean E2E evidence. |
+| `tests/observability` | Target producer/scrape/rule/dashboard mapping and CI observability contract. | Dedicated observability component job and L2/L3 artifacts; not the Stage V runner. |
 | `streaming/spark/scala/src/test` | Confluent framing, schema references, eight entity contracts, normalization, transaction atomicity/replay and split-microbatch BEGIN/END handling. | ScalaTest artifact and JAR contract. |
 | `tests/validation` (planned only if needed) | Observability and acceptance report validators that cannot belong to a component suite. | L2/L3 raw JSON/JUnit. |
 
@@ -44,7 +46,7 @@ Root `tests/test_*.py` не являются автоматически legacy. 
 - A legacy test may be removed only after its assertion is classified as **obsolete**, **already covered by a target test**, or **transferred to a named target test/e2e gate**.
 - Assertions about implementation names (`nifi`, `oltp-postgres`, `dbt/olist_analytics`, Redshift) may be deleted only when the implementation itself is deleted. Business/data-quality/transaction/secret-safety intent must be rewritten.
 - NiFi-only flow topology, PostgreSQL publication/WAL and Redshift-only DDL assertions are obsolete after L4, provided no target contract relies on them.
-- MySQL seed, Avro evolution, control PostgreSQL separation, dead-letter/rejected-event, serving publication and observability fire/resolve assertions are target responsibilities and must be rewritten/replaced, not bulk deleted.
+- MySQL seed, Avro evolution, control PostgreSQL separation, rejected-event/transaction state, serving publication and observability fire/resolve assertions are target responsibilities and must be rewritten/replaced, not bulk deleted. Legacy raw-file dead-letter tests may be deleted only where the old API itself is deleted and the remaining target table/state invariants have named owners.
 - F0 oracle readers and metadata validation are target parity responsibilities even though the source provenance is legacy. F0 generation is one-shot and is not part of regular PR CI.
 
 ## 4. Evidence separation and stage gates
@@ -78,9 +80,9 @@ The following transfers are mandatory before legacy test deletion:
 1. MySQL test files and root simulation/seed tests into the target MySQL/simulation owner.
 2. Root Stage 2 and Avro tests into `tests/cdc_contracts`.
 3. Control PostgreSQL and Airflow secret tests into platform/serving owners.
-4. Data-quality/dead-letter tests into target rejected-event/replay/serving quality owner when that functionality remains.
+4. Data-quality/dead-letter tests into target rejected-event/replay/serving quality owner when that functionality remains; obsolete raw-file helper tests are recorded as DELETE with the replacement ownership.
 5. Old ClickHouse phase tests into `tests/dbt_clickhouse`, `tests/serving`, Scala tests or explicit deletion records for obsolete raw-batch behavior.
-6. Phase 6/7 observability assertions into `observability.md`-driven target tests.
+6. Phase 6/7 observability assertions into `observability.md`-driven target tests under `tests/observability`.
 
 The transaction test transfer is not satisfied by checking only that a
 `COMPLETE` row exists. It must prove that an intermediate immutable `OPEN`

@@ -26,29 +26,12 @@
 !scripts/**
 
 !streaming/
-!streaming/nifi/
-!streaming/nifi/**
 !streaming/schemas/
 !streaming/schemas/**
 
 !dbt/
-!dbt/olist_analytics/
-!dbt/olist_analytics/analyses/
-!dbt/olist_analytics/analyses/**
-!dbt/olist_analytics/dbt_project.yml
-!dbt/olist_analytics/macros/
-!dbt/olist_analytics/macros/**
-!dbt/olist_analytics/models/
-!dbt/olist_analytics/models/**
-!dbt/olist_analytics/package-lock.yml
-!dbt/olist_analytics/packages.yml
-!dbt/olist_analytics/profiles.yml.example
-!dbt/olist_analytics/seeds/
-!dbt/olist_analytics/seeds/**
-!dbt/olist_analytics/snapshots/
-!dbt/olist_analytics/snapshots/**
-!dbt/olist_analytics/tests/
-!dbt/olist_analytics/tests/**
+!dbt/olist_clickhouse/
+!dbt/olist_clickhouse/**
 
 **/__pycache__/
 *.py[cod]
@@ -66,14 +49,7 @@ airflow/logs/
 airflow/plugins/
 airflow/tmp_airflow_logs/
 airflow/webserver_config.py
-aws_credentials*
 data/
-dbt/olist_analytics/.user.yml
-dbt/olist_analytics/dbt_packages/
-dbt/olist_analytics/edr_target/
-dbt/olist_analytics/logs/
-dbt/olist_analytics/profiles.yml
-dbt/olist_analytics/target/
 dbt/olist_clickhouse/target/
 dbt/olist_clickhouse/dbt_packages/
 dbt/olist_clickhouse/edr_target/

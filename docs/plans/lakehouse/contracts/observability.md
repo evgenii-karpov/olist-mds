@@ -1,46 +1,46 @@
-# Технический контракт: target observability lakehouse
+# Technical Contract: Target Lakehouse Observability
 
-- **Статус**: действующий нормативный контракт Stage L; implementation owner — L2.
-- **Назначение**: определить, как наблюдаемость переходит с PostgreSQL/NiFi/raw-loader metrics на MySQL → Debezium/Kafka → Spark/Iceberg → ClickHouse serving stack.
-- **Главное правило**: конфигурация Prometheus, alert rule или dashboard не считается target-артефактом, пока для него не доказана полная цепочка `producer → endpoint/exporter → scrape job → recording/alert → dashboard/runbook → acceptance evidence`.
+- **Status**: active Stage L normative contract; implementation owner — L2.
+- **Purpose**: define how observability moves from PostgreSQL/NiFi/raw-loader metrics to the MySQL → Debezium/Kafka → Spark/Iceberg → ClickHouse serving stack.
+- **Main rule**: a Prometheus configuration, alert rule or dashboard is not a target artifact until the complete `producer → endpoint/exporter → scrape job → recording/alert → dashboard/runbook → acceptance evidence` chain is proven.
 
-## 1. Scope и запреты
+## 1. Scope and prohibitions
 
-В target observability входят:
+Target observability includes:
 
-- доступность и health source MySQL, binlog/GTID и Debezium heartbeat;
-- Kafka broker/topic health и lag только target consumer groups/topics;
-- Kafka Connect REST, connector/task state и snapshot/restart state;
+- MySQL source availability/health, binlog/GTID and Debezium heartbeat;
+- Kafka broker/topic health and lag for target consumer groups/topics only;
+- Kafka Connect REST, connector/task state and snapshot/restart state;
 - Apicurio Registry compatibility/availability;
-- Spark Bronze/Silver/ops readiness, progress, failure state и checkpoint health;
+- Spark Bronze/Silver/ops readiness, progress, failure state and checkpoint health;
 - MinIO/Polaris/Iceberg catalog/storage readiness;
-- ClickHouse serving, publication watermark, rejected boundary и rebuild state;
+- ClickHouse serving, publication watermark, rejected boundary and rebuild state;
 - Airflow/control-plane finite DAG health;
-- Prometheus/Grafana/Loki/Alertmanager self-health и evidence publication.
+- Prometheus/Grafana/Loki/Alertmanager self-health and evidence publication.
 
-Следующее запрещено:
+The following are forbidden:
 
-- target scrape target на имя, которого нет в Compose или в явно добавленном exporter service;
-- панели/alerts для `nifi`, PostgreSQL replication slot/WAL или старого raw S3 loader;
-- сумма всех `kafka_consumergroup_lag` без allowlist target groups/topics;
-- метрика без owner, label cardinality rule и теста на существование;
-- failure-injection command, использующий fictitious service name;
-- принятие `up` только потому, что `docker compose config` успешно разобрал YAML.
+- a target scrape target whose name is absent from Compose or an explicitly added exporter service;
+- panels/alerts for `nifi`, PostgreSQL replication slots/WAL or the old raw S3 loader;
+- a sum of all `kafka_consumergroup_lag` without an allowlist of target groups/topics;
+- a metric without an owner, label-cardinality rule and existence test;
+- a failure-injection command using a fictitious service name;
+- accepting `up` merely because `docker compose config` parsed the YAML successfully.
 
-## 2. Baseline audit на L0
+## 2. L0 baseline audit
 
-Baseline Compose содержит `platform-postgres`, `mysql`, `kafka`, `apicurio-registry`, `kafka-connect`, `minio`, `polaris`, `spark-master`, `spark-worker`, `spark-bronze`, `spark-silver`, `spark-ops`, `clickhouse`, `airflow`, `prometheus`, `grafana` и `loki`. В нём нет exporter services для большинства configured Prometheus targets и нет `alertmanager`/Alloy services. L2 обязан добавить target-owned Alertmanager и Alloy services: это не optional gap, поскольку Prometheus уже маршрутизирует alerts в Alertmanager, а log contract требует Loki/Alloy path.
+Baseline Compose contains `platform-postgres`, `mysql`, `kafka`, `apicurio-registry`, `kafka-connect`, `minio`, `polaris`, `spark-master`, `spark-worker`, `spark-bronze`, `spark-silver`, `spark-ops`, `clickhouse`, `airflow`, `prometheus`, `grafana` and `loki`. It has no exporter services for most configured Prometheus targets and no `alertmanager`/Alloy services. L2 must add target-owned Alertmanager and Alloy services: this is not an optional gap because Prometheus already routes alerts to Alertmanager and the log contract requires a Loki/Alloy path.
 
-Текущий `observability/prometheus/prometheus.yml` ссылается на `kafka-exporter`, `cdc-component-exporter`, `postgres-exporter-oltp`, `statsd-exporter`, `node-exporter`, `cadvisor`, `nifi-metrics-proxy` и `cdc-pipeline-exporter`; эти endpoints не являются target service inventory baseline. Это зафиксированная L0 gap, а не разрешение оставить phantom targets.
+The current `observability/prometheus/prometheus.yml` references `kafka-exporter`, `cdc-component-exporter`, `postgres-exporter-oltp`, `statsd-exporter`, `node-exporter`, `cadvisor`, `nifi-metrics-proxy` and `cdc-pipeline-exporter`; these endpoints are not part of the target service-inventory baseline. This is a recorded L0 gap, not permission to keep phantom targets.
 
-`streaming/runtime-versions.json` также не совпадает с Compose для части observability stack: например, manifest указывает Prometheus `v3.12.0`, Grafana `13.0.2` и Loki `3.6.5`, тогда как baseline Compose использует Prometheus `v3.5.0`, Grafana `12.1.1` и Loki `3.5.0`. L2 выбрал и закрепил Prometheus `v3.5.0`, Grafana `12.1.1`, Loki `3.6.5`, Alertmanager `v0.30.0`, Alloy `v1.16.1` и Kafka exporter `v1.9.0`; manifest, Compose, config checks и evidence должны использовать именно этот набор. Silent downgrade или drift не принимается.
+`streaming/runtime-versions.json` also disagrees with Compose for part of the observability stack: for example, the manifest specifies Prometheus `v3.12.0`, Grafana `13.0.2` and Loki `3.6.5`, while baseline Compose uses Prometheus `v3.5.0`, Grafana `12.1.1` and Loki `3.5.0`. L2 selected and pinned Prometheus `v3.5.0`, Grafana `12.1.1`, Loki `3.6.5`, Alertmanager `v0.30.0`, Alloy `v1.16.1` and Kafka exporter `v1.9.0`; the manifest, Compose, config checks and evidence must use exactly this set. Silent downgrade or drift is not accepted.
 
-Текущие rules/dashboards также содержат legacy surface:
+Current rules/dashboards also contain legacy surface:
 
-- PostgreSQL replication slot/WAL metrics;
+- PostgreSQL replication-slot/WAL metrics;
 - NiFi queue/backpressure and `olist_nifi_metrics_proxy_up`;
-- old `olist-nifi-cdc-v1` consumer group;
-- raw S3/warehouse/old dbt transform freshness;
+- the old `olist-nifi-cdc-v1` consumer group;
+- raw S3/warehouse/old dbt-transform freshness;
 - generic container/node metrics without a configured exporter;
 - dashboard tags and runbooks naming PostgreSQL/NiFi.
 

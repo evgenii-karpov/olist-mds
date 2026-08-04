@@ -1,118 +1,118 @@
-# Координационный план финальных стадий миграции
+# Coordination Plan for the Final Migration Stages
 
-- **Статус**: `ACTIVE`; E/V и F0 завершены, L0 baseline/inventory, L1, L2 и CI-only L3 implementation recorded; manual acceptance/F1 pending.
-- **Назначение**: задать порядок финальных стадий, точки запрета и ссылки на исполнимые детальные планы.
-- **Решение по parity**: legacy запускается один раз до cleanup для формирования frozen baseline; после cleanup выполняется только candidate-only сравнение.
+- **Status**: `ACTIVE`; E/V, F0 and Stage L are complete; F1 is pending.
+- **Purpose**: define the order of the final stages, blocking points and links to executable detailed plans.
+- **Parity decision**: run legacy once before cleanup to create the frozen baseline; after cleanup, perform only a candidate-only comparison.
 
 ---
 
-## 1. Последовательность
+## 1. Sequence
 
 ```mermaid
 flowchart LR
-    EV["E/V repair и полный V0–V10"] --> F0["F0: frozen baseline из main 1400d08"]
-    F0 --> L["L: legacy removal и CI cutover"]
+    EV["E/V repair and full V0–V10"] --> F0["F0: frozen baseline from main 1400d08"]
+    F0 --> L["L: legacy removal and CI cutover"]
     L --> F1["F1: candidate-only final parity"]
 ```
 
-| Стадия | Статус | Результат | Детальный план |
+| Stage | Status | Result | Detailed plan |
 | --- | --- | --- | --- |
-| E/V repair | `COMPLETE` | clean V0–V10 `PASS` на commit `e113c552cca990636f426b827456a77ddc9d594b`; raw evidence сохранён | [stage-ev-validation-repair.md](../completed/stage-ev-validation-repair.md) |
-| F0 | `COMPLETE` | неизменяемый oracle `main-1400d08.json` (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
-| L | `ACTIVE (L3 implementation recorded)` | L0 baseline/inventory, L1 target repair, L2 observability и CI-only L3 cutover recorded; manual acceptance и L4 остаются | [stage-l-legacy-removal-ci-cutover.md](stage-l-legacy-removal-ci-cutover.md) |
-| F1 | `PENDING` | `PASS` candidate против frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
+| E/V repair | `COMPLETE` | clean V0–V10 `PASS` on commit `e113c552cca990636f426b827456a77ddc9d594b`; raw evidence retained | [stage-ev-validation-repair.md](../completed/stage-ev-validation-repair.md) |
+| F0 | `COMPLETE` | immutable `main-1400d08.json` oracle (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
+| L | `COMPLETE` | L0 inventory, L1 target repair, L2 observability, L3 CI cutover and L4 legacy removal passed; clean Stage V acceptance is recorded | [stage-l-legacy-removal-ci-cutover.md](../completed/stage-l-legacy-removal-ci-cutover.md) |
+| F1 | `PENDING` | `PASS` candidate against frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
 
-Переход через стадию запрещён, пока её критерии завершения не подтверждены evidence. Отчёт с отсутствующими обязательными воротами не считается `PASS`.
+Progression through a stage is forbidden until its completion criteria are confirmed by evidence. A report with missing mandatory gates is not `PASS`.
 
-Clean E/V acceptance зафиксирован в run `stage_v_clean_e113c55` для Compose project
-`olist_stage_v`. Все 11 gate и 42 assertions завершились `PASS`; следующий
-разрешённый переход — только F0.
+Clean E/V acceptance is recorded in run `stage_v_clean_e113c55` for Compose project
+`olist_stage_v`. All 11 gates and 42 assertions finished `PASS`; the next
+permitted transition was F0.
 
-Текущий L0 baseline и inventory зафиксированы в [отчёте L0](../../../reports/lakehouse-stage-l0-baseline.md), [реестре disposition](../contracts/legacy-disposition-register.md), [контракте observability](../contracts/observability.md) и [контракте tests/evidence](../contracts/testing-and-evidence.md).
+The L0 baseline and inventory are recorded in the [L0 report](../../../reports/lakehouse-stage-l0-baseline.md), [disposition register](../contracts/legacy-disposition-register.md), [observability contract](../contracts/observability.md) and [tests/evidence contract](../contracts/testing-and-evidence.md).
 
-Результат CI-only L3 зафиксирован в [отчёте L3](../../../reports/lakehouse-stage-l3.md). Полный Stage V E2E для этой подстадии не запускался: изменения не затрагивали runtime execution path; manual acceptance остаётся отдельным gate.
-
----
-
-## 2. Почему F разделена на F0 и F1
-
-Текущее feature-дерево уже использует новый Compose/runtime и не является неизменённым legacy-контуром, хотя legacy-файлы ещё присутствуют. Поэтому сравнивать candidate с «legacy из текущей ветки» нельзя.
-
-Воспроизводимый источник legacy — точный Git commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73`, совпадающий с `main` на момент принятия решения. Git worktree позволяет запустить его независимо от последующего удаления файлов.
-
-Оптимальный по времени порядок:
-
-1. один раз поднять этот commit и экспортировать канонический baseline (F0);
-2. удалить legacy и заменить CI (L);
-3. поднять только candidate и сравнить с сохранённым baseline (F1).
-
-Итоговая проверка остаётся после cleanup и тем самым проверяет конечное дерево, но больше не требует сборки legacy на каждом повторе.
+The CI-only L3 result is recorded in the [L3 report](../../../reports/lakehouse-stage-l3.md). The full Stage V E2E was not run for that substage because the changes did not affect the runtime execution path; manual acceptance remained a separate gate and was later completed in L4.
 
 ---
 
-## 3. Контрольные точки
+## 2. Why F is split into F0 and F1
+
+The current feature tree already uses the new Compose/runtime and is not an unchanged legacy contour, even though legacy files were still present. Therefore the candidate cannot be compared with “legacy from the current branch.”
+
+The reproducible legacy source is the exact Git commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73`, which matched `main` when the decision was made. A Git worktree allows it to run independently of the later file deletions.
+
+The time-efficient order is:
+
+1. start this commit once and export the canonical baseline (F0);
+2. remove legacy and replace CI (L);
+3. start only the candidate and compare it with the saved baseline (F1).
+
+The final check remains after cleanup and therefore validates the final tree, but no longer requires rebuilding legacy on every retry.
+
+---
+
+## 3. Control points
 
 ### Gate EV → F0
 
-- устранены пробелы Stage E runtime и Stage V harness;
-- raw evidence содержит все V0–V10;
-- все ворота имеют фактический `PASS`;
-- отчёты построены из evidence, а не из декларативных значений.
+- Stage E runtime and Stage V harness gaps are resolved;
+- raw evidence contains all V0–V10 gates;
+- every gate has an actual `PASS`;
+- reports are built from evidence, not declarative values.
 
 ### Gate F0 → L
 
-- baseline привязан к полному commit SHA и fixture SHA-256;
-- oracle покрывает 8 current-state сущностей, fact и 2 marts;
-- канонические строки и metadata прошли независимую проверку;
-- legacy Compose domain и worktree очищены.
+- the baseline is tied to the full commit SHA and fixture SHA-256;
+- the oracle covers eight current-state entities, the fact and two marts;
+- canonical rows and metadata passed independent validation;
+- the legacy Compose domain and worktree are clean.
 
 ### Gate L → F1
 
-- legacy runtime/tests/workflows удалены согласно inventory;
-- общий CI зелёный;
-- релевантные bounded component workflows зелёные;
-- ручной acceptance workflow прошёл preflight;
-- F0 oracle и reader не удалены.
+- legacy runtime/tests/workflows are removed according to the inventory;
+- common CI is green;
+- relevant bounded component workflows are green;
+- the manual acceptance workflow passed preflight;
+- the F0 oracle and reader are retained.
 
 ### Gate F1 → Complete
 
-- отсутствующие/лишние ключи: `0`;
-- расхождения бизнес-колонок: `0`;
-- отчёт и raw diff согласованы и имеют `PASS`;
-- evidence привязан к точным baseline/candidate SHA.
+- missing/extra keys: `0`;
+- business-column mismatches: `0`;
+- the report and raw diff agree and have `PASS`;
+- evidence is tied to exact baseline/candidate SHAs.
 
 ---
 
-## 4. Политика CI на финальных стадиях
+## 4. CI policy for the final stages
 
-| Уровень | Workflow | Запуск | Назначение |
+| Level | Workflow | Trigger | Purpose |
 | --- | --- | --- | --- |
-| Обязательный PR CI | `.github/workflows/ci.yml` | `pull_request`, `push main` | быстрые static/unit/contract проверки всех target-компонентов |
-| Bounded component contracts | `.github/workflows/lakehouse-components.yml` | автоматически по path filters | быстрые Spark image, Airflow и observability contract checks |
-| Bounded CDC runtime | `.github/workflows/lakehouse-cdc.yml` | только `workflow_dispatch` | MySQL → Debezium → Kafka/Apicurio → Spark catch-up/restart на малом fixture |
-| Bounded serving runtime | `.github/workflows/lakehouse-serving.yml` | только `workflow_dispatch` | finite serving sync, no-op retry, rebuild и maintenance на малом fixture |
-| Полная приёмка | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | полный V0–V10 и/или F1 на выделенном runner |
-| Baseline generation | не является регулярным workflow | одноразовый контролируемый F0 | frozen oracle; автоматическая регенерация запрещена |
+| Required PR CI | `.github/workflows/ci.yml` | `pull_request`, `push main` | fast static/unit/contract checks for all target components |
+| Bounded component contracts | `.github/workflows/lakehouse-components.yml` | automatic path filters | fast Spark image, Airflow and observability contract checks |
+| Bounded CDC runtime | `.github/workflows/lakehouse-cdc.yml` | `workflow_dispatch` only | MySQL → Debezium → Kafka/Apicurio → Spark catch-up/restart on the small fixture |
+| Bounded serving runtime | `.github/workflows/lakehouse-serving.yml` | `workflow_dispatch` only | finite serving sync, no-op retry, rebuild and maintenance on the small fixture |
+| Full acceptance | `.github/workflows/lakehouse-acceptance.yml` | `workflow_dispatch` only | full V0–V10 and/or F1 on a dedicated runner |
+| Baseline generation | not a regular workflow | one controlled F0 run | frozen oracle; automatic regeneration forbidden |
 
-Полная job/workflow матрица, судьба каждого старого job и порядок замены без слепой зоны определены в [плане Stage L](stage-l-legacy-removal-ci-cutover.md).
-
----
-
-## 5. Правила изменения порядка
-
-- Stage L нельзя начинать до принятия F0.
-- F0 нельзя использовать для сокрытия дефекта candidate: baseline строится только из зафиксированного legacy commit.
-- F1 не регенерирует oracle и не запускает legacy.
-- Ошибка F1 возвращает работу в candidate implementation/L cleanup, но не меняет F0 без отдельного решения.
-- Исторические reports не удаляются; их статус и ограничения должны быть явно обозначены.
+The complete job/workflow matrix, the disposition of every old job and the replacement order are defined in the [Stage L plan](../completed/stage-l-legacy-removal-ci-cutover.md).
 
 ---
 
-## 6. Связанные контракты и отчёты
+## 5. Rules for changing the order
 
-- [Дорожная карта миграции](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт Validation & CI](../contracts/validation-and-ci.md)
-- [Контракт финального паритета](../contracts/final-parity.md)
-- [Контракт serving и recovery](../contracts/serving-and-recovery.md)
-- [Исторический отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
-- [Исторический отчёт Stage V](../../../reports/mysql-spark-iceberg-stage-v-validation.md)
+- Do not start Stage L before F0 is accepted.
+- Do not use F0 to hide a candidate defect: build the baseline only from the frozen legacy commit.
+- F1 does not regenerate the oracle or start legacy.
+- An F1 failure returns work to candidate implementation/L cleanup, but does not change F0 without a separate decision.
+- Do not delete historical reports; explicitly label their status and limitations.
+
+---
+
+## 6. Related contracts and reports
+
+- [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [Validation and CI contract](../contracts/validation-and-ci.md)
+- [Final parity contract](../contracts/final-parity.md)
+- [Serving and recovery contract](../contracts/serving-and-recovery.md)
+- [Historical Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
+- [Historical Stage V report](../../../reports/mysql-spark-iceberg-stage-v-validation.md)

@@ -58,6 +58,7 @@ Apicurio references and builds Spark-ready self-contained schemas.
 `compatibility.py` rejects renames, drops, existing-type changes, non-nullable
 additions, and key/PK changes across all prior versions.
 
-The old `normalized/`, `cdc-landing/`, and `cdc-coverage/` assets remain only so
-Parallel Wave 1 does not prematurely break the legacy NiFi path; the final
-legacy-removal phase owns deleting them.
+The removed landing, coverage and normalized schema families are not part of
+the target contract. Bronze stores the captured Confluent frame and schema
+provenance, Silver owns normalized Iceberg projections, and the target table
+contracts plus Scala tests validate those boundaries.

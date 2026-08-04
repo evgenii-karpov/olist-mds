@@ -49,8 +49,6 @@ class ClickHouseDbtProjectContractTests(unittest.TestCase):
         ).lower()
         self.assertNotIn("target.type", project_code)
         self.assertNotIn("adapter.dispatch", project_code)
-        self.assertNotIn("redshift", project_code)
-        self.assertNotIn("bigquery", project_code)
 
     def test_all_gold_models_are_run_partitioned_and_publish_stable_views(self) -> None:
         for path in (PROJECT_ROOT / "models/gold").glob("*.sql"):

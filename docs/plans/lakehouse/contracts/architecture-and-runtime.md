@@ -1,23 +1,23 @@
-# Технический контракт: Архитектура, стек версий и жизненный цикл (Runtime)
+# Technical Contract: Architecture, Version Stack and Runtime Lifecycle
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Фиксация целевой архитектуры, технологического стека, принципов организации Git/агентов и lifecycle CLI.
-- **Порядок авторитетности**: Определяет действующие требования к системной архитектуре и средам выполнения.
+- **Status**: Active normative contract
+- **Purpose**: Define the target architecture, technology stack, Git/agent collaboration principles and CLI lifecycle.
+- **Authority**: Defines the current requirements for system architecture and runtime environments.
 
 ---
 
-## 1. Целевая архитектура и системные инварианты
+## 1. Target architecture and system invariants
 
-### 1.1 Архитектурная цепочка
+### 1.1 Architecture chain
 
-Локальный контур миграции построен по следующей схеме:
+The local migration stack is built as follows:
 
 ```text
 MySQL OLTP
   → Debezium MySQL (Kafka Connect)
   → Kafka + Apicurio Registry (Confluent-framed Avro)
   → Spark Structured Streaming (Scala runtime)
-  → Apache Iceberg на MinIO через Polaris REST Catalog
+  → Apache Iceberg on MinIO through the Polaris REST Catalog
       ├── Bronze raw Kafka records
       ├── Silver typed changes
       ├── Silver current state
@@ -25,8 +25,8 @@ MySQL OLTP
       └── immutable reference data
   → finite ClickHouse serving sync
   → native ClickHouse MergeTree/ReplacingMergeTree
-  → отдельный dbt-clickhouse project
-  → физический ClickHouse Gold
+  → separate dbt-clickhouse project
+  → physical ClickHouse Gold
 ```
 
 ```mermaid
@@ -61,38 +61,38 @@ flowchart LR
     PG --- A
 ```
 
-### 1.2 Цепочка надежности (Durability Path)
+### 1.2 Durability path
 
-Цепочка гарантированной сохранности данных (durability path) заканчивается в Iceberg:
+The guaranteed data-persistence chain (durability path) ends in Iceberg:
 
 ```text
 MySQL → Debezium → Kafka → Spark → Iceberg
 ```
 
-Airflow и ClickHouse **не входят** в durability path. При их остановке или сбое транспортировка и обработка CDC-событий из MySQL в Iceberg продолжается. После восстановления serving-слой считывает накопленный Iceberg Silver event ledger.
+Airflow and ClickHouse are **not** part of the durability path. If they stop or fail, CDC transport and processing from MySQL to Iceberg continues. After recovery, the serving layer reads the accumulated Iceberg Silver event ledger.
 
-### 1.3 Авторитетность слоёв
+### 1.3 Layer authority
 
-| Слой | Ответственность |
+| Layer | Responsibility |
 | --- | --- |
-| MySQL | Единственный authoritative OLTP источник бизнеса |
-| Kafka | Ограниченный retention transport и replay buffer |
-| Apicurio | Wire schemas, schema IDs и compatibility rules |
-| Iceberg Bronze | Неизменённые Kafka key/value bytes и transport metadata |
-| Iceberg Silver changes | Канонический нормализованный CDC event ledger |
-| Iceberg Silver current | Каноническое текущее состояние entities |
+| MySQL | The only authoritative OLTP business source |
+| Kafka | Bounded-retention transport and replay buffer |
+| Apicurio | Wire schemas, schema IDs and compatibility rules |
+| Iceberg Bronze | Immutable Kafka key/value bytes and transport metadata |
+| Iceberg Silver changes | Canonical normalized CDC event ledger |
+| Iceberg Silver current | Canonical current entity state |
 | Iceberg audit/reference | Transactions, errors, progress, geolocation |
-| ClickHouse native CDC | Полностью перестраиваемая serving-копия |
-| ClickHouse Gold | Физические локальные аналитические модели |
-| PostgreSQL control plane | Только Airflow, Polaris, Apicurio и serving-run metadata |
+| ClickHouse native CDC | Fully rebuildable serving copy |
+| ClickHouse Gold | Physical local analytical models |
+| PostgreSQL control plane | Airflow, Polaris, Apicurio and serving-run metadata only |
 
 ---
 
-## 2. Зафиксированные технологические версии
+## 2. Pinned technology versions
 
-Система обязана использовать следующие технологические версии:
+The system must use the following technology versions:
 
-| Компонент | Версия / Спецификация |
+| Component | Version / Specification |
 | --- | --- |
 | MySQL | `mysql:8.4.10` |
 | MySQL Connector/Python | `9.7.0` |
@@ -102,18 +102,18 @@ Airflow и ClickHouse **не входят** в durability path. При их ос
 | Debezium | `3.6.0.Final` |
 | Apicurio Registry | `3.3.0` |
 | Spark runtime | `4.1.3`, Scala `2.13.17`, Java `17.0.19` |
-| Spark application language | Scala `2.13.17` для всего Wave 2 data plane |
+| Spark application language | Scala `2.13.17` for the entire Wave 2 data plane |
 | Spark build | sbt `1.12.11`, Scalafmt `3.11.5`, sbt-scalafmt `2.6.2` |
 | Spark tests | ScalaTest `3.2.19` |
-| Python | `3.12`, только control plane и J1 Iceberg migration |
+| Python | `3.12`, control plane and J1 Iceberg migration only |
 | Iceberg | `1.11.0` |
 | Polaris | `1.6.0` |
 | ClickHouse | `26.3.17.4` |
 | Airflow | `3.2.1` |
 | dbt-clickhouse | `1.10.1` |
-| MinIO | Существующий pinned image проекта (`RELEASE.2025-10-15T17-29-55Z`); `latest` запрещён |
+| MinIO | Existing pinned project image (`RELEASE.2025-10-15T17-29-55Z`); `latest` is forbidden |
 
-Обязательные runtime-артефакты Spark:
+Required Spark runtime artifacts:
 
 ```text
 org.apache.iceberg:iceberg-spark-runtime-4.1_2.13:1.11.0
@@ -131,21 +131,21 @@ Stage L; the future Google Cloud stack is specified separately.
 
 ---
 
-## 3. Организация работы и правила совместного доступа (Git Rules)
+## 3. Collaboration and shared-access rules (Git Rules)
 
-### 3.1 Ветка реализации
+### 3.1 Implementation branch
 
-Вся итоговая реализация находится в ветке:
+The complete implementation is maintained in the branch:
 
 ```text
 feature/mysql-spark-iceberg
 ```
 
-Базовый commit текущей архитектуры: `1400d08345ad81a0121f0ee85ee9ae81cd575a73e`.
+Baseline commit for the current architecture: `1400d08345ad81a0121f0ee85ee9ae81cd575a73e`.
 
 ### 3.2 Shared-file rule
 
-Изменение общего системного состава ограничено правилом совместного доступа. До join-точки только агент интеграции имеет право вносить изменения в:
+Changes to the shared system composition are restricted by the shared-access rule. Before the join point, only the integration agent may change:
 
 ```text
 compose.yaml
@@ -156,46 +156,46 @@ README.md
 docs/architecture.md
 ```
 
-### 3.3 Ограничения параллельной разработки
+### 3.3 Parallel-development restrictions
 
-Запрещено одновременно назначать нескольким автономным агентам:
+Do not assign the following simultaneously to multiple autonomous agents:
 - `compose.yaml`;
-- общие Scala-модули Spark (`com.olist.mds.spark.normalize`, `contract`, `iceberg`);
-- Airflow DAG и его PostgreSQL control schema;
-- конфигурацию dbt-проекта и макросы генерации схем;
-- final parity runner и canonical comparator;
-- массовое удаление legacy paths.
+- shared Spark Scala modules (`com.olist.mds.spark.normalize`, `contract`, `iceberg`);
+- Airflow DAGs and their PostgreSQL control schema;
+- dbt project configuration and schema-generation macros;
+- the final parity runner and canonical comparator;
+- bulk deletion of legacy paths.
 
 ---
 
-## 4. Runtime и lifecycle contract
+## 4. Runtime and lifecycle contract
 
 ### 4.1 Compose profiles
 
-Фиксированные `container_name` удалены для предотвращения конфликтов имён при запусках.
+Fixed `container_name` values are removed to prevent name conflicts between runs.
 
-В системе используются следующие профили (profiles):
-- `platform`: control PostgreSQL, MySQL, Kafka, topic bootstrap, Apicurio, Kafka Connect, MinIO, Polaris, Spark master/worker и one-shot geolocation loader;
-- `streaming`: Bronze/Silver Spark drivers (`spark-bronze`, `spark-silver`) и one-shot replay/status ops;
-- `serving`: ClickHouse и Airflow;
+The system uses the following profiles:
+- `platform`: control PostgreSQL, MySQL, Kafka, topic bootstrap, Apicurio, Kafka Connect, MinIO, Polaris, Spark master/worker and the one-shot geolocation loader;
+- `streaming`: Bronze/Silver Spark drivers (`spark-bronze`, `spark-silver`) and one-shot replay/status operations;
+- `serving`: ClickHouse and Airflow;
 - `observability`: exporters, Prometheus, Grafana, Loki.
 
-Порядок зависимостей строго однонаправленный:
+The dependency order is strictly one-way:
 
 ```text
 streaming → platform
 serving → platform
-observability → наблюдаемые services
+observability → observed services
 ```
 
-Ни один сервис профиля `platform` и ни одна команда жизненного цикла платформы не зависят от `serving` или `observability`. Профиль `platform` не запускает ClickHouse/Airflow.
+No `platform` service or platform lifecycle command depends on `serving` or `observability`. The `platform` profile does not start ClickHouse/Airflow.
 
-Список сервисов Compose:
+Compose service inventory:
 `platform-postgres`, `mysql`, `kafka`, `kafka-topics`, `apicurio-registry`, `kafka-connect`, `minio`, `minio-init`, `polaris`, `polaris-bootstrap`, `spark-master`, `spark-worker`, `spark-bronze`, `spark-silver`, `spark-geolocation`, `spark-ops`, `clickhouse`, `clickhouse-init`, `airflow`.
 
-### 4.2 Единый CLI интерфейс (`local_lab.py`)
+### 4.2 Unified CLI interface (`local_lab.py`)
 
-Управление локальным стендом осуществляется строго через `scripts/cdc/local_lab.py`:
+The local environment is managed exclusively through `scripts/cdc/local_lab.py`:
 
 ```powershell
 python scripts/cdc/local_lab.py doctor
@@ -216,52 +216,52 @@ python scripts/cdc/local_lab.py validate-serving --sync-run-seq <seq> --sync-run
 python scripts/cdc/local_lab.py final-parity --confirm-destructive
 ```
 
-### 4.3 Требования к командам CLI
+### 4.3 CLI command requirements
 
-- `reset --yes` выполняет строго `docker compose down -v --remove-orphans`. Удаление локальных каталогов хоста запрещено.
-- `bootstrap` проверяет чистоту домена, запускает `platform`, создаёт таблицы/каталоги, выполняет seed в MySQL, загружает geolocation и регистрирует коннектор.
-- `bootstrap` и `up` передают в Compose строго `--profile platform`.
-- `start-streaming` требует готовности `platform`, затем запускает `--profile platform --profile streaming`.
-- `start-serving` запускает `--profile platform --profile serving` и ждёт healthy `clickhouse`/`airflow` и успешного завершения serving one-shot-зависимостей.
-- `sync-serving`, `rebuild-serving` и `run-maintenance` разрешены только после готовности serving-профиля и запускают DAG вручную.
-- Serving, quality, maintenance and rebuild DAGs имеют `schedule=None` и запускаются только вручную; это исключает scheduler race без переключения pause во время validation.
-- `status` и `validate` проверяют реальное состояние запущенных сервисов и инвентаря метаданных.
-- Все команды используют таймауты, маскируют секреты и возвращают результат в формате JSON.
+- `reset --yes` runs exactly `docker compose down -v --remove-orphans`. Deleting local host directories is forbidden.
+- `bootstrap` checks domain cleanliness, starts `platform`, creates tables/catalogs, seeds MySQL, loads geolocation and registers the connector.
+- `bootstrap` and `up` pass only `--profile platform` to Compose.
+- `start-streaming` requires `platform` readiness, then starts `--profile platform --profile streaming`.
+- `start-serving` starts `--profile platform --profile serving` and waits for healthy `clickhouse`/`airflow` and successful serving one-shot dependencies.
+- `sync-serving`, `rebuild-serving` and `run-maintenance` are allowed only after the serving profile is ready and launch DAGs manually.
+- Serving, quality, maintenance and rebuild DAGs use `schedule=None` and run only manually; this prevents scheduler races without toggling pause during validation.
+- `status` and `validate` check the real state of running services and the metadata inventory.
+- All commands use timeouts, redact secrets and return JSON results.
 
 ---
 
-## 5. Политика одноразового состояния (Disposable State Policy)
+## 5. Disposable state policy
 
-В единый домен согласованности (consistency domain) входят:
+The consistency domain includes:
 - MySQL;
-- Состояние Kafka и Kafka Connect;
-- Состояние Apicurio Registry;
-- Объекты MinIO / Iceberg;
-- Метаданные Polaris;
-- Чекпоинты Spark;
-- Состояние ClickHouse;
+- Kafka and Kafka Connect state;
+- Apicurio Registry state;
+- MinIO/Iceberg objects;
+- Polaris metadata;
+- Spark checkpoints;
+- ClickHouse state;
 - Airflow / control PostgreSQL.
 
-Все Docker volumes являются полностью взаимозаменяемыми (disposable). Потеря или повреждение любого из этих volumes (за исключением ClickHouse) требует выполнения `reset --yes` и повторного `bootstrap`. Частичный ремонт не допускается. ClickHouse является производным слоем и восстанавливается через `rebuild-serving`.
+All Docker volumes are fully disposable. Loss or corruption of any of these volumes (except ClickHouse) requires `reset --yes` followed by `bootstrap`. Partial repair is not allowed. ClickHouse is a derived layer and is restored through `rebuild-serving`.
 
 ---
 
-## 6. Конфигурационный интерфейс (Environment Variables)
+## 6. Configuration interface (Environment Variables)
 
-Приложения считывают конфигурацию исключительно через стандартизованные переменные окружения:
+Applications read configuration exclusively through standardized environment variables:
 
 `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `KAFKA_BOOTSTRAP_SERVERS`, `APICURIO_REGISTRY_URL`, `APICURIO_CCOMPAT_URL`, `ICEBERG_CATALOG_URI`, `ICEBERG_CATALOG_NAME`, `ICEBERG_WAREHOUSE`, `OBJECT_STORE_ENDPOINT`, `OBJECT_STORE_REGION`, `OBJECT_STORE_PATH_STYLE`, `OBJECT_STORE_CREDENTIAL_PROVIDER`, `SPARK_CHECKPOINT_ROOT`, `SPARK_CONTRACT_VERSION`, `SPARK_STATUS_DIR`, `SPARK_RUNTIME_MODE`, `MYSQL_REFERENCE_READER_USERNAME`, `MYSQL_REFERENCE_READER_PASSWORD_FILE`, `CLICKHOUSE_HOST`, `CLICKHOUSE_PORT`, `DBT_PROJECT_DIR`, `DBT_TARGET`.
 
-Передача паролей и токенов в контейнеры производится только через файлы секретов (`*_FILE`). Передача открытых паролей в окружении, логах или отчетах запрещена.
+Passwords and tokens are passed to containers only through secret files (`*_FILE`). Plaintext passwords in the environment, logs or reports are forbidden.
 
 ---
 
-## 7. Связанные документы
+## 7. Related documents
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт MySQL, Kafka и Avro](mysql-kafka-avro.md)
-- [Контракт модели данных Iceberg](iceberg-data-model.md)
-- [Контракт Spark Structured Streaming](spark-streaming.md)
-- [Контракт Serving layer и восстановления](serving-and-recovery.md)
-- [Контракт валидации и CI](validation-and-ci.md)
-- [Контракт итогового паритета](final-parity.md)
+- [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [MySQL, Kafka and Avro contract](mysql-kafka-avro.md)
+- [Iceberg data model contract](iceberg-data-model.md)
+- [Spark Structured Streaming contract](spark-streaming.md)
+- [Serving and recovery contract](serving-and-recovery.md)
+- [Validation and CI contract](validation-and-ci.md)
+- [Final parity contract](final-parity.md)

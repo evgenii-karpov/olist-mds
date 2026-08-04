@@ -1,16 +1,16 @@
-# Технический контракт: Слой публикаций ClickHouse, dbt Gold и сценарии восстановления (Serving & Recovery)
+# Technical Contract: ClickHouse Serving, dbt Gold and Recovery Scenarios (Serving and Recovery)
 
-- **Статус**: Действующий нормативный контракт (Active normative contract)
-- **Назначение**: Описание организации витрин ClickHouse serving, структуры dbt-clickhouse Gold, регламентных задач Airflow и контракта обработки сбоев.
-- **Порядок авторитетности**: Определяет действующие нормативные требования к аналитическому слою публикаций и механизмам отказоустойчивости.
+- **Status**: Active normative contract
+- **Purpose**: Define ClickHouse serving models, dbt-clickhouse Gold structure, Airflow maintenance tasks and failure-handling contracts.
+- **Authority**: Defines the current normative requirements for the analytical serving layer and resilience mechanisms.
 
 ---
 
-## 1. Слой витрин ClickHouse Serving
+## 1. ClickHouse serving layer
 
-### 1.1 Интеграция с каталогом Iceberg через DataLakeCatalog
+### 1.1 Iceberg DataLakeCatalog integration
 
-В ClickHouse создается база данных `lakehouse` для прямого чтения таблиц Iceberg только для чтения (read-only):
+ClickHouse creates a `lakehouse` database for direct read-only access to Iceberg tables:
 
 ```sql
 SET allow_database_iceberg = 1;
@@ -19,28 +19,28 @@ ENGINE = DataLakeCatalog('http://polaris:8181/api/catalog', 'spark', 'vended-cre
 SETTINGS catalog_type = 'rest', warehouse = 'olist_lakehouse';
 ```
 
-Учетная запись ClickHouse использует vended-credentials от Polaris и имеет права только на чтение метаданных и файлов Iceberg.
+The ClickHouse account uses vended credentials from Polaris and has read-only access to Iceberg metadata and files.
 
-### 1.2 Нативные базы данных и таблицы ClickHouse
+### 1.2 Native ClickHouse databases and tables
 
-В ClickHouse создаются следующие базы данных:
-- `serving_cdc`: события CDC в формате MergeTree / ReplacingMergeTree.
-- `serving_control`: отслеживание опубликованных транзакций и запусков.
-- `gold_store`: физическое хранилище витрин данных, партиционированное по `sync_run_seq`.
-- `gold`: стабильные представления (views) над последним успешно опубликованным прогоном.
+ClickHouse creates the following databases:
+- `serving_cdc`: CDC events in MergeTree / ReplacingMergeTree format.
+- `serving_control`: published transaction and run tracking.
+- `gold_store`: physical mart storage partitioned by `sync_run_seq`.
+- `gold`: stable views over the latest successfully published run.
 
-Таблицы `serving_cdc`:
-- 8 таблиц журналов событий `<entity>_events` (`ENGINE = MergeTree`).
-- 8 таблиц текущих версий `<entity>_current_versions` (`ENGINE = ReplacingMergeTree(kafka_offset)` с `PARTITION BY sync_run_seq` и `ORDER BY (sync_run_seq, <business primary key>)`).
-- 8 стабильных представлений `<entity>_current`, фильтрующих удаленные записи (`is_deleted = 0`) и неопубликованные запуски.
+`serving_cdc` tables:
+- 8 event-ledger tables `<entity>_events` (`ENGINE = MergeTree`).
+- 8 current-version tables `<entity>_current_versions` (`ENGINE = ReplacingMergeTree(kafka_offset)` with `PARTITION BY sync_run_seq` and `ORDER BY (sync_run_seq, <business primary key>)`).
+- 8 stable views `<entity>_current` filtering deleted rows (`is_deleted = 0`) and unpublished runs.
 
 ---
 
-## 2. Физический слой dbt-clickhouse Gold
+## 2. Physical dbt-clickhouse Gold layer
 
-Отдельный dbt-проект располагается по пути `dbt/olist_clickhouse`. Проект не содержит веток для Redshift или BigQuery.
+The separate dbt project is located at `dbt/olist_clickhouse`. The project contains no Redshift or BigQuery branches.
 
-Физические модели слоя Gold:
+Physical Gold models:
 - `dim_date`
 - `dim_order_status`
 - `dim_seller`
@@ -50,9 +50,9 @@ SETTINGS catalog_type = 'rest', warehouse = 'olist_lakehouse';
 - `mart_daily_revenue`
 - `mart_monthly_arpu`
 
-Модели физически сохраняются в `gold_store.<model>` с партиционированием `PARTITION BY sync_run_seq`. Публичные интерфейсы в базе `gold.<model>` представляют собой стабильные представления над последней опубликованной партицией `sync_run_seq`.
+Models are materialized in `gold_store.<model>` partitioned by `PARTITION BY sync_run_seq`. Public interfaces in `gold.<model>` are stable views over the latest published `sync_run_seq` partition.
 
-Запуск трансформаций dbt выполняется строго с указанием переменных прогона:
+Run dbt transformations only with explicit run variables:
 
 ```powershell
 dbt build --project-dir dbt/olist_clickhouse --vars '{"sync_run_seq": <n>, "sync_run_id": "<id>"}'
@@ -60,54 +60,54 @@ dbt build --project-dir dbt/olist_clickhouse --vars '{"sync_run_seq": <n>, "sync
 
 ---
 
-## 3. Регламентные задачи Airflow и обслуживание Iceberg
+## 3. Airflow maintenance tasks and Iceberg maintenance
 
-### 3.1 Границы Airflow
+### 3.1 Airflow boundary
 
-Airflow **не запускает** и не перезапускает непрерывные стриминг-процессы Spark (`spark-bronze`, `spark-silver`).
-В Airflow содержатся только конечные (finite) DAGs:
-- `olist_lakehouse_serving_sync`: периодическая синхронизация транзакционно-завершенных данных из Iceberg в ClickHouse.
-- `olist_iceberg_maintenance`: процедуры оптимизации и очистки снимков Iceberg.
-- `olist_clickhouse_rebuild`: полное перестроение аналитического слоя ClickHouse из Iceberg.
-- `olist_lakehouse_quality`: проверки качества и паритета данных.
+Airflow **does not start** or restart continuous Spark streaming processes (`spark-bronze`, `spark-silver`).
+Airflow contains only finite DAGs:
+- `olist_lakehouse_serving_sync`: periodic synchronization of transaction-complete data from Iceberg to ClickHouse.
+- `olist_iceberg_maintenance`: Iceberg snapshot optimization and cleanup procedures.
+- `olist_clickhouse_rebuild`: full rebuild of the ClickHouse analytical layer from Iceberg.
+- `olist_lakehouse_quality`: data-quality and parity checks.
 
-### 3.2 Обслуживание Iceberg (Maintenance)
+### 3.2 Iceberg maintenance
 
-Периодические процедуры оптимизации Iceberg включают:
-- `rewrite_data_files` (уплотнение мелких файлов);
-- `rewrite_manifests` (оптимизация манифестов);
-- `expire_snapshots` (срок хранения снимков 7 дней, сохранение минимум 20 последних);
-- `remove_orphan_files` (минимальный возраст осиротевших файлов 72 часа).
+Periodic Iceberg optimization procedures include:
+- `rewrite_data_files` (compact small files);
+- `rewrite_manifests` (optimize manifests);
+- `expire_snapshots` (7-day snapshot retention, preserving at least the 20 latest);
+- `remove_orphan_files` (minimum orphan-file age of 72 hours).
 
-Инструменты обслуживания получают только явный путь к таблице Iceberg и не имеют доступа к бакету чекпоинтов `olist-checkpoints`.
+Maintenance tools receive only an explicit Iceberg table path and have no access to the `olist-checkpoints` bucket.
 
 ---
 
-## 4. Контракт обработки сбоев и восстановления (Failure & Recovery Contract)
+## 4. Failure and recovery contract
 
-| Сбой | Обязательное поведение системы |
+| Failure | Required system behavior |
 | --- | --- |
-| MySQL временно недоступен | Коннектор Debezium выполняет повторные попытки (retry); downstream обрабатывает накопленный backlog. |
-| Kafka недоступна | Коннектор и Spark Bronze выполняют retry. |
-| Сбой `spark-bronze` | Kafka буферизует сообщения в рамках срока хранения (retention 7 дней). |
-| Сбой одного запроса в `spark-silver` | Обработка Bronze и остальных сущностей в Silver продолжается. Запрос переходит в статус `FATAL`. |
-| Временный сбой Apicurio Registry | Обработка ранее заархивированных схем продолжается. Новые схемы ждут восстановления реестра. |
-| Несовместимая схема Avro | Запрос конкретной сущности останавливается в статусе `FATAL` (fail-closed). |
-| Polaris / MinIO недоступен | Spark выполняет retry; Kafka служит буфером. |
-| Airflow остановлен | Запись CDC из MySQL в Iceberg продолжается. Данные в ClickHouse временно не обновляются. |
-| ClickHouse недоступен или потерян | Запись CDC в Iceberg продолжается. Запуск `rebuild-serving` полностью восстанавливает ClickHouse из Iceberg. |
-| Превышение retention в Kafka при сбое | Полный сброс контура (`reset --yes`) и повторный `bootstrap`. |
-| Потеря чекпоинта Spark | Полный сброс контура (`reset --yes`) и повторный `bootstrap`. |
-| Потеря базы Polaris или данных MinIO | Полный сброс контура (`reset --yes`) и повторный `bootstrap`. |
-| Удален любой authoritative volume | Частичный ремонт запрещен; выполняется полный `reset --yes` и `bootstrap`. |
-| Сбой публикатора ClickHouse до публикации | Новые данные скрыты от витрин (`gold`); повторный запуск переиспользует тот же `sync_run_seq`. |
+| MySQL temporarily unavailable | Debezium retries; downstream processes the accumulated backlog. |
+| Kafka unavailable | The connector and Spark Bronze retry. |
+| `spark-bronze` failure | Kafka buffers messages within its retention period (7 days). |
+| One `spark-silver` query fails | Bronze and the other Silver entities continue processing. The query enters `FATAL` state. |
+| Temporary Apicurio Registry failure | Previously archived schemas continue processing. New schemas wait for registry recovery. |
+| Incompatible Avro schema | The affected entity query stops in `FATAL` state (fail-closed). |
+| Polaris / MinIO unavailable | Spark retries; Kafka serves as the buffer. |
+| Airflow stopped | CDC writes from MySQL to Iceberg continue. ClickHouse data is temporarily not updated. |
+| ClickHouse unavailable or lost | CDC writes to Iceberg continue. `rebuild-serving` fully restores ClickHouse from Iceberg. |
+| Kafka retention exceeded during failure | Full domain reset (`reset --yes`) and a new `bootstrap`. |
+| Spark checkpoint lost | Full domain reset (`reset --yes`) and a new `bootstrap`. |
+| Polaris database or MinIO data lost | Full domain reset (`reset --yes`) and a new `bootstrap`. |
+| Any authoritative volume removed | Partial repair is forbidden; run full `reset --yes` and `bootstrap`. |
+| ClickHouse publisher fails before publication | New data remains hidden from `gold`; retry reuses the same `sync_run_seq`. |
 
 ---
 
-## 5. Связанные документы
+## 5. Related documents
 
-- [Дорожная карта миграции (Roadmap)](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [Контракт архитектуры и runtime](architecture-and-runtime.md)
-- [Контракт модели данных Iceberg](iceberg-data-model.md)
-- [Контракт Spark Structured Streaming](spark-streaming.md)
-- [Контракт валидации и CI](validation-and-ci.md)
+- [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
+- [Architecture and runtime contract](architecture-and-runtime.md)
+- [Iceberg data model contract](iceberg-data-model.md)
+- [Spark Structured Streaming contract](spark-streaming.md)
+- [Validation and CI contract](validation-and-ci.md)

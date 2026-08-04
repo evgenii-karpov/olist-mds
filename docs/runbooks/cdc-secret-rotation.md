@@ -1,17 +1,14 @@
-# CDC secret rotation
+# Target secret rotation
 
-The local lab uses stable committed development-only Docker secret files.
-Use this procedure for non-local credentials or an explicitly configured local
-override. Never paste resolved values into commands, logs, issues, or reports.
+The target runtime accepts credentials through Docker secret files or explicit
+`*_SOURCE_FILE` paths. Never paste resolved values into commands, logs, issues
+or evidence.
 
-1. Inventory clients of the identity and capture health without reading the
-   current secret value.
-2. Generate a new value in the secret provider and update the server identity.
-3. Replace only the affected secret file with restrictive permissions.
-4. Recreate only affected clients with `docker compose up -d --force-recreate`.
-5. Verify authentication, connector/NiFi health, ingest, transform, and alert
-   resolution. Search bounded logs for accidental credential output.
-6. Revoke the old value after all clients use the replacement.
-
-Kafka TLS/auth and generated local PKI remain a documented follow-up from Phase
-6; rotate them only after the broker and every client migrate together.
+1. Inventory the target identity and capture health without reading the value.
+2. Rotate the server-side identity and replace only its secret file with
+   restrictive permissions.
+3. Recreate affected target clients, preserving Kafka offsets and Iceberg
+   checkpoints.
+4. Verify MySQL, Kafka Connect, Apicurio, MinIO/Polaris, Spark and serving
+   authentication, then confirm the relevant observability alert resolves.
+5. Revoke the old value after all clients use the replacement.

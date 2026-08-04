@@ -1,154 +1,153 @@
-# Детальный план Stage V: Candidate E2E Validation
+# Detailed Stage V plan: Candidate E2E Validation
 
-- **Статус**: Completed / Frozen — clean V0–V10 PASS.
+- **Status**: Completed / Frozen — clean V0–V10 PASS.
 - **Execution commit**: `e113c552cca990636f426b827456a77ddc9d594b` (`dirty=false`).
 - **Run ID**: `stage_v_clean_e113c55`.
 - **Evidence**: `data/stage-v-evidence/stage_v_clean_e113c55/`.
-- **Цель**: доказать на одном чистом и изолированном стенде, что кандидат
+- **Goal**: prove on one clean and isolated environment that the candidate
   `MySQL -> Debezium -> Kafka -> Spark Bronze/Silver -> Iceberg -> ClickHouse -> dbt Gold`
-  корректно обрабатывает initial snapshot, транзакционный CRUD, tombstone,
-  одновременный перезапуск Bronze/Silver, аддитивную nullable-схему и полное
-  восстановление ClickHouse только из Iceberg.
-- **Предыдущая стадия**: Stage E, статус `PASS` в
-  [отчёте Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md).
-- **Родительский порядок стадий**:
-  [serving-cutover.md](../active/serving-cutover.md), строго `E -> V -> L -> F`.
-- **Порядок авторитетности**: действующие контракты из
-  `docs/plans/lakehouse/contracts/` -> этот план -> фактические machine-readable
-  evidence -> итоговый validation report.
+  correctly handles the initial snapshot, transactional CRUD, tombstones,
+  simultaneous Bronze/Silver restart, additive nullable schema, and full
+  ClickHouse recovery from Iceberg only.
+- **Previous stage**: Stage E, status `PASS` in the
+  [Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md).
+- **Parent stage order**:
+  [serving-cutover.md](../active/serving-cutover.md), strictly `E -> V -> L -> F`.
+- **Authority order**: active contracts from
+  `docs/plans/lakehouse/contracts/` -> this plan -> actual machine-readable
+  evidence -> final validation report.
 
 ---
 
-## 1. Ожидаемый результат
+## 1. Expected result
 
-Stage V завершается только одним из трёх итогов:
+Stage V ends with exactly one of three outcomes:
 
-| Итог | Значение |
+| Outcome | Meaning |
 | --- | --- |
-| `PASS` | Все ворота V0-V10 пройдены в одном clean-domain run, доказательства полны, можно начинать Stage L. |
-| `FAIL` | Кандидат нарушил проверяемый инвариант; Stage L запрещена. |
-| `BLOCKED` | Нельзя получить достоверный результат из-за дефекта Stage E, среды или validation harness; Stage L запрещена. |
+| `PASS` | All V0–V10 gates pass in one clean-domain run, evidence is complete, and Stage L may begin. |
+| `FAIL` | The candidate violates a checked invariant; Stage L is forbidden. |
+| `BLOCKED` | A reliable result cannot be obtained because of a Stage E, environment, or validation-harness defect; Stage L is forbidden. |
 
-Успешный результат — не просто нулевые exit codes. Агент обязан доказать:
+Success is not merely a set of zero exit codes. The agent must prove:
 
-1. исходные 79 бизнес-записей и 6 геопозиций дошли до целевых таблиц;
-2. три CRUD-транзакции дали ровно 10 business CDC events;
-3. delete дал одну delete envelope и один следующий tombstone;
-4. после перезапуска чекпоинты продолжены, а не созданы заново;
-5. `event_id` уникальны, бизнес-ключи и значения совпадают построчно;
-6. опубликована только завершённая транзакционная граница;
-7. PostgreSQL cursor, ClickHouse marker и Iceberg report описывают один run;
-8. стабильные `serving_cdc.*_current` и `gold.*` не видят unpublished data;
-9. nullable additive evolution не останавливает совместимый поток;
-10. ClickHouse полностью восстанавливается из Iceberg без чтения MySQL/Kafka;
-11. после rebuild канонические manifests до и после совпадают;
-12. legacy-компоненты не удалены и Stage F не запускалась.
+1. the original 79 business rows and 6 geolocations reach the target tables;
+2. three CRUD transactions produce exactly 10 business CDC events;
+3. delete produces one delete envelope and one subsequent tombstone;
+4. checkpoints continue after restart rather than being recreated;
+5. `event_id` values are unique, and business keys/values match row by row;
+6. only a completed transaction boundary is published;
+7. the PostgreSQL cursor, ClickHouse marker, and Iceberg report describe one run;
+8. stable `serving_cdc.*_current` and `gold.*` views do not see unpublished data;
+9. nullable additive evolution does not stop the compatible stream;
+10. ClickHouse is fully restored from Iceberg without reading MySQL/Kafka;
+11. canonical manifests before and after rebuild match;
+12. legacy components are not removed and Stage F is not run.
 
 ---
 
-## 2. Scope и явные запреты
+## 2. Scope and explicit prohibitions
 
-### 2.1 В scope
+### 2.1 In scope
 
-- Реализация воспроизводимого Stage V acceptance harness.
-- Validation-only SQL fixtures и read-only probes для всех слоёв.
-- Один полный прогон на новом Compose project и чистых volumes.
-- Initial snapshot, deterministic CRUD, tombstone и restart drill.
-- Публикация serving candidate и проверка dbt candidate graph.
-- Контролируемая аддитивная nullable-эволюция схемы.
-- Guarded ClickHouse rebuild и построчное сравнение manifests.
-- Сбор sanitized evidence и создание отчёта Stage V.
-- Исправление исключительно дефектов самого validation harness до начала
-  финального clean run.
+- Implementation of a reproducible Stage V acceptance harness.
+- Validation-only SQL fixtures and read-only probes for all layers.
+- One full run on a new Compose project and clean volumes.
+- Initial snapshot, deterministic CRUD, tombstone, and restart drill.
+- Serving-candidate publication and dbt candidate-graph checks.
+- Controlled additive nullable schema evolution.
+- Guarded ClickHouse rebuild and row-level manifest comparison.
+- Collection of sanitized evidence and creation of the Stage V report.
+- Fixes limited to validation-harness defects before the final clean run.
 
-### 2.2 Вне scope
+### 2.2 Out of scope
 
-- Удаление PostgreSQL legacy, NiFi, старых DAGs или иных компонентов Stage L.
-- Запуск final parity или изменение его контракта — это Stage F.
-- Изменение Kafka retention, topology, partition count или primary keys.
-- Проверка несовместимой schema evolution: rename, drop, type change,
-  non-nullable column без default.
-- Performance/SLO benchmark и длительный soak test.
-- Maintenance, не необходимый для rebuild-проверки.
-- Ручное исправление данных напрямую в Iceberg или ClickHouse.
-- Ослабление контрактов, тестов, lint/type rules или acceptance thresholds ради
-  получения `PASS`.
+- Removal of legacy PostgreSQL, NiFi, old DAGs, or other Stage L components.
+- Running final parity or changing its contract — that is Stage F.
+- Changing Kafka retention, topology, partition count, or primary keys.
+- Testing incompatible schema evolution: rename, drop, type change, or a
+  non-nullable column without a default.
+- Performance/SLO benchmarks and long soak tests.
+- Maintenance not required for the rebuild check.
+- Manually modifying data directly in Iceberg or ClickHouse.
+- Weakening contracts, tests, lint/type rules, or acceptance thresholds to
+  obtain `PASS`.
 
-### 2.3 Запрещённые действия агента
+### 2.3 Agent prohibitions
 
-- Не выполнять `docker compose down -v` напрямую. Единственная допустимая
-  очистка — `python scripts/cdc/local_lab.py reset --yes` после проверки
+- Do not run `docker compose down -v` directly. The only permitted cleanup is
+  `python scripts/cdc/local_lab.py reset --yes` after checking
   `COMPOSE_PROJECT_NAME`.
-- Не удалять отдельные authoritative volumes, checkpoint paths, Iceberg
-  snapshots или строки control ledger.
-- Не запускать `sync-serving`, `rebuild-serving` и maintenance параллельно.
-- Не продолжать acceptance run после нарушения инварианта. Сначала сохранить
-  evidence, классифицировать причину и завершить run как `FAIL`/`BLOCKED`.
-- Не считать повторный прогон отдельного упавшего шага достаточным для `PASS`.
-  После исправления production-кода обязателен новый полный clean-domain run.
-- Не печатать содержимое secret files, connection strings, bearer tokens или
-  пароли в командной строке, stdout, JSON и Markdown.
-- Не создавать отчёт со статусом `PASS` до фактического завершения V10.
+- Do not remove individual authoritative volumes, checkpoint paths, Iceberg
+  snapshots, or control-ledger rows.
+- Do not run `sync-serving`, `rebuild-serving`, and maintenance in parallel.
+- Do not continue an acceptance run after an invariant violation. First preserve
+  evidence, classify the cause, and finish the run as `FAIL`/`BLOCKED`.
+- Do not consider rerunning one failed step sufficient for `PASS`. After a
+  production-code fix, a new full clean-domain run is required.
+- Do not print secret-file contents, connection strings, bearer tokens, or
+  passwords in the command line, stdout, JSON, or Markdown.
+- Do not create a `PASS` report before V10 actually completes.
 
 ---
 
-## 3. Исходная точка и обязательная сверка Stage E
+## 3. Starting point and mandatory Stage E reconciliation
 
-### 3.1 Что уже существует
+### 3.1 What already exists
 
-- Детерминированный small fixture:
+- Deterministic small fixture:
   `tests/fixtures/olist_small/olist_small.zip`.
 - Source oracle:
   `tests/fixtures/olist_small/source_profile_small.json`.
 - CRUD fixture:
   `tests/spark_integration/fixtures/wave2_crud.sql`.
-- Lifecycle CLI: `scripts/cdc/local_lab.py` с командами `reset`, `bootstrap`,
-  `start-streaming`, `wait-caught-up`, `status`, `validate`, `sync-serving` и
+- Lifecycle CLI: `scripts/cdc/local_lab.py` with `reset`, `bootstrap`,
+  `start-streaming`, `wait-caught-up`, `status`, `validate`, `sync-serving`, and
   `rebuild-serving`.
-- Нормативные контракты:
+- Normative contracts:
   [Spark streaming](../contracts/spark-streaming.md),
   [Iceberg data model](../contracts/iceberg-data-model.md),
-  [Serving and recovery](../contracts/serving-and-recovery.md) и
+  [Serving and recovery](../contracts/serving-and-recovery.md) and
   [Validation and CI](../contracts/validation-and-ci.md).
-- Runbooks serving/rebuild в `docs/runbooks/`.
+- Serving/rebuild runbooks in `docs/runbooks/`.
 
-### 3.2 Почему Stage E `PASS` перепроверяется
+### 3.2 Why Stage E `PASS` is rechecked
 
-Stage V не переоткрывает Stage E без причины, но обязана проверить свой entry
-gate на текущем execution commit. Приложенные к задаче логи показывают, что на
-одном из предыдущих состояний дерева pre-commit изменял whitespace/EOF/format,
-после чего ещё сообщал ruff и pyright errors. Эти логи не являются свежим
-результатом и не меняют статус Stage E автоматически, однако запрещено начинать
-дорогой E2E-прогон без нового зелёного V0.
+Stage V does not reopen Stage E without cause, but it must check its entry gate
+against the current execution commit. Logs attached to the task show that in one
+previous tree state, pre-commit changed whitespace/EOF/format and then reported
+Ruff and Pyright errors. These logs are not a fresh result and do not change the
+Stage E status automatically, but a costly E2E run must not start without a new
+green V0.
 
-Агент также обязан проверить, что текущая реализация действительно выполняет
-контракт, а не только имеет нужные имена команд. В частности, свежий аудит
-должен подтвердить следующее:
+The agent must also verify that the current implementation actually fulfills the
+contract rather than merely exposing the required command names. In particular,
+a fresh audit must confirm:
 
-- boundary planner получает реальные `audit.mysql_transactions`, progress и
-  Iceberg snapshot IDs, а не пустые collections;
-- materializer фильтрует `*_changes` по frozen boundary конкретного run;
-- `*_current_versions` строятся по последней версии каждого business key и
-  сохраняют реальные Kafka offsets, delete state и row hashes;
-- `status --require serving` проверяет marker/cursor/report, DAG inventory,
-  stale candidates и quality state, а не только HTTP health;
-- `validate --scope serving` выполняет заявленные read-only serving checks;
-- CLI возвращает полный authoritative result contract из Stage E, включая
-  `sync_run_id`, границы, event counts и publication metadata;
-- rebuild не использует MySQL, Kafka и Spark checkpoints как источник данных.
+- the boundary planner receives real `audit.mysql_transactions`, progress, and
+  Iceberg snapshot IDs rather than empty collections;
+- the materializer filters `*_changes` by the frozen boundary for the specific run;
+- `*_current_versions` are built from the latest version of each business key and
+  retain real Kafka offsets, delete state, and row hashes;
+- `status --require serving` checks marker/cursor/report, DAG inventory, stale
+  candidates, and quality state, not only HTTP health;
+- `validate --scope serving` performs the declared read-only serving checks;
+- the CLI returns the complete authoritative Stage E result contract, including
+  `sync_run_id`, boundaries, event counts, and publication metadata;
+- rebuild does not use MySQL, Kafka, or Spark checkpoints as a data source.
 
-Если любой пункт не подтверждён, результат V0 — `BLOCKED_BY_E_REGRESSION`.
-Исправление оформляется как устранение дефекта Stage E, после чего V0 и весь
-clean-domain run запускаются заново. Агент не имеет права подменять отсутствующую
-production-семантику логикой validation harness.
+If any item is not confirmed, the V0 result is `BLOCKED_BY_E_REGRESSION`.
+The fix is recorded as a Stage E defect, after which V0 and the full clean-domain
+run are restarted. The agent may not replace missing production semantics with
+validation-harness logic.
 
 ---
 
-## 4. Идентичность прогона и evidence contract
+## 4. Run identity and evidence contract
 
-### 4.1 Изоляция
+### 4.1 Isolation
 
-Перед mutating-командами агент один раз задаёт:
+Before mutating commands, the agent sets once:
 
 ```powershell
 $env:COMPOSE_PROJECT_NAME = "olist_stage_v"
@@ -156,18 +155,18 @@ $StageVRunId = "stage_v_<UTC timestamp>_<short commit>"
 $StageVEvidence = "data/stage-v-evidence/$StageVRunId"
 ```
 
-Требования:
+Requirements:
 
-- `COMPOSE_PROJECT_NAME` должен быть ровно `olist_stage_v`;
-- рядом не должен исполняться другой Stage V run;
-- все mutating run IDs начинаются с `$StageVRunId`;
-- execution commit SHA фиксируется до `reset`;
-- tracked worktree чистый; допускаются только ignored runtime/evidence files;
-- изменение execution commit или tracked files аннулирует текущий run.
+- `COMPOSE_PROJECT_NAME` must be exactly `olist_stage_v`;
+- no other Stage V run may execute alongside it;
+- all mutating run IDs begin with `$StageVRunId`;
+- the execution commit SHA is recorded before `reset`;
+- the tracked worktree is clean; only ignored runtime/evidence files are allowed;
+- changing the execution commit or tracked files invalidates the current run.
 
-### 4.2 Структура evidence
+### 4.2 Evidence structure
 
-Harness создаёт каталог под `data/`, уже исключённый из Git:
+The harness creates a directory under `data/`, which is already excluded from Git:
 
 ```text
 data/stage-v-evidence/<run-id>/
@@ -186,46 +185,45 @@ data/stage-v-evidence/<run-id>/
   summary.json
 ```
 
-Каждый gate сохраняет:
+Each gate stores:
 
-- `started_at`, `finished_at`, duration и execution commit;
-- sanitized argv без secret values;
-- exit code и bounded stdout/stderr;
-- входные и выходные snapshot/offset/run identifiers;
-- canonical query results в JSON;
-- assertion list с `PASS|FAIL|BLOCKED` и diagnostic code;
-- SHA-256 каждого evidence-файла.
+- `started_at`, `finished_at`, duration, and execution commit;
+- sanitized argv without secret values;
+- exit code and bounded stdout/stderr;
+- input and output snapshot/offset/run identifiers;
+- canonical query results in JSON;
+- an assertion list with `PASS|FAIL|BLOCKED` and diagnostic code;
+- SHA-256 for every evidence file.
 
-`run-manifest.json` неизменяем после начала V2, кроме добавления terminal status
-и `finished_at`. В нём обязательны:
+`run-manifest.json` is immutable after V2 starts, except for adding terminal status
+and `finished_at`. It must contain:
 
-- OS, Docker/Compose и component image versions;
-- commit SHA и результат `git status --porcelain`;
-- fixture SHA-256 и expected-count manifest;
+- OS, Docker/Compose, and component image versions;
+- commit SHA and the result of `git status --porcelain`;
+- fixture SHA-256 and expected-count manifest;
 - Compose project name;
-- random seed `20260801` и start time `2020-01-01T00:00:00`;
-- список gates и их terminal status;
-- факт redaction scan;
-- ссылки на final canonical manifests.
+- random seed `20260801` and start time `2020-01-01T00:00:00`;
+- list of gates and their terminal status;
+- redaction-scan result;
+- links to final canonical manifests.
 
-### 4.3 Правила повторного запуска
+### 4.3 Rerun rules
 
-- Read-only probe можно повторить в том же run, сохранив номер attempt.
-- `bootstrap`, CRUD, schema mutation, publication и rebuild повторяются в том
-  же run только если контракт операции явно идемпотентен и первый вызов имеет
-  известный terminal state.
-- Неизвестный terminal state mutating-операции означает `BLOCKED`; запрещено
-  угадывать результат и создавать новый run ID на тех же volumes.
-- После любого production fix выполняются новый `reset --yes`, новый run ID и
-  полный путь V2-V10.
+- A read-only probe may be repeated in the same run while preserving the attempt number.
+- `bootstrap`, CRUD, schema mutation, publication, and rebuild may be repeated in
+  the same run only when the operation contract is explicitly idempotent and the
+  first call has a known terminal state.
+- An unknown terminal state for a mutating operation means `BLOCKED`; do not guess
+  the result or create a new run ID on the same volumes.
+- After any production fix, perform a new `reset --yes`, new run ID, and full V2–V10 path.
 
 ---
 
-## 5. Validation harness, который нужно реализовать до acceptance run
+## 5. Validation harness to implement before the acceptance run
 
-### 5.1 Файлы
+### 5.1 Files
 
-Рекомендуемая карта изменений:
+Recommended change map:
 
 ```text
 scripts/validation/stage_v_candidate_e2e.py
@@ -238,14 +236,14 @@ tests/stage_v/fixtures/emit_nullable_event.sql
 tests/stage_v/oracles/initial_counts.json
 tests/stage_v/test_stage_v_harness.py
 tests/stage_v/test_stage_v_oracles.py
-docs/reports/mysql-spark-iceberg-stage-v-validation.md  # только после run
+  docs/reports/mysql-spark-iceberg-stage-v-validation.md  # after the run only
 ```
 
-Можно переиспользовать `wave2_crud.sql`, но для restart barrier лучше иметь три
-отдельных fixtures с теми же statements и фиксированными IDs. Нельзя менять
-бизнес-семантику уже принятого Wave 2 сценария.
+`wave2_crud.sql` may be reused, but three separate fixtures with the same
+statements and fixed IDs are preferable for the restart barrier. Do not change
+the business semantics of the accepted Wave 2 scenario.
 
-### 5.2 Public interface harness
+### 5.2 Public harness interface
 
 ```text
 uv run python scripts/validation/stage_v_candidate_e2e.py prepare \
@@ -258,74 +256,73 @@ uv run python scripts/validation/stage_v_candidate_e2e.py report \
   --evidence-dir <path>
 ```
 
-- `prepare` выполняет только V0-V1 и не меняет runtime data.
-- `run` — единственная документированная оркестрация V2-V10.
-- `report` читает готовые evidence, ничего не запускает и не может повысить
-  terminal status.
-- `--confirm-reset` не передаётся вложенным arbitrary shell payload.
-- Любая команда выдаёт один bounded JSON result и корректный non-zero exit code.
+- `prepare` runs only V0–V1 and does not change runtime data.
+- `run` is the only documented orchestration of V2–V10.
+- `report` reads existing evidence, starts nothing, and cannot promote terminal status.
+- `--confirm-reset` is not passed to an embedded arbitrary shell payload.
+- Every command emits one bounded JSON result and the correct non-zero exit code.
 
-### 5.3 Адаптеры probes
+### 5.3 Probe adapters
 
-Harness должен использовать отдельные typed adapters:
+The harness must use separate typed adapters:
 
-1. **MySQL probe** — read-only queries через существующий Python connector и
-   password file; fixture executor имеет allowlist только для пяти Stage V SQL.
-2. **Kafka probe** — topic/partition beginning/end offsets и выборочная проверка
-   key/value/tombstone без изменения consumer offsets production groups.
-3. **Iceberg probe** — finite Spark job с фиксированным allowlist отчётов. Не
-   добавлять public arbitrary SQL execution.
-4. **PostgreSQL control probe** — read-only выборка latest run, entity results,
-   runtime cursor и lease.
-5. **ClickHouse probe** — parameterized read-only queries; DDL разрешён только
-   production rebuild DAG.
-6. **Airflow probe** — stable REST API, DAG/run/task state и sanitized logs.
+1. **MySQL probe** — read-only queries through the existing Python connector and
+   password file; the fixture executor has an allowlist of only five Stage V SQL statements.
+2. **Kafka probe** — topic/partition beginning/end offsets and selective
+   key/value/tombstone checks without changing consumer offsets for production groups.
+3. **Iceberg probe** — finite Spark job with a fixed report allowlist. Do not add
+   public arbitrary SQL execution.
+4. **PostgreSQL control probe** — read-only retrieval of the latest run, entity results,
+   runtime cursor, and lease.
+5. **ClickHouse probe** — parameterized read-only queries; DDL is allowed only in
+   the production rebuild DAG.
+6. **Airflow probe** — stable REST API, DAG/run/task state, and sanitized logs.
 
-Если существующий `LakehouseStatusMain` не выдаёт нужные row-level hashes,
-добавить finite `StageVValidationMain`, который принимает только имя заранее
-определённого отчёта и output path. Нельзя добавлять универсальный `--sql`.
+If the existing `LakehouseStatusMain` does not produce the required row-level
+hashes, add a finite `StageVValidationMain` that accepts only the name of a
+predefined report and output path. Do not add a universal `--sql`.
 
 ### 5.4 Canonical manifests
 
-Для каждой entity manifest содержит:
+Each entity manifest contains:
 
-- business primary key в стабильном tuple order;
-- все контрактные business columns;
+- business primary key in stable tuple order;
+- all contractual business columns;
 - `is_deleted`;
 - last transaction/event/Kafka position;
 - canonical row hash;
-- source layer и snapshot/run identifiers.
+- source layer and snapshot/run identifiers.
 
-Нормализация значений:
+Value normalization:
 
-- timestamps — UTC ISO-8601 с микросекундами;
-- decimals — fixed scale, без float conversion;
-- strings — UTF-8 без trim/case conversion;
+- timestamps — UTC ISO-8601 with microseconds;
+- decimals — fixed scale, without float conversion;
+- strings — UTF-8 without trim/case conversion;
 - `null` — JSON `null`;
-- строки сортируются побайтово по canonical primary-key representation.
+- rows are sorted bytewise by canonical primary-key representation.
 
-Сравнение выполняется по keys и по каждой business column. Одни row counts или
-агрегированные checksum не заменяют row-level diff. Итоговый SHA-256 используется
-как компактная ссылка на уже сохранённый полный manifest.
+Comparison is performed by keys and every business column. Row counts or an
+aggregate checksum alone do not replace a row-level diff. The final SHA-256 is a
+compact reference to the already stored full manifest.
 
-### 5.5 Tests harness
+### 5.5 Harness tests
 
-Unit tests обязаны доказать:
+Unit tests must prove:
 
-- запрет запуска без exact Compose project и `--confirm-reset`;
-- redaction secrets и URL credentials;
+- prohibition on starting without the exact Compose project and `--confirm-reset`;
+- redaction of secrets and URL credentials;
 - bounded stdout/stderr;
-- корректное различение `FAIL`, `BLOCKED`, timeout и unknown terminal state;
-- невозможность повысить упавший result при генерации отчёта;
+- correct distinction between `FAIL`, `BLOCKED`, timeout, and unknown terminal state;
+- inability to promote a failed result while generating a report;
 - deterministic canonicalization decimal/timestamp/null/composite PK;
-- обнаружение missing/extra keys, value mismatch и duplicate `event_id`;
-- запрет arbitrary SQL, service name, path и shell fragments;
-- проверку expected-count oracle;
-- устойчивое возобновление read-only probes и запрет опасного mutating resume.
+- detection of missing/extra keys, value mismatches, and duplicate `event_id`;
+- prohibition on arbitrary SQL, service names, paths, and shell fragments;
+- expected-count oracle validation;
+- safe resumption of read-only probes and prohibition of unsafe mutating resume.
 
 ---
 
-## 6. Детерминированный oracle
+## 6. Deterministic oracle
 
 ### 6.1 Initial snapshot
 
@@ -341,17 +338,17 @@ Unit tests обязаны доказать:
 | `product_category_translation` | 5 | 5 |
 | **Total** | **79** | **79** |
 
-Дополнительно:
+Additionally:
 
 - `reference.geolocation = 6`;
-- `rejected = 0` и `schema_violations = 0`;
+- `rejected = 0` and `schema_violations = 0`;
 - 79 distinct business `event_id`;
-- все initial business events имеют snapshot operation `r`/`is_snapshot=true`;
-- MySQL и Silver current совпадают построчно.
+- all initial business events have snapshot operation `r`/`is_snapshot=true`;
+- MySQL and Silver current match row by row.
 
 ### 6.2 CRUD delta
 
-Используется семантика `wave2_crud.sql`:
+The semantics of `wave2_crud.sql` are used:
 
 | Transaction | Operations | Business events |
 | --- | --- | ---: |
@@ -360,7 +357,7 @@ Unit tests обязаны доказать:
 | DELETE | review 1 | 1 |
 | **Total** |  | **10** |
 
-После CRUD и caught-up:
+After CRUD and caught-up:
 
 | Entity | Applied changes total | Visible current | Physical current | Deleted current |
 | --- | ---: | ---: | ---: | ---: |
@@ -374,16 +371,16 @@ Unit tests обязаны доказать:
 | `product_category_translation` | 5 | 5 | 5 | 0 |
 | **Total** | **89** | **85** | **86** | **1** |
 
-Ожидаемый operation breakdown: `r=79`, `c=7`, `u=2`, `d=1`.
+Expected operation breakdown: `r=79`, `c=7`, `u=2`, `d=1`.
 
 Delete acceptance:
 
-- changes содержит одну `d` envelope для `wave2_review_001`;
-- current содержит одну latest soft-delete version;
-- stable current не возвращает удалённый review;
-- Bronze содержит следующий tombstone того же key;
-- tombstone не создаёт вторую changes/current row;
-- tombstone offset учтён в `silver_progress`.
+- changes contains one `d` envelope for `wave2_review_001`;
+- current contains one latest soft-delete version;
+- stable current does not return the deleted review;
+- Bronze contains the subsequent tombstone for the same key;
+- the tombstone does not create a second changes/current row;
+- the tombstone offset is included in `silver_progress`.
 
 ### 6.3 Exact value assertions
 
@@ -391,179 +388,175 @@ Delete acceptance:
 - `wave2_order_001.order_approved_at = 2018-09-01T10:05:00.123456`;
 - item `(wave2_order_001, 2).price = 19.99`;
 - item `(wave2_order_001, 1).price = 10.00`;
-- две payments имеют values `12.50` и `23.50`;
-- `wave2_review_001` отсутствует в visible current;
-- все прочие initial rows побайтово эквивалентны fixture oracle.
+- two payments have values `12.50` and `23.50`;
+- `wave2_review_001` is absent from visible current;
+- all other initial rows are bytewise equivalent to the fixture oracle.
 
-### 6.4 Неподходящие замены oracle
+### 6.4 Insufficient oracle substitutes
 
-Нельзя принимать как достаточное доказательство:
+The following are not sufficient evidence:
 
-- только `status: ready`;
-- только totals 79/89/85;
-- `SELECT count(*)` без distinct keys и row-level manifest;
-- один общий checksum без сохранённого canonical input;
-- dbt `PASS` без publication boundary checks;
-- наличие tombstone в Kafka без подтверждения progress и отсутствия второй
-  business row;
-- успешный rebuild без запрета чтения source systems и diff manifests.
+- only `status: ready`;
+- only totals 79/89/85;
+- `SELECT count(*)` without distinct keys and a row-level manifest;
+- one aggregate checksum without the saved canonical input;
+- dbt `PASS` without publication-boundary checks;
+- a Kafka tombstone without proof of progress and absence of a second business row;
+- a successful rebuild without prohibiting source-system reads and comparing manifests.
 
 ---
 
-## 7. Подробный порядок выполнения
+## 7. Detailed execution order
 
-### V0 — Entry gate и reconciliation Stage E
+### V0 — Entry gate and Stage E reconciliation
 
-#### Действия
+#### Actions
 
-1. Зафиксировать commit SHA, branch, `git status --porcelain` и versions.
-2. Проверить SHA-256 small fixture, source profile и CRUD fixture.
-3. Выполнить `pre-commit run --all-files`.
-4. Выполнить `uv lock --check`.
-5. Выполнить релевантные Python suites:
+1. Record the commit SHA, branch, `git status --porcelain`, and versions.
+2. Check the SHA-256 values of the small fixture, source profile, and CRUD fixture.
+3. Run `pre-commit run --all-files`.
+4. Run `uv lock --check`.
+5. Run the relevant Python suites:
    `tests/cdc_contracts`, `tests/lakehouse_platform`, `tests/mysql`,
-   `tests/dbt_clickhouse`, `tests/serving` и `tests/stage_v`.
-6. В `streaming/spark/scala` выполнить:
+   `tests/dbt_clickhouse`, `tests/serving`, and `tests/stage_v`.
+6. In `streaming/spark/scala`, run:
    `sbt scalafmtCheckAll scalafmtSbtCheck Test/compile test package`.
-7. Проверить Compose config profiles `platform`, `streaming`, `serving`,
+7. Check Compose config for profiles `platform`, `streaming`, `serving`, and
    `observability`.
-8. Проверить Airflow DAG imports и dbt parse/selector boundaries.
-9. Выполнить code/contract audit пунктов из раздела 3.2.
-10. Выполнить `git diff --check` после всех автоматических hooks.
+8. Check Airflow DAG imports and dbt parse/selector boundaries.
+9. Perform the code/contract audit from section 3.2.
+10. Run `git diff --check` after all automated hooks.
 
 #### Stop/go
 
-- Любой failed check блокирует V2.
-- Auto-fix hook означает, что V0 запускается повторно с самого начала.
-- Production gap из раздела 3.2 даёт `BLOCKED_BY_E_REGRESSION`, даже если
-  lint/tests зелёные.
-- `GO` возможен только при полном машинно-читаемом V0 evidence.
+- Any failed check blocks V2.
+- An auto-fix hook means V0 restarts from the beginning.
+- A production gap from section 3.2 produces `BLOCKED_BY_E_REGRESSION` even if
+  lint/tests are green.
+- `GO` is possible only with complete machine-readable V0 evidence.
 
-### V1 — Готовность validation harness
+### V1 — Validation-harness readiness
 
-#### Действия
+#### Actions
 
-1. Реализовать файлы и adapters из раздела 5.
-2. Разделить CRUD fixture на три транзакционных файла или доказать безопасные
-   statement boundaries существующего файла.
-3. Подготовить canonical queries и expected manifests.
-4. Подготовить nullable schema fixture из V8.
-5. Запустить negative tests harness без поднятия runtime.
-6. Проверить, что `prepare` не создал/не изменил Docker resources.
-7. Заморозить implementation commit для acceptance run.
+1. Implement the files and adapters from section 5.
+2. Split the CRUD fixture into three transaction files or prove safe statement
+   boundaries in the existing file.
+3. Prepare canonical queries and expected manifests.
+4. Prepare the nullable schema fixture from V8.
+5. Run negative harness tests without starting the runtime.
+6. Verify that `prepare` did not create/change Docker resources.
+7. Freeze the implementation commit for the acceptance run.
 
 #### Stop/go
 
-- Harness не может объявить gate `PASS` без обязательного evidence-файла.
-- SQL/path/service allowlists и redaction tests обязательны.
-- После изменения harness снова выполняется V0.
+- The harness cannot declare a gate `PASS` without the required evidence file.
+- SQL/path/service allowlists and redaction tests are mandatory.
+- Run V0 again after changing the harness.
 
-### V2 — Чистый домен и seed (исходный шаг 1)
+### V2 — Clean domain and seed (original step 1)
 
-#### Действия
+#### Actions
 
-1. Проверить exact `COMPOSE_PROJECT_NAME=olist_stage_v`.
-2. Сохранить pre-reset Compose inventory; чужие projects не трогать.
-3. Выполнить `local_lab.py reset --yes`.
-4. Доказать отсутствие volumes/containers текущего project.
-5. Выполнить bootstrap с:
+1. Check exact `COMPOSE_PROJECT_NAME=olist_stage_v`.
+2. Save the pre-reset Compose inventory; do not touch other projects.
+3. Run `local_lab.py reset --yes`.
+4. Prove that no volumes/containers remain for the current project.
+5. Run bootstrap with:
    `--run-id <stage-v-id>_seed --random-seed 20260801`.
-6. Сохранить JSON bootstrap и MySQL row-level manifest.
-7. Проверить, что после bootstrap serving/streaming profiles не были запущены
-   преждевременно, если этого требует lifecycle contract.
+6. Save the bootstrap JSON and MySQL row-level manifest.
+7. Verify that serving/streaming profiles were not started prematurely after
+   bootstrap when required by the lifecycle contract.
 
 #### Assertions
 
-- Seed counts равны source profile: 79 business + 6 geolocation.
-- Debezium connector создан только после seed.
-- Нет ошибок bootstrap, schema capture и contract generation.
-- В evidence/logs отсутствуют secrets.
+- Seed counts match the source profile: 79 business + 6 geolocation.
+- The Debezium connector is created only after seed.
+- There are no bootstrap, schema-capture, or contract-generation errors.
+- Evidence/logs contain no secrets.
 
-### V3 — Initial snapshot и Silver baseline (исходные шаги 2-4)
+### V3 — Initial snapshot and Silver baseline (original steps 2–4)
 
-#### Действия
+#### Actions
 
-1. Запустить `start-streaming`.
-2. Зафиксировать container IDs, start timestamps, checkpoint inventory и Kafka
+1. Run `start-streaming`.
+2. Record container IDs, start timestamps, checkpoint inventory, and Kafka
    beginning/end offsets.
-3. Выполнить `wait-caught-up --timeout 1200`.
-4. Дождаться двух последовательных READY observations с неизменными source end
-   offsets и Silver progress.
-5. Снять MySQL, Bronze, Silver changes/current, audit и reference manifests.
-6. Выполнить initial row-level diff.
+3. Run `wait-caught-up --timeout 1200`.
+4. Wait for two consecutive READY observations with unchanged source end offsets
+   and Silver progress.
+5. Capture MySQL, Bronze, Silver changes/current, audit, and reference manifests.
+6. Perform the initial row-level diff.
 
 #### Assertions
 
-- Таблица из раздела 6.1 совпадает полностью.
-- Восемь entity queries и служебные Silver queries находятся в READY.
-- Snapshot завершён для всех entity; частичный snapshot не принимается.
-- `event_id` duplicate/collision count равен нулю.
-- `normalization_errors` и `schema_violations` пусты.
-- Geolocation содержит ровно 6 правильных строк и не смешана с CDC entities.
+- The table in section 6.1 matches completely.
+- The eight entity queries and service Silver queries are READY.
+- Snapshot is complete for every entity; a partial snapshot is not accepted.
+- `event_id` duplicate/collision count is zero.
+- `normalization_errors` and `schema_violations` are empty.
+- Geolocation contains exactly six correct rows and is not mixed with CDC entities.
 
-### V4 — Транзакционный CRUD, tombstone и контролируемый restart (шаги 5-8)
+### V4 — Transactional CRUD, tombstone, and controlled restart (steps 5–8)
 
-#### Действия
+#### Actions
 
-1. Сохранить baseline Kafka offsets, Iceberg snapshot IDs и checkpoint hashes.
-2. Остановить `spark-bronze` и `spark-silver` одной scoped Compose-командой,
-   не удаляя containers или volumes.
-3. Убедиться, что Kafka Connect остаётся RUNNING.
-4. Выполнить INSERT fixture одной MySQL transaction и зафиксировать commit ID.
-5. Выполнить UPDATE fixture одной transaction.
-6. Выполнить DELETE fixture одной transaction.
-7. Подтвердить рост Kafka end offsets и наличие backlog, пока Spark остановлен.
-8. Запустить Bronze и Silver одной Compose-командой; это restart barrier.
-9. Зафиксировать новые container IDs/start timestamps и прежний checkpoint
-   inventory.
-10. Не выполнять повторно SQL fixtures в этом run.
-
-#### Assertions
-
-- MySQL commits: ровно три, без autocommit между statements fixture.
-- Business event counts по транзакциям: 7, 2 и 1.
-- Delete connector config сохраняет `tombstones.on.delete=true`.
-- Оба Spark service действительно прошли stop/start.
-- Kafka, MySQL, Polaris, MinIO и checkpoints не перезапускались/не очищались.
-- Backlog существовал до restart, поэтому drill проверяет recovery, а не только
-  process liveness.
-
-### V5 — Catch-up, replay safety и CRUD oracle (исходный шаг 9)
-
-#### Действия
-
-1. Выполнить `wait-caught-up --timeout 1200`.
-2. Дождаться двух стабильных READY observations.
-3. Снять manifests и transaction/progress reports.
-4. Сравнить с разделами 6.2-6.3.
-5. Выполнить второй read-only caught-up observation без новых source writes.
-6. Сравнить Iceberg snapshots/row counts между двумя observations.
+1. Save baseline Kafka offsets, Iceberg snapshot IDs, and checkpoint hashes.
+2. Stop `spark-bronze` and `spark-silver` with one scoped Compose command,
+   without removing containers or volumes.
+3. Verify that Kafka Connect remains RUNNING.
+4. Run the INSERT fixture in one MySQL transaction and record the commit ID.
+5. Run the UPDATE fixture in one transaction.
+6. Run the DELETE fixture in one transaction.
+7. Confirm Kafka end offsets increase and backlog exists while Spark is stopped.
+8. Start Bronze and Silver with one Compose command; this is the restart barrier.
+9. Record new container IDs/start timestamps and the previous checkpoint inventory.
+10. Do not rerun SQL fixtures in this run.
 
 #### Assertions
 
-- Три транзакции имеют `COMPLETE`; `OPEN`/`REJECTED` отсутствуют.
+- MySQL commits: exactly three, with no autocommit between fixture statements.
+- Business event counts by transaction: 7, 2, and 1.
+- Delete connector config retains `tombstones.on.delete=true`.
+- Both Spark services actually completed stop/start.
+- Kafka, MySQL, Polaris, MinIO, and checkpoints were not restarted/cleared.
+- Backlog existed before restart, so the drill checks recovery, not only process liveness.
+
+### V5 — Catch-up, replay safety, and CRUD oracle (original step 9)
+
+#### Actions
+
+1. Run `wait-caught-up --timeout 1200`.
+2. Wait for two stable READY observations.
+3. Capture manifests and transaction/progress reports.
+4. Compare with sections 6.2–6.3.
+5. Perform a second read-only caught-up observation without new source writes.
+6. Compare Iceberg snapshots/row counts between the two observations.
+
+#### Assertions
+
+- The three transactions are `COMPLETE`; `OPEN`/`REJECTED` are absent.
 - `changes=89`, distinct `event_id=89`, duplicate count `0`.
 - Visible/physical/deleted current totals: `85/86/1`.
-- Один tombstone учтён только в Bronze/progress.
-- Exact values из 6.3 совпадают.
-- Повторная обработка checkpoint не добавляет changes rows и не изменяет
-  applied business state.
-- Ни один query не находится в `FATAL`.
+- One tombstone is counted only in Bronze/progress.
+- Exact values from 6.3 match.
+- Reprocessing the checkpoint adds no changes rows and does not change applied business state.
+- No query is in `FATAL`.
 
-### V6 — Transaction-complete serving sync (исходный шаг 10)
+### V6 — Transaction-complete serving sync (original step 10)
 
-#### Действия
+#### Actions
 
-1. Сохранить pre-sync public-view manifests и control state.
-2. Запустить
+1. Save pre-sync public-view manifests and control state.
+2. Run
    `sync-serving --run-id <stage-v-id>_crud_publish --timeout 1800`.
-3. Получить authoritative result через serving report API/helper.
-4. Снять PostgreSQL run/entity results/runtime cursor.
-5. Снять ClickHouse marker/candidate partitions.
-6. Снять Iceberg serving report.
-7. Построить cross-system publication tuple.
+3. Obtain the authoritative result through the serving report API/helper.
+4. Capture PostgreSQL run/entity results/runtime cursor.
+5. Capture the ClickHouse marker/candidate partitions.
+6. Capture the Iceberg serving report.
+7. Build the cross-system publication tuple.
 
-#### Обязательный publication tuple
+#### Required publication tuple
 
 ```text
 (sync_run_seq,
@@ -580,63 +573,63 @@ Delete acceptance:
 
 #### Assertions
 
-- Sync terminal status — `SUCCEEDED`, не silent skip.
-- Target boundary заканчивается DELETE transaction и не включает OPEN data.
-- `expected_event_count = materialized_event_count = 89` для полного initial +
+- Sync terminal status is `SUCCEEDED`, not a silent skip.
+- The target boundary ends with the DELETE transaction and does not include OPEN data.
+- `expected_event_count = materialized_event_count = 89` for the complete initial +
   CRUD event ledger.
-- Per-entity counts совпадают с applied changes в разделе 6.2.
-- Tuple идентичен в PostgreSQL, ClickHouse marker и Iceberg report.
-- Один published seq видим целиком; нет частичной публикации entity.
-- Unpublished/stale candidate partitions отсутствуют.
-- Первый publish корректно активировал только предусмотренные schedules.
+- Per-entity counts match the applied changes in section 6.2.
+- The tuple is identical in PostgreSQL, the ClickHouse marker, and the Iceberg report.
+- One published seq is visible as a whole; no entity is partially published.
+- No unpublished/stale candidate partitions exist.
+- The first publication activated only the intended schedules.
 
-Если production contract считает initial snapshot отдельно от event ledger,
-agent не меняет ожидаемое число произвольно: он фиксирует формулу контракта,
-сверяет её с frozen boundary и сохраняет полный список selected `event_id`.
-Отсутствие такой однозначной формулы — `BLOCKED_BY_E_CONTRACT_GAP`.
+If the production contract counts the initial snapshot separately from the event
+ledger, the agent must not change the expected number arbitrarily: record the
+contract formula, compare it with the frozen boundary, and preserve the complete
+list of selected `event_id` values. The absence of such an unambiguous formula is
+`BLOCKED_BY_E_CONTRACT_GAP`.
 
-### V7 — dbt build и стабильные ClickHouse interfaces (шаги 11-12)
+### V7 — dbt build and stable ClickHouse interfaces (steps 11–12)
 
-#### Действия
+#### Actions
 
-1. Из Airflow evidence получить точную команду dbt, vars и selector,
-   выполненные внутри sync.
-2. Подтвердить, что это `dbt build` candidate graph, а не только `dbt run`.
-3. Сохранить totals `PASS/WARN/ERROR/SKIP` и список nodes/tests.
-4. Выполнить row-level diff Silver current -> ClickHouse stable current.
-5. Проверить `FINAL` на version tables и public stable views без `FINAL`.
-6. Проверить восемь `gold.*` interfaces и dbt business tests.
-7. Проверить отсутствие rows другого/unpublished `sync_run_seq` в public views.
+1. From Airflow evidence, obtain the exact dbt command, vars, and selector run within sync.
+2. Confirm that it is a `dbt build` candidate graph, not only `dbt run`.
+3. Save `PASS/WARN/ERROR/SKIP` totals and the node/test list.
+4. Perform a row-level diff from Silver current to ClickHouse stable current.
+5. Check `FINAL` on version tables and public stable views without `FINAL`.
+6. Check the eight `gold.*` interfaces and dbt business tests.
+7. Check that public views contain no rows from another/unpublished `sync_run_seq`.
 
 #### Assertions
 
-- dbt `ERROR=0`, `SKIP=0`; warnings допускаются только из заранее
-  зафиксированного allowlist, по умолчанию `WARN=0`.
-- Все eight Gold models и их tests выполнены с положительным published seq и
-  непустым run ID.
-- `serving_cdc.*_current` совпадает с Silver visible current: 85 строк и exact
+- dbt `ERROR=0`, `SKIP=0`; warnings are allowed only from a pre-recorded
+  allowlist, with `WARN=0` by default.
+- All eight Gold models and their tests run with a positive published seq and
+  non-empty run ID.
+- `serving_cdc.*_current` matches Silver visible current: 85 rows and exact
   key/value parity.
-- `fact_order_items` имеет grain `(order_id, order_item_id)` без duplicates и
-  содержит 18 visible items.
-- SCD2 windows не пересекаются, ровно одна current version на business key.
-- Payment allocations balanced; daily/monthly mart formulas проходят tests.
-- Query stable view несколько раз до/после `OPTIMIZE ... FINAL` возвращает один
-  логический результат.
+- `fact_order_items` has grain `(order_id, order_item_id)` without duplicates and
+  contains 18 visible items.
+- SCD2 windows do not overlap; exactly one current version exists per business key.
+- Payment allocations are balanced; daily/monthly mart formulas pass tests.
+- Repeated queries of the stable view before/after `OPTIMIZE ... FINAL` return one
+  logical result.
 
-### V8 — Additive nullable schema evolution (исходный шаг 13)
+### V8 — Additive nullable schema evolution (original step 13)
 
-#### Тестовое изменение
+#### Test change
 
-Использовать одну validation-only source column в `customers`:
+Use one validation-only source column in `customers`:
 
 ```sql
 ALTER TABLE olist_oltp.customers
 ADD COLUMN stage_v_optional_note VARCHAR(64) NULL DEFAULT NULL;
 ```
 
-Затем обновить существующую строку, изменив одну реальную business column, но
-оставив новую колонку `NULL`, чтобы Debezium гарантированно выпустил data event с
-новой writer schema:
+Then update an existing row by changing one real business column while leaving
+the new column `NULL`, so Debezium definitely emits a data event with the new
+writer schema:
 
 ```sql
 UPDATE olist_oltp.customers
@@ -645,160 +638,157 @@ SET customer_city = 'sao paulo stage v',
 WHERE customer_id = 'wave2_customer_001';
 ```
 
-Колонка проверяет source/writer compatibility и не становится новым публичным
-полем Gold. Если действующий контракт требует явной версии reader contract и
-allowlisted writer fingerprint, такая версия должна быть подготовлена и пройти
-review до clean acceptance run. Нельзя динамически разрешать неизвестный
-fingerprint во время прогона.
+The column checks source/writer compatibility and does not become a new public
+Gold field. If the active contract requires an explicit reader-contract version
+and allowlisted writer fingerprint, prepare that version and review it before the
+clean acceptance run. Do not dynamically allow an unknown fingerprint during the run.
 
-#### Действия
+#### Actions
 
-1. До V2 проверить migration fixture, nullable/default contract и expected
+1. Before V2, check the migration fixture, nullable/default contract, and expected
    schema fingerprint transition.
-2. На V8 применить только allowlisted `ALTER`.
-3. Дождаться регистрации/архивации новой writer schema.
-4. Выполнить одну allowlisted UPDATE transaction.
-5. Дождаться caught-up и снять schema/changes/current/audit evidence.
-6. Выполнить второй serving sync с run ID `<stage-v-id>_schema_publish`.
-7. Повторить dbt/stable-view checks для нового published seq.
+2. At V8, apply only the allowlisted `ALTER`.
+3. Wait for registration/archiving of the new writer schema.
+4. Run one allowlisted UPDATE transaction.
+5. Wait for caught-up and capture schema/changes/current/audit evidence.
+6. Run a second serving sync with run ID `<stage-v-id>_schema_publish`.
+7. Repeat dbt/stable-view checks for the new published seq.
 
 #### Assertions
 
-- Registry принимает новую schema при `BACKWARD_TRANSITIVE`.
-- Новый writer schema ID/fingerprint архивирован и однозначно связан с
+ - Registry accepts the new schema under `BACKWARD_TRANSITIVE`.
+- The new writer schema ID/fingerprint is archived and unambiguously linked to
   `customers`.
-- Новая колонка nullable с default `null`; existing fields/PK не изменились.
-- Событие применено, `stage_v_optional_note` декодировано как `null` либо
-  безопасно проигнорировано reader contract согласно заранее принятому решению.
-- `normalization_errors=0`, `schema_violations=0`, query не переходит в `FATAL`.
-- Customers changes увеличивается с 9 до 10; общий applied changes с 89 до 90.
-- Current row counts не меняются; city новой latest version равен
+- The new column is nullable with default `null`; existing fields/PK are unchanged.
+- The event is applied, and `stage_v_optional_note` is decoded as `null` or safely
+  ignored by the reader contract according to the pre-approved decision.
+- `normalization_errors=0`, `schema_violations=0`, and the query does not enter `FATAL`.
+- Customers changes increase from 9 to 10; total applied changes increase from 89 to 90.
+- Current row counts do not change; the city in the newest version equals
   `sao paulo stage v`.
-- Второй serving candidate содержит ровно одно новое business event; суммарный
-  опубликованный event ledger содержит 90 distinct `event_id` и все стабильные
-  views переключаются одним marker.
-- Старые 79 snapshot events, CRUD events и rows с предыдущей writer schema
-  остаются читаемыми.
+- The second serving candidate contains exactly one new business event; the
+  published event ledger contains 90 distinct `event_id` values and all stable
+  views switch under one marker.
+- The old 79 snapshot events, CRUD events, and rows with the previous writer
+  schema remain readable.
 
-Если nullable change требует production repair, текущий run завершается
-`FAIL_SCHEMA_EVOLUTION`. Fix и contract version выполняются отдельно, затем
-повторяется полный V2-V10 с чистого домена.
+If the nullable change requires a production repair, the current run ends
+`FAIL_SCHEMA_EVOLUTION`. Apply the fix and contract version separately, then
+repeat full V2–V10 from a clean domain.
 
-### V9 — Guarded ClickHouse rebuild только из Iceberg (исходный шаг 14)
+### V9 — Guarded ClickHouse rebuild from Iceberg only (original step 14)
 
-#### Действия
+#### Actions
 
-1. Остановить scheduled serving/quality triggers или получить operation lease,
-   не останавливая Bronze/Silver.
-2. Снять final pre-rebuild manifests всех stable current и Gold interfaces,
-   marker/cursor/report и их SHA-256.
-3. Зафиксировать MySQL counts, Kafka offsets, Iceberg snapshot IDs и checkpoint
-   inventory.
-4. На время rebuild технически запретить Airflow task доступ к MySQL/Kafka, если
-   это можно сделать scoped network/credential guard без изменения source data.
-   Минимум — доказать по DAG graph, process/network logs и credentials, что
-   rebuild использовал только Iceberg/Polaris/MinIO и control metadata.
-5. Выполнить
+1. Stop scheduled serving/quality triggers or obtain an operation lease without
+   stopping Bronze/Silver.
+2. Capture final pre-rebuild manifests for all stable current and Gold interfaces,
+   marker/cursor/report, and their SHA-256 values.
+3. Record MySQL counts, Kafka offsets, Iceberg snapshot IDs, and checkpoint inventory.
+4. During rebuild, technically deny Airflow tasks access to MySQL/Kafka when this
+   can be done with a scoped network/credential guard without changing source data.
+   At minimum, prove from the DAG graph, process/network logs, and credentials that
+   rebuild used only Iceberg/Polaris/MinIO and control metadata.
+5. Run
    `rebuild-serving --yes --run-id <stage-v-id>_rebuild --timeout 5400`.
-6. Снять post-rebuild manifests и publication metadata.
-7. Выполнить exact pre/post row-level diff.
-8. Выполнить `status --require serving` и `validate --scope serving`.
+6. Capture post-rebuild manifests and publication metadata.
+7. Perform the exact pre/post row-level diff.
+8. Run `status --require serving` and `validate --scope serving`.
 
 #### Assertions
 
-- Rebuild отказался бы запускаться без `--yes`/`confirm_destructive=true`.
-- Изменялись только derived ClickHouse databases/partitions.
-- MySQL counts, Kafka offsets, Iceberg snapshot IDs и Spark checkpoint inventory
-  не изменились из-за rebuild.
-- Pre/post manifests stable current и Gold совпадают по keys и values.
-- После rebuild: 90 distinct event rows, 85 visible current, 86 physical current,
-  один deleted key.
-- Marker/cursor/report остаются согласованы; нет dangling candidate partitions.
-- dbt tests, serving status и serving validation зелёные.
-- Bronze/Silver продолжали работу и не были перезапущены Airflow.
+- Rebuild would refuse to start without `--yes`/`confirm_destructive=true`.
+- Only derived ClickHouse databases/partitions changed.
+- MySQL counts, Kafka offsets, Iceberg snapshot IDs, and Spark checkpoint inventory
+  did not change because of rebuild.
+- Pre/post stable-current and Gold manifests match by keys and values.
+- After rebuild: 90 distinct event rows, 85 visible current, 86 physical current,
+  and one deleted key.
+- Marker/cursor/report remain consistent; no dangling candidate partitions exist.
+- dbt tests, serving status, and serving validation are green.
+- Bronze/Silver continued running and were not restarted by Airflow.
 
-### V10 — Финальная приёмка и report
+### V10 — Final acceptance and report
 
-#### Действия
+#### Actions
 
-1. Повторить read-only probes всех слоёв.
-2. Проверить отсутствие OPEN/REJECTED/stale candidate/active lease.
-3. Выполнить final static smoke: `git diff --check`, contract checks и redaction
-   scan evidence/logs.
-4. Построить `checksums.json` и `summary.json`.
-5. Проверить, что все V0-V10 принадлежат одному run ID, commit и Compose project.
-6. Создать `docs/reports/mysql-spark-iceberg-stage-v-validation.md`.
-7. Не изменять `serving-cutover.md` и не начинать Stage L в этом же изменении.
+1. Repeat read-only probes for all layers.
+2. Check that no OPEN/REJECTED/stale candidate/active lease exists.
+3. Run the final static smoke: `git diff --check`, contract checks, and a redaction
+   scan of evidence/logs.
+4. Build `checksums.json` and `summary.json`.
+5. Verify that all V0–V10 belong to one run ID, commit, and Compose project.
+6. Create `docs/reports/mysql-spark-iceberg-stage-v-validation.md`.
+7. Do not change `serving-cutover.md` or begin Stage L in the same change.
 
-#### Итоговый verdict
+#### Final verdict
 
-`PASS` разрешён только если:
+`PASS` is allowed only if:
 
-- все gates имеют `PASS`;
-- нет missing evidence и redaction violations;
-- ни один assertion не был downgraded/waived;
-- run прошёл V2-V10 без production fix и нового bootstrap;
-- отчёт содержит evidence hashes и точный execution commit;
-- tracked worktree после report содержит только ожидаемый Markdown report.
+- all gates have `PASS`;
+- there is no missing evidence or redaction violation;
+- no assertion was downgraded/waived;
+- the run passed V2–V10 without a production fix or new bootstrap;
+- the report contains evidence hashes and the exact execution commit;
+- after the report, the tracked worktree contains only the expected Markdown report.
 
 ---
 
-## 8. Failure classification и действия агента
+## 8. Failure classification and agent actions
 
-| Code | Пример | Действие |
+| Code | Example | Action |
 | --- | --- | --- |
-| `BLOCKED_BY_E_REGRESSION` | serving CLI/DAG не реализует Stage E contract | Сохранить evidence, остановить V, исправлять как Stage E defect. |
-| `BLOCKED_ENVIRONMENT` | Docker/WSL resource failure до data mutation | Сохранить diagnostics; после ремонта среды начать новый clean run. |
-| `BLOCKED_UNKNOWN_STATE` | timeout mutating operation без authoritative terminal state | Не повторять на тех же volumes; исследовать read-only. |
-| `FAIL_DATA_LOSS` | missing key/event или offset gap | Остановить run; никакого serving publish/rebuild. |
-| `FAIL_DUPLICATE` | duplicate/colliding `event_id` | Остановить run; сохранить конфликтующие metadata без payload secrets. |
-| `FAIL_TRANSACTION_BOUNDARY` | OPEN/partial transaction опубликована | Остановить run; Stage L запрещена. |
-| `FAIL_RESTART_RECOVERY` | checkpoint reset или replay изменил state | Остановить run; сохранить before/after checkpoint evidence. |
-| `FAIL_SERVING_ATOMICITY` | marker/cursor/report расходятся | Остановить publish/rebuild; следовать recovery contract. |
-| `FAIL_DBT_QUALITY` | dbt error, skip или business-test failure | Сохранить target artifacts/logs; Stage L запрещена. |
-| `FAIL_SCHEMA_EVOLUTION` | compatible nullable schema остановила entity | Исправить contract/runtime отдельно и повторить весь run. |
-| `FAIL_REBUILD_PARITY` | post-rebuild manifest отличается | Не восстанавливать вручную из MySQL/Kafka; расследовать Iceberg/rebuild. |
-| `FAIL_EVIDENCE` | отсутствует обязательный raw/canonical artifact | Результат не может быть `PASS`, даже если runtime выглядит исправным. |
+| `BLOCKED_BY_E_REGRESSION` | serving CLI/DAG does not implement the Stage E contract | Preserve evidence, stop V, and fix as a Stage E defect. |
+| `BLOCKED_ENVIRONMENT` | Docker/WSL resource failure before data mutation | Preserve diagnostics; after repairing the environment, start a new clean run. |
+| `BLOCKED_UNKNOWN_STATE` | mutating-operation timeout without authoritative terminal state | Do not retry on the same volumes; investigate read-only. |
+| `FAIL_DATA_LOSS` | missing key/event or offset gap | Stop the run; no serving publish/rebuild. |
+| `FAIL_DUPLICATE` | duplicate/colliding `event_id` | Stop the run; preserve conflicting metadata without payload secrets. |
+| `FAIL_TRANSACTION_BOUNDARY` | OPEN/partial transaction was published | Stop the run; Stage L is forbidden. |
+| `FAIL_RESTART_RECOVERY` | checkpoint reset or replay changed state | Stop the run; preserve before/after checkpoint evidence. |
+| `FAIL_SERVING_ATOMICITY` | marker/cursor/report diverge | Stop publish/rebuild; follow the recovery contract. |
+| `FAIL_DBT_QUALITY` | dbt error, skip, or business-test failure | Preserve target artifacts/logs; Stage L is forbidden. |
+| `FAIL_SCHEMA_EVOLUTION` | compatible nullable schema stopped an entity | Fix the contract/runtime separately and repeat the full run. |
+| `FAIL_REBUILD_PARITY` | post-rebuild manifest differs | Do not restore manually from MySQL/Kafka; investigate Iceberg/rebuild. |
+| `FAIL_EVIDENCE` | required raw/canonical artifact is missing | The result cannot be `PASS`, even if the runtime appears healthy. |
 
-Агент обязан сообщить пользователю первый нарушенный gate, diagnostic code,
-ожидаемое и фактическое значение, путь к sanitized evidence и безопасный
-следующий шаг. Не нужно продолжать остальные mutating gates ради накопления
-дополнительных ошибок.
+The agent must tell the user the first violated gate, diagnostic code, expected and
+actual value, path to sanitized evidence, and the safe next step. Do not continue
+the remaining mutating gates merely to accumulate more errors.
 
 ---
 
-## 9. Требования к Stage V validation report
+## 9. Stage V validation report requirements
 
-Отчёт создаётся только из `summary.json` и проверенных raw evidence. Он содержит:
+The report is created only from `summary.json` and verified raw evidence. It contains:
 
-1. verdict `PASS|FAIL|BLOCKED`, дату и execution commit;
-2. dirty-state statement и Compose project;
+1. verdict `PASS|FAIL|BLOCKED`, date, and execution commit;
+2. dirty-state statement and Compose project;
 3. pinned component versions;
 4. fixture/oracle/evidence SHA-256;
 5. V0 static/build/test totals;
 6. clean reset/bootstrap proof;
-7. initial per-entity 79/79/0 и geolocation 6;
-8. CRUD transaction IDs, counts 7/2/1 и tombstone proof;
-9. restart timestamps, container IDs и checkpoint continuity proof;
+7. initial per-entity 79/79/0 and geolocation 6;
+8. CRUD transaction IDs, counts 7/2/1, and tombstone proof;
+9. restart timestamps, container IDs, and checkpoint continuity proof;
 10. post-CRUD 89 changes / 85 visible / 86 physical / 1 deleted;
-11. duplicate/collision counts и row-level parity summary;
-12. publication tuple и equality PG/CH/Iceberg;
+11. duplicate/collision counts and row-level parity summary;
+12. publication tuple and PG/CH/Iceberg equality;
 13. dbt command, vars, selector, node/test totals;
-14. stable current/Gold manifests и business assertions;
-15. nullable schema old/new IDs/fingerprints, event proof и 90-event total;
-16. rebuild isolation proof и exact pre/post manifest hashes;
-17. final `status --require serving` и `validate --scope serving` JSON;
-18. redaction result, known limitations и unresolved blockers;
-19. явное решение: `Stage L is authorized` только при `PASS`.
+14. stable current/Gold manifests and business assertions;
+15. nullable schema old/new IDs/fingerprints, event proof, and 90-event total;
+16. rebuild isolation proof and exact pre/post manifest hashes;
+17. final `status --require serving` and `validate --scope serving` JSON;
+18. redaction result, known limitations, and unresolved blockers;
+19. explicit decision: `Stage L is authorized` only with `PASS`.
 
-Скриншоты UI сами по себе не являются evidence; допустимы как дополнение к API,
-JSON, SQL results и logs.
+UI screenshots are not evidence by themselves; they are allowed only as a supplement
+to API, JSON, SQL results, and logs.
 
 ---
 
-## 10. Матрица трассировки исходных 14 шагов
+## 10. Traceability matrix for the original 14 steps
 
-| Исходный шаг `serving-cutover.md` | Gate этого плана | Главное доказательство |
+| Original `serving-cutover.md` step | Gate in this plan | Primary evidence |
 | --- | --- | --- |
 | 1. Seed | V2 | Fixture hash, MySQL manifest 79+6 |
 | 2. Debezium initial snapshot | V3 | Snapshot completion, offsets, 79 events |
@@ -819,35 +809,35 @@ JSON, SQL results и logs.
 
 ## 11. Definition of Done
 
-- [x] V0 подтвердил свежий зелёный entry gate Stage E.
-- [x] Validation harness имеет allowlists, redaction и unit tests.
-- [x] Один clean-domain run связан с одним commit и Compose project.
+- [x] V0 confirmed a fresh green Stage E entry gate.
+- [x] The validation harness has allowlists, redaction, and unit tests.
+- [x] One clean-domain run is tied to one commit and Compose project.
 - [x] Initial snapshot: 79 applied/current, 0 rejected, 6 geolocation.
-- [x] CRUD дал ровно 7 create, 2 update и 1 delete events.
-- [x] Tombstone существует, учтён progress и не создал business duplicate.
-- [x] Bronze/Silver перезапущены с сохранением checkpoints.
-- [x] После catch-up: 89 distinct changes, 85 visible current, 1 deleted.
-- [x] MySQL и Silver совпадают построчно по business keys/values.
-- [x] Serving publication tuple идентичен в PG/CH/Iceberg.
-- [x] Candidate опубликован атомарно для всех восьми entities.
-- [x] dbt candidate build и все tests прошли без errors/skips.
-- [x] Stable current и Gold не видят unpublished rows.
-- [x] Nullable schema зарегистрирована, архивирована и обработана без ошибок.
-- [x] После schema event существует 90 distinct applied events.
-- [x] Rebuild использовал Iceberg как единственный data source.
-- [x] Pre/post rebuild manifests совпадают построчно.
-- [x] Final serving status/validate готовы и evidence redaction чист.
-- [x] Validation report создан со статусом `PASS` и evidence hashes.
-- [x] Legacy не удалён, final parity не запускался.
-- [x] Stage L разрешена явно и только после `PASS`.
+- [x] CRUD produced exactly 7 create, 2 update, and 1 delete events.
+- [x] The tombstone exists, is included in progress, and created no business duplicate.
+- [x] Bronze/Silver restarted while preserving checkpoints.
+- [x] After catch-up: 89 distinct changes, 85 visible current, 1 deleted.
+- [x] MySQL and Silver match row by row for business keys/values.
+- [x] The serving publication tuple is identical in PG/CH/Iceberg.
+- [x] The candidate was published atomically for all eight entities.
+- [x] dbt candidate build and all tests passed without errors/skips.
+- [x] Stable current and Gold do not see unpublished rows.
+- [x] Nullable schema was registered, archived, and processed without errors.
+- [x] After the schema event, 90 distinct applied events exist.
+- [x] Rebuild used Iceberg as the only data source.
+- [x] Pre/post rebuild manifests match row by row.
+- [x] Final serving status/validate are ready and evidence redaction is clean.
+- [x] The validation report was created with status `PASS` and evidence hashes.
+- [x] Legacy was not removed; final parity was not run.
+- [x] Stage L is explicitly authorized only after `PASS`.
 
 ---
 
-## 12. Связанные документы
+## 12. Related documents
 
-- [Операционный cutover E -> V -> L -> F](../active/serving-cutover.md)
-- [Детальный план Stage E](stage-e-serving-integration.md)
-- [Отчёт Stage E](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
+- [Operational cutover E -> V -> L -> F](../active/serving-cutover.md)
+- [Detailed Stage E plan](stage-e-serving-integration.md)
+- [Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
 - [Spark Structured Streaming contract](../contracts/spark-streaming.md)
 - [Iceberg data model contract](../contracts/iceberg-data-model.md)
 - [Serving and recovery contract](../contracts/serving-and-recovery.md)

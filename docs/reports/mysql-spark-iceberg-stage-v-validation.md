@@ -1,10 +1,10 @@
 # Stage V Candidate E2E Validation Report
 
 - **Status**: `PASS`
-- **Run ID**: `stage_l1_20260804_v6`
+- **Run ID**: `stage_l4_20260805_f0_restored`
 - **Compose Project**: `olist_stage_v`
-- **Started At**: `2026-08-04T15:37:57.240519+00:00`
-- **Finished At**: `2026-08-04T15:59:35.998139+00:00`
+- **Started At**: `2026-08-04T22:36:45.873168+00:00`
+- **Finished At**: `2026-08-04T23:00:17.644487+00:00`
 
 ---
 
@@ -22,17 +22,17 @@ All mandatory gates passed in a single clean-domain run.
 
 | Gate | Name | Status | Duration (s) |
 | --- | --- | --- | ---: |
-| `00-preflight` | 00-preflight | `PASS` | 51.345 |
+| `00-preflight` | 00-preflight | `PASS` | 144.899 |
 | `01-harness-ready` | 01-harness-ready | `PASS` | 0.0 |
-| `02-clean-bootstrap` | 02-clean-bootstrap | `PASS` | 312.708 |
-| `03-initial-snapshot` | 03-initial-snapshot | `PASS` | 290.904 |
-| `04-crud-and-restart` | 04-crud-and-restart | `PASS` | 166.325 |
-| `05-caught-up` | 05-caught-up | `PASS` | 88.157 |
-| `06-serving-sync` | 06-serving-sync | `PASS` | 241.568 |
-| `07-dbt-and-stable-views` | 07-dbt-and-stable-views | `PASS` | 5.679 |
-| `08-additive-schema` | 08-additive-schema | `PASS` | 68.2 |
-| `09-rebuild` | 09-rebuild | `PASS` | 33.146 |
-| `10-final` | 10-final | `PASS` | 6.083 |
+| `02-clean-bootstrap` | 02-clean-bootstrap | `PASS` | 296.637 |
+| `03-initial-snapshot` | 03-initial-snapshot | `PASS` | 266.449 |
+| `04-crud-and-restart` | 04-crud-and-restart | `PASS` | 150.528 |
+| `05-caught-up` | 05-caught-up | `PASS` | 99.843 |
+| `06-serving-sync` | 06-serving-sync | `PASS` | 310.47 |
+| `07-dbt-and-stable-views` | 07-dbt-and-stable-views | `PASS` | 5.388 |
+| `08-additive-schema` | 08-additive-schema | `PASS` | 69.002 |
+| `09-rebuild` | 09-rebuild | `PASS` | 28.221 |
+| `10-final` | 10-final | `PASS` | 5.78 |
 
 ---
 
@@ -83,47 +83,313 @@ reconstructed from static claims.
           "detail": {
             "captured_after_pre_commit": true,
             "changed_paths": [
+              ".dockerignore",
               ".env.example",
-              "airflow/dags/olist_lakehouse_serving.py",
-              "compose.yaml",
+              ".github/workflows/ci.yml",
+              ".gitignore",
+              ".sqlfluff",
+              ".sqlfluffignore",
+              "README.md",
+              "airflow/dags/olist_cdc_dbt_local.py",
+              "airflow/dags/olist_cdc_local.py",
+              "airflow/dags/olist_modern_data_stack_aws.py",
+              "airflow/dags/olist_modern_data_stack_local.py",
+              "dbt/olist_analytics/analyses/batch_reconciliation.sql",
+              "dbt/olist_analytics/analyses/batch_runs.sql",
+              "dbt/olist_analytics/analyses/daily_revenue_by_seller_state.sql",
+              "dbt/olist_analytics/analyses/dead_letter_events.sql",
+              "dbt/olist_analytics/analyses/dead_letter_replays.sql",
+              "dbt/olist_analytics/analyses/monthly_category_arpu.sql",
+              "dbt/olist_analytics/dbt_project.yml",
+              "dbt/olist_analytics/macros/business_calculations.sql",
+              "dbt/olist_analytics/macros/clickhouse_incremental_partition_replacement.sql",
+              "dbt/olist_analytics/macros/elementary_materialization.sql",
+              "dbt/olist_analytics/macros/generate_schema_name.sql",
+              "dbt/olist_analytics/macros/incremental_fact_maintenance.sql",
+              "dbt/olist_analytics/macros/realtime_cdc.sql",
+              "dbt/olist_analytics/macros/rounding.sql",
+              "dbt/olist_analytics/macros/warehouse_compat.sql",
+              "dbt/olist_analytics/models/_groups.yml",
+              "dbt/olist_analytics/models/core/dim_customer_scd2.sql",
+              "dbt/olist_analytics/models/core/dim_date.sql",
+              "dbt/olist_analytics/models/core/dim_order_status.sql",
+              "dbt/olist_analytics/models/core/dim_product_scd2.sql",
+              "dbt/olist_analytics/models/core/dim_seller.sql",
+              "dbt/olist_analytics/models/core/fact_order_items.sql",
+              "dbt/olist_analytics/models/core/schema.yml",
+              "dbt/olist_analytics/models/intermediate/int_customer_current_attributes.sql",
+              "dbt/olist_analytics/models/intermediate/int_order_payment_allocations.sql",
+              "dbt/olist_analytics/models/intermediate/int_product_current_attributes.sql",
+              "dbt/olist_analytics/models/intermediate/schema.yml",
+              "dbt/olist_analytics/models/marts/mart_daily_revenue.sql",
+              "dbt/olist_analytics/models/marts/mart_monthly_arpu.sql",
+              "dbt/olist_analytics/models/marts/schema.yml",
+              "dbt/olist_analytics/models/parity/realtime_parity_checksums.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_daily_revenue_batch.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_daily_revenue_realtime.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_grain_diffs.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_monthly_arpu_batch.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_monthly_arpu_realtime.sql",
+              "dbt/olist_analytics/models/parity/realtime_parity_report.sql",
+              "dbt/olist_analytics/models/parity/schema.yml",
+              "dbt/olist_analytics/models/realtime/core/_realtime_core__models.yml",
+              "dbt/olist_analytics/models/realtime/core/dim_customer_realtime_scd2.sql",
+              "dbt/olist_analytics/models/realtime/core/dim_date_realtime.sql",
+              "dbt/olist_analytics/models/realtime/core/dim_order_status_realtime.sql",
+              "dbt/olist_analytics/models/realtime/core/dim_product_realtime_scd2.sql",
+              "dbt/olist_analytics/models/realtime/core/dim_seller_realtime.sql",
+              "dbt/olist_analytics/models/realtime/core/fact_order_items_realtime.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__customers.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__order_items.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__order_payments.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__order_reviews.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__orders.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__product_category_translation.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__products.sql",
+              "dbt/olist_analytics/models/realtime/core/hist_cdc__sellers.sql",
+              "dbt/olist_analytics/models/realtime/core/int_realtime_order_payment_allocations.sql",
+              "dbt/olist_analytics/models/realtime/marts/_realtime_marts__models.yml",
+              "dbt/olist_analytics/models/realtime/marts/mart_daily_revenue_realtime.sql",
+              "dbt/olist_analytics/models/realtime/marts/mart_monthly_arpu_realtime.sql",
+              "dbt/olist_analytics/models/realtime/staging/_realtime__models.yml",
+              "dbt/olist_analytics/models/realtime/staging/_realtime__sources.yml",
+              "dbt/olist_analytics/models/realtime/staging/int_cdc__changed_order_ids.sql",
+              "dbt/olist_analytics/models/realtime/staging/int_cdc__changed_periods.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__customers_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__customers_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_items_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_items_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_payments_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_payments_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_reviews_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__order_reviews_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__orders_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__orders_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__product_category_translation_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__product_category_translation_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__products_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__products_events.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__sellers_current.sql",
+              "dbt/olist_analytics/models/realtime/staging/stg_cdc__sellers_events.sql",
+              "dbt/olist_analytics/models/staging/audit/_audit__sources.yml",
+              "dbt/olist_analytics/models/staging/olist/_olist__models.yml",
+              "dbt/olist_analytics/models/staging/olist/_olist__sources.yml",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__customer_profile_changes.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__customers.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__geolocation.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__order_items.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__order_payments.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__order_reviews.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__orders.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__product_attribute_changes.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__product_category_translation.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__products.sql",
+              "dbt/olist_analytics/models/staging/olist/stg_olist__sellers.sql",
+              "dbt/olist_analytics/models/unit_tests_phase0.yml",
+              "dbt/olist_analytics/package-lock.yml",
+              "dbt/olist_analytics/packages.yml",
+              "dbt/olist_analytics/profiles.yml.example",
+              "dbt/olist_analytics/seeds/.gitkeep",
+              "dbt/olist_analytics/selectors.yml",
+              "dbt/olist_analytics/snapshots/snap_customers.sql",
+              "dbt/olist_analytics/snapshots/snap_products.sql",
+              "dbt/olist_analytics/tests/assert_batch_reconciliation_passed.sql",
+              "dbt/olist_analytics/tests/assert_customer_scd2_windows_are_positive.sql",
+              "dbt/olist_analytics/tests/assert_daily_revenue_components_match.sql",
+              "dbt/olist_analytics/tests/assert_fact_order_items_matches_staging_grain.sql",
+              "dbt/olist_analytics/tests/assert_monthly_arpu_calculation.sql",
+              "dbt/olist_analytics/tests/assert_no_overlapping_customer_scd2_windows.sql",
+              "dbt/olist_analytics/tests/assert_no_overlapping_product_scd2_windows.sql",
+              "dbt/olist_analytics/tests/assert_one_current_customer_scd2_row.sql",
+              "dbt/olist_analytics/tests/assert_one_current_product_scd2_row.sql",
+              "dbt/olist_analytics/tests/assert_order_payment_allocations_balance.sql",
+              "dbt/olist_analytics/tests/assert_product_scd2_windows_are_positive.sql",
+              "dbt/olist_analytics/tests/assert_realtime_latest_reconciliation_passed.sql",
+              "dbt/olist_analytics/tests/assert_realtime_mart_freshness.sql",
+              "dbt/olist_analytics/tests/assert_realtime_offset_continuity.sql",
+              "dbt/olist_analytics/tests/assert_realtime_parity_passed.sql",
+              "dbt/olist_analytics/tests/generic/_generic__tests.yml",
+              "dbt/olist_analytics/tests/generic/test_non_negative.sql",
+              "dbt/olist_analytics/tests/generic/test_unique_combination_of_columns.sql",
+              "dbt/olist_clickhouse/README.md",
               "docker/airflow/load-env-and-run.sh",
+              "docker/secrets/dev/mysql_spark_reference_reader_password.txt",
+              "docker/secrets/dev/postgres_password.txt",
+              "docker/secrets/dev/redshift_password.txt",
+              "docker/spark/status/bronze/.gitkeep",
+              "docker/spark/status/silver/.gitkeep",
+              "docs/architecture.md",
+              "docs/ci.md",
+              "docs/data_model.md",
+              "docs/diagrams.md",
+              "docs/plans/lakehouse/contracts/final-parity.md",
+              "docs/plans/lakehouse/contracts/legacy-disposition-register.md",
+              "docs/plans/lakehouse/contracts/mysql-kafka-avro.md",
+              "docs/plans/lakehouse/contracts/testing-and-evidence.md",
+              "docs/runbook_macos.md",
+              "docs/runbook_windows.md",
+              "docs/runbooks/cdc-alert-testing.md",
+              "docs/runbooks/cdc-connector-resnapshot.md",
+              "docs/runbooks/cdc-kafka-replay.md",
+              "docs/runbooks/cdc-local-end-to-end-validation.md",
+              "docs/runbooks/cdc-realtime-dbt.md",
+              "docs/runbooks/cdc-rebuild-from-landing.md",
+              "docs/runbooks/cdc-schema-migration.md",
+              "docs/runbooks/cdc-secret-rotation.md",
+              "docs/runbooks/cdc-service-restart.md",
+              "docs/runbooks/cdc-warehouse-ingest.md",
+              "docs/runbooks/cdc-warehouse-rebuild.md",
               "docs/source_contract.md",
-              "docs/source_profile.json",
+              "infra/aws/realtime/README.md",
+              "infra/clickhouse/initdb/001_create_databases.sql",
+              "infra/clickhouse/initdb/002_create_raw_batch_tables.sql",
+              "infra/clickhouse/initdb/003_create_raw_cdc_tables.sql",
+              "infra/clickhouse/initdb/004_create_pipeline_runtime_tables.sql",
+              "infra/control-postgres/init-control-db.sh",
+              "infra/control-postgres/initdb/001_create_schemas.sql",
+              "infra/control-postgres/initdb/002_create_batch_control_tables.sql",
+              "infra/control-postgres/initdb/003_create_cdc_control_tables.sql",
+              "infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql",
+              "infra/control-postgres/initdb/999_grant_control_role.sql",
+              "infra/oltp/README.md",
+              "infra/oltp/initdb/010_create_roles.sh",
+              "infra/oltp/initdb/020_create_oltp_schema.sql",
+              "infra/oltp/initdb/030_configure_cdc.sql",
+              "infra/redshift/001_create_schemas.sql",
+              "infra/redshift/002_create_raw_tables.sql",
+              "infra/redshift/003_create_audit_tables.sql",
+              "infra/redshift/004_copy_raw_tables_template.sql",
+              "infra/redshift/005_create_correction_tables.sql",
+              "infra/redshift/realtime/README.md",
+              "observability/README.md",
+              "pyproject.toml",
+              "scripts/cdc/README.md",
+              "scripts/cdc/avro_wire.py",
+              "scripts/cdc/benchmark_local.py",
               "scripts/cdc/local_lab.py",
-              "scripts/cdc/stage2_admin.py",
+              "scripts/cdc/pipeline_metrics.py",
+              "scripts/cdc/realtime_transform.py",
+              "scripts/cdc/warehouse_ingest.py",
+              "scripts/ci/check_batch_cdc_parity_integration.py",
+              "scripts/ci/check_clickhouse_cdc_ingest_resilience.py",
+              "scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py",
+              "scripts/ci/check_clickhouse_smoke.py",
+              "scripts/ci/check_dbt_selector_boundaries.py",
+              "scripts/ci/check_fixture_pipeline_idempotency.py",
+              "scripts/ci/check_oltp_cdc_configuration.py",
+              "scripts/ci/check_oltp_simulator_integration.py",
+              "scripts/ci/check_stage2_cdc_integration.py",
+              "scripts/ci/pipeline_helpers.py",
+              "scripts/ci/validate_nifi_flow.py",
+              "scripts/ci/validate_realtime_configuration.py",
+              "scripts/ci/validate_stage6_configuration.py",
+              "scripts/ingestion/__init__.py",
+              "scripts/ingestion/correction_specs.py",
+              "scripts/ingestion/generate_correction_feeds.py",
+              "scripts/ingestion/ingest_olist_to_s3.py",
+              "scripts/ingestion/local_storage.py",
+              "scripts/ingestion/prepare_olist_raw_files.py",
               "scripts/ingestion/raw_files.py",
-              "scripts/serving/boundary.py",
-              "scripts/serving/clickhouse.py",
+              "scripts/ingestion/record_validation.py",
+              "scripts/ingestion/s3_storage.py",
+              "scripts/loading/__init__.py",
+              "scripts/loading/load_raw_to_clickhouse.py",
+              "scripts/loading/load_raw_to_redshift.py",
+              "scripts/loading/raw_batch.py",
+              "scripts/loading/replay_dead_letters.py",
+              "scripts/orchestration/__init__.py",
+              "scripts/orchestration/batch_control.py",
+              "scripts/orchestration/control_postgres.py",
+              "scripts/parity/canonical_stage5_relations.json",
+              "scripts/quality/__init__.py",
+              "scripts/quality/reconcile_batch.py",
               "scripts/serving/control.py",
-              "scripts/simulation/README.md",
-              "scripts/testing/create_small_fixture_dataset.py",
+              "scripts/utilities/create_dead_letter_demo_archive.py",
+              "scripts/utilities/fetch_aws_secret.py",
+              "scripts/utilities/generate_redshift_raw_ddl.py",
               "scripts/utilities/profile_olist_zip.py",
               "scripts/validation/stage_v_probes.py",
+              "streaming/kafka/README.md",
+              "streaming/minio/README.md",
+              "streaming/minio/cdc-loader-policy.json",
+              "streaming/minio/init.sh",
+              "streaming/minio/nifi-policy.json",
+              "streaming/nifi/Dockerfile",
+              "streaming/nifi/README.md",
+              "streaming/nifi/component_metrics.py",
+              "streaming/nifi/deploy_flow.py",
+              "streaming/nifi/flow/olist-cdc-v1.json",
+              "streaming/nifi/metrics_proxy.py",
+              "streaming/nifi/parameters/local.template.json",
+              "streaming/nifi/python/BuildCdcAvro.py",
+              "streaming/nifi/python/BuildDlqEnvelope.py",
+              "streaming/nifi/python/DescribeAvroBatch.py",
+              "streaming/nifi/python/PutImmutableS3Object.py",
+              "streaming/nifi/python/__init__.py",
+              "streaming/nifi/python/cdc_common.py",
+              "streaming/nifi/python/requirements.txt",
+              "streaming/nifi/start.sh",
               "streaming/runtime-versions.json",
-              "streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionBatchWriter.scala",
-              "tests/fixtures/olist_small/README.md",
-              "tests/fixtures/olist_small/source_profile_small.json",
-              "tests/serving/test_boundary.py",
-              "tests/stage_v/test_stage_v_harness.py",
-              "tests/test_control_postgres_phase2.py",
-              "tests/test_stage2_configuration.py",
-              "docker/secrets/dev/apicurio_db_password.txt",
-              "docker/secrets/dev/minio_root_password.txt",
-              "docker/secrets/dev/mysql_admin_password.txt",
-              "docker/secrets/dev/mysql_cdc_reader_password.txt",
-              "docker/secrets/dev/mysql_root_password.txt",
-              "docker/secrets/dev/mysql_simulator_password.txt",
-              "docker/secrets/dev/polaris_db_password.txt",
-              "streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionState.scala",
-              "streaming/spark/scala/src/test/scala/com/olist/mds/spark/transaction/TransactionStateSpec.scala",
+              "streaming/schemas/README.md",
+              "streaming/schemas/cdc-coverage/v1.schema.json",
+              "streaming/schemas/cdc-landing/v1.avsc",
+              "streaming/schemas/normalized/customers/v1.avsc",
+              "streaming/schemas/normalized/order_items/v1.avsc",
+              "streaming/schemas/normalized/order_payments/v1.avsc",
+              "streaming/schemas/normalized/order_reviews/v1.avsc",
+              "streaming/schemas/normalized/orders/v1.avsc",
+              "streaming/schemas/normalized/product_category_translation/v1.avsc",
+              "streaming/schemas/normalized/products/v1.avsc",
+              "streaming/schemas/normalized/sellers/v1.avsc",
+              "tests/cdc_contracts/test_connector_bootstrap.py",
+              "tests/dbt_clickhouse/test_project_contract.py",
+              "tests/fixtures/postgresql_oracle/dbt_inventory.json",
+              "tests/fixtures/postgresql_oracle/postgres_batch_oracle.json",
+              "tests/fixtures/postgresql_oracle/postgres_stage5_oracle.json",
               "tests/lakehouse_platform/test_l1_runtime_contracts.py",
-              "tests/serving/test_control.py"
+              "tests/mysql/test_seeding.py",
+              "tests/mysql/test_source_schema.py",
+              "tests/observability/test_ci_contract.py",
+              "tests/serving/test_control.py",
+              "tests/stage_v/test_stage_v_harness.py",
+              "tests/test_airflow_secret_bootstrap.py",
+              "tests/test_avro_schema_compatibility.py",
+              "tests/test_batch_cdc_parity_integration.py",
+              "tests/test_ci_data_quality_failures.py",
+              "tests/test_clickhouse_batch_phase3.py",
+              "tests/test_clickhouse_phase1_contracts.py",
+              "tests/test_clickhouse_phase4_dbt_graph.py",
+              "tests/test_clickhouse_phase5_cdc_ingestion.py",
+              "tests/test_clickhouse_phase6_realtime_dbt_quality.py",
+              "tests/test_clickhouse_phase7_ci_observability.py",
+              "tests/test_control_postgres_phase2.py",
+              "tests/test_dead_letter_pipeline.py",
+              "tests/test_nifi_optimization.py",
+              "tests/test_oltp_seed_contracts.py",
+              "tests/test_postgres_oracle_export.py",
+              "tests/test_stage2_configuration.py",
+              "tests/test_stage3_configuration.py",
+              "tests/test_stage3_contracts.py",
+              "tests/test_stage4_contracts.py",
+              "tests/test_stage5_contracts.py",
+              "tests/test_stage6_contracts.py",
+              "uv.lock",
+              "docs/reports/lakehouse-stage-l4.md",
+              "scripts/ci/check_legacy_orphans.py",
+              "tests/cdc_contracts/test_schema_evolution.py",
+              "tests/cdc_contracts/test_target_connector_contract.py",
+              "tests/lakehouse_platform/test_control_postgres_contract.py",
+              "tests/lakehouse_platform/test_secret_bootstrap.py",
+              "tests/lakehouse_platform/test_source_contract.py",
+              "tests/mysql/test_schema_contract.py",
+              "tests/observability/test_contract.py",
+              "tests/stage_v/test_f0_parity_contracts.py"
             ],
             "commands_ok": true,
-            "diagnostics": "warning: in the working copy of '.env.example', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'airflow/dags/olist_lakehouse_serving.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'compose.yaml', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/source_profile.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/clickhouse.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/control.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/simulation/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'streaming/runtime-versions.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionBatchWriter.scala', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/olist_small/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/olist_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\n",
+            "diagnostics": "",
             "dirty": true,
-            "head": "9c0036c84b758ebe72b31388d009982e16dd2a75",
-            "worktree_digest": "0e5cca168bc6728101a6adcc4c0429b6a2a087d1c9610108064a5fe07ad12874"
+            "head": "4060845b6911b0166ff3785a166df22c5d4991c4",
+            "worktree_digest": "b271fbfefdfb63ac07da89d5cc630a24425dafa681e74d4c79b5d9ade6995e8b"
           },
           "name": "source_tree_identity",
           "status": "PASS"
@@ -212,7 +478,7 @@ reconstructed from static claims.
             "run",
             "--all-files"
           ],
-          "duration_seconds": 30.859,
+          "duration_seconds": 26.594,
           "exit_code": 0,
           "stderr": "",
           "stdout": "trim trailing whitespace.................................................Passed\nfix end of files.........................................................Passed\ncheck yaml...............................................................Passed\ncheck toml...............................................................Passed\nruff check...............................................................Passed\nruff format..............................................................Passed\npyright..................................................................Passed\ndbt-parse................................................................Passed\n",
@@ -227,7 +493,7 @@ reconstructed from static claims.
           "duration_seconds": 0.031,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "9c0036c84b758ebe72b31388d009982e16dd2a75\n",
+          "stdout": "4060845b6911b0166ff3785a166df22c5d4991c4\n",
           "timed_out": false
         },
         {
@@ -237,10 +503,10 @@ reconstructed from static claims.
             "--porcelain=v1",
             "--untracked-files=all"
           ],
-          "duration_seconds": 0.062,
+          "duration_seconds": 0.063,
           "exit_code": 0,
           "stderr": "",
-          "stdout": " M .env.example\n M airflow/dags/olist_lakehouse_serving.py\n M compose.yaml\n M docker/airflow/load-env-and-run.sh\n M docs/source_contract.md\n M docs/source_profile.json\n M scripts/cdc/local_lab.py\n M scripts/cdc/stage2_admin.py\n M scripts/ingestion/raw_files.py\n M scripts/serving/boundary.py\n M scripts/serving/clickhouse.py\n M scripts/serving/control.py\n M scripts/simulation/README.md\n M scripts/testing/create_small_fixture_dataset.py\n M scripts/utilities/profile_olist_zip.py\n M scripts/validation/stage_v_probes.py\n M streaming/runtime-versions.json\n M streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionBatchWriter.scala\n M tests/fixtures/olist_small/README.md\n M tests/fixtures/olist_small/source_profile_small.json\n M tests/serving/test_boundary.py\n M tests/stage_v/test_stage_v_harness.py\n M tests/test_control_postgres_phase2.py\n M tests/test_stage2_configuration.py\n?? docker/secrets/dev/apicurio_db_password.txt\n?? docker/secrets/dev/minio_root_password.txt\n?? docker/secrets/dev/mysql_admin_password.txt\n?? docker/secrets/dev/mysql_cdc_reader_password.txt\n?? docker/secrets/dev/mysql_root_password.txt\n?? docker/secrets/dev/mysql_simulator_password.txt\n?? docker/secrets/dev/polaris_db_password.txt\n?? streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionState.scala\n?? streaming/spark/scala/src/test/scala/com/olist/mds/spark/transaction/TransactionStateSpec.scala\n?? tests/lakehouse_platform/test_l1_runtime_contracts.py\n?? tests/serving/test_control.py\n",
+          "stdout": ".sql\n D dbt/olist_analytics/models/realtime/core/hist_cdc__products.sql\n D dbt/olist_analytics/models/realtime/core/hist_cdc__sellers.sql\n D dbt/olist_analytics/models/realtime/core/int_realtime_order_payment_allocations.sql\n D dbt/olist_analytics/models/realtime/marts/_realtime_marts__models.yml\n D dbt/olist_analytics/models/realtime/marts/mart_daily_revenue_realtime.sql\n D dbt/olist_analytics/models/realtime/marts/mart_monthly_arpu_realtime.sql\n D dbt/olist_analytics/models/realtime/staging/_realtime__models.yml\n D dbt/olist_analytics/models/realtime/staging/_realtime__sources.yml\n D dbt/olist_analytics/models/realtime/staging/int_cdc__changed_order_ids.sql\n D dbt/olist_analytics/models/realtime/staging/int_cdc__changed_periods.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__customers_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__customers_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_items_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_items_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_payments_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_payments_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_reviews_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__order_reviews_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__orders_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__orders_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__product_category_translation_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__product_category_translation_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__products_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__products_events.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__sellers_current.sql\n D dbt/olist_analytics/models/realtime/staging/stg_cdc__sellers_events.sql\n D dbt/olist_analytics/models/staging/audit/_audit__sources.yml\n D dbt/olist_analytics/models/staging/olist/_olist__models.yml\n D dbt/olist_analytics/models/staging/olist/_olist__sources.yml\n D dbt/olist_analytics/models/staging/olist/stg_olist__customer_profile_changes.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__customers.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__geolocation.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__order_items.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__order_payments.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__order_reviews.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__orders.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__product_attribute_changes.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__product_category_translation.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__products.sql\n D dbt/olist_analytics/models/staging/olist/stg_olist__sellers.sql\n D dbt/olist_analytics/models/unit_tests_phase0.yml\n D dbt/olist_analytics/package-lock.yml\n D dbt/olist_analytics/packages.yml\n D dbt/olist_analytics/profiles.yml.example\n D dbt/olist_analytics/seeds/.gitkeep\n D dbt/olist_analytics/selectors.yml\n D dbt/olist_analytics/snapshots/snap_customers.sql\n D dbt/olist_analytics/snapshots/snap_products.sql\n D dbt/olist_analytics/tests/assert_batch_reconciliation_passed.sql\n D dbt/olist_analytics/tests/assert_customer_scd2_windows_are_positive.sql\n D dbt/olist_analytics/tests/assert_daily_revenue_components_match.sql\n D dbt/olist_analytics/tests/assert_fact_order_items_matches_staging_grain.sql\n D dbt/olist_analytics/tests/assert_monthly_arpu_calculation.sql\n D dbt/olist_analytics/tests/assert_no_overlapping_customer_scd2_windows.sql\n D dbt/olist_analytics/tests/assert_no_overlapping_product_scd2_windows.sql\n D dbt/olist_analytics/tests/assert_one_current_customer_scd2_row.sql\n D dbt/olist_analytics/tests/assert_one_current_product_scd2_row.sql\n D dbt/olist_analytics/tests/assert_order_payment_allocations_balance.sql\n D dbt/olist_analytics/tests/assert_product_scd2_windows_are_positive.sql\n D dbt/olist_analytics/tests/assert_realtime_latest_reconciliation_passed.sql\n D dbt/olist_analytics/tests/assert_realtime_mart_freshness.sql\n D dbt/olist_analytics/tests/assert_realtime_offset_continuity.sql\n D dbt/olist_analytics/tests/assert_realtime_parity_passed.sql\n D dbt/olist_analytics/tests/generic/_generic__tests.yml\n D dbt/olist_analytics/tests/generic/test_non_negative.sql\n D dbt/olist_analytics/tests/generic/test_unique_combination_of_columns.sql\n M dbt/olist_clickhouse/README.md\n M docker/airflow/load-env-and-run.sh\n M docker/secrets/dev/mysql_spark_reference_reader_password.txt\n D docker/secrets/dev/postgres_password.txt\n D docker/secrets/dev/redshift_password.txt\n M docker/spark/status/bronze/.gitkeep\n M docker/spark/status/silver/.gitkeep\n M docs/architecture.md\n M docs/ci.md\n M docs/data_model.md\n M docs/diagrams.md\n M docs/plans/lakehouse/contracts/final-parity.md\n M docs/plans/lakehouse/contracts/legacy-disposition-register.md\n M docs/plans/lakehouse/contracts/mysql-kafka-avro.md\n M docs/plans/lakehouse/contracts/testing-and-evidence.md\n M docs/runbook_macos.md\n M docs/runbook_windows.md\n M docs/runbooks/cdc-alert-testing.md\n M docs/runbooks/cdc-connector-resnapshot.md\n M docs/runbooks/cdc-kafka-replay.md\n M docs/runbooks/cdc-local-end-to-end-validation.md\n M docs/runbooks/cdc-realtime-dbt.md\n M docs/runbooks/cdc-rebuild-from-landing.md\n M docs/runbooks/cdc-schema-migration.md\n M docs/runbooks/cdc-secret-rotation.md\n M docs/runbooks/cdc-service-restart.md\n M docs/runbooks/cdc-warehouse-ingest.md\n M docs/runbooks/cdc-warehouse-rebuild.md\n M docs/source_contract.md\n D infra/aws/realtime/README.md\n D infra/clickhouse/initdb/001_create_databases.sql\n D infra/clickhouse/initdb/002_create_raw_batch_tables.sql\n D infra/clickhouse/initdb/003_create_raw_cdc_tables.sql\n D infra/clickhouse/initdb/004_create_pipeline_runtime_tables.sql\n M infra/control-postgres/init-control-db.sh\n M infra/control-postgres/initdb/001_create_schemas.sql\n D infra/control-postgres/initdb/002_create_batch_control_tables.sql\n D infra/control-postgres/initdb/003_create_cdc_control_tables.sql\n D infra/control-postgres/initdb/004_create_cdc_transform_control_tables.sql\n M infra/control-postgres/initdb/999_grant_control_role.sql\n D infra/oltp/README.md\n D infra/oltp/initdb/010_create_roles.sh\n D infra/oltp/initdb/020_create_oltp_schema.sql\n D infra/oltp/initdb/030_configure_cdc.sql\n D infra/redshift/001_create_schemas.sql\n D infra/redshift/002_create_raw_tables.sql\n D infra/redshift/003_create_audit_tables.sql\n D infra/redshift/004_copy_raw_tables_template.sql\n D infra/redshift/005_create_correction_tables.sql\n D infra/redshift/realtime/README.md\n M observability/README.md\n M pyproject.toml\n M scripts/cdc/README.md\n D scripts/cdc/avro_wire.py\n D scripts/cdc/benchmark_local.py\n M scripts/cdc/local_lab.py\n D scripts/cdc/pipeline_metrics.py\n D scripts/cdc/realtime_transform.py\n D scripts/cdc/warehouse_ingest.py\n D scripts/ci/check_batch_cdc_parity_integration.py\n D scripts/ci/check_clickhouse_cdc_ingest_resilience.py\n D scripts/ci/check_clickhouse_fact_insert_overwrite_edges.py\n D scripts/ci/check_clickhouse_smoke.py\n D scripts/ci/check_dbt_selector_boundaries.py\n D scripts/ci/check_fixture_pipeline_idempotency.py\n D scripts/ci/check_oltp_cdc_configuration.py\n D scripts/ci/check_oltp_simulator_integration.py\n D scripts/ci/check_stage2_cdc_integration.py\n D scripts/ci/pipeline_helpers.py\n D scripts/ci/validate_nifi_flow.py\n D scripts/ci/validate_realtime_configuration.py\n D scripts/ci/validate_stage6_configuration.py\n D scripts/ingestion/__init__.py\n D scripts/ingestion/correction_specs.py\n D scripts/ingestion/generate_correction_feeds.py\n D scripts/ingestion/ingest_olist_to_s3.py\n D scripts/ingestion/local_storage.py\n D scripts/ingestion/prepare_olist_raw_files.py\n D scripts/ingestion/raw_files.py\n D scripts/ingestion/record_validation.py\n D scripts/ingestion/s3_storage.py\n D scripts/loading/__init__.py\n D scripts/loading/load_raw_to_clickhouse.py\n D scripts/loading/load_raw_to_redshift.py\n D scripts/loading/raw_batch.py\n D scripts/loading/replay_dead_letters.py\n D scripts/orchestration/__init__.py\n D scripts/orchestration/batch_control.py\n D scripts/orchestration/control_postgres.py\n D scripts/parity/canonical_stage5_relations.json\n D scripts/quality/__init__.py\n D scripts/quality/reconcile_batch.py\n M scripts/serving/control.py\n D scripts/utilities/create_dead_letter_demo_archive.py\n D scripts/utilities/fetch_aws_secret.py\n D scripts/utilities/generate_redshift_raw_ddl.py\n M scripts/utilities/profile_olist_zip.py\n M scripts/validation/stage_v_probes.py\n M streaming/kafka/README.md\n M streaming/minio/README.md\n D streaming/minio/cdc-loader-policy.json\n D streaming/minio/init.sh\n D streaming/minio/nifi-policy.json\n D streaming/nifi/Dockerfile\n D streaming/nifi/README.md\n D streaming/nifi/component_metrics.py\n D streaming/nifi/deploy_flow.py\n D streaming/nifi/flow/olist-cdc-v1.json\n D streaming/nifi/metrics_proxy.py\n D streaming/nifi/parameters/local.template.json\n D streaming/nifi/python/BuildCdcAvro.py\n D streaming/nifi/python/BuildDlqEnvelope.py\n D streaming/nifi/python/DescribeAvroBatch.py\n D streaming/nifi/python/PutImmutableS3Object.py\n D streaming/nifi/python/__init__.py\n D streaming/nifi/python/cdc_common.py\n D streaming/nifi/python/requirements.txt\n D streaming/nifi/start.sh\n M streaming/runtime-versions.json\n M streaming/schemas/README.md\n D streaming/schemas/cdc-coverage/v1.schema.json\n D streaming/schemas/cdc-landing/v1.avsc\n D streaming/schemas/normalized/customers/v1.avsc\n D streaming/schemas/normalized/order_items/v1.avsc\n D streaming/schemas/normalized/order_payments/v1.avsc\n D streaming/schemas/normalized/order_reviews/v1.avsc\n D streaming/schemas/normalized/orders/v1.avsc\n D streaming/schemas/normalized/product_category_translation/v1.avsc\n D streaming/schemas/normalized/products/v1.avsc\n D streaming/schemas/normalized/sellers/v1.avsc\n M tests/cdc_contracts/test_connector_bootstrap.py\n M tests/dbt_clickhouse/test_project_contract.py\n D tests/fixtures/postgresql_oracle/dbt_inventory.json\n D tests/fixtures/postgresql_oracle/postgres_batch_oracle.json\n D tests/fixtures/postgresql_oracle/postgres_stage5_oracle.json\n M tests/lakehouse_platform/test_l1_runtime_contracts.py\n M tests/mysql/test_seeding.py\n M tests/mysql/test_source_schema.py\n M tests/observability/test_ci_contract.py\n M tests/serving/test_control.py\n M tests/stage_v/test_stage_v_harness.py\n D tests/test_airflow_secret_bootstrap.py\n D tests/test_avro_schema_compatibility.py\n D tests/test_batch_cdc_parity_integration.py\n D tests/test_ci_data_quality_failures.py\n D tests/test_clickhouse_batch_phase3.py\n D tests/test_clickhouse_phase1_contracts.py\n D tests/test_clickhouse_phase4_dbt_graph.py\n D tests/test_clickhouse_phase5_cdc_ingestion.py\n D tests/test_clickhouse_phase6_realtime_dbt_quality.py\n D tests/test_clickhouse_phase7_ci_observability.py\n D tests/test_control_postgres_phase2.py\n D tests/test_dead_letter_pipeline.py\n D tests/test_nifi_optimization.py\n D tests/test_oltp_seed_contracts.py\n D tests/test_postgres_oracle_export.py\n D tests/test_stage2_configuration.py\n D tests/test_stage3_configuration.py\n D tests/test_stage3_contracts.py\n D tests/test_stage4_contracts.py\n D tests/test_stage5_contracts.py\n D tests/test_stage6_contracts.py\n M uv.lock\n?? docs/reports/lakehouse-stage-l4.md\n?? scripts/ci/check_legacy_orphans.py\n?? tests/cdc_contracts/test_schema_evolution.py\n?? tests/cdc_contracts/test_target_connector_contract.py\n?? tests/lakehouse_platform/test_control_postgres_contract.py\n?? tests/lakehouse_platform/test_secret_bootstrap.py\n?? tests/lakehouse_platform/test_source_contract.py\n?? tests/mysql/test_schema_contract.py\n?? tests/observability/test_contract.py\n?? tests/stage_v/test_f0_parity_contracts.py\n",
           "timed_out": false
         },
         {
@@ -251,10 +517,10 @@ reconstructed from static claims.
             "HEAD",
             "--"
           ],
-          "duration_seconds": 0.078,
+          "duration_seconds": 0.218,
           "exit_code": 0,
-          "stderr": "warning: in the working copy of '.env.example', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'airflow/dags/olist_lakehouse_serving.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'compose.yaml', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/source_profile.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/clickhouse.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/serving/control.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/simulation/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'streaming/runtime-versions.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionBatchWriter.scala', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/olist_small/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/olist_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\n",
-          "stdout": "se_transaction_history(\n+        [\n+            {\n+                \"transaction_id\": \"tx-1\",\n+                \"status\": \"OPEN\",\n+                \"begin_kafka_offset\": 10,\n+                \"end_kafka_offset\": None,\n+                \"recorded_at\": \"2026-08-04T00:00:01Z\",\n+            },\n+            {\n+                \"transaction_id\": \"tx-1\",\n+                \"status\": \"COMPLETE\",\n+                \"begin_kafka_offset\": 10,\n+                \"end_kafka_offset\": 11,\n+                \"recorded_at\": \"2026-08-04T00:00:02Z\",\n+            },\n+            {\n+                \"transaction_id\": \"tx-1\",\n+                \"status\": \"COMPLETE\",\n+                \"begin_kafka_offset\": 10,\n+                \"end_kafka_offset\": 11,\n+                \"recorded_at\": \"2026-08-04T00:00:03Z\",\n+            },\n+        ]\n+    )\n+\n+    assert len(rows) == 1\n+    assert rows[0][\"status\"] == \"COMPLETE\"\n+    assert rows[0][\"end_kafka_offset\"] == 11\n+\n+\n+def test_unresolved_open_transaction_is_visible_to_planner():\n+    rows = [\n+        {\n+            \"transaction_id\": \"tx-open\",\n+            \"status\": \"OPEN\",\n+            \"begin_kafka_offset\": 20,\n+            \"end_kafka_offset\": None,\n+            \"event_count\": None,\n+            \"recorded_at\": \"2026-08-04T00:00:01Z\",\n+        }\n+    ]\n+\n+    assert transaction_boundary_state(rows) == \"READY\"\n+    plan = ServingBoundaryPlanner.plan_next_sync_run(\n+        sync_run_seq=1,\n+        runtime_state={\"source_snapshot_completed\": True},\n+        transaction_rows=rows,\n+        iceberg_snapshots={},\n+    )\n+    assert plan.status == \"WAITING\"\n+    assert plan.status_reason == \"OPEN_TRANSACTION\"\n+\n+\n+def test_rejected_observation_can_become_complete():\n+    rows = collapse_transaction_history(\n+        [\n+            {\n+                \"transaction_id\": \"tx-retry\",\n+                \"status\": \"REJECTED\",\n+                \"begin_kafka_offset\": 30,\n+                \"end_kafka_offset\": None,\n+                \"recorded_at\": \"2026-08-04T00:00:01Z\",\n+            },\n+            {\n+                \"transaction_id\": \"tx-retry\",\n+                \"status\": \"COMPLETE\",\n+                \"begin_kafka_offset\": 30,\n+                \"end_kafka_offset\": 31,\n+                \"event_count\": 1,\n+                \"recorded_at\": \"2026-08-04T00:00:02Z\",\n+            },\n+        ]\n+    )\n+\n+    assert transaction_boundary_state(rows) == \"READY\"\n+    plan = ServingBoundaryPlanner.plan_next_sync_run(\n+        sync_run_seq=1,\n+        runtime_state={\"source_snapshot_completed\": True},\n+        transaction_rows=rows,\n+        iceberg_snapshots={},\n+    )\n+    assert plan.status == \"MATERIALIZING\"\n+    assert plan.target_transaction_id == \"tx-retry\"\n+\n+\n+def test_unknown_transaction_state_fails_closed():\n+    plan = ServingBoundaryPlanner.plan_next_sync_run(\n+        sync_run_seq=1,\n+        runtime_state={\"source_snapshot_completed\": True},\n+        transaction_rows=[\n+            {\n+                \"transaction_id\": \"tx-invalid\",\n+                \"status\": \"UNKNOWN\",\n+                \"begin_kafka_offset\": 40,\n+                \"end_kafka_offset\": None,\n+            }\n+        ],\n+        iceberg_snapshots={},\n+    )\n+\n+    assert plan.status == \"BLOCKED\"\n+    assert plan.status_reason == \"INVARIANT_FAILURE\"\n \n \n def test_boundary_planner_not_caught_up():\ndiff --git a/tests/stage_v/test_stage_v_harness.py b/tests/stage_v/test_stage_v_harness.py\nindex d1ee3c4..b44325a 100644\n--- a/tests/stage_v/test_stage_v_harness.py\n+++ b/tests/stage_v/test_stage_v_harness.py\n@@ -2,6 +2,7 @@ from __future__ import annotations\n \n import decimal\n import json\n+import os\n import tempfile\n import unittest\n from datetime import UTC, datetime\n@@ -143,6 +144,30 @@ class StageVHarnessUnitTests(unittest.TestCase):\n         with self.assertRaises(ValueError):\n             probe.execute_fixture(\"unauthorized_drop_tables.sql\")\n \n+    def test_mysql_probe_default_identity_matches_simulator_secret(self) -> None:\n+        with (\n+            patch.dict(os.environ, {}, clear=True),\n+            patch(\"scripts.simulation.database.connect\") as connect,\n+        ):\n+            MySQLProbe()._connect()\n+\n+        settings = connect.call_args.args[0]\n+        self.assertEqual(settings.user, \"olist_simulator\")\n+        self.assertEqual(settings.password_file.name, \"mysql_simulator_password.txt\")\n+\n+    def test_mysql_probe_schema_fixture_uses_admin_secret(self) -> None:\n+        probe = MySQLProbe()\n+        connection = MagicMock()\n+        cursor = MagicMock()\n+        connection.cursor.return_value = cursor\n+        with patch.object(probe, \"_connect_admin\", return_value=connection) as admin:\n+            probe.execute_fixture(\"add_nullable_column.sql\")\n+\n+        admin.assert_called_once_with()\n+        connection.commit.assert_called_once()\n+        connection.close.assert_called_once()\n+        cursor.close.assert_called_once()\n+\n     def test_mysql_probe_fixture_connection_errors_are_not_suppressed(self) -> None:\n         probe = MySQLProbe()\n         with (\ndiff --git a/tests/test_control_postgres_phase2.py b/tests/test_control_postgres_phase2.py\nindex 4d76c97..e87ba91 100644\n--- a/tests/test_control_postgres_phase2.py\n+++ b/tests/test_control_postgres_phase2.py\n@@ -42,9 +42,12 @@ class ControlPostgresPhase2Tests(unittest.TestCase):\n     def test_compose_defines_control_database_init_and_secret(self) -> None:\n         compose = (PROJECT_ROOT / \"compose.yaml\").read_text(encoding=\"utf-8\")\n \n-        self.assertIn(\"control-db-init:\", compose)\n+        self.assertIn(\"platform-postgres-bootstrap:\", compose)\n         self.assertIn(\n-            'CONTROL_POSTGRES_DB: \"${CONTROL_POSTGRES_DB:-olist_control}\"',\n+            \"./infra/control-postgres:/opt/olist/control-postgres:ro\", compose\n+        )\n+        self.assertIn(\n+            \"CONTROL_POSTGRES_DB: olist_control\",\n             compose,\n         )\n         self.assertIn(\n@@ -52,6 +55,15 @@ class ControlPostgresPhase2Tests(unittest.TestCase):\n             compose,\n         )\n         self.assertIn(\"control_postgres_password:\", compose)\n+        self.assertIn(\n+            \"serving.sync_runs\",\n+            \"\\n\".join(\n+                path.read_text(encoding=\"utf-8\")\n+                for path in (\n+                    PROJECT_ROOT / \"infra\" / \"control-postgres\" / \"initdb\"\n+                ).glob(\"*.sql\")\n+            ),\n+        )\n \n     def test_control_postgres_ddl_excludes_warehouse_raw_tables(self) -> None:\n         ddl_dir = PROJECT_ROOT / \"infra\" / \"control-postgres\" / \"initdb\"\ndiff --git a/tests/test_stage2_configuration.py b/tests/test_stage2_configuration.py\nindex a58130d..970beb4 100644\n--- a/tests/test_stage2_configuration.py\n+++ b/tests/test_stage2_configuration.py\n@@ -4,12 +4,15 @@ import json\n import re\n import unittest\n from pathlib import Path\n+from tempfile import TemporaryDirectory\n from unittest.mock import Mock, patch\n \n from scripts.cdc.stage2_admin import (\n+    CONNECTOR_NAME,\n     connector_has_failed,\n     connector_is_running,\n     parse_topic_description,\n+    render_connector,\n     wait_connector_status,\n )\n \n@@ -29,11 +32,12 @@ CAPTURED = {\n \n class Stage2ConfigurationTests(unittest.TestCase):\n     def setUp(self) -> None:\n-        self.topics = json.loads(\n+        self.topic_manifest = json.loads(\n             (ROOT / \"streaming/kafka/topics.json\").read_text(encoding=\"utf-8\")\n-        )[\"topics\"]\n+        )\n+        self.topics = self.topic_manifest[\"topics\"]\n         self.connector = json.loads(\n-            (ROOT / \"streaming/connect/olist-postgres-cdc.json\").read_text(\n+            (ROOT / \"streaming/connect/olist-mysql-cdc.json\").read_text(\n                 encoding=\"utf-8\"\n             )\n         )\n@@ -47,17 +51,15 @@ class Stage2ConfigurationTests(unittest.TestCase):\n         self.assertNotIn(\"quay.io/debezium/connect:3.6\\n\", dockerfile)\n         self.assertNotIn(\":latest\", compose + dockerfile)\n \n-    def test_source_and_dlq_topics_match_contract(self) -> None:\n+    def test_source_topics_match_contract(self) -> None:\n         by_name = {topic[\"name\"]: topic for topic in self.topics}\n         for table, (partitions, _key_fields) in CAPTURED.items():\n-            source = by_name[f\"olist_cdc.public.{table}\"]\n-            dlq = by_name[f\"olist_cdc.dlq.{table}\"]\n-            for topic in (source, dlq):\n-                self.assertEqual(partitions, topic[\"partitions\"])\n-                self.assertEqual(1, topic[\"replication_factor\"])\n-                self.assertEqual(\"delete\", topic[\"cleanup_policy\"])\n-                self.assertEqual(604_800_000, topic[\"retention_ms\"])\n-        self.assertNotIn(\"olist_cdc.public.geolocation\", by_name)\n+            source = by_name[f\"olist_cdc.olist_oltp.{table}\"]\n+            self.assertEqual(partitions, source[\"partitions\"])\n+            self.assertEqual(1, self.topic_manifest[\"replication_factor\"])\n+            self.assertEqual(\"delete\", source[\"config\"][\"cleanup.policy\"])\n+            self.assertEqual(604_800_000, int(source[\"config\"][\"retention.ms\"]))\n+        self.assertNotIn(\"olist_cdc.olist_oltp.geolocation\", by_name)\n \n     def test_topic_bootstrap_matches_manifest(self) -> None:\n         script = (ROOT / \"streaming/kafka/create-topics.sh\").read_text(encoding=\"utf-8\")\n@@ -70,21 +72,25 @@ class Stage2ConfigurationTests(unittest.TestCase):\n             \"olist_connect_configs\": (1, \"compact\"),\n             \"olist_connect_offsets\": (25, \"compact\"),\n             \"olist_connect_status\": (5, \"compact\"),\n-            \"olist_cdc.schema_history\": (1, \"compact\"),\n+            \"olist_cdc.schema_history\": (1, \"delete\"),\n             \"olist_cdc.transaction\": (1, \"delete\"),\n             \"olist_cdc.heartbeat\": (1, \"delete\"),\n         }\n         for name, (partitions, policy) in expected.items():\n             self.assertEqual(partitions, by_name[name][\"partitions\"])\n-            self.assertEqual(policy, by_name[name][\"cleanup_policy\"])\n+            self.assertEqual(policy, by_name[name][\"config\"][\"cleanup.policy\"])\n \n     def test_connector_is_secret_free_and_excludes_control_data(self) -> None:\n         config = self.connector[\"config\"]\n-        self.assertEqual(\"${OLTP_CDC_READER_PASSWORD}\", config[\"database.password\"])\n+        self.assertEqual(CONNECTOR_NAME, self.connector[\"name\"])\n+        self.assertEqual(\n+            \"io.debezium.connector.mysql.MySqlConnector\", config[\"connector.class\"]\n+        )\n+        self.assertNotIn(\"database.password\", config)\n         include = set(config[\"table.include.list\"].split(\",\"))\n-        self.assertEqual({f\"public.{name}\" for name in CAPTURED}, include)\n-        self.assertNotIn(\"public.geolocation\", include)\n-        self.assertNotIn(\"simulator_control\", config[\"schema.include.list\"])\n+        self.assertEqual({f\"olist_oltp.{name}\" for name in CAPTURED}, include)\n+        self.assertNotIn(\"olist_oltp.geolocation\", include)\n+        self.assertEqual(\"olist_oltp\", config[\"database.include.list\"])\n         self.assertEqual(\"true\", config[\"provide.transaction.metadata\"])\n         self.assertEqual(\"true\", config[\"tombstones.on.delete\"])\n         self.assertFalse(any(key.startswith(\"topic.creation.\") for key in config))\n@@ -98,6 +104,17 @@ class Stage2ConfigurationTests(unittest.TestCase):\n             \"olist_cdc.heartbeat\", config[\"transforms.routeHeartbeat.replacement\"]\n         )\n \n+    def test_render_connector_injects_only_file_secret(self) -> None:\n+        with TemporaryDirectory() as temp_dir:\n+            password_file = Path(temp_dir) / \"mysql-cdc-password\"\n+            password_file.write_text(\"mysql-cdc-secret\\n\", encoding=\"utf-8\")\n+\n+            rendered = render_connector(password_file)\n+\n+        self.assertEqual(CONNECTOR_NAME, rendered[\"name\"])\n+        self.assertEqual(\"mysql-cdc-secret\", rendered[\"config\"][\"database.password\"])\n+        self.assertNotIn(\"mysql-cdc-secret\", json.dumps(self.connector))\n+\n     def test_confluent_compatible_avro_converter_contract(self) -> None:\n         config = self.connector[\"config\"]\n         for side in (\"key\", \"value\"):\n",
+          "stderr": "",
+          "stdout": "841c366620e906d54430817531b877ba646310296df42ef697308c2705/pyarrow-23.0.1-cp312-cp312-manylinux_2_28_aarch64.whl\", hash = \"sha256:86ff03fb9f1a320266e0de855dee4b17da6794c595d207f89bba40d16b5c78b9\", size = 44470940, upload-time = \"2026-02-16T10:10:10.704Z\" },\n-    { url = \"https://files.pythonhosted.org/packages/2c/a5/da83046273d990f256cb79796a190bbf7ec999269705ddc609403f8c6b06/pyarrow-23.0.1-cp312-cp312-manylinux_2_28_x86_64.whl\", hash = \"sha256:813d99f31275919c383aab17f0f455a04f5a429c261cc411b1e9a8f5e4aaaa05\", size = 47586063, upload-time = \"2026-02-16T10:10:17.95Z\" },\n-    { url = \"https://files.pythonhosted.org/packages/5b/3c/b7d2ebcff47a514f47f9da1e74b7949138c58cfeb108cdd4ee62f43f0cf3/pyarrow-23.0.1-cp312-cp312-musllinux_1_2_aarch64.whl\", hash = \"sha256:bf5842f960cddd2ef757d486041d57c96483efc295a8c4a0e20e704cbbf39c67\", size = 48173045, upload-time = \"2026-02-16T10:10:25.363Z\" },\n-    { url = \"https://files.pythonhosted.org/packages/43/b2/b40961262213beaba6acfc88698eb773dfce32ecdf34d19291db94c2bd73/pyarrow-23.0.1-cp312-cp312-musllinux_1_2_x86_64.whl\", hash = \"sha256:564baf97c858ecc03ec01a41062e8f4698abc3e6e2acd79c01c2e97880a19730\", size = 50621741, upload-time = \"2026-02-16T10:10:33.477Z\" },\n-    { url = \"https://files.pythonhosted.org/packages/f6/70/1fdda42d65b28b078e93d75d371b2185a61da89dda4def8ba6ba41ebdeb4/pyarrow-23.0.1-cp312-cp312-win_amd64.whl\", hash = \"sha256:07deae7783782ac7250989a7b2ecde9b3c343a643f82e8a4df03d93b633006f0\", size = 27620678, upload-time = \"2026-02-16T10:10:39.31Z\" },\n-]\n-\n-[[package]]\n-name = \"pyasn1\"\n-version = \"0.6.3\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/5c/5f/6583902b6f79b399c9c40674ac384fd9cd77805f9e6205075f828ef11fb2/pyasn1-0.6.3.tar.gz\", hash = \"sha256:697a8ecd6d98891189184ca1fa05d1bb00e2f84b5977c481452050549c8a72cf\", size = 148685, upload-time = \"2026-03-17T01:06:53.382Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/5d/a0/7d793dce3fa811fe047d6ae2431c672364b462850c6235ae306c0efd025f/pyasn1-0.6.3-py3-none-any.whl\", hash = \"sha256:a80184d120f0864a52a073acc6fc642847d0be408e7c7252f31390c0f4eadcde\", size = 83997, upload-time = \"2026-03-17T01:06:52.036Z\" },\n-]\n-\n-[[package]]\n-name = \"pyasn1-modules\"\n-version = \"0.4.2\"\n-source = { registry = \"https://pypi.org/simple\" }\n-dependencies = [\n-    { name = \"pyasn1\" },\n-]\n-sdist = { url = \"https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz\", hash = \"sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6\", size = 307892, upload-time = \"2025-03-28T02:41:22.17Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl\", hash = \"sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a\", size = 181259, upload-time = \"2025-03-28T02:41:19.028Z\" },\n-]\n-\n [[package]]\n name = \"pycparser\"\n version = \"3.0\"\n@@ -2270,18 +1819,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/e5/7a/8dd906bd22e79e47397a61742927f6747fe93242ef86645ee9092e610244/pyjwt-2.12.1-py3-none-any.whl\", hash = \"sha256:28ca37c070cad8ba8cd9790cd940535d40274d22f80ab87f3ac6a713e6e8454c\", size = 29726, upload-time = \"2026-03-13T19:27:35.677Z\" },\n ]\n \n-[[package]]\n-name = \"pymsteams\"\n-version = \"0.2.5\"\n-source = { registry = \"https://pypi.org/simple\" }\n-dependencies = [\n-    { name = \"requests\" },\n-]\n-sdist = { url = \"https://files.pythonhosted.org/packages/d9/f5/8b9b9572d4f582e5a3a135110c07218cd43ad6d067a986576d0467bf6251/pymsteams-0.2.5.tar.gz\", hash = \"sha256:9f76ca3a3de17b49ce3c5c314ee0e88b8bd2be78fc66f693ade1b7cabf23af70\", size = 88943, upload-time = \"2025-01-07T23:59:10.763Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/77/55/2f83baa2a9d1eada20f41dcced4d4fb7ba14d864b160be812786802e39c3/pymsteams-0.2.5-py3-none-any.whl\", hash = \"sha256:bda78f36c4a59baa10fa21928980349a841b03c78dc7d6020f230aea4aeab2b7\", size = 14684, upload-time = \"2025-01-07T23:59:08.351Z\" },\n-]\n-\n [[package]]\n name = \"pyright\"\n version = \"1.1.409\"\n@@ -2414,31 +1951,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/1a/08/67bd04656199bbb51dbed1439b7f27601dfb576fb864099c7ef0c3e55531/pyyaml-6.0.3-cp312-cp312-win_arm64.whl\", hash = \"sha256:64386e5e707d03a7e172c0701abfb7e10f0fb753ee1d773128192742712a98fd\", size = 140344, upload-time = \"2025-09-25T21:32:22.617Z\" },\n ]\n \n-[[package]]\n-name = \"ratelimit\"\n-version = \"2.2.1\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/ab/38/ff60c8fc9e002d50d48822cc5095deb8ebbc5f91a6b8fdd9731c87a147c9/ratelimit-2.2.1.tar.gz\", hash = \"sha256:af8a9b64b821529aca09ebaf6d8d279100d766f19e90b5059ac6a718ca6dee42\", size = 5251, upload-time = \"2018-12-17T18:55:49.675Z\" }\n-\n-[[package]]\n-name = \"redshift-connector\"\n-version = \"2.1.13\"\n-source = { registry = \"https://pypi.org/simple\" }\n-dependencies = [\n-    { name = \"beautifulsoup4\" },\n-    { name = \"boto3\" },\n-    { name = \"botocore\" },\n-    { name = \"lxml\" },\n-    { name = \"packaging\" },\n-    { name = \"pytz\" },\n-    { name = \"requests\" },\n-    { name = \"scramp\" },\n-    { name = \"setuptools\" },\n-]\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/10/34/70b2a5e47c246955e06aae93071112c8ce5a2d58ea72160478e9a544ea52/redshift_connector-2.1.13-py3-none-any.whl\", hash = \"sha256:f9bffcd359d7205964355e571963daa99e81fc9fdcca5e360076dbaabac838e4\", size = 156887, upload-time = \"2026-03-31T00:49:00.757Z\" },\n-]\n-\n [[package]]\n name = \"referencing\"\n version = \"0.37.0\"\n@@ -2554,15 +2066,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/f3/d2/b91dc748126c1559042cfe41990deb92c4ee3e2b415f6b5234969ffaf0cc/rpds_py-0.30.0-cp312-cp312-win_arm64.whl\", hash = \"sha256:669b1805bd639dd2989b281be2cfd951c6121b65e729d9b843e9639ef1fd555e\", size = 230868, upload-time = \"2025-11-30T20:22:40.493Z\" },\n ]\n \n-[[package]]\n-name = \"ruamel-yaml\"\n-version = \"0.19.1\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/c7/3b/ebda527b56beb90cb7652cb1c7e4f91f48649fbcd8d2eb2fb6e77cd3329b/ruamel_yaml-0.19.1.tar.gz\", hash = \"sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993\", size = 142709, upload-time = \"2026-01-02T16:50:31.84Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/b8/0c/51f6841f1d84f404f92463fc2b1ba0da357ca1e3db6b7fbda26956c3b82a/ruamel_yaml-0.19.1-py3-none-any.whl\", hash = \"sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93\", size = 118102, upload-time = \"2026-01-02T16:50:29.201Z\" },\n-]\n-\n [[package]]\n name = \"ruff\"\n version = \"0.15.12\"\n@@ -2588,30 +2091,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/c0/98/6beb4b351e472e5f4c4613f7c35a5290b8be2497e183825310c4c3a3984b/ruff-0.15.12-py3-none-win_arm64.whl\", hash = \"sha256:a538f7a82d061cee7be55542aca1d86d1393d55d81d4fcc314370f4340930d4f\", size = 11120821, upload-time = \"2026-04-24T18:16:57.979Z\" },\n ]\n \n-[[package]]\n-name = \"s3transfer\"\n-version = \"0.16.1\"\n-source = { registry = \"https://pypi.org/simple\" }\n-dependencies = [\n-    { name = \"botocore\" },\n-]\n-sdist = { url = \"https://files.pythonhosted.org/packages/46/29/af14f4ef3c11a50435308660e2cc68761c9a7742475e0585cd4396b91777/s3transfer-0.16.1.tar.gz\", hash = \"sha256:8e424355754b9ccb32467bdc568edf55be82692ef2002d934b1311dbb3b9e524\", size = 154801, upload-time = \"2026-04-22T20:36:06.475Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/03/19/90d7d4ed51932c022d53f1d02d564b62d10e272692a1f9b76425c1ad2a02/s3transfer-0.16.1-py3-none-any.whl\", hash = \"sha256:61bcd00ccb83b21a0fe7e91a553fff9729d46c83b4e0106e7c314a733891f7c2\", size = 86825, upload-time = \"2026-04-22T20:36:04.992Z\" },\n-]\n-\n-[[package]]\n-name = \"scramp\"\n-version = \"1.4.8\"\n-source = { registry = \"https://pypi.org/simple\" }\n-dependencies = [\n-    { name = \"asn1crypto\" },\n-]\n-sdist = { url = \"https://files.pythonhosted.org/packages/98/52/a866f1ac9ae9025ec7f9bea803bba9d54796f8a84236165a700831f61b27/scramp-1.4.8.tar.gz\", hash = \"sha256:bd018fabfe46343cceeb9f1c3e8d23f55770271e777e3accbfaee3ff0a316e71\", size = 16630, upload-time = \"2026-01-06T21:01:01.083Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/90/07/a962d2477331abfdb2c6a8251b65c673dbb07ad707d1882d61562b8b9147/scramp-1.4.8-py3-none-any.whl\", hash = \"sha256:87c2f15976845a2872fe5490a06097f0d01813cceb53774ea168c911f2ad025c\", size = 13121, upload-time = \"2026-01-06T21:00:59.474Z\" },\n-]\n-\n [[package]]\n name = \"setproctitle\"\n version = \"1.3.7\"\n@@ -2630,15 +2109,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/e2/5b/a9fe517912cd6e28cf43a212b80cb679ff179a91b623138a99796d7d18a0/setproctitle-1.3.7-cp312-cp312-win_amd64.whl\", hash = \"sha256:9888ceb4faea3116cf02a920ff00bfbc8cc899743e4b4ac914b03625bdc3c300\", size = 13247, upload-time = \"2025-09-05T12:49:49.16Z\" },\n ]\n \n-[[package]]\n-name = \"setuptools\"\n-version = \"82.0.1\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/4f/db/cfac1baf10650ab4d1c111714410d2fbb77ac5a616db26775db562c8fab2/setuptools-82.0.1.tar.gz\", hash = \"sha256:7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9\", size = 1152316, upload-time = \"2026-03-09T12:47:17.221Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/9d/76/f789f7a86709c6b087c5a2f52f911838cad707cc613162401badc665acfe/setuptools-82.0.1-py3-none-any.whl\", hash = \"sha256:a59e362652f08dcd477c78bb6e7bd9d80a7995bc73ce773050228a348ce2e5bb\", size = 1006223, upload-time = \"2026-03-09T12:47:15.026Z\" },\n-]\n-\n [[package]]\n name = \"shellingham\"\n version = \"1.5.4\"\n@@ -2657,15 +2127,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl\", hash = \"sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274\", size = 11050, upload-time = \"2024-12-04T17:35:26.475Z\" },\n ]\n \n-[[package]]\n-name = \"slack-sdk\"\n-version = \"3.41.0\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/22/35/fc009118a13187dd9731657c60138e5a7c2dea88681a7f04dc406af5da7d/slack_sdk-3.41.0.tar.gz\", hash = \"sha256:eb61eb12a65bebeca9cb5d36b3f799e836ed2be21b456d15df2627cfe34076ca\", size = 250568, upload-time = \"2026-03-12T16:10:11.381Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/a1/df/2e4be347ff98281b505cc0ccf141408cdd25eb5ca9f3830deb361b2472d3/slack_sdk-3.41.0-py2.py3-none-any.whl\", hash = \"sha256:bb18dcdfff1413ec448e759cf807ec3324090993d8ab9111c74081623b692a89\", size = 313885, upload-time = \"2026-03-12T16:10:09.811Z\" },\n-]\n-\n [[package]]\n name = \"sniffio\"\n version = \"1.3.1\"\n@@ -2688,15 +2149,6 @@ wheels = [\n     { url = \"https://files.pythonhosted.org/packages/78/10/1c76269cbf2d6e127f4415044d9ddb0295858230678bbf4bfba905593c82/snowplow_tracker-1.1.0-py3-none-any.whl\", hash = \"sha256:24ea32ddac9cca547421bf9ab162f5f33c00711c6ef118ad5f78093cee962224\", size = 44128, upload-time = \"2025-02-21T10:58:45.818Z\" },\n ]\n \n-[[package]]\n-name = \"soupsieve\"\n-version = \"2.8.3\"\n-source = { registry = \"https://pypi.org/simple\" }\n-sdist = { url = \"https://files.pythonhosted.org/packages/7b/ae/2d9c981590ed9999a0d91755b47fc74f74de286b0f5cee14c9269041e6c4/soupsieve-2.8.3.tar.gz\", hash = \"sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349\", size = 118627, upload-time = \"2026-01-20T04:27:02.457Z\" }\n-wheels = [\n-    { url = \"https://files.pythonhosted.org/packages/46/2c/1462b1d0a634697ae9e55b3cecdcb64788e8b7d63f54d923fcd0bb140aed/soupsieve-2.8.3-py3-none-any.whl\", hash = \"sha256:ed64f2ba4eebeab06cc4962affce381647455978ffc1e36bb79a545b91f45a95\", size = 37016, upload-time = \"2026-01-20T04:27:01.012Z\" },\n-]\n-\n [[package]]\n name = \"sqlalchemy\"\n version = \"2.0.49\"\n",
           "timed_out": false
         },
         {
@@ -265,10 +531,10 @@ reconstructed from static claims.
             "--exclude-standard",
             "-z"
           ],
-          "duration_seconds": 0.125,
+          "duration_seconds": 0.047,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "docker/secrets/dev/apicurio_db_password.txt\u0000docker/secrets/dev/minio_root_password.txt\u0000docker/secrets/dev/mysql_admin_password.txt\u0000docker/secrets/dev/mysql_cdc_reader_password.txt\u0000docker/secrets/dev/mysql_root_password.txt\u0000docker/secrets/dev/mysql_simulator_password.txt\u0000docker/secrets/dev/polaris_db_password.txt\u0000streaming/spark/scala/src/main/scala/com/olist/mds/spark/transaction/TransactionState.scala\u0000streaming/spark/scala/src/test/scala/com/olist/mds/spark/transaction/TransactionStateSpec.scala\u0000tests/lakehouse_platform/test_l1_runtime_contracts.py\u0000tests/serving/test_control.py\u0000",
+          "stdout": "docs/reports/lakehouse-stage-l4.md\u0000scripts/ci/check_legacy_orphans.py\u0000tests/cdc_contracts/test_schema_evolution.py\u0000tests/cdc_contracts/test_target_connector_contract.py\u0000tests/lakehouse_platform/test_control_postgres_contract.py\u0000tests/lakehouse_platform/test_secret_bootstrap.py\u0000tests/lakehouse_platform/test_source_contract.py\u0000tests/mysql/test_schema_contract.py\u0000tests/observability/test_contract.py\u0000tests/stage_v/test_f0_parity_contracts.py\u0000",
           "timed_out": false
         },
         {
@@ -277,9 +543,9 @@ reconstructed from static claims.
             "lock",
             "--check"
           ],
-          "duration_seconds": 0.094,
+          "duration_seconds": 0.063,
           "exit_code": 0,
-          "stderr": "Resolved 216 packages in 1ms\n",
+          "stderr": "Resolved 177 packages in 1ms\n",
           "stdout": "",
           "timed_out": false
         },
@@ -295,10 +561,10 @@ reconstructed from static claims.
             "tests/serving",
             "tests/stage_v"
           ],
-          "duration_seconds": 16.015,
+          "duration_seconds": 14.797,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "============================= test session starts =============================\nplatform win32 -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0\nrootdir: C:\\Users\\fyujv\\source\\repos\\olist-mds\nconfigfile: pyproject.toml\nplugins: anyio-4.13.0\ncollected 202 items\n\ntests\\cdc_contracts\\test_avro_helpers.py ..........                      [  4%]\ntests\\cdc_contracts\\test_connector_bootstrap.py ................         [ 12%]\ntests\\cdc_contracts\\test_entity_contracts.py ..............              [ 19%]\ntests\\cdc_contracts\\test_topics.py .......                               [ 23%]\ntests\\cdc_contracts\\test_writer_schemas.py ....                          [ 25%]\ntests\\lakehouse_platform\\test_l1_runtime_contracts.py ......             [ 28%]\ntests\\lakehouse_platform\\test_local_lab_live_readiness.py ...            [ 29%]\ntests\\lakehouse_platform\\test_local_lab_profile_boundaries.py .....      [ 32%]\ntests\\lakehouse_platform\\test_normalization_api.py ...                   [ 33%]\ntests\\lakehouse_platform\\test_polaris_admin_minio_contract.py ..         [ 34%]\ntests\\lakehouse_platform\\test_polaris_contract.py .......                [ 38%]\ntests\\lakehouse_platform\\test_polaris_credentials_projection.py ...      [ 39%]\ntests\\lakehouse_platform\\test_spark_config.py ....                       [ 41%]\ntests\\lakehouse_platform\\test_spark_image_contract.py .....              [ 44%]\ntests\\lakehouse_platform\\test_table_contracts.py .......                 [ 47%]\ntests\\mysql\\test_cli.py .......                                          [ 50%]\ntests\\mysql\\test_mysql_integration.py ss                                 [ 51%]\ntests\\mysql\\test_repository.py .................                         [ 60%]\ntests\\mysql\\test_seeding.py ......                                       [ 63%]\ntests\\mysql\\test_source_schema.py ............                           [ 69%]\ntests\\dbt_clickhouse\\test_dbt_parse.py .                                 [ 69%]\ntests\\dbt_clickhouse\\test_native_ddl_contract.py ........                [ 73%]\ntests\\dbt_clickhouse\\test_project_contract.py ......                     [ 76%]\ntests\\serving\\test_airflow_api.py .....                                  [ 79%]\ntests\\serving\\test_boundary.py ...........                               [ 84%]\ntests\\serving\\test_control.py ..                                         [ 85%]\ntests\\serving\\test_dbt_runner.py .                                       [ 86%]\ntests\\serving\\test_entities.py ...                                       [ 87%]\ntests\\stage_v\\test_stage_v_harness.py .....................              [ 98%]\ntests\\stage_v\\test_stage_v_oracles.py ....                               [100%]\n\n============================== warnings summary ===============================\n.venv\\Lib\\site-packages\\airflow\\__init__.py:47\n  C:\\Users\\fyujv\\source\\repos\\olist-mds\\.venv\\Lib\\site-packages\\airflow\\__init__.py:47: RuntimeWarning: Airflow currently can be run on POSIX-compliant Operating Systems. For development, it is regularly tested on fairly modern Linux Distros and recent versions of macOS. On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers. The work to add Windows support is tracked via https://github.com/apache/airflow/issues/10388, but it is not a high priority.\n    warnings.warn(\n\n.venv\\Lib\\site-packages\\_pytest\\cacheprovider.py:475\n  C:\\Users\\fyujv\\source\\repos\\olist-mds\\.venv\\Lib\\site-packages\\_pytest\\cacheprovider.py:475: PytestCacheWarning: could not create cache path C:\\Users\\fyujv\\source\\repos\\olist-mds\\.pytest_cache\\v\\cache\\nodeids: [WinError 5] Access is denied: 'C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.pytest_cache\\\\v\\\\cache'\n    config.cache.set(\"cache/nodeids\", sorted(self.cached_nodeids))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n================= 200 passed, 2 skipped, 2 warnings in 13.88s =================\n",
+          "stdout": "============================= test session starts =============================\nplatform win32 -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0\nrootdir: C:\\Users\\fyujv\\source\\repos\\olist-mds\nconfigfile: pyproject.toml\nplugins: anyio-4.13.0\ncollected 232 items\n\ntests\\cdc_contracts\\test_avro_helpers.py ..........                      [  4%]\ntests\\cdc_contracts\\test_connector_bootstrap.py ................         [ 11%]\ntests\\cdc_contracts\\test_entity_contracts.py ..............              [ 17%]\ntests\\cdc_contracts\\test_schema_evolution.py .....                       [ 19%]\ntests\\cdc_contracts\\test_target_connector_contract.py ............       [ 24%]\ntests\\cdc_contracts\\test_topics.py .......                               [ 27%]\ntests\\cdc_contracts\\test_writer_schemas.py ....                          [ 29%]\ntests\\lakehouse_platform\\test_control_postgres_contract.py ...           [ 30%]\ntests\\lakehouse_platform\\test_l1_runtime_contracts.py ......             [ 33%]\ntests\\lakehouse_platform\\test_local_lab_live_readiness.py ....           [ 34%]\ntests\\lakehouse_platform\\test_local_lab_profile_boundaries.py .....      [ 37%]\ntests\\lakehouse_platform\\test_normalization_api.py ...                   [ 38%]\ntests\\lakehouse_platform\\test_polaris_admin_minio_contract.py ..         [ 39%]\ntests\\lakehouse_platform\\test_polaris_contract.py .......                [ 42%]\ntests\\lakehouse_platform\\test_polaris_credentials_projection.py ...      [ 43%]\ntests\\lakehouse_platform\\test_secret_bootstrap.py s                      [ 43%]\ntests\\lakehouse_platform\\test_source_contract.py ..                      [ 44%]\ntests\\lakehouse_platform\\test_spark_config.py ....                       [ 46%]\ntests\\lakehouse_platform\\test_spark_image_contract.py .....              [ 48%]\ntests\\lakehouse_platform\\test_table_contracts.py .......                 [ 51%]\ntests\\mysql\\test_cli.py .......                                          [ 54%]\ntests\\mysql\\test_mysql_integration.py ss                                 [ 55%]\ntests\\mysql\\test_repository.py .................                         [ 62%]\ntests\\mysql\\test_schema_contract.py .                                    [ 63%]\ntests\\mysql\\test_seeding.py ......                                       [ 65%]\ntests\\mysql\\test_source_schema.py ............                           [ 71%]\ntests\\dbt_clickhouse\\test_dbt_parse.py .                                 [ 71%]\ntests\\dbt_clickhouse\\test_native_ddl_contract.py ........                [ 75%]\ntests\\dbt_clickhouse\\test_project_contract.py ......                     [ 77%]\ntests\\serving\\test_airflow_api.py .....                                  [ 79%]\ntests\\serving\\test_boundary.py ...........                               [ 84%]\ntests\\serving\\test_control.py ..                                         [ 85%]\ntests\\serving\\test_dbt_runner.py .                                       [ 85%]\ntests\\serving\\test_entities.py ...                                       [ 87%]\ntests\\stage_v\\test_f0_parity_contracts.py .....                          [ 89%]\ntests\\stage_v\\test_stage_v_harness.py .....................              [ 98%]\ntests\\stage_v\\test_stage_v_oracles.py ....                               [100%]\n\n============================== warnings summary ===============================\n.venv\\Lib\\site-packages\\airflow\\__init__.py:47\n  C:\\Users\\fyujv\\source\\repos\\olist-mds\\.venv\\Lib\\site-packages\\airflow\\__init__.py:47: RuntimeWarning: Airflow currently can be run on POSIX-compliant Operating Systems. For development, it is regularly tested on fairly modern Linux Distros and recent versions of macOS. On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers. The work to add Windows support is tracked via https://github.com/apache/airflow/issues/10388, but it is not a high priority.\n    warnings.warn(\n\n.venv\\Lib\\site-packages\\_pytest\\cacheprovider.py:475\n  C:\\Users\\fyujv\\source\\repos\\olist-mds\\.venv\\Lib\\site-packages\\_pytest\\cacheprovider.py:475: PytestCacheWarning: cache could not write path C:\\Users\\fyujv\\source\\repos\\olist-mds\\.pytest_cache\\v\\cache\\nodeids: [Errno 13] Permission denied: 'C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.pytest_cache\\\\v\\\\cache\\\\nodeids'\n    config.cache.set(\"cache/nodeids\", sorted(self.cached_nodeids))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n================= 229 passed, 3 skipped, 2 warnings in 12.97s =================\n",
           "timed_out": false
         },
         {
@@ -311,18 +577,18 @@ reconstructed from static claims.
             "docker/spark/Dockerfile",
             "."
           ],
-          "duration_seconds": 4.047,
+          "duration_seconds": 103.078,
           "exit_code": 0,
-          "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile\n#1 transferring dockerfile: 2.73kB 0.0s done\n#1 DONE 0.0s\n\n#2 resolve image config for docker-image://docker.io/docker/dockerfile:1.7\n#2 DONE 2.5s\n\n#3 docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e\n#3 CACHED\n\n#4 [internal] load metadata for docker.io/apache/spark:4.1.3-scala2.13-java17-python3-ubuntu\n#4 DONE 0.0s\n\n#5 [internal] load metadata for docker.io/library/alpine:3.22.1\n#5 DONE 0.0s\n\n#6 [internal] load .dockerignore\n#6 transferring context: 1.74kB done\n#6 DONE 0.0s\n\n#7 [sbt-downloader 1/5] FROM docker.io/library/alpine:3.22.1\n#7 DONE 0.0s\n\n#8 [scala-builder 1/6] FROM docker.io/apache/spark:4.1.3-scala2.13-java17-python3-ubuntu\n#8 DONE 0.0s\n\n#9 [internal] load build context\n#9 transferring context: 88.33kB 0.2s done\n#9 DONE 0.2s\n\n#10 [sbt-downloader 3/5] COPY docker/spark/sbt-launch.sha256 /tmp/sbt-launch.sha256\n#10 CACHED\n\n#11 [scala-builder 5/6] WORKDIR /tmp/streaming/spark/scala\n#11 CACHED\n\n#12 [artifact-downloader 4/5] COPY docker/spark/download-jars.sh /usr/local/bin/download-jars\n#12 CACHED\n\n#13 [scala-builder 2/6] COPY --from=artifact-downloader /opt/olist/jars/ /opt/spark/jars/\n#13 CACHED\n\n#14 [artifact-downloader 5/5] RUN chmod 0555 /usr/local/bin/download-jars     && /usr/local/bin/download-jars /tmp/jars.sha256 /opt/olist/jars\n#14 CACHED\n\n#15 [sbt-downloader 4/5] COPY docker/spark/download-sbt-launch.sh /usr/local/bin/download-sbt-launch\n#15 CACHED\n\n#16 [sbt-downloader 5/5] RUN chmod 0555 /usr/local/bin/download-sbt-launch     && /usr/local/bin/download-sbt-launch /tmp/sbt-launch.sha256 /tmp/sbt-launcher\n#16 CACHED\n\n#17 [sbt-downloader 2/5] RUN apk add --no-cache ca-certificates wget\n#17 CACHED\n\n#18 [scala-builder 3/6] COPY --from=sbt-downloader /tmp/sbt-launcher/sbt-launch.jar /tmp/sbt-launch.jar\n#18 CACHED\n\n#19 [scala-builder 4/6] COPY streaming /tmp/streaming\n#19 CACHED\n\n#20 [artifact-downloader 3/5] COPY docker/spark/jars.sha256 /tmp/jars.sha256\n#20 CACHED\n\n#21 [scala-builder 6/6] RUN java -jar /tmp/sbt-launch.jar scalafmtCheckAll scalafmtSbtCheck Test/compile test package\n#21 CACHED\n\n#22 exporting to image\n#22 exporting layers done\n#22 writing image sha256:69461a632288844e72ce00384ed941e6cfd8a428c0b85e2aa8bf8fc15de46afb done\n#22 DONE 0.0s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/epwcje26d9e9xx0ifx0n9uqxz\n",
+          "stderr": "#0 building with \"desktop-linux\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile\n#1 transferring dockerfile: 2.73kB 0.0s done\n#1 DONE 0.1s\n\n#2 resolve image config for docker-image://docker.io/docker/dockerfile:1.7\n#2 DONE 2.3s\n\n#3 docker-image://docker.io/docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e\n#3 CACHED\n\n#4 [internal] load metadata for docker.io/library/alpine:3.22.1\n#4 DONE 0.0s\n\n#5 [internal] load metadata for docker.io/apache/spark:4.1.3-scala2.13-java17-python3-ubuntu\n#5 DONE 0.0s\n\n#6 [internal] load .dockerignore\n#6 transferring context: 987B done\n#6 DONE 0.0s\n\n#7 [sbt-downloader 1/5] FROM docker.io/library/alpine:3.22.1\n#7 DONE 0.0s\n\n#8 [scala-builder 1/6] FROM docker.io/apache/spark:4.1.3-scala2.13-java17-python3-ubuntu\n#8 DONE 0.0s\n\n#9 [internal] load build context\n#9 transferring context: 92.03kB 0.2s done\n#9 DONE 0.3s\n\n#10 [sbt-downloader 2/5] RUN apk add --no-cache ca-certificates wget\n#10 CACHED\n\n#11 [artifact-downloader 3/5] COPY docker/spark/jars.sha256 /tmp/jars.sha256\n#11 CACHED\n\n#12 [artifact-downloader 5/5] RUN chmod 0555 /usr/local/bin/download-jars     && /usr/local/bin/download-jars /tmp/jars.sha256 /opt/olist/jars\n#12 CACHED\n\n#13 [scala-builder 2/6] COPY --from=artifact-downloader /opt/olist/jars/ /opt/spark/jars/\n#13 CACHED\n\n#14 [artifact-downloader 4/5] COPY docker/spark/download-jars.sh /usr/local/bin/download-jars\n#14 CACHED\n\n#15 [sbt-downloader 3/5] COPY docker/spark/sbt-launch.sha256 /tmp/sbt-launch.sha256\n#15 CACHED\n\n#16 [sbt-downloader 4/5] COPY docker/spark/download-sbt-launch.sh /usr/local/bin/download-sbt-launch\n#16 CACHED\n\n#17 [sbt-downloader 5/5] RUN chmod 0555 /usr/local/bin/download-sbt-launch     && /usr/local/bin/download-sbt-launch /tmp/sbt-launch.sha256 /tmp/sbt-launcher\n#17 CACHED\n\n#18 [scala-builder 3/6] COPY --from=sbt-downloader /tmp/sbt-launcher/sbt-launch.jar /tmp/sbt-launch.jar\n#18 CACHED\n\n#19 [scala-builder 4/6] COPY streaming /tmp/streaming\n#19 DONE 0.7s\n\n#20 [scala-builder 5/6] WORKDIR /tmp/streaming/spark/scala\n#20 DONE 0.1s\n\n#21 [scala-builder 6/6] RUN java -jar /tmp/sbt-launch.jar scalafmtCheckAll scalafmtSbtCheck Test/compile test package\n#21 0.944 [info] [launcher] getting org.scala-sbt sbt 1.12.11  (this may take some time)...\n#21 11.74 [info] [launcher] getting Scala 2.12.21 (for sbt)...\n#21 12.66 [info] welcome to sbt 1.12.11 (Eclipse Adoptium Java 17.0.19)\n#21 15.50 [info] loading settings for project scala-build from plugins.sbt...\n#21 16.39 [info] loading project definition from /tmp/streaming/spark/scala/project\n#21 22.99 [info] loading settings for project scala from build.sbt...\n#21 23.15 [info] set current project to olist-spark-jobs (in build file:/tmp/streaming/spark/scala/)\n#21 26.77 [info] scalafmt: Checking 4 Scala sources (/tmp/streaming/spark/scala)...\n#21 26.77 [info] scalafmt: Checking 30 Scala sources (/tmp/streaming/spark/scala)...\n#21 30.09 [success] Total time: 7 s, completed Aug 4, 2026, 10:38:02 PM\n#21 30.21 [info] scalafmt: Checking 2 Scala sources (/tmp/streaming/spark/scala)...\n#21 30.29 [success] Total time: 0 s, completed Aug 4, 2026, 10:38:02 PM\n#21 86.54 [info] compiling 5 Scala sources to /tmp/streaming/spark/scala/target/scala-2.13/classes ...\n#21 92.03 [info] done compiling\n#21 92.27 [info] compiling 1 Scala source to /tmp/streaming/spark/scala/target/scala-2.13/test-classes ...\n#21 93.27 [info] done compiling\n#21 93.83 [success] Total time: 64 s (0:01:04.0), completed Aug 4, 2026, 10:39:06 PM\n#21 94.96 [info] BronzeSpec:\n#21 95.05 [info] - ConfluentFrame inspect correctly classifies framing error codes\n#21 95.11 [info] ContractLoaderSpec:\n#21 95.33 [info] - LakehouseSchemaContract checksum matches J1 expected SHA-256\n#21 95.53 [info] - ContractLoader loads manifest and all 8 entity contracts successfully\n#21 95.54 [info] SilverSpec:\n#21 95.58 [info] - ContractLoader loads contracts for Silver engine\n#21 95.59 [info] TransactionStateSpec:\n#21 95.60 [info] - BEGIN and END observations split across batches become COMPLETE\n#21 95.60 [info] - an unresolved BEGIN remains visible as OPEN\n#21 95.60 [info] - a later COMPLETE replaces a REJECTED observation\n#21 95.61 [info] - duplicate END observations are idempotent\n#21 95.61 [info] - effective transactions are ordered by Kafka offset\n#21 95.71 [info] Run completed in 1 second, 501 milliseconds.\n#21 95.71 [info] Total number of tests run: 9\n#21 95.71 [info] Suites: completed 4, aborted 0\n#21 95.71 [info] Tests: succeeded 9, failed 0, canceled 0, ignored 0, pending 0\n#21 95.71 [info] All tests passed.\n#21 95.72 [success] Total time: 2 s, completed Aug 4, 2026, 10:39:08 PM\n#21 95.80 [warn] multiple main classes detected: run 'show discoveredMainClasses' to see the list\n#21 95.91 [success] Total time: 0 s, completed Aug 4, 2026, 10:39:08 PM\n#21 DONE 96.5s\n\n#22 exporting to image\n#22 exporting layers\n#22 exporting layers 1.8s done\n#22 writing image sha256:3795bf51823a4b66c2e4c42bab43bb52bee3e24b0c6dcdc7d9e3f20dee6ec2f8 done\n#22 DONE 1.8s\n\nView build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/pn27n8nqcixp76uafv58jn8ft\n",
           "stdout": "",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 51.345,
+      "duration_seconds": 144.899,
       "gate": "00-preflight",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:38:48.587433+00:00"
+      "timestamp": "2026-08-04T22:39:10.773047+00:00"
     },
     "01-harness-ready": {
       "assertions": [
@@ -372,7 +638,7 @@ reconstructed from static claims.
       "duration_seconds": 0.0,
       "gate": "01-harness-ready",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:38:48.588837+00:00"
+      "timestamp": "2026-08-04T22:39:10.773047+00:00"
     },
     "02-clean-bootstrap": {
       "assertions": [
@@ -382,7 +648,7 @@ reconstructed from static claims.
           "status": "PASS"
         },
         {
-          "detail": "{\"capture\": {\"capture_state\": \"captured\", \"contract_version\": 2}, \"command\": \"bootstrap\", \"readiness_level\": \"wave1_platform\", \"seed\": {\"archive\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\tests\\\\fixtures\\\\olist_small\\\\olist_small.zip\", \"exit_code\": 0, \"row_counts\": {\"customers\": 8, \"geolocation\": 6, \"order_items\": 16, \"order_payments\": 14, \"order_reviews\": 12, \"orders\": 12, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"run_id\": \"stage_l1_20260804_v6_seed_64afdd7955a5\"}, \"status\": \"ready\", \"validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}}",
+          "detail": "{\"capture\": {\"capture_state\": \"captured\", \"contract_version\": 2}, \"command\": \"bootstrap\", \"readiness_level\": \"wave1_platform\", \"seed\": {\"archive\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\tests\\\\fixtures\\\\olist_small\\\\olist_small.zip\", \"exit_code\": 0, \"row_counts\": {\"customers\": 8, \"geolocation\": 6, \"order_items\": 16, \"order_payments\": 14, \"order_reviews\": 12, \"orders\": 12, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"run_id\": \"stage_l4_20260805_f0_restored_seed_cbba942ffa86\"}, \"status\": \"ready\", \"validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}}",
           "name": "lab_bootstrap_seed",
           "status": "PASS"
         }
@@ -403,7 +669,7 @@ reconstructed from static claims.
           "scripts/cdc/local_lab.py",
           "bootstrap",
           "--run-id",
-          "stage_l1_20260804_v6_seed_64afdd7955a5",
+          "stage_l4_20260805_f0_restored_seed_cbba942ffa86",
           "--random-seed",
           "20260801"
         ]
@@ -418,7 +684,7 @@ reconstructed from static claims.
             "reset",
             "--yes"
           ],
-          "duration_seconds": 0.469,
+          "duration_seconds": 0.562,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"command\": \"reset\", \"scoped_to\": \"olist_stage_v\", \"status\": \"ready\"}\n",
@@ -432,27 +698,27 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "bootstrap",
             "--run-id",
-            "stage_l1_20260804_v6_seed_64afdd7955a5",
+            "stage_l4_20260805_f0_restored_seed_cbba942ffa86",
             "--random-seed",
             "20260801"
           ],
-          "duration_seconds": 312.25,
+          "duration_seconds": 296.078,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"capture\": {\"capture_state\": \"captured\", \"contract_version\": 2}, \"command\": \"bootstrap\", \"readiness_level\": \"wave1_platform\", \"seed\": {\"archive\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\tests\\\\fixtures\\\\olist_small\\\\olist_small.zip\", \"exit_code\": 0, \"row_counts\": {\"customers\": 8, \"geolocation\": 6, \"order_items\": 16, \"order_payments\": 14, \"order_reviews\": 12, \"orders\": 12, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"run_id\": \"stage_l1_20260804_v6_seed_64afdd7955a5\"}, \"status\": \"ready\", \"validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}}\n",
+          "stdout": "{\"capture\": {\"capture_state\": \"captured\", \"contract_version\": 2}, \"command\": \"bootstrap\", \"readiness_level\": \"wave1_platform\", \"seed\": {\"archive\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\tests\\\\fixtures\\\\olist_small\\\\olist_small.zip\", \"exit_code\": 0, \"row_counts\": {\"customers\": 8, \"geolocation\": 6, \"order_items\": 16, \"order_payments\": 14, \"order_reviews\": 12, \"orders\": 12, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"run_id\": \"stage_l4_20260805_f0_restored_seed_cbba942ffa86\"}, \"status\": \"ready\", \"validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 312.708,
+      "duration_seconds": 296.637,
       "gate": "02-clean-bootstrap",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:44:01.298755+00:00"
+      "timestamp": "2026-08-04T22:44:07.411688+00:00"
     },
     "03-initial-snapshot": {
       "assertions": [
         {
-          "detail": "{\"command\": \"start-streaming\", \"freshness_basis\": \"initial_start\", \"freshness_verified\": false, \"new_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"old_query_ids\": {}, \"restart_barrier_at_utc\": null, \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T15:46:10.913865354Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T15:46:27.467690554Z\"}}}",
+          "detail": "{\"command\": \"start-streaming\", \"freshness_basis\": \"initial_start\", \"freshness_verified\": false, \"new_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"old_query_ids\": {}, \"restart_barrier_at_utc\": null, \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T22:46:09.485650572Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T22:46:25.579309087Z\"}}}",
           "name": "start_streaming",
           "status": "PASS"
         },
@@ -601,49 +867,49 @@ reconstructed from static claims.
               "schema_violations": 0,
               "silver_progress": {
                 "customers": {
-                  "changes_snapshot_id": 4997046798937304080,
+                  "changes_snapshot_id": 6357949159994066740,
                   "entity": "customers",
                   "last_kafka_offset": 7,
                   "status": "COMMITTED"
                 },
                 "order_items": {
-                  "changes_snapshot_id": 6203981237016326604,
+                  "changes_snapshot_id": 7148453174623489302,
                   "entity": "order_items",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
                 },
                 "order_payments": {
-                  "changes_snapshot_id": 3834667265461565431,
+                  "changes_snapshot_id": 1389368697410847812,
                   "entity": "order_payments",
                   "last_kafka_offset": 4,
                   "status": "COMMITTED"
                 },
                 "order_reviews": {
-                  "changes_snapshot_id": 7769147630215613047,
+                  "changes_snapshot_id": 6832862774312988623,
                   "entity": "order_reviews",
                   "last_kafka_offset": 5,
                   "status": "COMMITTED"
                 },
                 "orders": {
-                  "changes_snapshot_id": 8990242861401746456,
+                  "changes_snapshot_id": 3286243361490749543,
                   "entity": "orders",
                   "last_kafka_offset": 1,
                   "status": "COMMITTED"
                 },
                 "product_category_translation": {
-                  "changes_snapshot_id": 4378261172774740424,
+                  "changes_snapshot_id": 2493780499513490015,
                   "entity": "product_category_translation",
                   "last_kafka_offset": 4,
                   "status": "COMMITTED"
                 },
                 "products": {
-                  "changes_snapshot_id": 8405389069284592997,
+                  "changes_snapshot_id": 7672100197799865306,
                   "entity": "products",
                   "last_kafka_offset": 7,
                   "status": "COMMITTED"
                 },
                 "sellers": {
-                  "changes_snapshot_id": 8065609369146321385,
+                  "changes_snapshot_id": 9125635543796638711,
                   "entity": "sellers",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
@@ -704,10 +970,10 @@ reconstructed from static claims.
             "--timeout",
             "600"
           ],
-          "duration_seconds": 151.234,
+          "duration_seconds": 140.375,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"start-streaming\", \"freshness_basis\": \"initial_start\", \"freshness_verified\": false, \"new_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"old_query_ids\": {}, \"restart_barrier_at_utc\": null, \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T15:46:10.913865354Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T15:46:27.467690554Z\"}}}\n",
+          "stdout": "{\"command\": \"start-streaming\", \"freshness_basis\": \"initial_start\", \"freshness_verified\": false, \"new_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"old_query_ids\": {}, \"restart_barrier_at_utc\": null, \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T22:46:09.485650572Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T22:46:25.579309087Z\"}}}\n",
           "timed_out": false
         },
         {
@@ -718,7 +984,7 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "start-serving-observer"
           ],
-          "duration_seconds": 106.469,
+          "duration_seconds": 95.86,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"airflow_started\": false, \"command\": \"start-serving-observer\", \"services\": [\"clickhouse\", \"clickhouse-init\"], \"status\": \"ready\"}\n",
@@ -734,7 +1000,7 @@ reconstructed from static claims.
             "--timeout",
             "1200"
           ],
-          "duration_seconds": 28.985,
+          "duration_seconds": 26.703,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"command\": \"wait-caught-up\", \"status\": \"ready\"}\n",
@@ -742,15 +1008,15 @@ reconstructed from static claims.
         }
       ],
       "details": {},
-      "duration_seconds": 290.904,
+      "duration_seconds": 266.449,
       "gate": "03-initial-snapshot",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:48:52.205839+00:00"
+      "timestamp": "2026-08-04T22:48:33.863371+00:00"
     },
     "04-crud-and-restart": {
       "assertions": [
         {
-          "detail": "{\"command\": \"stop-streaming\", \"old_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"status\": \"ready\", \"status_files_removed\": true}",
+          "detail": "{\"command\": \"stop-streaming\", \"old_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"status\": \"ready\", \"status_files_removed\": true}",
           "name": "stop_spark_streaming",
           "status": "PASS"
         },
@@ -760,7 +1026,7 @@ reconstructed from static claims.
           "status": "PASS"
         },
         {
-          "detail": "{\"command\": \"start-streaming\", \"freshness_basis\": \"status_updated_at_after_restart_barrier\", \"freshness_verified\": true, \"new_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"old_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"restart_barrier_at_utc\": \"2026-08-04T15:49:03.277670+00:00\", \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T15:51:26.892624957Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T15:51:37.432885505Z\"}}}",
+          "detail": "{\"command\": \"start-streaming\", \"freshness_basis\": \"status_updated_at_after_restart_barrier\", \"freshness_verified\": true, \"new_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"old_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"restart_barrier_at_utc\": \"2026-08-04T22:48:44.838906+00:00\", \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T22:50:54.347054040Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T22:51:01.881920616Z\"}}}",
           "name": "start_spark_streaming_recovery",
           "status": "PASS"
         }
@@ -793,10 +1059,10 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "stop-streaming"
           ],
-          "duration_seconds": 11.11,
+          "duration_seconds": 11.0,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"stop-streaming\", \"old_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"status\": \"ready\", \"status_files_removed\": true}\n",
+          "stdout": "{\"command\": \"stop-streaming\", \"old_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"status\": \"ready\", \"status_files_removed\": true}\n",
           "timed_out": false
         },
         {
@@ -810,18 +1076,18 @@ reconstructed from static claims.
             "--timeout",
             "600"
           ],
-          "duration_seconds": 154.765,
+          "duration_seconds": 139.266,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"start-streaming\", \"freshness_basis\": \"status_updated_at_after_restart_barrier\", \"freshness_verified\": true, \"new_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"old_query_ids\": {\"bronze\": \"d900c364-cc51-42eb-9c68-36e15a344e2c\", \"silver\": \"1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30\"}, \"restart_barrier_at_utc\": \"2026-08-04T15:49:03.277670+00:00\", \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T15:51:26.892624957Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T15:51:37.432885505Z\"}}}\n",
+          "stdout": "{\"command\": \"start-streaming\", \"freshness_basis\": \"status_updated_at_after_restart_barrier\", \"freshness_verified\": true, \"new_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"old_query_ids\": {\"bronze\": \"25a059e7-e20e-47bc-8956-3fa946633f9f\", \"silver\": \"1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf\"}, \"restart_barrier_at_utc\": \"2026-08-04T22:48:44.838906+00:00\", \"status\": \"ready\", \"status_files\": {\"bronze\": {\"query_count\": 1, \"updated_at_utc\": \"2026-08-04T22:50:54.347054040Z\"}, \"silver\": {\"query_count\": 10, \"updated_at_utc\": \"2026-08-04T22:51:01.881920616Z\"}}}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 166.325,
+      "duration_seconds": 150.528,
       "gate": "04-crud-and-restart",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:51:38.533679+00:00"
+      "timestamp": "2026-08-04T22:51:04.393464+00:00"
     },
     "05-caught-up": {
       "assertions": [
@@ -966,49 +1232,49 @@ reconstructed from static claims.
               "schema_violations": 0,
               "silver_progress": {
                 "customers": {
-                  "changes_snapshot_id": 2101074686807524779,
+                  "changes_snapshot_id": 1590334755227274135,
                   "entity": "customers",
                   "last_kafka_offset": 8,
                   "status": "COMMITTED"
                 },
                 "order_items": {
-                  "changes_snapshot_id": 7260055445008051617,
+                  "changes_snapshot_id": 6104085289137992191,
                   "entity": "order_items",
                   "last_kafka_offset": 5,
                   "status": "COMMITTED"
                 },
                 "order_payments": {
-                  "changes_snapshot_id": 8604726252198231125,
+                  "changes_snapshot_id": 4402592427034762001,
                   "entity": "order_payments",
                   "last_kafka_offset": 5,
                   "status": "COMMITTED"
                 },
                 "order_reviews": {
-                  "changes_snapshot_id": 5372656209178888275,
+                  "changes_snapshot_id": 1998650664707823942,
                   "entity": "order_reviews",
                   "last_kafka_offset": 2,
                   "status": "COMMITTED"
                 },
                 "orders": {
-                  "changes_snapshot_id": 1034207959551505294,
+                  "changes_snapshot_id": 8715658499880008100,
                   "entity": "orders",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
                 },
                 "product_category_translation": {
-                  "changes_snapshot_id": 4378261172774740424,
+                  "changes_snapshot_id": 2493780499513490015,
                   "entity": "product_category_translation",
                   "last_kafka_offset": 4,
                   "status": "COMMITTED"
                 },
                 "products": {
-                  "changes_snapshot_id": 8405389069284592997,
+                  "changes_snapshot_id": 7672100197799865306,
                   "entity": "products",
                   "last_kafka_offset": 7,
                   "status": "COMMITTED"
                 },
                 "sellers": {
-                  "changes_snapshot_id": 8065609369146321385,
+                  "changes_snapshot_id": 9125635543796638711,
                   "entity": "sellers",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
@@ -1032,23 +1298,23 @@ reconstructed from static claims.
             "freshness_basis": "status_updated_at_after_restart_barrier",
             "freshness_verified": true,
             "new_query_ids": {
-              "bronze": "d900c364-cc51-42eb-9c68-36e15a344e2c",
-              "silver": "1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30"
+              "bronze": "25a059e7-e20e-47bc-8956-3fa946633f9f",
+              "silver": "1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf"
             },
             "old_query_ids": {
-              "bronze": "d900c364-cc51-42eb-9c68-36e15a344e2c",
-              "silver": "1cea72e7-a4c5-4fc6-ba4e-6e4a535c8801,51b42e59-29c8-4f02-81ae-396ba858becc,589e5679-0a5d-4d76-81aa-d605ae8dcae8,a032893b-307a-42a7-9ebb-a8b3fda845f7,aecdb3fa-b438-4f7b-8135-617489a8f4d0,b2afdbb6-9b0d-4abc-8fc8-9b0a16d4c3e3,df64a116-32ff-464b-974c-2240b00a108c,ebb0b090-6ae1-42f0-8479-78a9ca17db47,f7adbce4-cbbd-4b9e-ac4f-e196b58564af,fcb11be6-c0ba-4f93-99f3-1fd2eb67ef30"
+              "bronze": "25a059e7-e20e-47bc-8956-3fa946633f9f",
+              "silver": "1ec5b0e6-a4b8-4ac8-a65f-97d46e52264b,488ba534-eeb7-43a6-9a4c-b66aa1ac4d7c,4cda13ac-e050-4aeb-a959-518545c2fa9d,56244440-ffb8-41e8-8f6a-d20a8563d099,8f6cc820-634e-4cf2-a2b7-68dee065aa56,bedc3874-98b7-4ebf-b949-7fd547e9ace2,d741bdb0-7078-4a6f-a8a3-e1dbce0e7882,de8efbe6-2cb9-42e0-bbcb-f5461cf0826e,e9939bc0-a07a-4f8e-b8b3-49fd888d8c9e,e9caa021-28d3-4ceb-bf65-c55fb951c3cf"
             },
-            "restart_barrier_at_utc": "2026-08-04T15:49:03.277670+00:00",
+            "restart_barrier_at_utc": "2026-08-04T22:48:44.838906+00:00",
             "status": "ready",
             "status_files": {
               "bronze": {
                 "query_count": 1,
-                "updated_at_utc": "2026-08-04T15:51:26.892624957Z"
+                "updated_at_utc": "2026-08-04T22:50:54.347054040Z"
               },
               "silver": {
                 "query_count": 10,
-                "updated_at_utc": "2026-08-04T15:51:37.432885505Z"
+                "updated_at_utc": "2026-08-04T22:51:01.881920616Z"
               }
             }
           },
@@ -1078,7 +1344,7 @@ reconstructed from static claims.
             "--timeout",
             "1200"
           ],
-          "duration_seconds": 84.407,
+          "duration_seconds": 96.906,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"command\": \"wait-caught-up\", \"status\": \"ready\"}\n",
@@ -1086,10 +1352,10 @@ reconstructed from static claims.
         }
       ],
       "details": {},
-      "duration_seconds": 88.157,
+      "duration_seconds": 99.843,
       "gate": "05-caught-up",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:53:06.692559+00:00"
+      "timestamp": "2026-08-04T22:52:44.239330+00:00"
     },
     "06-serving-sync": {
       "assertions": [
@@ -1099,12 +1365,12 @@ reconstructed from static claims.
           "status": "PASS"
         },
         {
-          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_crud_publish_64afdd7955a5\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.16335201263427734, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.07895159721374512, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.10897231101989746, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.10536766052246094, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.07300949096679688, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.10689949989318848, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.0819852352142334, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.06784534454345703, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.5991013050079346, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.35622191429138184, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.26253700256347656, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.35297584533691406, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.18056058883666992, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.09459066390991211, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.47009778022766113, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.23499059677124023, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.11588597297668457, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.10479068756103516, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.047231435775756836, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04086899757385254, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.0394587516784668, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.04480624198913574, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06540608406066895, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.038781166076660156, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.038831233978271484, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04087066650390625, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.052419424057006836, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05044889450073242, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.04595637321472168, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0617983341217041, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.0554049015045166, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04609513282775879, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.042207956314086914, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05921602249145508, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.05939292907714844, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05300140380859375, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04585146903991699, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04691290855407715, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.5423080921173096, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.04485344886779785, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.04673027992248535, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04409456253051758, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.047715187072753906, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05735158920288086, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.142503023147583, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05195283889770508, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.049108266830444336, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06205248832702637, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.06219816207885742, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.06193876266479492, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.05310964584350586, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.05081605911254883, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.05236077308654785, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05789446830749512, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.04750370979309082, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.10718512535095215, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.12667202949523926, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.04152989387512207, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.04152822494506836, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.046202898025512695, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04314446449279785, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.0457150936126709, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.042151451110839844, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.043474435806274414, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04642772674560547, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04214811325073242, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.05444955825805664, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.047429561614990234, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04909920692443848, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.04603767395019531, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04693961143493652, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04758715629577637, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04490351676940918, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04301285743713379, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.045908451080322266, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}}, \"expected_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 89, \"iceberg_snapshot_ids\": {\"customers\": 2101074686807524779, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 89, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 8, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=17636\"}",
+          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_crud_publish_cbba942ffa86\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.28551650047302246, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.23459386825561523, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.09164547920227051, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.0914454460144043, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.0767526626586914, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.08890676498413086, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.10743331909179688, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.11120939254760742, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.7228751182556152, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.5220811367034912, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.4344956874847412, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.8066186904907227, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.19350957870483398, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.1250150203704834, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.7755992412567139, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.229705810546875, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.14237070083618164, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.1107935905456543, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.058177947998046875, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05281829833984375, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.05875563621520996, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.06799173355102539, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.10114479064941406, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.06736516952514648, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.07120966911315918, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.049056053161621094, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.06695294380187988, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05046963691711426, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.055203914642333984, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05322861671447754, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.08980894088745117, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.07047033309936523, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.15107297897338867, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.07464456558227539, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.07457947731018066, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.051256418228149414, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.06155514717102051, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0530095100402832, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.7950906753540039, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.2387866973876953, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.06770586967468262, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06282544136047363, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.052703142166137695, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.06620168685913086, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.054347991943359375, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05778980255126953, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04939413070678711, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04846787452697754, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.05672192573547363, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.07136154174804688, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.05767226219177246, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04929804801940918, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04581093788146973, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05122780799865723, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.049762725830078125, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.19202423095703125, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.15273523330688477, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.06784319877624512, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.07770442962646484, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.09391021728515625, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06119537353515625, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.06480169296264648, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06537485122680664, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.05692028999328613, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06562328338623047, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06049513816833496, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.07088708877563477, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.06801652908325195, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.0953683853149414, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.09770750999450684, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06728339195251465, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06760382652282715, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.09058475494384766, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.08213686943054199, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.08391809463500977, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}}, \"expected_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 89, \"iceberg_snapshot_ids\": {\"customers\": 1590334755227274135, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 89, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 8, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=17771\"}",
           "name": "sync_serving_crud",
           "status": "PASS"
         },
         {
-          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_crud_repeat_64afdd7955a5\", \"dbt_result\": null, \"expected_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"expected_event_count\": 0, \"iceberg_snapshot_ids\": {\"customers\": 2101074686807524779, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": true, \"materialized_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"materialized_event_count\": 0, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000002\", \"sync_run_seq\": 2, \"sync_run_status\": \"NOOP\", \"target_offsets\": {}, \"target_transaction_id\": \"file=binlog.000002,pos=17636\"}",
+          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_crud_repeat_cbba942ffa86\", \"dbt_result\": null, \"expected_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"expected_event_count\": 0, \"iceberg_snapshot_ids\": {\"customers\": 1590334755227274135, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": true, \"materialized_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"materialized_event_count\": 0, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000002\", \"sync_run_seq\": 2, \"sync_run_status\": \"NOOP\", \"target_offsets\": {}, \"target_transaction_id\": \"file=binlog.000002,pos=17771\"}",
           "name": "sync_serving_crud_repeat_noop",
           "status": "PASS"
         }
@@ -1127,7 +1393,7 @@ reconstructed from static claims.
           "scripts/cdc/local_lab.py",
           "sync-serving",
           "--run-id",
-          "stage_l1_20260804_v6_crud_publish_64afdd7955a5",
+          "stage_l4_20260805_f0_restored_crud_publish_cbba942ffa86",
           "--timeout",
           "1800"
         ],
@@ -1138,7 +1404,7 @@ reconstructed from static claims.
           "scripts/cdc/local_lab.py",
           "sync-serving",
           "--run-id",
-          "stage_l1_20260804_v6_crud_repeat_64afdd7955a5",
+          "stage_l4_20260805_f0_restored_crud_repeat_cbba942ffa86",
           "--timeout",
           "1800"
         ]
@@ -1155,7 +1421,7 @@ reconstructed from static claims.
             "--timeout",
             "1800"
           ],
-          "duration_seconds": 202.906,
+          "duration_seconds": 250.187,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"command\": \"start-serving\", \"profiles\": [\"platform\", \"serving\"], \"required_services\": [\"clickhouse\", \"airflow\"], \"status\": \"ready\"}\n",
@@ -1169,14 +1435,14 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "sync-serving",
             "--run-id",
-            "stage_l1_20260804_v6_crud_publish_64afdd7955a5",
+            "stage_l4_20260805_f0_restored_crud_publish_cbba942ffa86",
             "--timeout",
             "1800"
           ],
-          "duration_seconds": 32.766,
+          "duration_seconds": 48.984,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_crud_publish_64afdd7955a5\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.16335201263427734, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.07895159721374512, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.10897231101989746, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.10536766052246094, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.07300949096679688, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.10689949989318848, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.0819852352142334, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.06784534454345703, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.5991013050079346, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.35622191429138184, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.26253700256347656, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.35297584533691406, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.18056058883666992, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.09459066390991211, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.47009778022766113, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.23499059677124023, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.11588597297668457, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.10479068756103516, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.047231435775756836, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04086899757385254, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.0394587516784668, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.04480624198913574, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06540608406066895, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.038781166076660156, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.038831233978271484, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04087066650390625, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.052419424057006836, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05044889450073242, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.04595637321472168, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0617983341217041, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.0554049015045166, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04609513282775879, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.042207956314086914, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05921602249145508, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.05939292907714844, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05300140380859375, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04585146903991699, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04691290855407715, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.5423080921173096, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.04485344886779785, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.04673027992248535, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04409456253051758, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.047715187072753906, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05735158920288086, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.142503023147583, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05195283889770508, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.049108266830444336, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06205248832702637, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.06219816207885742, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.06193876266479492, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.05310964584350586, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.05081605911254883, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.05236077308654785, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05789446830749512, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.04750370979309082, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.10718512535095215, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.12667202949523926, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.04152989387512207, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.04152822494506836, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.046202898025512695, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04314446449279785, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.0457150936126709, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.042151451110839844, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.043474435806274414, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04642772674560547, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04214811325073242, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.05444955825805664, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.047429561614990234, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04909920692443848, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.04603767395019531, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04693961143493652, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04758715629577637, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04490351676940918, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04301285743713379, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.045908451080322266, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}}, \"expected_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 89, \"iceberg_snapshot_ids\": {\"customers\": 2101074686807524779, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 89, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 8, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=17636\"}\n",
+          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_crud_publish_cbba942ffa86\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.28551650047302246, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.23459386825561523, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.09164547920227051, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.0914454460144043, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.0767526626586914, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.08890676498413086, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.10743331909179688, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.11120939254760742, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.7228751182556152, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.5220811367034912, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.4344956874847412, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.8066186904907227, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.19350957870483398, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.1250150203704834, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.7755992412567139, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.229705810546875, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.14237070083618164, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.1107935905456543, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.058177947998046875, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05281829833984375, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.05875563621520996, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.06799173355102539, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.10114479064941406, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.06736516952514648, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.07120966911315918, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.049056053161621094, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.06695294380187988, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05046963691711426, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.055203914642333984, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05322861671447754, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.08980894088745117, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.07047033309936523, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.15107297897338867, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.07464456558227539, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.07457947731018066, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.051256418228149414, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.06155514717102051, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0530095100402832, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.7950906753540039, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.2387866973876953, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.06770586967468262, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06282544136047363, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.052703142166137695, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.06620168685913086, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.054347991943359375, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05778980255126953, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04939413070678711, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04846787452697754, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.05672192573547363, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.07136154174804688, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.05767226219177246, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04929804801940918, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04581093788146973, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.05122780799865723, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.049762725830078125, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.19202423095703125, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.15273523330688477, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.06784319877624512, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.07770442962646484, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.09391021728515625, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06119537353515625, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.06480169296264648, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06537485122680664, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.05692028999328613, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06562328338623047, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06049513816833496, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.07088708877563477, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.06801652908325195, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.0953683853149414, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.09770750999450684, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.06728339195251465, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06760382652282715, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.09058475494384766, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.08213686943054199, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.08391809463500977, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}}, \"expected_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 89, \"iceberg_snapshot_ids\": {\"customers\": 1590334755227274135, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 9, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 89, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 8, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=17771\"}\n",
           "timed_out": false
         },
         {
@@ -1187,27 +1453,27 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "sync-serving",
             "--run-id",
-            "stage_l1_20260804_v6_crud_repeat_64afdd7955a5",
+            "stage_l4_20260805_f0_restored_crud_repeat_cbba942ffa86",
             "--timeout",
             "1800"
           ],
-          "duration_seconds": 5.875,
+          "duration_seconds": 11.281,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_crud_repeat_64afdd7955a5\", \"dbt_result\": null, \"expected_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"expected_event_count\": 0, \"iceberg_snapshot_ids\": {\"customers\": 2101074686807524779, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": true, \"materialized_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"materialized_event_count\": 0, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000002\", \"sync_run_seq\": 2, \"sync_run_status\": \"NOOP\", \"target_offsets\": {}, \"target_transaction_id\": \"file=binlog.000002,pos=17636\"}\n",
+          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_crud_repeat_cbba942ffa86\", \"dbt_result\": null, \"expected_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"expected_event_count\": 0, \"iceberg_snapshot_ids\": {\"customers\": 1590334755227274135, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": true, \"materialized_entity_counts\": {\"customers\": 0, \"order_items\": 0, \"order_payments\": 0, \"order_reviews\": 0, \"orders\": 0, \"product_category_translation\": 0, \"products\": 0, \"sellers\": 0}, \"materialized_event_count\": 0, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000002\", \"sync_run_seq\": 2, \"sync_run_status\": \"NOOP\", \"target_offsets\": {}, \"target_transaction_id\": \"file=binlog.000002,pos=17771\"}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 241.568,
+      "duration_seconds": 310.47,
       "gate": "06-serving-sync",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:57:08.263565+00:00"
+      "timestamp": "2026-08-04T22:57:54.718078+00:00"
     },
     "07-dbt-and-stable-views": {
       "assertions": [
         {
-          "detail": "{\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 2ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"93 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"command\": \"validate\", \"status\": \"ready\"}",
+          "detail": "{\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"73 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"command\": \"validate\", \"status\": \"ready\"}",
           "name": "serving_static_validation",
           "status": "PASS"
         },
@@ -1256,8 +1522,8 @@ reconstructed from static claims.
                 "stable": 2
               },
               "dim_product_scd2": {
-                "candidate": 10,
-                "stable": 10
+                "candidate": 8,
+                "stable": 8
               },
               "dim_seller": {
                 "candidate": 4,
@@ -1280,7 +1546,7 @@ reconstructed from static claims.
               "checks": [
                 {
                   "command": "uv lock --check",
-                  "diagnostic": "Resolved 216 packages in 1ms",
+                  "diagnostic": "Resolved 177 packages in 1ms",
                   "exit_code": 0,
                   "status": "passed"
                 },
@@ -1310,7 +1576,7 @@ reconstructed from static claims.
                 },
                 {
                   "command": "git diff --check",
-                  "diagnostic": "ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it",
+                  "diagnostic": "",
                   "exit_code": 0,
                   "status": "passed"
                 },
@@ -1322,7 +1588,7 @@ reconstructed from static claims.
                 },
                 {
                   "command": "uv run ruff",
-                  "diagnostic": "93 files already formatted",
+                  "diagnostic": "73 files already formatted",
                   "exit_code": 0,
                   "status": "passed"
                 }
@@ -1370,10 +1636,10 @@ reconstructed from static claims.
             "--scope",
             "serving"
           ],
-          "duration_seconds": 1.875,
+          "duration_seconds": 2.047,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 2ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"93 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"command\": \"validate\", \"status\": \"ready\"}\n",
+          "stdout": "{\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"73 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"command\": \"validate\", \"status\": \"ready\"}\n",
           "timed_out": false
         },
         {
@@ -1388,18 +1654,18 @@ reconstructed from static claims.
             "--sync-run-id",
             "sync-00000000000000000001"
           ],
-          "duration_seconds": 3.797,
+          "duration_seconds": 3.344,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"validate-serving\", \"current_views\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"dbt\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"result_count\": 75, \"status_counts\": {\"pass\": 59, \"success\": 16}}, \"gold_views\": {\"dim_customer_scd2\": {\"candidate\": 7, \"stable\": 7}, \"dim_date\": {\"candidate\": 46, \"stable\": 46}, \"dim_order_status\": {\"candidate\": 2, \"stable\": 2}, \"dim_product_scd2\": {\"candidate\": 10, \"stable\": 10}, \"dim_seller\": {\"candidate\": 4, \"stable\": 4}, \"fact_order_items\": {\"candidate\": 18, \"stable\": 18}, \"mart_daily_revenue\": {\"candidate\": 13, \"stable\": 13}, \"mart_monthly_arpu\": {\"candidate\": 7, \"stable\": 7}}, \"static_validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"93 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}\n",
+          "stdout": "{\"command\": \"validate-serving\", \"current_views\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"dbt\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 1, \\\"sync_run_id\\\": \\\"sync-00000000000000000001\\\"}\"], \"result_count\": 75, \"status_counts\": {\"pass\": 59, \"success\": 16}}, \"gold_views\": {\"dim_customer_scd2\": {\"candidate\": 7, \"stable\": 7}, \"dim_date\": {\"candidate\": 46, \"stable\": 46}, \"dim_order_status\": {\"candidate\": 2, \"stable\": 2}, \"dim_product_scd2\": {\"candidate\": 8, \"stable\": 8}, \"dim_seller\": {\"candidate\": 4, \"stable\": 4}, \"fact_order_items\": {\"candidate\": 18, \"stable\": 18}, \"mart_daily_revenue\": {\"candidate\": 13, \"stable\": 13}, \"mart_monthly_arpu\": {\"candidate\": 7, \"stable\": 7}}, \"static_validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"73 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000001\", \"sync_run_seq\": 1}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 5.679,
+      "duration_seconds": 5.388,
       "gate": "07-dbt-and-stable-views",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:57:13.947256+00:00"
+      "timestamp": "2026-08-04T22:58:00.111613+00:00"
     },
     "08-additive-schema": {
       "assertions": [
@@ -1444,7 +1710,7 @@ reconstructed from static claims.
           "status": "PASS"
         },
         {
-          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_schema_publish_64afdd7955a5\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.2090756893157959, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.08597350120544434, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.09011292457580566, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.07588934898376465, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.060515403747558594, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.061234474182128906, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.05806851387023926, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.06110262870788574, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.3662240505218506, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.29740285873413086, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.21623802185058594, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.18890762329101562, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.22670245170593262, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.1566009521484375, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.47406888008117676, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.24090909957885742, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.1720411777496338, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.08452057838439941, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04116320610046387, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.051149845123291016, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.055173397064208984, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.0619044303894043, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0932919979095459, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.04244732856750488, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.05323028564453125, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05259084701538086, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.0758354663848877, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05667757987976074, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.0515444278717041, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.050505638122558594, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.07617783546447754, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.06236839294433594, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.060146331787109375, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.060446739196777344, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.1657543182373047, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05002546310424805, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.052121877670288086, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05554795265197754, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.9753568172454834, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.1531062126159668, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.12785863876342773, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08735466003417969, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.08636736869812012, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.07675027847290039, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.09600186347961426, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.06660008430480957, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06977295875549316, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08321452140808105, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.09178566932678223, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.0696859359741211, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.07352471351623535, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.0540158748626709, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.0461726188659668, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.04985308647155762, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05977940559387207, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.17527222633361816, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.1535196304321289, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.04846310615539551, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.045552968978881836, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06228828430175781, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.05558180809020996, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.10495328903198242, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.08288860321044922, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.10504293441772461, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06905198097229004, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0594325065612793, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.06436514854431152, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.06229066848754883, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.06270694732666016, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.0452425479888916, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04958653450012207, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.059821128845214844, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.07184672355651855, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0551760196685791, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.049199819564819336, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}}, \"expected_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 5661301511364570764, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 9, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=21950\"}",
+          "detail": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_schema_publish_cbba942ffa86\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.18923354148864746, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.06692266464233398, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.07703447341918945, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.07261848449707031, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.07366943359375, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.1144568920135498, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.0919194221496582, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.07204008102416992, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.4036226272583008, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.39864063262939453, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.35738277435302734, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.3075089454650879, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.473691463470459, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.2477567195892334, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.5458254814147949, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.38053202629089355, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.22447848320007324, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.11423039436340332, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.056618452072143555, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08435845375061035, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04756045341491699, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.046881675720214844, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.07678842544555664, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.0732264518737793, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.05823111534118652, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05543637275695801, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.05640292167663574, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05327749252319336, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.06299304962158203, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.14159440994262695, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.049057960510253906, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04716134071350098, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.05328226089477539, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0770115852355957, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.07761955261230469, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05180859565734863, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04743242263793945, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.050107479095458984, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.43926525115966797, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.0388188362121582, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.04075765609741211, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.041478633880615234, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04004216194152832, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.03718829154968262, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06575703620910645, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05698442459106445, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04902815818786621, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05975699424743652, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.058623552322387695, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.05007052421569824, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.0444028377532959, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04632067680358887, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04568648338317871, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.050699472427368164, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.06188154220581055, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.23674297332763672, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.19597530364990234, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.09894013404846191, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.04483485221862793, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04931807518005371, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04435229301452637, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.04689526557922363, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.03920626640319824, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04008817672729492, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04088306427001953, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.03925776481628418, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.04035830497741699, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.04799318313598633, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04437088966369629, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.05274462699890137, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04369664192199707, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04208683967590332, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04451465606689453, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0991511344909668, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.09580445289611816, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}}, \"expected_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 4667963551008397841, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 9, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=22417\"}",
           "name": "additive_schema_publish",
           "status": "PASS"
         },
@@ -1483,7 +1749,7 @@ reconstructed from static claims.
               "kafka_topic": "olist_cdc.olist_oltp.customers",
               "key_schema_id": 7,
               "optional_value": null,
-              "transaction_id": "file=binlog.000002,pos=21950",
+              "transaction_id": "file=binlog.000002,pos=22417",
               "value_schema_id": 37
             },
             "status": "VERIFIED",
@@ -1639,49 +1905,49 @@ reconstructed from static claims.
               "schema_violations": 0,
               "silver_progress": {
                 "customers": {
-                  "changes_snapshot_id": 5661301511364570764,
+                  "changes_snapshot_id": 4667963551008397841,
                   "entity": "customers",
                   "last_kafka_offset": 9,
                   "status": "COMMITTED"
                 },
                 "order_items": {
-                  "changes_snapshot_id": 7260055445008051617,
+                  "changes_snapshot_id": 6104085289137992191,
                   "entity": "order_items",
                   "last_kafka_offset": 5,
                   "status": "COMMITTED"
                 },
                 "order_payments": {
-                  "changes_snapshot_id": 8604726252198231125,
+                  "changes_snapshot_id": 4402592427034762001,
                   "entity": "order_payments",
                   "last_kafka_offset": 5,
                   "status": "COMMITTED"
                 },
                 "order_reviews": {
-                  "changes_snapshot_id": 5372656209178888275,
+                  "changes_snapshot_id": 1998650664707823942,
                   "entity": "order_reviews",
                   "last_kafka_offset": 2,
                   "status": "COMMITTED"
                 },
                 "orders": {
-                  "changes_snapshot_id": 1034207959551505294,
+                  "changes_snapshot_id": 8715658499880008100,
                   "entity": "orders",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
                 },
                 "product_category_translation": {
-                  "changes_snapshot_id": 4378261172774740424,
+                  "changes_snapshot_id": 2493780499513490015,
                   "entity": "product_category_translation",
                   "last_kafka_offset": 4,
                   "status": "COMMITTED"
                 },
                 "products": {
-                  "changes_snapshot_id": 8405389069284592997,
+                  "changes_snapshot_id": 7672100197799865306,
                   "entity": "products",
                   "last_kafka_offset": 7,
                   "status": "COMMITTED"
                 },
                 "sellers": {
-                  "changes_snapshot_id": 8065609369146321385,
+                  "changes_snapshot_id": 9125635543796638711,
                   "entity": "sellers",
                   "last_kafka_offset": 3,
                   "status": "COMMITTED"
@@ -1744,8 +2010,8 @@ reconstructed from static claims.
                 "stable": 2
               },
               "dim_product_scd2": {
-                "candidate": 10,
-                "stable": 10
+                "candidate": 8,
+                "stable": 8
               },
               "dim_seller": {
                 "candidate": 4,
@@ -1768,7 +2034,7 @@ reconstructed from static claims.
               "checks": [
                 {
                   "command": "uv lock --check",
-                  "diagnostic": "Resolved 216 packages in 1ms",
+                  "diagnostic": "Resolved 177 packages in 1ms",
                   "exit_code": 0,
                   "status": "passed"
                 },
@@ -1798,7 +2064,7 @@ reconstructed from static claims.
                 },
                 {
                   "command": "git diff --check",
-                  "diagnostic": "ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it",
+                  "diagnostic": "",
                   "exit_code": 0,
                   "status": "passed"
                 },
@@ -1810,7 +2076,7 @@ reconstructed from static claims.
                 },
                 {
                   "command": "uv run ruff",
-                  "diagnostic": "93 files already formatted",
+                  "diagnostic": "73 files already formatted",
                   "exit_code": 0,
                   "status": "passed"
                 }
@@ -1842,7 +2108,7 @@ reconstructed from static claims.
           "scripts/cdc/local_lab.py",
           "sync-serving",
           "--run-id",
-          "stage_l1_20260804_v6_schema_publish_64afdd7955a5",
+          "stage_l4_20260805_f0_restored_schema_publish_cbba942ffa86",
           "--timeout",
           "1800"
         ],
@@ -1869,7 +2135,7 @@ reconstructed from static claims.
             "--timeout",
             "1200"
           ],
-          "duration_seconds": 35.547,
+          "duration_seconds": 36.344,
           "exit_code": 0,
           "stderr": "",
           "stdout": "{\"command\": \"wait-caught-up\", \"status\": \"ready\"}\n",
@@ -1883,14 +2149,14 @@ reconstructed from static claims.
             "scripts/cdc/local_lab.py",
             "sync-serving",
             "--run-id",
-            "stage_l1_20260804_v6_schema_publish_64afdd7955a5",
+            "stage_l4_20260805_f0_restored_schema_publish_cbba942ffa86",
             "--timeout",
             "1800"
           ],
-          "duration_seconds": 26.047,
+          "duration_seconds": 26.266,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_schema_publish_64afdd7955a5\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.2090756893157959, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.08597350120544434, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.09011292457580566, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.07588934898376465, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.060515403747558594, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.061234474182128906, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.05806851387023926, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.06110262870788574, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.3662240505218506, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.29740285873413086, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.21623802185058594, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.18890762329101562, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.22670245170593262, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.1566009521484375, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.47406888008117676, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.24090909957885742, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.1720411777496338, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.08452057838439941, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04116320610046387, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.051149845123291016, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.055173397064208984, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.0619044303894043, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0932919979095459, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.04244732856750488, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.05323028564453125, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05259084701538086, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.0758354663848877, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05667757987976074, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.0515444278717041, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.050505638122558594, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.07617783546447754, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.06236839294433594, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.060146331787109375, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.060446739196777344, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.1657543182373047, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05002546310424805, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.052121877670288086, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05554795265197754, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.9753568172454834, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.1531062126159668, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.12785863876342773, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08735466003417969, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.08636736869812012, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.07675027847290039, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.09600186347961426, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.06660008430480957, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06977295875549316, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08321452140808105, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.09178566932678223, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.0696859359741211, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.07352471351623535, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.0540158748626709, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.0461726188659668, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.04985308647155762, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05977940559387207, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.17527222633361816, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.1535196304321289, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.04846310615539551, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.045552968978881836, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06228828430175781, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.05558180809020996, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.10495328903198242, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.08288860321044922, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.10504293441772461, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.06905198097229004, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0594325065612793, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.06436514854431152, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.06229066848754883, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.06270694732666016, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.0452425479888916, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04958653450012207, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.059821128845214844, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.07184672355651855, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0551760196685791, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.049199819564819336, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}}, \"expected_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 5661301511364570764, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 9, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=21950\"}\n",
+          "stdout": "{\"command\": \"sync-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_schema_publish_cbba942ffa86\", \"dbt_result\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"exception\": null, \"results\": [{\"execution_time\": 0.18923354148864746, \"node\": \"stg_customers_current\", \"status\": \"success\"}, {\"execution_time\": 0.06692266464233398, \"node\": \"stg_customers_events\", \"status\": \"success\"}, {\"execution_time\": 0.07703447341918945, \"node\": \"stg_order_items_current\", \"status\": \"success\"}, {\"execution_time\": 0.07261848449707031, \"node\": \"stg_order_payments_current\", \"status\": \"success\"}, {\"execution_time\": 0.07366943359375, \"node\": \"stg_orders_current\", \"status\": \"success\"}, {\"execution_time\": 0.1144568920135498, \"node\": \"stg_product_category_translation_events\", \"status\": \"success\"}, {\"execution_time\": 0.0919194221496582, \"node\": \"stg_products_events\", \"status\": \"success\"}, {\"execution_time\": 0.07204008102416992, \"node\": \"stg_sellers_current\", \"status\": \"success\"}, {\"execution_time\": 0.4036226272583008, \"node\": \"customer_scd2_collapses_identical_update_and_closes_on_delete\", \"status\": \"pass\"}, {\"execution_time\": 0.39864063262939453, \"node\": \"dim_customer_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.35738277435302734, \"node\": \"zero_gross_order_has_null_payment_allocation\", \"status\": \"pass\"}, {\"execution_time\": 0.3075089454650879, \"node\": \"payment_allocation_is_proportional_at_item_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.473691463470459, \"node\": \"dim_date\", \"status\": \"success\"}, {\"execution_time\": 0.2477567195892334, \"node\": \"dim_order_status\", \"status\": \"success\"}, {\"execution_time\": 0.5458254814147949, \"node\": \"product_translation_does_not_resurrect_an_old_category\", \"status\": \"pass\"}, {\"execution_time\": 0.38053202629089355, \"node\": \"dim_product_scd2\", \"status\": \"success\"}, {\"execution_time\": 0.22447848320007324, \"node\": \"dim_seller\", \"status\": \"success\"}, {\"execution_time\": 0.11423039436340332, \"node\": \"assert_customer_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.056618452072143555, \"node\": \"candidate_not_null_dim_customer_scd2_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.08435845375061035, \"node\": \"candidate_not_null_dim_customer_scd2_customer_unique_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04756045341491699, \"node\": \"candidate_not_null_dim_customer_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.046881675720214844, \"node\": \"unique_combination_of_columns_dim_customer_scd2_sync_run_seq__customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.07678842544555664, \"node\": \"assert_payment_allocations_balance\", \"status\": \"pass\"}, {\"execution_time\": 0.0732264518737793, \"node\": \"candidate_not_null_dim_date_date_day\", \"status\": \"pass\"}, {\"execution_time\": 0.05823111534118652, \"node\": \"candidate_not_null_dim_date_date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05543637275695801, \"node\": \"candidate_not_null_dim_date_sync_run_seq\", \"status\": \"pass\"}, {\"execution_time\": 0.05640292167663574, \"node\": \"unique_combination_of_columns_dim_date_sync_run_seq__date_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05327749252319336, \"node\": \"candidate_not_null_dim_order_status_order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.06299304962158203, \"node\": \"candidate_not_null_dim_order_status_order_status_key\", \"status\": \"pass\"}, {\"execution_time\": 0.14159440994262695, \"node\": \"unique_combination_of_columns_dim_order_status_sync_run_seq__order_status\", \"status\": \"pass\"}, {\"execution_time\": 0.049057960510253906, \"node\": \"assert_product_scd2_windows\", \"status\": \"pass\"}, {\"execution_time\": 0.04716134071350098, \"node\": \"candidate_not_null_dim_product_scd2_product_id\", \"status\": \"pass\"}, {\"execution_time\": 0.05328226089477539, \"node\": \"candidate_not_null_dim_product_scd2_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.0770115852355957, \"node\": \"candidate_not_null_dim_product_scd2_valid_from\", \"status\": \"pass\"}, {\"execution_time\": 0.07761955261230469, \"node\": \"unique_combination_of_columns_dim_product_scd2_sync_run_seq__product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05180859565734863, \"node\": \"candidate_not_null_dim_seller_seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.04743242263793945, \"node\": \"candidate_not_null_dim_seller_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.050107479095458984, \"node\": \"unique_combination_of_columns_dim_seller_sync_run_seq__seller_id\", \"status\": \"pass\"}, {\"execution_time\": 0.43926525115966797, \"node\": \"fact_order_items\", \"status\": \"success\"}, {\"execution_time\": 0.0388188362121582, \"node\": \"assert_fact_order_items_grain\", \"status\": \"pass\"}, {\"execution_time\": 0.04075765609741211, \"node\": \"candidate_not_null_fact_order_items_customer_key\", \"status\": \"pass\"}, {\"execution_time\": 0.041478633880615234, \"node\": \"candidate_not_null_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04004216194152832, \"node\": \"candidate_not_null_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.03718829154968262, \"node\": \"candidate_not_null_fact_order_items_order_item_key\", \"status\": \"pass\"}, {\"execution_time\": 0.06575703620910645, \"node\": \"candidate_not_null_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.05698442459106445, \"node\": \"candidate_not_null_fact_order_items_product_key\", \"status\": \"pass\"}, {\"execution_time\": 0.04902815818786621, \"node\": \"candidate_not_null_fact_order_items_seller_key\", \"status\": \"pass\"}, {\"execution_time\": 0.05975699424743652, \"node\": \"candidate_relationships_fact_order_items_customer_key__customer_key__ref_dim_customer_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.058623552322387695, \"node\": \"candidate_relationships_fact_order_items_product_key__product_key__ref_dim_product_scd2_\", \"status\": \"pass\"}, {\"execution_time\": 0.05007052421569824, \"node\": \"candidate_relationships_fact_order_items_seller_key__seller_key__ref_dim_seller_\", \"status\": \"pass\"}, {\"execution_time\": 0.0444028377532959, \"node\": \"non_negative_fact_order_items_allocated_payment_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04632067680358887, \"node\": \"non_negative_fact_order_items_freight_value\", \"status\": \"pass\"}, {\"execution_time\": 0.04568648338317871, \"node\": \"non_negative_fact_order_items_gross_item_amount\", \"status\": \"pass\"}, {\"execution_time\": 0.050699472427368164, \"node\": \"non_negative_fact_order_items_price\", \"status\": \"pass\"}, {\"execution_time\": 0.06188154220581055, \"node\": \"unique_combination_of_columns_fact_order_items_sync_run_seq__order_id__order_item_id\", \"status\": \"pass\"}, {\"execution_time\": 0.23674297332763672, \"node\": \"mart_daily_revenue\", \"status\": \"success\"}, {\"execution_time\": 0.19597530364990234, \"node\": \"mart_monthly_arpu\", \"status\": \"success\"}, {\"execution_time\": 0.09894013404846191, \"node\": \"assert_daily_revenue_components\", \"status\": \"pass\"}, {\"execution_time\": 0.04483485221862793, \"node\": \"candidate_not_null_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04931807518005371, \"node\": \"candidate_not_null_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04435229301452637, \"node\": \"candidate_not_null_mart_daily_revenue_order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.04689526557922363, \"node\": \"candidate_not_null_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.03920626640319824, \"node\": \"non_negative_mart_daily_revenue_allocated_payment_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04008817672729492, \"node\": \"non_negative_mart_daily_revenue_gross_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04088306427001953, \"node\": \"non_negative_mart_daily_revenue_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.03925776481628418, \"node\": \"unique_combination_of_columns_mart_daily_revenue_sync_run_seq__order_purchase_date\", \"status\": \"pass\"}, {\"execution_time\": 0.04035830497741699, \"node\": \"assert_monthly_arpu_formulas\", \"status\": \"pass\"}, {\"execution_time\": 0.04799318313598633, \"node\": \"candidate_not_null_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04437088966369629, \"node\": \"candidate_not_null_mart_monthly_arpu_order_month\", \"status\": \"pass\"}, {\"execution_time\": 0.05274462699890137, \"node\": \"candidate_not_null_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.04369664192199707, \"node\": \"candidate_not_null_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.04208683967590332, \"node\": \"non_negative_mart_monthly_arpu_active_customers\", \"status\": \"pass\"}, {\"execution_time\": 0.04451465606689453, \"node\": \"non_negative_mart_monthly_arpu_orders_count\", \"status\": \"pass\"}, {\"execution_time\": 0.0991511344909668, \"node\": \"non_negative_mart_monthly_arpu_total_revenue\", \"status\": \"pass\"}, {\"execution_time\": 0.09580445289611816, \"node\": \"unique_combination_of_columns_mart_monthly_arpu_sync_run_seq__order_month\", \"status\": \"pass\"}], \"selector\": \"serving_candidate\", \"status_counts\": {\"pass\": 59, \"success\": 16}, \"success\": true, \"vars\": {\"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}}, \"expected_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 4667963551008397841, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"is_noop\": false, \"materialized_entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3, \"sync_run_status\": \"SUCCEEDED\", \"target_offsets\": {\"olist_cdc.olist_oltp.customers:0\": 9, \"olist_cdc.olist_oltp.order_items:0\": 5, \"olist_cdc.olist_oltp.order_items:1\": 5, \"olist_cdc.olist_oltp.order_items:2\": 6, \"olist_cdc.olist_oltp.order_payments:0\": 5, \"olist_cdc.olist_oltp.order_payments:1\": 4, \"olist_cdc.olist_oltp.order_payments:2\": 4, \"olist_cdc.olist_oltp.order_reviews:0\": 5, \"olist_cdc.olist_oltp.order_reviews:1\": 4, \"olist_cdc.olist_oltp.order_reviews:2\": 2, \"olist_cdc.olist_oltp.orders:0\": 3, \"olist_cdc.olist_oltp.orders:1\": 4, \"olist_cdc.olist_oltp.orders:2\": 4, \"olist_cdc.olist_oltp.product_category_translation:0\": 4, \"olist_cdc.olist_oltp.products:0\": 7, \"olist_cdc.olist_oltp.sellers:0\": 3}, \"target_transaction_id\": \"file=binlog.000002,pos=22417\"}\n",
           "timed_out": false
         },
         {
@@ -1905,25 +2171,25 @@ reconstructed from static claims.
             "--sync-run-id",
             "sync-00000000000000000003"
           ],
-          "duration_seconds": 2.563,
+          "duration_seconds": 2.625,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"validate-serving\", \"current_views\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"dbt\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"result_count\": 75, \"status_counts\": {\"pass\": 59, \"success\": 16}}, \"gold_views\": {\"dim_customer_scd2\": {\"candidate\": 8, \"stable\": 8}, \"dim_date\": {\"candidate\": 46, \"stable\": 46}, \"dim_order_status\": {\"candidate\": 2, \"stable\": 2}, \"dim_product_scd2\": {\"candidate\": 10, \"stable\": 10}, \"dim_seller\": {\"candidate\": 4, \"stable\": 4}, \"fact_order_items\": {\"candidate\": 18, \"stable\": 18}, \"mart_daily_revenue\": {\"candidate\": 13, \"stable\": 13}, \"mart_monthly_arpu\": {\"candidate\": 7, \"stable\": 7}}, \"static_validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 216 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"ts/fixtures/<redacted>_small/README.md', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/fixtures/<redacted>_small/source_profile_small.json', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/serving/test_boundary.py', LF will be replaced by CRLF the next time Git touches it\\nwarning: in the working copy of 'tests/stage_v/test_stage_v_harness.py', LF will be replaced by CRLF the next time Git touches it\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"93 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}\n",
+          "stdout": "{\"command\": \"validate-serving\", \"current_views\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"dbt\": {\"command\": [\"build\", \"--project-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--profiles-dir\", \"/opt/airflow/project/dbt/olist_clickhouse\", \"--selector\", \"serving_candidate\", \"--vars\", \"{\\\"sync_run_seq\\\": 3, \\\"sync_run_id\\\": \\\"sync-00000000000000000003\\\"}\"], \"result_count\": 75, \"status_counts\": {\"pass\": 59, \"success\": 16}}, \"gold_views\": {\"dim_customer_scd2\": {\"candidate\": 8, \"stable\": 8}, \"dim_date\": {\"candidate\": 46, \"stable\": 46}, \"dim_order_status\": {\"candidate\": 2, \"stable\": 2}, \"dim_product_scd2\": {\"candidate\": 8, \"stable\": 8}, \"dim_seller\": {\"candidate\": 4, \"stable\": 4}, \"fact_order_items\": {\"candidate\": 18, \"stable\": 18}, \"mart_daily_revenue\": {\"candidate\": 13, \"stable\": 13}, \"mart_monthly_arpu\": {\"candidate\": 7, \"stable\": 7}}, \"static_validation\": {\"checks\": [{\"command\": \"uv lock --check\", \"diagnostic\": \"Resolved 177 packages in 1ms\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.generate_contracts\", \"diagnostic\": \"Eight versioned entity contract chains are current\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.writer_schemas\", \"diagnostic\": \"captured writer schema repository is valid: captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"C:\\\\Users\\\\fyujv\\\\source\\\\repos\\\\olist-mds\\\\.venv\\\\Scripts\\\\python.exe -m streaming.schemas.contracts\", \"diagnostic\": \"CDC entity contracts are valid: eight entities, writers=captured\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"docker compose --profile\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"git diff --check\", \"diagnostic\": \"\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"All checks passed!\", \"exit_code\": 0, \"status\": \"passed\"}, {\"command\": \"uv run ruff\", \"diagnostic\": \"73 files already formatted\", \"exit_code\": 0, \"status\": \"passed\"}], \"status\": \"ready\"}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000003\", \"sync_run_seq\": 3}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 68.2,
+      "duration_seconds": 69.002,
       "gate": "08-additive-schema",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:58:22.151217+00:00"
+      "timestamp": "2026-08-04T22:59:09.119444+00:00"
     },
     "09-rebuild": {
       "assertions": [
         {
           "detail": {
             "command": "rebuild-serving",
-            "dag_run_id": "stage_l1_20260804_v6_rebuild_64afdd7955a5",
+            "dag_run_id": "stage_l4_20260805_f0_restored_rebuild_cbba942ffa86",
             "entity_counts": {
               "customers": 10,
               "order_items": 19,
@@ -1936,14 +2202,14 @@ reconstructed from static claims.
             },
             "expected_event_count": 90,
             "iceberg_snapshot_ids": {
-              "customers": 5661301511364570764,
-              "order_items": 7260055445008051617,
-              "order_payments": 8604726252198231125,
-              "order_reviews": 5372656209178888275,
-              "orders": 1034207959551505294,
-              "product_category_translation": 4378261172774740424,
-              "products": 8405389069284592997,
-              "sellers": 8065609369146321385
+              "customers": 4667963551008397841,
+              "order_items": 6104085289137992191,
+              "order_payments": 4402592427034762001,
+              "order_reviews": 1998650664707823942,
+              "orders": 8715658499880008100,
+              "product_category_translation": 2493780499513490015,
+              "products": 7672100197799865306,
+              "sellers": 9125635543796638711
             },
             "materialized_event_count": 90,
             "status": "succeeded",
@@ -1999,8 +2265,8 @@ reconstructed from static claims.
                 "stable": 2
               },
               "dim_product_scd2": {
-                "candidate": 10,
-                "stable": 10
+                "candidate": 8,
+                "stable": 8
               },
               "dim_seller": {
                 "candidate": 4,
@@ -2030,526 +2296,526 @@ reconstructed from static claims.
               "sellers": 4
             },
             "iceberg_snapshot_ids": {
-              "customers": 5661301511364570764,
-              "order_items": 7260055445008051617,
-              "order_payments": 8604726252198231125,
-              "order_reviews": 5372656209178888275,
-              "orders": 1034207959551505294,
-              "product_category_translation": 4378261172774740424,
-              "products": 8405389069284592997,
-              "sellers": 8065609369146321385
+              "customers": 4667963551008397841,
+              "order_items": 6104085289137992191,
+              "order_payments": 4402592427034762001,
+              "order_reviews": 1998650664707823942,
+              "orders": 8715658499880008100,
+              "product_category_translation": 2493780499513490015,
+              "products": 7672100197799865306,
+              "sellers": 9125635543796638711
             },
             "materialized_event_count": 90,
             "row_manifests": {
               "candidate_physical": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "9763aa2c24b67661cb49b67c9ebd7a9829050afcceffcae79ce92ab36711221b",
+                  "manifest_sha256": "7f8bd7ceedd836351e7a2c8d030874dd7c340899954552deb522ea1fcbde182a",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     },
                     {
                       "is_deleted": true,
                       "review_id": "wave2_review_001",
-                      "row_hash": "d86306f9c001d524a7050108279dab9c93cffa0883e2e9f729af8d8db411ca76"
+                      "row_hash": "3254b0fe5706ca8e888cd955049960ef953c10460c412dcfb538807f72bba6bc"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -2557,508 +2823,508 @@ reconstructed from static claims.
               },
               "candidate_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -3066,513 +3332,513 @@ reconstructed from static claims.
               },
               "iceberg_physical": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "9763aa2c24b67661cb49b67c9ebd7a9829050afcceffcae79ce92ab36711221b",
+                  "manifest_sha256": "7f8bd7ceedd836351e7a2c8d030874dd7c340899954552deb522ea1fcbde182a",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     },
                     {
                       "is_deleted": true,
                       "review_id": "wave2_review_001",
-                      "row_hash": "d86306f9c001d524a7050108279dab9c93cffa0883e2e9f729af8d8db411ca76"
+                      "row_hash": "3254b0fe5706ca8e888cd955049960ef953c10460c412dcfb538807f72bba6bc"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -3580,508 +3846,508 @@ reconstructed from static claims.
               },
               "iceberg_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -4089,508 +4355,508 @@ reconstructed from static claims.
               },
               "stable_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -4629,7 +4895,7 @@ reconstructed from static claims.
           "rebuild-serving",
           "--yes",
           "--run-id",
-          "stage_l1_20260804_v6_rebuild_64afdd7955a5",
+          "stage_l4_20260805_f0_restored_rebuild_cbba942ffa86",
           "--timeout",
           "5400"
         ],
@@ -4655,14 +4921,14 @@ reconstructed from static claims.
             "rebuild-serving",
             "--yes",
             "--run-id",
-            "stage_l1_20260804_v6_rebuild_64afdd7955a5",
+            "stage_l4_20260805_f0_restored_rebuild_cbba942ffa86",
             "--timeout",
             "5400"
           ],
-          "duration_seconds": 30.875,
+          "duration_seconds": 26.218,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"command\": \"rebuild-serving\", \"dag_run_id\": \"stage_l1_20260804_v6_rebuild_64afdd7955a5\", \"entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 5661301511364570764, \"order_items\": 7260055445008051617, \"order_payments\": 8604726252198231125, \"order_reviews\": 5372656209178888275, \"orders\": 1034207959551505294, \"product_category_translation\": 4378261172774740424, \"products\": 8405389069284592997, \"sellers\": 8065609369146321385}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
+          "stdout": "{\"command\": \"rebuild-serving\", \"dag_run_id\": \"stage_l4_20260805_f0_restored_rebuild_cbba942ffa86\", \"entity_counts\": {\"customers\": 10, \"order_items\": 19, \"order_payments\": 16, \"order_reviews\": 14, \"orders\": 14, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"expected_event_count\": 90, \"iceberg_snapshot_ids\": {\"customers\": 4667963551008397841, \"order_items\": 6104085289137992191, \"order_payments\": 4402592427034762001, \"order_reviews\": 1998650664707823942, \"orders\": 8715658499880008100, \"product_category_translation\": 2493780499513490015, \"products\": 7672100197799865306, \"sellers\": 9125635543796638711}, \"materialized_event_count\": 90, \"status\": \"succeeded\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
           "timed_out": false
         },
         {
@@ -4677,18 +4943,18 @@ reconstructed from static claims.
             "--sync-run-id",
             "sync-00000000000000000004"
           ],
-          "duration_seconds": 2.266,
+          "duration_seconds": 2.016,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "37902c111c49f53\"}]}, \"order_items\": {\"manifest_sha256\": \"6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2\", \"row_count\": 18, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"order_item_id\": 1, \"row_hash\": \"1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"order_item_id\": 1, \"row_hash\": \"f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 1, \"row_hash\": \"33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 2, \"row_hash\": \"105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"order_item_id\": 1, \"row_hash\": \"35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"order_item_id\": 1, \"row_hash\": \"89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 1, \"row_hash\": \"4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 2, \"row_hash\": \"f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"order_item_id\": 1, \"row_hash\": \"851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"order_item_id\": 1, \"row_hash\": \"3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 1, \"row_hash\": \"57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 2, \"row_hash\": \"425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"order_item_id\": 1, \"row_hash\": \"389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"order_item_id\": 1, \"row_hash\": \"3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 1, \"row_hash\": \"2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 2, \"row_hash\": \"a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 1, \"row_hash\": \"438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 2, \"row_hash\": \"5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295\"}]}, \"order_payments\": {\"manifest_sha256\": \"b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d\", \"row_count\": 16, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"payment_sequential\": 1, \"row_hash\": \"0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"payment_sequential\": 1, \"row_hash\": \"4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"payment_sequential\": 1, \"row_hash\": \"0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 1, \"row_hash\": \"57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 2, \"row_hash\": \"8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"payment_sequential\": 1, \"row_hash\": \"809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"payment_sequential\": 1, \"row_hash\": \"d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"payment_sequential\": 1, \"row_hash\": \"78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 1, \"row_hash\": \"f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 2, \"row_hash\": \"6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"payment_sequential\": 1, \"row_hash\": \"67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"payment_sequential\": 1, \"row_hash\": \"643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"payment_sequential\": 1, \"row_hash\": \"997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"payment_sequential\": 1, \"row_hash\": \"a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 1, \"row_hash\": \"305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 2, \"row_hash\": \"f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355\"}]}, \"order_reviews\": {\"manifest_sha256\": \"a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f\", \"row_count\": 12, \"rows\": [{\"is_deleted\": false, \"review_id\": \"review_001\", \"row_hash\": \"ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1\"}, {\"is_deleted\": false, \"review_id\": \"review_002\", \"row_hash\": \"b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5\"}, {\"is_deleted\": false, \"review_id\": \"review_003\", \"row_hash\": \"6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39\"}, {\"is_deleted\": false, \"review_id\": \"review_004\", \"row_hash\": \"ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f\"}, {\"is_deleted\": false, \"review_id\": \"review_005\", \"row_hash\": \"fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e\"}, {\"is_deleted\": false, \"review_id\": \"review_006\", \"row_hash\": \"65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7\"}, {\"is_deleted\": false, \"review_id\": \"review_007\", \"row_hash\": \"e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020\"}, {\"is_deleted\": false, \"review_id\": \"review_008\", \"row_hash\": \"a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084\"}, {\"is_deleted\": false, \"review_id\": \"review_009\", \"row_hash\": \"39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4\"}, {\"is_deleted\": false, \"review_id\": \"review_010\", \"row_hash\": \"724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07\"}, {\"is_deleted\": false, \"review_id\": \"review_011\", \"row_hash\": \"67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c\"}, {\"is_deleted\": false, \"review_id\": \"review_012\", \"row_hash\": \"876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14\"}]}, \"orders\": {\"manifest_sha256\": \"820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f\", \"row_count\": 13, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"row_hash\": \"fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"row_hash\": \"8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"row_hash\": \"e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"row_hash\": \"2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"row_hash\": \"2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"row_hash\": \"cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"row_hash\": \"0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"row_hash\": \"d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"row_hash\": \"32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"row_hash\": \"e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"row_hash\": \"adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"row_hash\": \"d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"row_hash\": \"3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc\"}]}, \"product_category_translation\": {\"manifest_sha256\": \"fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae\", \"row_count\": 5, \"rows\": [{\"is_deleted\": false, \"product_category_name\": \"beleza_saude\", \"row_hash\": \"cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae\"}, {\"is_deleted\": false, \"product_category_name\": \"informatica_acessorios\", \"row_hash\": \"f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d\"}, {\"is_deleted\": false, \"product_category_name\": \"moveis_decoracao\", \"row_hash\": \"a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a\"}, {\"is_deleted\": false, \"product_category_name\": \"telefonia\", \"row_hash\": \"6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57\"}, {\"is_deleted\": false, \"product_category_name\": \"utilidades_domesticas\", \"row_hash\": \"3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972\"}]}, \"products\": {\"manifest_sha256\": \"1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab\", \"row_count\": 8, \"rows\": [{\"is_deleted\": false, \"product_id\": \"product_001\", \"row_hash\": \"eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1\"}, {\"is_deleted\": false, \"product_id\": \"product_002\", \"row_hash\": \"e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e\"}, {\"is_deleted\": false, \"product_id\": \"product_003\", \"row_hash\": \"37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3\"}, {\"is_deleted\": false, \"product_id\": \"product_004\", \"row_hash\": \"8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542\"}, {\"is_deleted\": false, \"product_id\": \"product_005\", \"row_hash\": \"6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe\"}, {\"is_deleted\": false, \"product_id\": \"product_006\", \"row_hash\": \"4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa\"}, {\"is_deleted\": false, \"product_id\": \"product_007\", \"row_hash\": \"4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2\"}, {\"is_deleted\": false, \"product_id\": \"product_008\", \"row_hash\": \"8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d\"}]}, \"sellers\": {\"manifest_sha256\": \"57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d\", \"row_count\": 4, \"rows\": [{\"is_deleted\": false, \"row_hash\": \"544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873\", \"seller_id\": \"seller_001\"}, {\"is_deleted\": false, \"row_hash\": \"2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868\", \"seller_id\": \"seller_002\"}, {\"is_deleted\": false, \"row_hash\": \"6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661\", \"seller_id\": \"seller_003\"}, {\"is_deleted\": false, \"row_hash\": \"113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c\", \"seller_id\": \"seller_004\"}]}}}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_owner_id\": null, \"source_snapshot_completed\": true}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
+          "stdout": "14873f0510b69e9\"}]}, \"order_items\": {\"manifest_sha256\": \"9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f\", \"row_count\": 18, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"order_item_id\": 1, \"row_hash\": \"7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"order_item_id\": 1, \"row_hash\": \"23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 1, \"row_hash\": \"fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 2, \"row_hash\": \"35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"order_item_id\": 1, \"row_hash\": \"5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"order_item_id\": 1, \"row_hash\": \"c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 1, \"row_hash\": \"b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 2, \"row_hash\": \"711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"order_item_id\": 1, \"row_hash\": \"f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"order_item_id\": 1, \"row_hash\": \"d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 1, \"row_hash\": \"06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 2, \"row_hash\": \"08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"order_item_id\": 1, \"row_hash\": \"9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"order_item_id\": 1, \"row_hash\": \"cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 1, \"row_hash\": \"fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 2, \"row_hash\": \"5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 1, \"row_hash\": \"38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 2, \"row_hash\": \"332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf\"}]}, \"order_payments\": {\"manifest_sha256\": \"f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567\", \"row_count\": 16, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"payment_sequential\": 1, \"row_hash\": \"c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"payment_sequential\": 1, \"row_hash\": \"fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"payment_sequential\": 1, \"row_hash\": \"4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 1, \"row_hash\": \"f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 2, \"row_hash\": \"e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"payment_sequential\": 1, \"row_hash\": \"5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"payment_sequential\": 1, \"row_hash\": \"f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"payment_sequential\": 1, \"row_hash\": \"d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 1, \"row_hash\": \"4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 2, \"row_hash\": \"59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"payment_sequential\": 1, \"row_hash\": \"72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"payment_sequential\": 1, \"row_hash\": \"8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"payment_sequential\": 1, \"row_hash\": \"9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"payment_sequential\": 1, \"row_hash\": \"36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 1, \"row_hash\": \"9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 2, \"row_hash\": \"a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575\"}]}, \"order_reviews\": {\"manifest_sha256\": \"504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de\", \"row_count\": 12, \"rows\": [{\"is_deleted\": false, \"review_id\": \"review_001\", \"row_hash\": \"a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee\"}, {\"is_deleted\": false, \"review_id\": \"review_002\", \"row_hash\": \"5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab\"}, {\"is_deleted\": false, \"review_id\": \"review_003\", \"row_hash\": \"32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed\"}, {\"is_deleted\": false, \"review_id\": \"review_004\", \"row_hash\": \"4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d\"}, {\"is_deleted\": false, \"review_id\": \"review_005\", \"row_hash\": \"b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6\"}, {\"is_deleted\": false, \"review_id\": \"review_006\", \"row_hash\": \"875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231\"}, {\"is_deleted\": false, \"review_id\": \"review_007\", \"row_hash\": \"6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1\"}, {\"is_deleted\": false, \"review_id\": \"review_008\", \"row_hash\": \"0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94\"}, {\"is_deleted\": false, \"review_id\": \"review_009\", \"row_hash\": \"fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a\"}, {\"is_deleted\": false, \"review_id\": \"review_010\", \"row_hash\": \"8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f\"}, {\"is_deleted\": false, \"review_id\": \"review_011\", \"row_hash\": \"b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24\"}, {\"is_deleted\": false, \"review_id\": \"review_012\", \"row_hash\": \"3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df\"}]}, \"orders\": {\"manifest_sha256\": \"3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c\", \"row_count\": 13, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"row_hash\": \"407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"row_hash\": \"642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"row_hash\": \"b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"row_hash\": \"f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"row_hash\": \"db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"row_hash\": \"45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"row_hash\": \"63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"row_hash\": \"89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"row_hash\": \"2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"row_hash\": \"628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"row_hash\": \"d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"row_hash\": \"6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"row_hash\": \"c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c\"}]}, \"product_category_translation\": {\"manifest_sha256\": \"61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157\", \"row_count\": 5, \"rows\": [{\"is_deleted\": false, \"product_category_name\": \"beleza_saude\", \"row_hash\": \"e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b\"}, {\"is_deleted\": false, \"product_category_name\": \"informatica_acessorios\", \"row_hash\": \"73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5\"}, {\"is_deleted\": false, \"product_category_name\": \"moveis_decoracao\", \"row_hash\": \"b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015\"}, {\"is_deleted\": false, \"product_category_name\": \"telefonia\", \"row_hash\": \"73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d\"}, {\"is_deleted\": false, \"product_category_name\": \"utilidades_domesticas\", \"row_hash\": \"7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7\"}]}, \"products\": {\"manifest_sha256\": \"1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477\", \"row_count\": 8, \"rows\": [{\"is_deleted\": false, \"product_id\": \"product_001\", \"row_hash\": \"e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52\"}, {\"is_deleted\": false, \"product_id\": \"product_002\", \"row_hash\": \"e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b\"}, {\"is_deleted\": false, \"product_id\": \"product_003\", \"row_hash\": \"93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb\"}, {\"is_deleted\": false, \"product_id\": \"product_004\", \"row_hash\": \"89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4\"}, {\"is_deleted\": false, \"product_id\": \"product_005\", \"row_hash\": \"270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6\"}, {\"is_deleted\": false, \"product_id\": \"product_006\", \"row_hash\": \"cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35\"}, {\"is_deleted\": false, \"product_id\": \"product_007\", \"row_hash\": \"c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944\"}, {\"is_deleted\": false, \"product_id\": \"product_008\", \"row_hash\": \"c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42\"}]}, \"sellers\": {\"manifest_sha256\": \"dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98\", \"row_count\": 4, \"rows\": [{\"is_deleted\": false, \"row_hash\": \"13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f\", \"seller_id\": \"seller_001\"}, {\"is_deleted\": false, \"row_hash\": \"6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928\", \"seller_id\": \"seller_002\"}, {\"is_deleted\": false, \"row_hash\": \"ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c\", \"seller_id\": \"seller_003\"}, {\"is_deleted\": false, \"row_hash\": \"5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991\", \"seller_id\": \"seller_004\"}]}}}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_owner_id\": null, \"source_snapshot_completed\": true}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 33.146,
+      "duration_seconds": 28.221,
       "gate": "09-rebuild",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:58:55.300627+00:00"
+      "timestamp": "2026-08-04T22:59:37.342831+00:00"
     },
     "10-final": {
       "assertions": [
@@ -4738,8 +5004,8 @@ reconstructed from static claims.
                 "stable": 2
               },
               "dim_product_scd2": {
-                "candidate": 10,
-                "stable": 10
+                "candidate": 8,
+                "stable": 8
               },
               "dim_seller": {
                 "candidate": 4,
@@ -4769,526 +5035,526 @@ reconstructed from static claims.
               "sellers": 4
             },
             "iceberg_snapshot_ids": {
-              "customers": 5661301511364570764,
-              "order_items": 7260055445008051617,
-              "order_payments": 8604726252198231125,
-              "order_reviews": 5372656209178888275,
-              "orders": 1034207959551505294,
-              "product_category_translation": 4378261172774740424,
-              "products": 8405389069284592997,
-              "sellers": 8065609369146321385
+              "customers": 4667963551008397841,
+              "order_items": 6104085289137992191,
+              "order_payments": 4402592427034762001,
+              "order_reviews": 1998650664707823942,
+              "orders": 8715658499880008100,
+              "product_category_translation": 2493780499513490015,
+              "products": 7672100197799865306,
+              "sellers": 9125635543796638711
             },
             "materialized_event_count": 90,
             "row_manifests": {
               "candidate_physical": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "9763aa2c24b67661cb49b67c9ebd7a9829050afcceffcae79ce92ab36711221b",
+                  "manifest_sha256": "7f8bd7ceedd836351e7a2c8d030874dd7c340899954552deb522ea1fcbde182a",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     },
                     {
                       "is_deleted": true,
                       "review_id": "wave2_review_001",
-                      "row_hash": "d86306f9c001d524a7050108279dab9c93cffa0883e2e9f729af8d8db411ca76"
+                      "row_hash": "3254b0fe5706ca8e888cd955049960ef953c10460c412dcfb538807f72bba6bc"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -5296,508 +5562,508 @@ reconstructed from static claims.
               },
               "candidate_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -5805,513 +6071,513 @@ reconstructed from static claims.
               },
               "iceberg_physical": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "9763aa2c24b67661cb49b67c9ebd7a9829050afcceffcae79ce92ab36711221b",
+                  "manifest_sha256": "7f8bd7ceedd836351e7a2c8d030874dd7c340899954552deb522ea1fcbde182a",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     },
                     {
                       "is_deleted": true,
                       "review_id": "wave2_review_001",
-                      "row_hash": "d86306f9c001d524a7050108279dab9c93cffa0883e2e9f729af8d8db411ca76"
+                      "row_hash": "3254b0fe5706ca8e888cd955049960ef953c10460c412dcfb538807f72bba6bc"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -6319,508 +6585,508 @@ reconstructed from static claims.
               },
               "iceberg_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -6828,508 +7094,508 @@ reconstructed from static claims.
               },
               "stable_visible": {
                 "customers": {
-                  "manifest_sha256": "d6a5f54143df5300268413dcecaeeae0a04c588748a410320d85bdff3f298b2c",
+                  "manifest_sha256": "bc9c042a90199accd2c8b6545ee4c1b3015b556dfbffd8a54a21c3ed4a48d4c1",
                   "row_count": 9,
                   "rows": [
                     {
                       "customer_id": "customer_001",
                       "is_deleted": false,
-                      "row_hash": "89ab2f62f07ee82dbdd1ae16117ad47979248c38760527041e32234682954c85"
+                      "row_hash": "c8215415f5236d27f71cd836daaefda158598e9f2fed41d6d62e640d9945effe"
                     },
                     {
                       "customer_id": "customer_002",
                       "is_deleted": false,
-                      "row_hash": "3a192bd6290c000cc1febc688fa1b3ecdf958809a41d12088dba58891a5da1c6"
+                      "row_hash": "64d9c2cdd88f51d85d3fe7445154ac99ef6735fb56262de8f7d3214c05de44f9"
                     },
                     {
                       "customer_id": "customer_003",
                       "is_deleted": false,
-                      "row_hash": "1b0046875b6d0b5b885fd41e2fd786033e8d5ca072ef25e8183d4542757ea33c"
+                      "row_hash": "e553baa7a4a5579b541aa1b8fd500391074b9a999b41deac0142880b71929018"
                     },
                     {
                       "customer_id": "customer_004",
                       "is_deleted": false,
-                      "row_hash": "d634c2bb23d334b22578fc16a3f999a7fc00a2d186485bdd496617f2218bd74b"
+                      "row_hash": "9c28bbf645cbfa9c1db42a585757632205ba7b54473a522b2faf68b7816cc9b3"
                     },
                     {
                       "customer_id": "customer_005",
                       "is_deleted": false,
-                      "row_hash": "09cccb56bb6ac7f80cd494acabe5d911e61d7ae1d964c16ff790689f750f067b"
+                      "row_hash": "cea8b62418507e021e8a8e01485bb769015d0c81525db8a106173b9dda09472b"
                     },
                     {
                       "customer_id": "customer_006",
                       "is_deleted": false,
-                      "row_hash": "89fad7a5227a28282e16ba2cc8d113a8eaa7513bdb3e2a2da37e2ecf572f92e8"
+                      "row_hash": "977c38faff0ead04b7517382031c765a03476b7c12f9d2a471b8aedfb098afef"
                     },
                     {
                       "customer_id": "customer_007",
                       "is_deleted": false,
-                      "row_hash": "2c7b1778c310ddfedc92b2f27a5fa019ae1ddf17488e1ef28ce67a9ae1d9e4f9"
+                      "row_hash": "9f9040e360dca3eed6784be4dee5482e1af319b3dd69ba43dbe4627227a2690a"
                     },
                     {
                       "customer_id": "customer_008",
                       "is_deleted": false,
-                      "row_hash": "5639c71dd4d12217d94951f14f03eae4bd4abc560d1c6d23bc7ccb8dd3ba03b6"
+                      "row_hash": "9d46cb8a8302603ac19146611affc3b2f6a8e28547f328544d19172ba9d52bd5"
                     },
                     {
                       "customer_id": "wave2_customer_001",
                       "is_deleted": false,
-                      "row_hash": "a75b340c2c1f027bb1217116f516238dcadb7094de9e0890337902c111c49f53"
+                      "row_hash": "665d49e1871c07b02542feb2d4dec0a60fe5daaeb41751a5f14873f0510b69e9"
                     }
                   ]
                 },
                 "order_items": {
-                  "manifest_sha256": "6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2",
+                  "manifest_sha256": "9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f",
                   "row_count": 18,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "order_item_id": 1,
-                      "row_hash": "1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e"
+                      "row_hash": "7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "order_item_id": 1,
-                      "row_hash": "f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726"
+                      "row_hash": "23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 1,
-                      "row_hash": "33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb"
+                      "row_hash": "fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "order_item_id": 2,
-                      "row_hash": "105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2"
+                      "row_hash": "35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "order_item_id": 1,
-                      "row_hash": "35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e"
+                      "row_hash": "5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "order_item_id": 1,
-                      "row_hash": "89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d"
+                      "row_hash": "c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 1,
-                      "row_hash": "4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19"
+                      "row_hash": "b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "order_item_id": 2,
-                      "row_hash": "f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3"
+                      "row_hash": "711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "order_item_id": 1,
-                      "row_hash": "851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b"
+                      "row_hash": "f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "order_item_id": 1,
-                      "row_hash": "3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d"
+                      "row_hash": "d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 1,
-                      "row_hash": "57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c"
+                      "row_hash": "06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "order_item_id": 2,
-                      "row_hash": "425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8"
+                      "row_hash": "08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "order_item_id": 1,
-                      "row_hash": "389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8"
+                      "row_hash": "9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "order_item_id": 1,
-                      "row_hash": "3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744"
+                      "row_hash": "cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 1,
-                      "row_hash": "2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae"
+                      "row_hash": "fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "order_item_id": 2,
-                      "row_hash": "a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6"
+                      "row_hash": "5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 1,
-                      "row_hash": "438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6"
+                      "row_hash": "38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "order_item_id": 2,
-                      "row_hash": "5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295"
+                      "row_hash": "332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf"
                     }
                   ]
                 },
                 "order_payments": {
-                  "manifest_sha256": "b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d",
+                  "manifest_sha256": "f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567",
                   "row_count": 16,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
                       "payment_sequential": 1,
-                      "row_hash": "0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da"
+                      "row_hash": "c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
                       "payment_sequential": 1,
-                      "row_hash": "4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717"
+                      "row_hash": "fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
                       "payment_sequential": 1,
-                      "row_hash": "0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f"
+                      "row_hash": "4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 1,
-                      "row_hash": "57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2"
+                      "row_hash": "f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
                       "payment_sequential": 2,
-                      "row_hash": "8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9"
+                      "row_hash": "e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
                       "payment_sequential": 1,
-                      "row_hash": "809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee"
+                      "row_hash": "5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
                       "payment_sequential": 1,
-                      "row_hash": "d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce"
+                      "row_hash": "f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
                       "payment_sequential": 1,
-                      "row_hash": "78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869"
+                      "row_hash": "d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 1,
-                      "row_hash": "f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148"
+                      "row_hash": "4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
                       "payment_sequential": 2,
-                      "row_hash": "6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40"
+                      "row_hash": "59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
                       "payment_sequential": 1,
-                      "row_hash": "67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8"
+                      "row_hash": "72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
                       "payment_sequential": 1,
-                      "row_hash": "643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e"
+                      "row_hash": "8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
                       "payment_sequential": 1,
-                      "row_hash": "997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc"
+                      "row_hash": "9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
                       "payment_sequential": 1,
-                      "row_hash": "a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870"
+                      "row_hash": "36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 1,
-                      "row_hash": "305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa"
+                      "row_hash": "9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
                       "payment_sequential": 2,
-                      "row_hash": "f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355"
+                      "row_hash": "a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575"
                     }
                   ]
                 },
                 "order_reviews": {
-                  "manifest_sha256": "a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f",
+                  "manifest_sha256": "504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de",
                   "row_count": 12,
                   "rows": [
                     {
                       "is_deleted": false,
                       "review_id": "review_001",
-                      "row_hash": "ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1"
+                      "row_hash": "a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_002",
-                      "row_hash": "b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5"
+                      "row_hash": "5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_003",
-                      "row_hash": "6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39"
+                      "row_hash": "32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_004",
-                      "row_hash": "ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f"
+                      "row_hash": "4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_005",
-                      "row_hash": "fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e"
+                      "row_hash": "b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_006",
-                      "row_hash": "65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7"
+                      "row_hash": "875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_007",
-                      "row_hash": "e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020"
+                      "row_hash": "6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_008",
-                      "row_hash": "a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084"
+                      "row_hash": "0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_009",
-                      "row_hash": "39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4"
+                      "row_hash": "fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_010",
-                      "row_hash": "724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07"
+                      "row_hash": "8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_011",
-                      "row_hash": "67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c"
+                      "row_hash": "b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24"
                     },
                     {
                       "is_deleted": false,
                       "review_id": "review_012",
-                      "row_hash": "876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14"
+                      "row_hash": "3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df"
                     }
                   ]
                 },
                 "orders": {
-                  "manifest_sha256": "820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f",
+                  "manifest_sha256": "3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c",
                   "row_count": 13,
                   "rows": [
                     {
                       "is_deleted": false,
                       "order_id": "order_001",
-                      "row_hash": "fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329"
+                      "row_hash": "407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_002",
-                      "row_hash": "8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c"
+                      "row_hash": "642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_003",
-                      "row_hash": "e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193"
+                      "row_hash": "b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_004",
-                      "row_hash": "2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a"
+                      "row_hash": "f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_005",
-                      "row_hash": "2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e"
+                      "row_hash": "db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_006",
-                      "row_hash": "cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774"
+                      "row_hash": "45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_007",
-                      "row_hash": "0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b"
+                      "row_hash": "63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_008",
-                      "row_hash": "d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240"
+                      "row_hash": "89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_009",
-                      "row_hash": "32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9"
+                      "row_hash": "2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_010",
-                      "row_hash": "e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67"
+                      "row_hash": "628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_011",
-                      "row_hash": "adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e"
+                      "row_hash": "d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "order_012",
-                      "row_hash": "d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685"
+                      "row_hash": "6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03"
                     },
                     {
                       "is_deleted": false,
                       "order_id": "wave2_order_001",
-                      "row_hash": "3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc"
+                      "row_hash": "c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c"
                     }
                   ]
                 },
                 "product_category_translation": {
-                  "manifest_sha256": "fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae",
+                  "manifest_sha256": "61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157",
                   "row_count": 5,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_category_name": "beleza_saude",
-                      "row_hash": "cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae"
+                      "row_hash": "e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "informatica_acessorios",
-                      "row_hash": "f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d"
+                      "row_hash": "73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "moveis_decoracao",
-                      "row_hash": "a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a"
+                      "row_hash": "b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "telefonia",
-                      "row_hash": "6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57"
+                      "row_hash": "73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d"
                     },
                     {
                       "is_deleted": false,
                       "product_category_name": "utilidades_domesticas",
-                      "row_hash": "3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972"
+                      "row_hash": "7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7"
                     }
                   ]
                 },
                 "products": {
-                  "manifest_sha256": "1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab",
+                  "manifest_sha256": "1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477",
                   "row_count": 8,
                   "rows": [
                     {
                       "is_deleted": false,
                       "product_id": "product_001",
-                      "row_hash": "eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1"
+                      "row_hash": "e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_002",
-                      "row_hash": "e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e"
+                      "row_hash": "e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_003",
-                      "row_hash": "37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3"
+                      "row_hash": "93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_004",
-                      "row_hash": "8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542"
+                      "row_hash": "89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_005",
-                      "row_hash": "6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe"
+                      "row_hash": "270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_006",
-                      "row_hash": "4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa"
+                      "row_hash": "cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_007",
-                      "row_hash": "4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2"
+                      "row_hash": "c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944"
                     },
                     {
                       "is_deleted": false,
                       "product_id": "product_008",
-                      "row_hash": "8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d"
+                      "row_hash": "c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42"
                     }
                   ]
                 },
                 "sellers": {
-                  "manifest_sha256": "57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d",
+                  "manifest_sha256": "dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98",
                   "row_count": 4,
                   "rows": [
                     {
                       "is_deleted": false,
-                      "row_hash": "544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873",
+                      "row_hash": "13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f",
                       "seller_id": "seller_001"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868",
+                      "row_hash": "6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928",
                       "seller_id": "seller_002"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661",
+                      "row_hash": "ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c",
                       "seller_id": "seller_003"
                     },
                     {
                       "is_deleted": false,
-                      "row_hash": "113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c",
+                      "row_hash": "5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991",
                       "seller_id": "seller_004"
                     }
                   ]
@@ -7366,7 +7632,7 @@ reconstructed from static claims.
               "dim_customer_scd2": 8,
               "dim_date": 46,
               "dim_order_status": 2,
-              "dim_product_scd2": 10,
+              "dim_product_scd2": 8,
               "dim_seller": 4,
               "fact_order_items": 18,
               "mart_daily_revenue": 13,
@@ -7593,7 +7859,7 @@ reconstructed from static claims.
               "contract_version": 2,
               "queries_count": 10,
               "status": "READY",
-              "updated_at": "2026-08-04T15:58:15.932079798Z"
+              "updated_at": "2026-08-04T22:59:02.610344398Z"
             },
             "mysql": {
               "customers": 9,
@@ -7665,10 +7931,10 @@ reconstructed from static claims.
             "--sync-run-id",
             "sync-00000000000000000004"
           ],
-          "duration_seconds": 2.766,
+          "duration_seconds": 1.891,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "37902c111c49f53\"}]}, \"order_items\": {\"manifest_sha256\": \"6f5f8124e64aec5e0a8510daa2b0866a4ab2ff02ee2e9ce6f6b9223663eaa9a2\", \"row_count\": 18, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"order_item_id\": 1, \"row_hash\": \"1977794759b3ec343596436e3934e66e8c558c8898614a082cba6471de9d039e\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"order_item_id\": 1, \"row_hash\": \"f32c450df3aa968cb753da8afc6276af2a3b9d727ef09d76497ee926ac9a0726\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 1, \"row_hash\": \"33d79dde3cd0240226c1ef559a8283e67186af636336576f523f08d5ef4806cb\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 2, \"row_hash\": \"105509c2c83d9a892268219c4a8cc5ef5d07b2e1dfdcc2c972dc2e16a651b7f2\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"order_item_id\": 1, \"row_hash\": \"35eb0ee1af3c9f296b097ee79ad2e2e14e1903c22afd8e2a4e7a3647991d9e2e\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"order_item_id\": 1, \"row_hash\": \"89ea878484dd532f38e75bf25ec4bec4313d160840154b8117581234332bc41d\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 1, \"row_hash\": \"4694609b3768ce8f16ae6a45cbc7fe9ad5eaae00411cdb2668f81079ea8b1d19\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 2, \"row_hash\": \"f8ea173a7aded2a525c61b40674f0b2e5ed23a9fe035863cf19e97ea7b3a89c3\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"order_item_id\": 1, \"row_hash\": \"851e5a3dbf8604b382de69b085273bfba69fd549ed56ba40c5bd94c55499bb7b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"order_item_id\": 1, \"row_hash\": \"3e3991e79ec9e19f558cd88ef2f12cc5b8a46fda127c6a8248eeb949bfeb1f4d\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 1, \"row_hash\": \"57c81b3b00e28d8949d847c16b283f7712416dc442d389f623f29c1bfb06a26c\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 2, \"row_hash\": \"425bc2716b33cb2419919e3f727410465f2ad5afb55a9202bbc8f3c17ccb03f8\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"order_item_id\": 1, \"row_hash\": \"389f22d86008d40537fb1b786003b4a01e1b5ee97eaab60ef8ab0b7708c8ebe8\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"order_item_id\": 1, \"row_hash\": \"3670c8008bfae0adf652945e3e0db009f1d97aeef4bdaa6765cd31511372f744\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 1, \"row_hash\": \"2caa530c697d498bb7f2769e714524a29ea1441db42f9db0782fce6cdc4616ae\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 2, \"row_hash\": \"a8874fdce193e31aeb772a7cff9849f68a63937b4f7cfe5ea73101be332236e6\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 1, \"row_hash\": \"438349cddfc22426ffcb71243f54210010e91e377fcb7de48befba856ffa01d6\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 2, \"row_hash\": \"5c1d2e75e7939078406a8d82052cba363b10c25a18ff847f570d50688cd50295\"}]}, \"order_payments\": {\"manifest_sha256\": \"b7f20300651573509a976f9579056c462de6a2397fc7e7895437802e79d0867d\", \"row_count\": 16, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"payment_sequential\": 1, \"row_hash\": \"0d50f161adc12f443d89c3291c41198f8a042aab383efe97670fcbc5a37096da\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"payment_sequential\": 1, \"row_hash\": \"4eb5c2975c1f31cfec36c8192a8e4d4fea817058a6ccb8b4af8e693126201717\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"payment_sequential\": 1, \"row_hash\": \"0fcabf6d1133f7662ba91b3c5adf5e9ee84f75f0506c672163f35632ee311d1f\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 1, \"row_hash\": \"57aace58c7aeecddf7c79be2b8c1fa761db82b16929b56f451c182b74fd5a1e2\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 2, \"row_hash\": \"8a37f338d2d9b06687978117a3ed88dd6ac81d77459a9aefdd3963da63f360c9\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"payment_sequential\": 1, \"row_hash\": \"809383f342e45e18fe73122ca945cc743dcbb5745c10d1c6cb8ba33322f8caee\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"payment_sequential\": 1, \"row_hash\": \"d9bc37dc49eb9a2eb3b629adbca76a109916c17fe9c7ad7273876b9ac2097dce\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"payment_sequential\": 1, \"row_hash\": \"78543816f081471fb95712be39a71d25c9f45d19d198409e50fb07231fad2869\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 1, \"row_hash\": \"f0f6fa77b8b70951fe7c1b7988c0ecd418cb4c0728e086afac5a9cdf77cf6148\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 2, \"row_hash\": \"6381f5c559155fb588a2221a9b4320368410ccbf2028d3758ea8b0bd60426c40\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"payment_sequential\": 1, \"row_hash\": \"67fda8aea9b21d87c023b3f511b377cbad5fafe98841ddc9d86b05b4a393dee8\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"payment_sequential\": 1, \"row_hash\": \"643b3a6835d5abfbbec3a932e1f631dff78717d9108458d09a758892afe0659e\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"payment_sequential\": 1, \"row_hash\": \"997ef7f136abc78cc56056c1606ec8024979671e603dc4814191b4fd8fd8b6dc\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"payment_sequential\": 1, \"row_hash\": \"a4e78c01ea8a0970b92035fa280a59a9f71e6b9a366fa5789e8caad5e1137870\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 1, \"row_hash\": \"305bf4232d86e9aa1820206099d70394f7ddd1b63c620e3c11e3d29445d275fa\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 2, \"row_hash\": \"f4b47a2b0dde31053d3f0cd8520eebe75d3ac867bdb26438d6e233914ea4b355\"}]}, \"order_reviews\": {\"manifest_sha256\": \"a9726e9b86a974f26367081574f6e7a8a1f47b57ae389b760fab3580fd59313f\", \"row_count\": 12, \"rows\": [{\"is_deleted\": false, \"review_id\": \"review_001\", \"row_hash\": \"ce68d93e3f41387798241b2606709a2affcd6eca26f94778218ee71e9582ebd1\"}, {\"is_deleted\": false, \"review_id\": \"review_002\", \"row_hash\": \"b583026fb692bed89bcdc5b6166498161e509aea537c9d8dac41b7bad1385be5\"}, {\"is_deleted\": false, \"review_id\": \"review_003\", \"row_hash\": \"6b20f420b88ebebbb39e68b53a5c42e8ff74e9097a4390f200a04c6d90beee39\"}, {\"is_deleted\": false, \"review_id\": \"review_004\", \"row_hash\": \"ae5cb8ee890d5486c20589d12099119db53fe173acbe463a805f29fd7873bf9f\"}, {\"is_deleted\": false, \"review_id\": \"review_005\", \"row_hash\": \"fb0dba632f405b8e5d5d08547c4146198bacac259902f8d4cf4fb821008a116e\"}, {\"is_deleted\": false, \"review_id\": \"review_006\", \"row_hash\": \"65a12285c329ef79c536f03bf90f64cce4bec177df73ed1b095bfb297b7468f7\"}, {\"is_deleted\": false, \"review_id\": \"review_007\", \"row_hash\": \"e5c510c11e907b0b6a03dc98fc9cb093cd804d1961676accff9b4f2e68ed4020\"}, {\"is_deleted\": false, \"review_id\": \"review_008\", \"row_hash\": \"a0bba76263d315bd8e51f80d94ee30a572f58fde30918b83d60997ec2240e084\"}, {\"is_deleted\": false, \"review_id\": \"review_009\", \"row_hash\": \"39c6898d4f43e149fe05ea20b5caa480ddced312aca5f86ecfa0bde7a63029b4\"}, {\"is_deleted\": false, \"review_id\": \"review_010\", \"row_hash\": \"724fd7272fec8bb2da540251686e9b779241556c1317c7d5aacf3e9045955c07\"}, {\"is_deleted\": false, \"review_id\": \"review_011\", \"row_hash\": \"67799f4f0c5b59bfbd23b1a12c537e160148fc0080b6600905f1b2245fe70b7c\"}, {\"is_deleted\": false, \"review_id\": \"review_012\", \"row_hash\": \"876c3ae0d4af03706e0ac64c31353375e466c76479cd2c8714b3637b70d1bd14\"}]}, \"orders\": {\"manifest_sha256\": \"820140bf9165f9c63799fda6d1989523e41b24affcbe08934e039453db99b28f\", \"row_count\": 13, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"row_hash\": \"fada5fd81799360365f0f3f2f7e7fd2282cb79a3ca4d679d6321f6367815e329\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"row_hash\": \"8fe73ef692ce87d1e7fabfb0d3e3ae2b601945485b450dc692989e0bb8a0307c\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"row_hash\": \"e833e41529c746c4a9b71026b94582cf2c38d5c6341df83d54caf3b76ff1d193\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"row_hash\": \"2a581f705e2767771716df2e8997eda2e382c6494a873a5bb9321e068b1c8e0a\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"row_hash\": \"2b7a24beb99aca492dd114f9242c41d45ab177643560ff54e0241bdab5bf660e\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"row_hash\": \"cbdb7ae5c2bb413e4f06f655b22dcae2d5db5d6ce05a029d5c12dd53bc576774\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"row_hash\": \"0352d0852e4a15d0fd3e5f13d12c653a3934204026984f6431772d97db09ed8b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"row_hash\": \"d7df4b5849d0ff8ba4235ed9dd23eae8e5b248b4f1b757b7b14d4f282a938240\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"row_hash\": \"32be1be57cba3d2b3434d7896b6f189aebd24af63c0bf260a5a03106c165c0a9\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"row_hash\": \"e5e90df101e4a37d68ad0d370e19c1bd7c4df584213c70d544703d1f74089a67\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"row_hash\": \"adc16f849c3cdef0c960d41d63c1b16eacd16451d1fa1233afb4b2e9107cc74e\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"row_hash\": \"d55ce1a8050fda8baeec458d3b75a511565f13b1716de8db82711cca4f5c5685\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"row_hash\": \"3f126287622599f71b701dcdeae241e7ef27976d9ebf477968295a8f390a3adc\"}]}, \"product_category_translation\": {\"manifest_sha256\": \"fb943b0ee210613a5db749d5dde4c88b31bc2702622c245497415674766c78ae\", \"row_count\": 5, \"rows\": [{\"is_deleted\": false, \"product_category_name\": \"beleza_saude\", \"row_hash\": \"cd7108f72c72c22e5596eaa11887855bcaed985a4455252168ada7cfbae7d2ae\"}, {\"is_deleted\": false, \"product_category_name\": \"informatica_acessorios\", \"row_hash\": \"f7e085e2b205fc34cf22d020d86e0401900ddd53a86ad8454dd00e3b2048569d\"}, {\"is_deleted\": false, \"product_category_name\": \"moveis_decoracao\", \"row_hash\": \"a30afc8bce67a9c25fa537f02b7ac8966f7e1c1508b69f0560eec4c49872df5a\"}, {\"is_deleted\": false, \"product_category_name\": \"telefonia\", \"row_hash\": \"6d2ed878891db72a489df091f6dcfba0108e79872a67f595499823a84974ba57\"}, {\"is_deleted\": false, \"product_category_name\": \"utilidades_domesticas\", \"row_hash\": \"3ca9361539f5cc8f2ae0ba8574ca45b2a72f642930b46b76626e1959aaa37972\"}]}, \"products\": {\"manifest_sha256\": \"1a103d949cbcc175f44d038284930510ff41ed8271ba24d2705b1e867adc56ab\", \"row_count\": 8, \"rows\": [{\"is_deleted\": false, \"product_id\": \"product_001\", \"row_hash\": \"eb48389bc974f6e16576aba40dce122e708a92688ac3f737b374ce7d315261c1\"}, {\"is_deleted\": false, \"product_id\": \"product_002\", \"row_hash\": \"e2f0e4025ea03a83d2a12c368550f99ce55764a1f074492c92d46f5a1bfa329e\"}, {\"is_deleted\": false, \"product_id\": \"product_003\", \"row_hash\": \"37db3f8b4dff5a83224a72b2b1a69e8be383226bd865087c391668bcd90e71f3\"}, {\"is_deleted\": false, \"product_id\": \"product_004\", \"row_hash\": \"8f9702ee001bbde6c39488863d031a77c63eac41518ad8ff980ea5ff6e757542\"}, {\"is_deleted\": false, \"product_id\": \"product_005\", \"row_hash\": \"6b418454cbf219b7c0a7b62b15013a0897eb0e90fc0cdd3675acc081a1952bfe\"}, {\"is_deleted\": false, \"product_id\": \"product_006\", \"row_hash\": \"4ceb44986ab7d2e165f5282350cf94af482def9cfa7acf740a32b0cd214698aa\"}, {\"is_deleted\": false, \"product_id\": \"product_007\", \"row_hash\": \"4bea3afd00092cd3f27dcedf6eedf800580513a12585b57584fe207e864414d2\"}, {\"is_deleted\": false, \"product_id\": \"product_008\", \"row_hash\": \"8f5890b61905a2faec5299473b988c15b58c640c32184da6aeaad0b2e42ff66d\"}]}, \"sellers\": {\"manifest_sha256\": \"57e892beb9296880003f697df09dc297229147170b5bc9ebc3bcaa6dbe70f57d\", \"row_count\": 4, \"rows\": [{\"is_deleted\": false, \"row_hash\": \"544d88ba003be3195cbd48ec3de37509ad5562137cc62ae7a365f0e6252f4873\", \"seller_id\": \"seller_001\"}, {\"is_deleted\": false, \"row_hash\": \"2005aa0cdb07be24feb69dd6534283fbc30207290a0b62edff161e65c93e1868\", \"seller_id\": \"seller_002\"}, {\"is_deleted\": false, \"row_hash\": \"6c3fd29b27b37ba4c6a6ff3edbdecc9784bb89563f50718dd67044ec2436e661\", \"seller_id\": \"seller_003\"}, {\"is_deleted\": false, \"row_hash\": \"113871d5a6e2ef39c649ee9a78d51788343c9d2e1d912303deedb93ed473131c\", \"seller_id\": \"seller_004\"}]}}}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_owner_id\": null, \"source_snapshot_completed\": true}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
+          "stdout": "14873f0510b69e9\"}]}, \"order_items\": {\"manifest_sha256\": \"9118a9283a524a0cc9ced2e67b2f1e08c89dd4706446c7c8046b89680685373f\", \"row_count\": 18, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"order_item_id\": 1, \"row_hash\": \"7f18d5b67cd21bcf6dcf1c5797cf551fb7f23af9e98a0a24a36ae7257d0a4d75\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"order_item_id\": 1, \"row_hash\": \"23c757304da7dbcb1a517a8439cc72c145499b3a4212099d258f9f9e464a26a6\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 1, \"row_hash\": \"fdfcfa2002bfdb68f5f3fe77e8df2ac67b8ff393c5dfdd4bba4f6e0dcfd6031f\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"order_item_id\": 2, \"row_hash\": \"35c2597b7ead114ee297450bd48f0a20ab8ab96e70a9dac377609e35cba89f5f\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"order_item_id\": 1, \"row_hash\": \"5d1c447e84b8c9d1a69f2485c910130001abbf69a5cfcd018b808c752a4acde0\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"order_item_id\": 1, \"row_hash\": \"c17d98504fac48f278c77e74499bdf38da0fada6e47f12b8c15769d1ff06a9fd\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 1, \"row_hash\": \"b66f46824ab6da07736d07ab773697e1ff0761c9b33aeae1e54ee788681b51b3\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"order_item_id\": 2, \"row_hash\": \"711510d9f0b3bae7d3499a55f865224d50d7dbef8ccfd4fbe33849899c610966\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"order_item_id\": 1, \"row_hash\": \"f79a72600db6d5d40788c7759d230f59d952b38c98f60d73fe4f77c2711b4b5b\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"order_item_id\": 1, \"row_hash\": \"d6785a7a29c0a1d3ce6e6434ae4fd068b0ea0e70591fe20f5427e574e23a3b97\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 1, \"row_hash\": \"06a8c1986113b42d7d8ad6d0635aa60c83a05a84e704337751593eb5022cac21\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"order_item_id\": 2, \"row_hash\": \"08b3e25eac812a60d04197110fefa464079fc2a9d48ab2373f5cbeb96bee426d\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"order_item_id\": 1, \"row_hash\": \"9f937a3373161b7c672f1ba8fa3d885498ae747f504d3a04bfa8a4ee8cb09e1d\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"order_item_id\": 1, \"row_hash\": \"cb6b300ccc0d96f835b9c1d0f21d2c3a997caeda6324702bb8f6df252ddfe244\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 1, \"row_hash\": \"fc80978f39a749817341146eabe53f6205ef06048d6e64aa911c73d659884d30\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"order_item_id\": 2, \"row_hash\": \"5ebdf9587ead2590b005815d16734c36b9e1ba790a2b05997532e0fecc93314b\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 1, \"row_hash\": \"38fbc91331ab21a153ba710afee80d3a7750a2a9f76f536c2937be68e982d217\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"order_item_id\": 2, \"row_hash\": \"332b3f3b32ec36cb67b8efb5867cf685887d93f049eecdb9365a5979931901bf\"}]}, \"order_payments\": {\"manifest_sha256\": \"f4c1898e1d30a6b1dc0a5f24e9d5ca875427669fb3db7678745936dcc1198567\", \"row_count\": 16, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"payment_sequential\": 1, \"row_hash\": \"c45444db18bdc311e663290ef083891ee0501afe11526c18033b8002f85ba26b\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"payment_sequential\": 1, \"row_hash\": \"fa3adf19f6121207611d32090adac8f0f05e943889f8c4d20af5e53e6fae3b2d\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"payment_sequential\": 1, \"row_hash\": \"4860a72381018d6591e245e870826d159c1fe59aeca2312adf81154cc620a917\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 1, \"row_hash\": \"f9ecb675b3889ce0ec239fd35a018a7bdb82b0463918b89cbc4561333e022baf\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"payment_sequential\": 2, \"row_hash\": \"e5b0a92b89449573b20f90081b4e850e7739040d06ee1545c0d1a06f45b549f0\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"payment_sequential\": 1, \"row_hash\": \"5b694cd07195cc2a4fa60ffb92f51da74edf7d41df6c7936b4165cb0f9f078bb\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"payment_sequential\": 1, \"row_hash\": \"f495da08c39bf33c473f25a2488c05adfd7e3dc92d0b836d7ee4af17e4644b22\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"payment_sequential\": 1, \"row_hash\": \"d85e7108a23e17fe719c1223c88e48282c66b440f0fcb9bfe318617ef098d147\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 1, \"row_hash\": \"4d2ab0de9af96f944aa7b9a14040236c8e43d25a3c75125d1222c9f0200ea929\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"payment_sequential\": 2, \"row_hash\": \"59fc1194e6e1cae2daaa5211e75c3008949edf539caa6d07997dd86087878c02\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"payment_sequential\": 1, \"row_hash\": \"72d6fcd90b71a371c2ea13aaf35b256a7f9dbbbc204e8bba3b0b6da1071c85ba\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"payment_sequential\": 1, \"row_hash\": \"8c40d12e7bb42486aeae733142c57513dc74f18a21bd4c5a7eb99a165aa3d1ab\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"payment_sequential\": 1, \"row_hash\": \"9c594e6034d98e2048224368b7c68a34f3c09e276e0676443876b50dda22abf1\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"payment_sequential\": 1, \"row_hash\": \"36ef4a81c8ab19c15d02c9eb3ca0d66ea325cef6679013efe40cc21e38637041\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 1, \"row_hash\": \"9c1c7aaa288007ebd2f875f6a2e0b9e139be2c3d2769ac891c5a3ca059ee0041\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"payment_sequential\": 2, \"row_hash\": \"a5ad08ef2c99a3a13d99c013d9ea91ba6325a7239a312f6c36f6de162f905575\"}]}, \"order_reviews\": {\"manifest_sha256\": \"504c4f2b3722be480505f21e90c657e0fb1bd2183be054e2ab72de60113f40de\", \"row_count\": 12, \"rows\": [{\"is_deleted\": false, \"review_id\": \"review_001\", \"row_hash\": \"a04092d3189e793b4a9d5d9280ae820ce2836c1fa2a314d69d000f1fed428fee\"}, {\"is_deleted\": false, \"review_id\": \"review_002\", \"row_hash\": \"5810f829f64827be40dc102c84eb90da86a1f7ab2dee59a2974dd2b6057280ab\"}, {\"is_deleted\": false, \"review_id\": \"review_003\", \"row_hash\": \"32b0bad94856a8a09383f38d365c0c48a4690c5507bef5b9493fe8bbb7d8ebed\"}, {\"is_deleted\": false, \"review_id\": \"review_004\", \"row_hash\": \"4931125f09d6c89b2c3139869b1f01b94bad451cedd296dfb0d26223b68d4d0d\"}, {\"is_deleted\": false, \"review_id\": \"review_005\", \"row_hash\": \"b5417e80a64bb6948b5ddc0b4396d620df143031acaaf7ed105fef3e9c940dc6\"}, {\"is_deleted\": false, \"review_id\": \"review_006\", \"row_hash\": \"875c4f72924a004955fdff0e3c281cad64350cb9b8f5f407beabeb9425a3c231\"}, {\"is_deleted\": false, \"review_id\": \"review_007\", \"row_hash\": \"6a7fa2ea4d0406720724b11bc1c9c34929eac64ef29b50ee26ee243aee1bfae1\"}, {\"is_deleted\": false, \"review_id\": \"review_008\", \"row_hash\": \"0b0aff0918cd501bbedb86c183ca69c84f0fddcb8f60fe8bf2f6551002894e94\"}, {\"is_deleted\": false, \"review_id\": \"review_009\", \"row_hash\": \"fdc801df7a94125624670c1bf72bb45b85c6a33f963ff864bbaa8f12e3e0ae8a\"}, {\"is_deleted\": false, \"review_id\": \"review_010\", \"row_hash\": \"8f5ee1e0a47cad8d30b99a752083652783eb138a7d16a29709f153b8b3a23f3f\"}, {\"is_deleted\": false, \"review_id\": \"review_011\", \"row_hash\": \"b838dbfd73e3a6a2ca7130095a308f2fe2dad6bf1d1027f007237430b5a06c24\"}, {\"is_deleted\": false, \"review_id\": \"review_012\", \"row_hash\": \"3137bf0b91bd3334f1657e14e454a8b1afe842f7d2d0a1449e625bddba11c2df\"}]}, \"orders\": {\"manifest_sha256\": \"3040ad58ffdc7f70682550830b67ec1fab9dc265ac1554759c8580a09a6c687c\", \"row_count\": 13, \"rows\": [{\"is_deleted\": false, \"order_id\": \"order_001\", \"row_hash\": \"407c87766b37dc3485b3825a9efca0d20f8084d8671fe61acfc265e1e5abdac3\"}, {\"is_deleted\": false, \"order_id\": \"order_002\", \"row_hash\": \"642cf66a70dc0a60d327e8e290cc7aabfa12b24716a5f615fd922179412f9f4d\"}, {\"is_deleted\": false, \"order_id\": \"order_003\", \"row_hash\": \"b7ff53576ed4193a464cb842cb84df66801cf1660b92a2931aca42b50ada8bfa\"}, {\"is_deleted\": false, \"order_id\": \"order_004\", \"row_hash\": \"f705453b64d1cbbae1661099e8e447a185de939f94d0407c2b942fcf0907bcc4\"}, {\"is_deleted\": false, \"order_id\": \"order_005\", \"row_hash\": \"db2e14d54dcf3e9455b489750d4dd7606dd9c41e975f30c44d9fcaef2130e8f9\"}, {\"is_deleted\": false, \"order_id\": \"order_006\", \"row_hash\": \"45cad2e9dfea14756fa071558a67a1ecbe81f6e4fda253ba33953eb192437fe2\"}, {\"is_deleted\": false, \"order_id\": \"order_007\", \"row_hash\": \"63853bf6c354eed16bdc991d89bfebd42bd6aa871887bca8c3876faf45460553\"}, {\"is_deleted\": false, \"order_id\": \"order_008\", \"row_hash\": \"89e1dc65ca868af3bce6c0c73eb157d9cfce2d2748a3bef2b9b2d6054a59045a\"}, {\"is_deleted\": false, \"order_id\": \"order_009\", \"row_hash\": \"2fe3d6d121df8aeb4f96c0fb5118d53c675756d0ccb615a8af44a525717016a0\"}, {\"is_deleted\": false, \"order_id\": \"order_010\", \"row_hash\": \"628760995eda638bb712cf64431ddaecfd4b6905433f14269da8db724b409382\"}, {\"is_deleted\": false, \"order_id\": \"order_011\", \"row_hash\": \"d0bf951786e21c749941582ac452beaeeed237cbf8d3e5dcee6c09d5029a49bb\"}, {\"is_deleted\": false, \"order_id\": \"order_012\", \"row_hash\": \"6dbaa0e36b7446220f83b50da4e19911104326d0cb51f35188a46c85b5cddf03\"}, {\"is_deleted\": false, \"order_id\": \"wave2_order_001\", \"row_hash\": \"c1a41a5261b75f0b71ecf5ad829928bac35b7c7a67a491eee7d13f5965ed788c\"}]}, \"product_category_translation\": {\"manifest_sha256\": \"61f157a1cbedeea8f214219ffa2f90fe5ac2f3d5b9ce0f4c0fa46e325c54a157\", \"row_count\": 5, \"rows\": [{\"is_deleted\": false, \"product_category_name\": \"beleza_saude\", \"row_hash\": \"e085cf609c78b0c0fe900014743119497829e5a6d120d5b54310fe4393dcf67b\"}, {\"is_deleted\": false, \"product_category_name\": \"informatica_acessorios\", \"row_hash\": \"73b84ffda407d572c90e810ffedbe2d98aba4bf6d184790b78fc4b9c9b306ef5\"}, {\"is_deleted\": false, \"product_category_name\": \"moveis_decoracao\", \"row_hash\": \"b759d00fcca6316ae9a16d619e31083ae2082d244762f561cc4b4d7448f96015\"}, {\"is_deleted\": false, \"product_category_name\": \"telefonia\", \"row_hash\": \"73ba7905776d6af74dec4df8b1537ee4821dd2a749cb63497fa1d4f9d5c7be9d\"}, {\"is_deleted\": false, \"product_category_name\": \"utilidades_domesticas\", \"row_hash\": \"7b9d78a70259211cdc9503bb1619cd68784dafdbddd3dd0b438d30a2f7c511e7\"}]}, \"products\": {\"manifest_sha256\": \"1fb130cbaa8ff2f1338382868f7050c6103ebadaefc9dae92b21dcd3c95f2477\", \"row_count\": 8, \"rows\": [{\"is_deleted\": false, \"product_id\": \"product_001\", \"row_hash\": \"e34df2daef40e596732c0796a08514f4ed41812f4c609bf8a70d683126911d52\"}, {\"is_deleted\": false, \"product_id\": \"product_002\", \"row_hash\": \"e2f3c664b16958b91957fad0e0c3387d4496ccd27b2520598611ebf3ee3c7f4b\"}, {\"is_deleted\": false, \"product_id\": \"product_003\", \"row_hash\": \"93ed5b1658dd42c3623275e89715327a622e2b64cef16820ecfab9378435baeb\"}, {\"is_deleted\": false, \"product_id\": \"product_004\", \"row_hash\": \"89a7c3b6b41d92ccd10c826898c1a2fa7a87e42813d5d228d210e4cb3a2b2ef4\"}, {\"is_deleted\": false, \"product_id\": \"product_005\", \"row_hash\": \"270bc944c4a03c0ec4873dedc68aaf5216620736d6c4e94d4c0e01ce75e879e6\"}, {\"is_deleted\": false, \"product_id\": \"product_006\", \"row_hash\": \"cb3a5dd2a945ae9b8f73ea9bfe452b0b58fceb0a0c46fec82637d97728ae2e35\"}, {\"is_deleted\": false, \"product_id\": \"product_007\", \"row_hash\": \"c2d40c4d0507d71755ffbe7548c54865272f7172eb5497f3498f1ff3fe366944\"}, {\"is_deleted\": false, \"product_id\": \"product_008\", \"row_hash\": \"c5478414bc21d3d22782baf85adc57d5cf8db792c0f88cc742130cd1b6ad8c42\"}]}, \"sellers\": {\"manifest_sha256\": \"dfa115195e9fd45cfd4f04e1ee64d4e1b8e080aed21717b79a82a9f7b651ef98\", \"row_count\": 4, \"rows\": [{\"is_deleted\": false, \"row_hash\": \"13b4f5314cf3797a91b51df01383224a5f94b2dd84479f46df686910e1ddfa7f\", \"seller_id\": \"seller_001\"}, {\"is_deleted\": false, \"row_hash\": \"6a893717586f34c0d890b901c89c4f54a1f92abb4fa3e7ad84f74c978cee9928\", \"seller_id\": \"seller_002\"}, {\"is_deleted\": false, \"row_hash\": \"ccceb257820f2ec09e89c00dfb67017f44018f987c314f7abab10b57b71fcb6c\", \"seller_id\": \"seller_003\"}, {\"is_deleted\": false, \"row_hash\": \"5285104caa341f9ce197d99d6d57f9a0ef09671e0284e8003697d00e3f2ad991\", \"seller_id\": \"seller_004\"}]}}}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_owner_id\": null, \"source_snapshot_completed\": true}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
           "timed_out": false
         },
         {
@@ -7683,10 +7949,10 @@ reconstructed from static claims.
             "--sync-run-id",
             "sync-00000000000000000004"
           ],
-          "duration_seconds": 1.64,
+          "duration_seconds": 1.984,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"active_runs\": [], \"command\": \"validate-final\", \"gold_views\": {\"dim_customer_scd2\": 8, \"dim_date\": 46, \"dim_order_status\": 2, \"dim_product_scd2\": 10, \"dim_seller\": 4, \"fact_order_items\": 18, \"mart_daily_revenue\": 13, \"mart_monthly_arpu\": 7}, \"iceberg_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"open_or_rejected_transactions\": [], \"publication_marker\": {\"publication_status\": \"PUBLISHED\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_operation\": null, \"lease_owner_id\": null}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
+          "stdout": "{\"active_runs\": [], \"command\": \"validate-final\", \"gold_views\": {\"dim_customer_scd2\": 8, \"dim_date\": 46, \"dim_order_status\": 2, \"dim_product_scd2\": 8, \"dim_seller\": 4, \"fact_order_items\": 18, \"mart_daily_revenue\": 13, \"mart_monthly_arpu\": 7}, \"iceberg_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"open_or_rejected_transactions\": [], \"publication_marker\": {\"publication_status\": \"PUBLISHED\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}, \"runtime\": {\"last_published_sync_run_seq\": 4, \"lease_operation\": null, \"lease_owner_id\": null}, \"stable_current_counts\": {\"customers\": 9, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"status\": \"ready\", \"sync_run_id\": \"sync-00000000000000000004\", \"sync_run_seq\": 4}\n",
           "timed_out": false
         },
         {
@@ -7699,18 +7965,18 @@ reconstructed from static claims.
             "--require",
             "serving"
           ],
-          "duration_seconds": 1.688,
+          "duration_seconds": 1.906,
           "exit_code": 0,
           "stderr": "",
-          "stdout": "{\"clickhouse\": 200, \"command\": \"status\", \"compose\": [{\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"airflow\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"airflow-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"apicurio-registry\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"clickhouse\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"clickhouse-init\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"clickhouse-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"iceberg-migration\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"kafka\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"kafka-connect\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"kafka-topics\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"minio\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"minio-init\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"mysql\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"platform-postgres\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"platform-postgres-bootstrap\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"polaris\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-admin\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-admin-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-bootstrap\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-credentials-prepare\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-server-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-bronze\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-geolocation\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"spark-master\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-ops\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-silver\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-worker\", \"state\": \"running\"}], \"connector\": {\"connector_state\": \"RUNNING\", \"registered\": true, \"task_0_state\": \"RUNNING\"}, \"iceberg\": {\"contract_version\": 2, \"queries_count\": 10, \"status\": \"READY\", \"updated_at\": \"2026-08-04T15:58:15.932079798Z\"}, \"mysql\": {\"customers\": 9, \"geolocation\": 6, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"polaris\": 200, \"project\": \"olist_stage_v\", \"registry\": {\"compatibility\": \"BACKWARD_TRANSITIVE\", \"status_code\": 200}, \"status\": \"ready\", \"writer_schema_capture\": \"captured\"}\n",
+          "stdout": "{\"clickhouse\": 200, \"command\": \"status\", \"compose\": [{\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"airflow\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"airflow-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"apicurio-registry\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"clickhouse\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"clickhouse-init\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"clickhouse-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"iceberg-migration\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"kafka\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"kafka-connect\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"kafka-topics\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"minio\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"minio-init\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"mysql\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"platform-postgres\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"platform-postgres-bootstrap\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"polaris\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-admin\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-admin-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-bootstrap\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-credentials-prepare\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"polaris-server-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-bronze\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-geolocation\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"healthy\", \"service\": \"spark-master\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-ops\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-projector\", \"state\": \"exited\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-silver\", \"state\": \"running\"}, {\"exit_code\": 0, \"health\": \"\", \"service\": \"spark-worker\", \"state\": \"running\"}], \"connector\": {\"connector_state\": \"RUNNING\", \"registered\": true, \"task_0_state\": \"RUNNING\"}, \"iceberg\": {\"contract_version\": 2, \"queries_count\": 10, \"status\": \"READY\", \"updated_at\": \"2026-08-04T22:59:02.610344398Z\"}, \"mysql\": {\"customers\": 9, \"geolocation\": 6, \"order_items\": 18, \"order_payments\": 16, \"order_reviews\": 12, \"orders\": 13, \"product_category_translation\": 5, \"products\": 8, \"sellers\": 4}, \"polaris\": 200, \"project\": \"olist_stage_v\", \"registry\": {\"compatibility\": \"BACKWARD_TRANSITIVE\", \"status_code\": 200}, \"status\": \"ready\", \"writer_schema_capture\": \"captured\"}\n",
           "timed_out": false
         }
       ],
       "details": {},
-      "duration_seconds": 6.083,
+      "duration_seconds": 5.78,
       "gate": "10-final",
       "status": "PASS",
-      "timestamp": "2026-08-04T15:59:01.390687+00:00"
+      "timestamp": "2026-08-04T22:59:43.130408+00:00"
     }
   },
   "mandatory_gates": [
@@ -7734,4 +8000,4 @@ reconstructed from static claims.
 
 ## 4. Evidence Artifacts
 
-Raw evidence persisted in `data/stage-v-evidence/stage_l1_20260804_v6/`.
+Raw evidence persisted in `data/stage-v-evidence/stage_l4_20260805_f0_restored/`.

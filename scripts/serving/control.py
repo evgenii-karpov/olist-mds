@@ -354,19 +354,10 @@ class ServingControlRepository:
 
     @staticmethod
     def verify_schema_assertions() -> dict[str, object]:
-        # The target serving repository owns only serving.*.  The bootstrap
-        # still applies the old audit/cdc migrations during the staged L1-L3
-        # window, but those compatibility tables must not be treated as a
-        # serving readiness signal or silently become planner dependencies.
         target_migrations = [
+            "001_create_schemas.sql",
             "005_create_serving_control_tables.sql",
             "999_grant_control_role.sql",
-        ]
-        legacy_compatibility_migrations = [
-            "001_create_schemas.sql",
-            "002_create_batch_control_tables.sql",
-            "003_create_cdc_control_tables.sql",
-            "004_create_cdc_transform_control_tables.sql",
         ]
         required_tables = {
             "serving": ["sync_runs", "sync_entity_results", "runtime_state"],
@@ -399,9 +390,8 @@ class ServingControlRepository:
         all_present = set(verified_tables) == expected_tables
         return {
             "status": "PASS" if all_present and singleton_exists else "FAIL",
-            "applied_migrations": legacy_compatibility_migrations + target_migrations,
+            "applied_migrations": target_migrations,
             "target_migrations": target_migrations,
-            "legacy_compatibility_migrations": legacy_compatibility_migrations,
             "verified_tables": verified_tables,
             "singleton_runtime_state_seeded": singleton_exists,
         }

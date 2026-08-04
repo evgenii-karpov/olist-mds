@@ -46,6 +46,11 @@ jobs:
           uv run python scripts/ci/check_repository_contracts.py
           --report data/reports/repository-contracts.json
 
+      - name: Validate L4 legacy orphan inventory
+        run: >-
+          uv run python scripts/ci/check_legacy_orphans.py
+          --report data/reports/l4-legacy-orphans.json
+
       - name: Validate frozen F0 oracle
         run: >-
           uv run python scripts/parity/validate_f0_oracle.py
@@ -63,7 +68,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: repository-contracts
-          path: data/reports/repository-contracts.json
+          path: |
+            data/reports/repository-contracts.json
+            data/reports/l4-legacy-orphans.json
           if-no-files-found: warn
 
   python-quality:

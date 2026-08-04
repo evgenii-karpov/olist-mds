@@ -1,17 +1,15 @@
-# CDC Kafka replay
+# Target Kafka replay
 
-Kafka replay is a consumer recovery operation, not a source resnapshot.
+Kafka replay is a bounded consumer recovery operation, not a source reset.
 
-1. Record the target topic, partitions, current group offsets, and immutable
-   object/warehouse watermarks.
-2. Stop NiFi and export the current `olist-nifi-cdc-v1` group offsets.
-3. Reset only the selected topic partitions to an explicitly recorded offset;
-   never reset Connect internal topics or the Debezium connector group.
-4. Start NiFi and observe lag drain, deterministic object names, verified
-   coverage, warehouse `_event_id` deduplication, and offset continuity.
-5. Compare object rows, inserted rows, duplicates, and rejected rows. A replay
-   may increase duplicate counters but must not increase unique event or mart
-   grain counts.
+1. Record the topic, partition, current consumer group offsets and the latest
+   Bronze/Silver status evidence.
+2. Stop only the affected target Spark query through the documented lifecycle
+   command; preserve Kafka Connect internal topics and the source database.
+3. Reset only explicitly selected partitions and offsets, then restart the
+   target query with its existing checkpoint contract.
+4. Verify Bronze event identity/deduplication, Silver progress, transaction
+   state and serving catch-up before publication.
 
-Keep the before/after offsets in the incident record. Do not combine replay with
-topic deletion, retention changes, or resnapshot.
+Never combine replay with topic deletion, retention changes or credential
+rotation. Keep before/after offsets in the evidence record.

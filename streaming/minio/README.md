@@ -1,11 +1,12 @@
-# Local CDC object storage
+# Target MinIO runtime
 
-The local object store is built from the final open-source MinIO security
-release `RELEASE.2025-10-15T17-29-55Z`. The upstream project stopped publishing
-maintained community container images, so using the older prebuilt image would
-reintroduce a fixed privilege-escalation vulnerability.
+This image is the local S3-compatible object-store adapter for the target
+Iceberg/Polaris runtime. It stores the isolated checkpoint and lakehouse data
+used by Spark and Polaris; it runs as a local service rather than a cloud
+deployment.
 
-`minio-init` creates the private, versioned `olist-cdc` bucket and attaches a
-prefix-limited policy to the `olist_nifi` service identity. Credentials are
-read only from Docker secrets. Object versioning is a recovery guard; the NiFi
-writer also refuses to replace an existing key with different content.
+`start.sh` reads the root credentials from the Docker secret mounted at
+`/run/secrets/minio_root_password` and starts MinIO without printing the
+resolved value. Bucket creation, policy and service identities are owned by
+`infra/polaris/minio/init.sh`, so this image contains no legacy pipeline
+identities or loader policies.

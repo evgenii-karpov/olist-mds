@@ -84,5 +84,5 @@ checks and serving static validation were also green in the final candidate.
 
 The detailed stage plan and disposition register remain authoritative:
 
-- [Stage L active plan](../plans/lakehouse/active/stage-l-legacy-removal-ci-cutover.md)
+- [Stage L completed plan](../plans/lakehouse/completed/stage-l-legacy-removal-ci-cutover.md)
 - [Legacy disposition register](../plans/lakehouse/contracts/legacy-disposition-register.md)

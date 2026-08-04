@@ -227,7 +227,8 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
     lines = [
         "# Source Contract",
         "",
-        "This document is generated from the local Olist dataset archive.",
+        "This document is generated from the local Olist dataset archive used by the",
+        "MySQL seed and bounded Stage V fixture checks.",
         "",
         f"Source archive: `{archive_path.name}`",
         "",
@@ -240,7 +241,7 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
         "",
         "## Expected Source Files",
         "",
-        "The ingestion layer should fail fast if any of these files are missing:",
+        "The source-contract check should fail fast if any of these files are missing:",
         "",
     ]
 
@@ -252,8 +253,9 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
             "## Entity Contracts",
             "",
             "The `Inferred type` column is based on sampled non-null values. The",
-            "`Raw type` column is the recommended first-pass type for raw",
-            "DDL. Staging models can cast to stricter business types where needed.",
+            "`Raw type` column is the recommended first-pass type for the",
+            "source/seed schema. Target transformations can cast to stricter",
+            "business types where needed.",
             "",
         ]
     )
@@ -300,19 +302,20 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
 
     lines.extend(
         [
-            "## Raw Metadata Columns",
+            "## Source Metadata Columns",
             "",
-            "Every raw table should include these ingestion metadata columns:",
+            "The bounded source and seed contract uses these deterministic metadata",
+            "fields when a source record is materialized:",
             "",
             markdown_table(
                 ["Column", "Recommended type", "Description"],
                 [
                     ["`_batch_id`", "varchar(128)", "Deterministic batch identifier."],
-                    ["`_loaded_at`", "timestamp", "Warehouse load timestamp."],
+                    ["`_loaded_at`", "timestamp", "Materialization timestamp."],
                     [
                         "`_source_file`",
                         "varchar(512)",
-                        "Original raw object or source file.",
+                        "Original source file.",
                     ],
                     [
                         "`_source_system`",
@@ -324,11 +327,11 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
             "",
             "## Contract Rules",
             "",
-            "- Ingestion must fail if an expected file is missing.",
-            "- Ingestion must fail if a source header changes unexpectedly.",
-            "- Raw data should be append-only and batch-addressable.",
-            "- dbt staging models own stricter type casting and business naming.",
-            "- Correction feeds for SCD2 simulation should be versioned as separate source entities.",
+            "- Source validation must fail if an expected file is missing.",
+            "- Source validation must fail if a header changes unexpectedly.",
+            "- Seed and fixture materialization must be deterministic and batch-addressable.",
+            "- Target transformations own stricter type casting and business naming.",
+            "- Rejected-event and replay semantics belong to the target Spark/Iceberg contracts.",
             "",
         ]
     )

@@ -1,4 +1,4 @@
-# Wave 2 / J2 runbook: Scala data plane и интеграция
+# Wave 2 / J2 runbook: Scala data plane and integration
 
 - **Status**: Completed / Frozen
 - **Purpose**: Historical execution and acceptance runbook for Wave 2/J2
@@ -8,52 +8,52 @@
 
 ---
 
-## 1. Назначение и рамки Wave 2 / J2
+## 1. Wave 2 / J2 purpose and scope
 
-Wave 2 реализует движок потоковой обработки CDC на базе Spark Structured Streaming и Scala 2.13.17.
-Основные компоненты:
-- Потоковые процессоры Bronze (`BronzeMain`) и Silver (`SilverMain`);
-- Автоматическая архивация и резолюция Avro-схем в Apicurio;
-- Общий движок нормализации данных 8 бизнес-сущностей (`EntityBatchProcessor`);
-- Идемпотентные райтеры для таблиц `changes`, `current` и `audit` в Iceberg;
-- Супервизор запросов с обработкой transient/fatal ошибок;
-- Инструменты конечного повтора (`ReplayMain`) и разовой загрузки справочника геопозиций (`GeolocationMain`).
+Wave 2 implements a CDC streaming engine based on Spark Structured Streaming and Scala 2.13.17.
+Main components:
+- Bronze (`BronzeMain`) and Silver (`SilverMain`) streaming processors;
+- automatic Avro schema archiving and resolution in Apicurio;
+- shared normalization engine for eight business entities (`EntityBatchProcessor`);
+- idempotent writers for the Iceberg `changes`, `current`, and `audit` tables;
+- query supervisor with transient/fatal error handling;
+- finite replay (`ReplayMain`) and one-shot geolocation reference loading (`GeolocationMain`).
 
-Действующие нормативные контракты слоя данных:
-- [Контракт Spark Structured Streaming](../contracts/spark-streaming.md)
-- [Контракт модели данных Iceberg](../contracts/iceberg-data-model.md)
-- [Контракт архитектуры и runtime](../contracts/architecture-and-runtime.md)
-
----
-
-## 2. Историческая структура пакетов S0–S8
-
-1. **S0 — Фиксация baseline**: проверка 26 таблиц Iceberg, чексуммы миграции и контракта v2.
-2. **S1 — Scala foundation**: создание единого корня сборки `streaming/spark/scala` (sbt 1.12.11, Scala 2.13.17), генерация ресурсов контрактов и пяти главных точек входа.
-3. **S2 — Bronze engine**: реализация записи сырых байтов Kafka в `bronze.mysql_cdc_records` с проверкой обрамления Confluent Avro и анти-соединением по `event_id`.
-4. **S3 — Schema archive**: реализация `capture_avro_schemas` и регистратора схем из Apicurio в `bronze.avro_schemas`.
-5. **S4 — Common normalization engine**: 11-шаговый пайплайн декодирования, валидация Avro в FAILFAST, вычисление детерминированных хэшей колонок.
-6. **S5 — Восемь entity modules**: валидационные правила для `customers`, `orders`, `order_items`, `order_payments`, `order_reviews`, `products`, `sellers`, `product_category_translation`.
-7. **S6 — Idempotent writers**: последовательный коммит `changes → errors → current → progress` с блокировкой на уровне таблиц аудита.
-8. **S7 — Supervisor & Ops**: обработчик сбоев с экспоненциальным backoff, `ReplayMain`, `GeolocationMain`, `LakehouseStatusMain`.
-9. **S8 — Image & CLI**: сборка единого образа `olist-spark:4.1.3-iceberg1.11.0`, интеграция команд `start-streaming` и `wait-caught-up` в `local_lab.py`.
+Active normative data-plane contracts:
+- [Spark Structured Streaming contract](../contracts/spark-streaming.md)
+- [Iceberg data model contract](../contracts/iceberg-data-model.md)
+- [Architecture and runtime contract](../contracts/architecture-and-runtime.md)
 
 ---
 
-## 3. Критерии приемки J2 (J2.1 – J2.7)
+## 2. Historical S0–S8 package structure
 
-- **J2.1 Static & Build gate**: успешное выполнение `sbt test package`, `uv lock --check`, `ruff`, `pyright`, pytest тестов.
-- **J2.2 Clean Bootstrap & Initial Snapshot**: запуск с чистого домена, первоначальный импорт 79 записей snapshot без потерь данных.
-- **J2.3 CRUD / Transaction scenario**: обработка транзакционных сценариев INSERT, UPDATE, DELETE с валидацией версионности в `current` и `changes`.
-- **J2.4 Retry & Isolation drills**: проверка устойчивости при сбоях после коммитов и изоляции падений отдельных запросов.
-- **J2.5 Replay proof**: подтверждение корректности работы ReplayMain (`rejected → applied`).
-- **J2.6 dbt regression boundary**: подтверждение прохождения тестов dbt-clickhouse (`PASS=78`) без обратных зависимостей.
-- **J2.7 Report**: финальный отчет со статусом `J2 ACCEPTANCE PASS`.
+1. **S0 — Baseline freeze**: validation of 26 Iceberg tables, migration checksums, and contract v2.
+2. **S1 — Scala foundation**: creation of the single `streaming/spark/scala` build root (sbt 1.12.11, Scala 2.13.17), contract resource generation, and five main entrypoints.
+3. **S2 — Bronze engine**: writing raw Kafka bytes to `bronze.mysql_cdc_records` with Confluent Avro framing validation and an anti-join on `event_id`.
+4. **S3 — Schema archive**: implementation of `capture_avro_schemas` and the Apicurio-to-`bronze.avro_schemas` schema registrar.
+5. **S4 — Common normalization engine**: an 11-step decoding pipeline, Avro FAILFAST validation, and deterministic column hash calculation.
+6. **S5 — Eight entity modules**: validation rules for `customers`, `orders`, `order_items`, `order_payments`, `order_reviews`, `products`, `sellers`, and `product_category_translation`.
+7. **S6 — Idempotent writers**: ordered `changes → errors → current → progress` commits with audit-table-level locking.
+8. **S7 — Supervisor & Ops**: failure handler with exponential backoff, `ReplayMain`, `GeolocationMain`, and `LakehouseStatusMain`.
+9. **S8 — Image & CLI**: build of the unified `olist-spark:4.1.3-iceberg1.11.0` image and integration of `start-streaming` and `wait-caught-up` into `local_lab.py`.
 
 ---
 
-## 4. Результат приемки
+## 3. J2 acceptance criteria (J2.1 – J2.7)
 
-Все критерии приемки Wave 2 / J2 выполнена полностью. Итоговый отчет приемки зафиксирован в [docs/reports/mysql-spark-iceberg-wave2-j2-validation.md](../../../reports/mysql-spark-iceberg-wave2-j2-validation.md).
+- **J2.1 Static & Build gate**: successful execution of `sbt test package`, `uv lock --check`, `ruff`, `pyright`, and pytest tests.
+- **J2.2 Clean Bootstrap & Initial Snapshot**: start from a clean domain and import the initial 79-row snapshot without data loss.
+- **J2.3 CRUD / Transaction scenario**: process INSERT, UPDATE, and DELETE transaction scenarios with version validation in `current` and `changes`.
+- **J2.4 Retry & Isolation drills**: verify resilience after commit failures and isolation of individual query failures.
+- **J2.5 Replay proof**: confirm correct ReplayMain behavior (`rejected → applied`).
+- **J2.6 dbt regression boundary**: confirm dbt-clickhouse tests pass (`PASS=78`) without reverse dependencies.
+- **J2.7 Report**: final report with status `J2 ACCEPTANCE PASS`.
 
-**Статус**: COMPLETE (`J2 ACCEPTANCE PASS`)
+---
+
+## 4. Acceptance result
+
+All Wave 2 / J2 acceptance criteria were completed. The final acceptance report is recorded in [docs/reports/mysql-spark-iceberg-wave2-j2-validation.md](../../../reports/mysql-spark-iceberg-wave2-j2-validation.md).
+
+**Status**: COMPLETE (`J2 ACCEPTANCE PASS`)
