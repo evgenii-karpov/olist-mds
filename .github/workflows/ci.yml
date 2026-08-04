@@ -239,7 +239,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      COMPOSE_PROJECT_NAME: ci-dbt-${{ github.run_id }}-${{ github.run_attempt }}
+      DBT_CLICKHOUSE_CONTAINER: ci-dbt-clickhouse-${{ github.run_id }}-${{ github.run_attempt }}
       DBT_PROFILES_DIR: ${{ github.workspace }}/dbt/olist_clickhouse
       DBT_TARGET: local_clickhouse
       CLICKHOUSE_HOST: localhost
@@ -270,12 +270,28 @@ jobs:
         run: uv run dbt deps --project-dir dbt/olist_clickhouse --profiles-dir dbt/olist_clickhouse
 
       - name: Start isolated ClickHouse
-        run: >-
-          docker compose --profile platform --profile serving up -d --wait
-          clickhouse
+        run: |
+          set -euo pipefail
+          docker run --detach \
+            --name "$DBT_CLICKHOUSE_CONTAINER" \
+            --publish "${CLICKHOUSE_PORT}:8123" \
+            --env "CLICKHOUSE_DB=${CLICKHOUSE_DATABASE}" \
+            --env "CLICKHOUSE_USER=${CLICKHOUSE_USER}" \
+            --env CLICKHOUSE_PASSWORD_FILE=/run/secrets/clickhouse_password \
+            --env CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
+            --mount "type=bind,source=${GITHUB_WORKSPACE}/${CLICKHOUSE_PASSWORD_FILE},target=/run/secrets/clickhouse_password,readonly" \
+            clickhouse/clickhouse-server:26.3.17.4
 
-      - name: Initialize ClickHouse schemas
-        run: docker compose --profile platform --profile serving run --rm clickhouse-init
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              "http://127.0.0.1:${CLICKHOUSE_PORT}/ping" >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          docker logs "$DBT_CLICKHOUSE_CONTAINER"
+          exit 1
 
       - name: Parse and compile target dbt project
         run: |
@@ -301,9 +317,9 @@ jobs:
             dbt/olist_clickhouse/target/run_results.json
           if-no-files-found: warn
 
-      - name: Clean up Compose resources
+      - name: Clean up standalone ClickHouse
         if: always()
-        run: docker compose --profile platform --profile serving down -v --remove-orphans
+        run: docker rm --force "$DBT_CLICKHOUSE_CONTAINER" 2>/dev/null || true
 
   ci-success:
     name: ci-success

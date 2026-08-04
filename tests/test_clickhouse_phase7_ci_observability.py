@@ -104,6 +104,22 @@ class TargetObservabilityCiTests(unittest.TestCase):
             line = next(line for line in ci.splitlines() if command in line)
             self.assertIn('--vars "$DBT_CONTRACT_VARS"', line)
 
+    def test_dbt_static_job_uses_standalone_clickhouse_only(self) -> None:
+        path = ROOT / ".github/workflows/ci.yml"
+        workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        job = workflow["jobs"]["dbt-clickhouse-static"]
+        step_text = "\n".join(str(step.get("run", "")) for step in job.get("steps", []))
+
+        self.assertIn("docker run --detach", step_text)
+        self.assertIn("clickhouse/clickhouse-server:26.3.17.4", step_text)
+        self.assertIn("/ping", step_text)
+        self.assertIn("docker rm --force", step_text)
+        self.assertNotIn("docker compose", step_text)
+        self.assertNotIn("clickhouse-init", step_text)
+        self.assertNotIn("polaris", step_text.lower())
+        self.assertNotIn("minio", step_text.lower())
+        self.assertNotIn("spark", step_text.lower())
+
     def test_bounded_workflow_has_observability_and_summary(self) -> None:
         path = ROOT / ".github/workflows/lakehouse-components.yml"
         workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
