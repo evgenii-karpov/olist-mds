@@ -102,6 +102,24 @@ Exit criteria:
 - clean Stage V E2E V0–V10 PASS;
 - raw evidence и checksum сохранены в data/stage-l-evidence/L1/.
 
+### L1 implementation result (2026-08-04)
+
+- [Stage L1 implementation report](../../../reports/lakehouse-stage-l1.md)
+  records the completed target-runtime repairs and the diagnostic history.
+- Clean acceptance evidence is in
+  `data/stage-l-evidence/L1/stage_l1_20260804_v6/`; run
+  `stage_l1_20260804_v6` passed every Stage V gate V0-V10.
+- The preceding v3, v4 and v5 failures were diagnosed and fixed: probe
+  identity, candidate-tree formatting, and the simulator/admin credential
+  split for additive DDL.
+- No tests were deleted. Legacy control migrations remain during the
+  compatibility window and are owned by L4 removal evidence. AWS/Redshift
+  artifacts have disposition `DELETE`; they are not deferred, while
+  GCP/BigQuery remains a separate future program.
+- L1 completion means that the repaired target candidate is green under the
+  full runtime gate. It does not close Stage L; L2 observability, L3 CI and
+  L4 legacy removal still require their own changes and clean V0-V10 evidence.
+
 ## 5. L2 — observability для нового стека
 
 Observability является обязательной частью миграции. Её можно реализовать отдельным этапом, но Stage L нельзя объявлять complete с phantom targets или legacy alerts.

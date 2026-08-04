@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date, datetime
 
 from scripts.serving.entities import ALL_SERVING_ENTITIES
 
@@ -12,6 +14,99 @@ logger = logging.getLogger(__name__)
 
 def _as_int(value: object, default: int = 0) -> int:
     return int(value) if isinstance(value, (int, float, str)) else default
+
+
+def _optional_int(value: object) -> int | None:
+    if not isinstance(value, (int, float, str)):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _timestamp_key(value: object) -> str:
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return str(value) if value is not None else ""
+
+
+def _transaction_observation_order(row: dict[str, object]) -> tuple[object, ...]:
+    """Return a deterministic order for append-only transaction observations.
+
+    Kafka offsets are the primary progress coordinate.  ``recorded_at`` is the
+    tie-breaker for a BEGIN/END pair written in separate Spark micro-batches;
+    the status rank only resolves identical coordinates and makes COMPLETE win
+    over an otherwise equal OPEN/REJECTED observation.
+    """
+
+    end_offset = _optional_int(row.get("end_kafka_offset"))
+    begin_offset = _optional_int(row.get("begin_kafka_offset"))
+    effective_offset = end_offset if end_offset is not None else begin_offset
+    status_rank = {"OPEN": 0, "REJECTED": 1, "COMPLETE": 2}.get(
+        str(row.get("status", "")), -1
+    )
+    return (
+        effective_offset if effective_offset is not None else -1,
+        _timestamp_key(row.get("recorded_at")),
+        1 if end_offset is not None else 0,
+        status_rank,
+        str(row.get("end_event_id", "")),
+        str(row.get("begin_event_id", "")),
+    )
+
+
+def transaction_sort_key(row: dict[str, object]) -> tuple[object, ...]:
+    """Sort effective transaction rows in source-boundary order."""
+
+    return (
+        *_transaction_observation_order(row),
+        str(row.get("transaction_id", "")),
+    )
+
+
+def collapse_transaction_history(
+    rows: Iterable[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Collapse append-only transaction observations to effective state.
+
+    The audit table intentionally retains immutable observations.  Serving,
+    however, needs exactly one state per transaction: a BEGIN followed by a
+    later END is COMPLETE, an unresolved BEGIN remains OPEN, and duplicate END
+    observations are idempotent.  Rows with an invalid/missing transaction id
+    are retained so the planner can fail closed instead of silently dropping
+    an invariant violation.
+    """
+
+    effective: dict[str, tuple[tuple[object, ...], dict[str, object]]] = {}
+    invalid_rows: list[dict[str, object]] = []
+    for raw_row in rows:
+        row = dict(raw_row)
+        transaction_id = row.get("transaction_id")
+        if transaction_id is None or not str(transaction_id).strip():
+            invalid_rows.append(row)
+            continue
+        transaction_key = str(transaction_id)
+        order = _transaction_observation_order(row)
+        previous = effective.get(transaction_key)
+        if previous is None or order >= previous[0]:
+            effective[transaction_key] = (order, row)
+
+    collapsed = invalid_rows + [row for _, row in effective.values()]
+    return sorted(collapsed, key=transaction_sort_key)
+
+
+def transaction_boundary_state(rows: Iterable[dict[str, object]]) -> str:
+    """Return the effective boundary gate for a transaction inventory."""
+
+    return (
+        "REJECTED"
+        if any(
+            str(row.get("status", "")) == "REJECTED"
+            for row in collapse_transaction_history(rows)
+        )
+        else "READY"
+    )
 
 
 @dataclass
@@ -43,6 +138,7 @@ class ServingBoundaryPlanner:
         boundary_state: str = "READY",
         entity_metrics: dict[str, dict[str, object]] | None = None,
     ) -> TransactionCandidatePlan:
+        transaction_rows = collapse_transaction_history(transaction_rows)
         prev_tx_id_raw = runtime_state.get("last_published_transaction_id")
         prev_tx_id = str(prev_tx_id_raw) if prev_tx_id_raw is not None else None
 
@@ -118,6 +214,7 @@ class ServingBoundaryPlanner:
         target_offset = prev_offset
         total_events = 0
         entity_counts = {spec.entity: 0 for spec in ALL_SERVING_ENTITIES}
+        open_transaction: dict[str, object] | None = None
 
         for tx in transaction_rows:
             tx_status = str(tx.get("status", ""))
@@ -140,6 +237,7 @@ class ServingBoundaryPlanner:
                 )
             elif tx_status == "OPEN":
                 # Stop prefix at OPEN transaction
+                open_transaction = tx
                 break
             elif tx_status == "COMPLETE":
                 tx_id_raw = tx.get("transaction_id")
@@ -192,6 +290,41 @@ class ServingBoundaryPlanner:
                 target_tx_id = tx_id_raw
                 target_offset = tx_end_offset
                 total_events += tx_event_count
+            else:
+                return TransactionCandidatePlan(
+                    sync_run_seq=sync_run_seq,
+                    operation_type="SYNC",
+                    is_noop=True,
+                    status="BLOCKED",
+                    status_reason="INVARIANT_FAILURE",
+                    previous_transaction_id=prev_tx_id,
+                    previous_transaction_end_offset=prev_offset,
+                    target_transaction_id=prev_tx_id,
+                    target_transaction_end_offset=prev_offset,
+                    source_snapshot_completed=snapshot_done,
+                    target_offsets={},
+                    iceberg_snapshot_ids=iceberg_snapshots,
+                    expected_event_count=0,
+                    expected_entity_counts=entity_counts,
+                )
+
+        if not complete_txs and open_transaction is not None:
+            return TransactionCandidatePlan(
+                sync_run_seq=sync_run_seq,
+                operation_type="SYNC",
+                is_noop=True,
+                status="WAITING",
+                status_reason="OPEN_TRANSACTION",
+                previous_transaction_id=prev_tx_id,
+                previous_transaction_end_offset=prev_offset,
+                target_transaction_id=prev_tx_id,
+                target_transaction_end_offset=prev_offset,
+                source_snapshot_completed=snapshot_done,
+                target_offsets={},
+                iceberg_snapshot_ids=iceberg_snapshots,
+                expected_event_count=0,
+                expected_entity_counts=entity_counts,
+            )
 
         if not complete_txs and snapshot_done:
             return TransactionCandidatePlan(

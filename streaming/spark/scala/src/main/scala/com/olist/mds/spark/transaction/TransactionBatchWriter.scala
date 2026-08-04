@@ -170,10 +170,23 @@ object TransactionBatchWriter {
 
     grouped.foreach { transactionEvents =>
       val ordered = transactionEvents.sortBy(_.kafkaOffset)
+      val effectiveState = TransactionState
+        .collapse(
+          transactionEvents.map { event =>
+            TransactionObservation(
+              transactionId = event.transactionId,
+              status = event.status,
+              kafkaOffset = event.kafkaOffset,
+              recordedAtEpochMillis = event.kafkaTimestamp.getTime,
+              eventId = event.eventId
+            )
+          }
+        )
+        .head
       val first = ordered.head
       val begin = ordered.find(_.status == "OPEN")
       val end = ordered.reverse.find(_.status == "COMPLETE")
-      val status = if (end.nonEmpty) "COMPLETE" else "OPEN"
+      val status = effectiveState.status
       val eventCount =
         end.flatMap(_.eventCount).orElse(if (end.nonEmpty) Some(ordered.size.toLong) else None)
       val dataCollections = end.flatMap(_.dataCollections).orElse(begin.flatMap(_.dataCollections))

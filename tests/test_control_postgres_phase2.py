@@ -42,9 +42,12 @@ class ControlPostgresPhase2Tests(unittest.TestCase):
     def test_compose_defines_control_database_init_and_secret(self) -> None:
         compose = (PROJECT_ROOT / "compose.yaml").read_text(encoding="utf-8")
 
-        self.assertIn("control-db-init:", compose)
+        self.assertIn("platform-postgres-bootstrap:", compose)
         self.assertIn(
-            'CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"',
+            "./infra/control-postgres:/opt/olist/control-postgres:ro", compose
+        )
+        self.assertIn(
+            "CONTROL_POSTGRES_DB: olist_control",
             compose,
         )
         self.assertIn(
@@ -52,6 +55,15 @@ class ControlPostgresPhase2Tests(unittest.TestCase):
             compose,
         )
         self.assertIn("control_postgres_password:", compose)
+        self.assertIn(
+            "serving.sync_runs",
+            "\n".join(
+                path.read_text(encoding="utf-8")
+                for path in (
+                    PROJECT_ROOT / "infra" / "control-postgres" / "initdb"
+                ).glob("*.sql")
+            ),
+        )
 
     def test_control_postgres_ddl_excludes_warehouse_raw_tables(self) -> None:
         ddl_dir = PROJECT_ROOT / "infra" / "control-postgres" / "initdb"

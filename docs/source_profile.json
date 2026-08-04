@@ -9,7 +9,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "06b8999e2fba1a1fbc88172c00ba8bc7",
           "18955e83d337fd6b2def6b18a428ac77",
@@ -23,7 +23,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "861eff4711a542e4b93843c6dd7febb0",
           "290c77bc529b7ac935b93aa66c333dc3",
@@ -37,7 +37,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "integer",
-        "redshift_raw_type": "varchar(16)",
+        "raw_type": "varchar(16)",
         "sample_values": [
           "14409",
           "09790",
@@ -51,7 +51,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "franca",
           "sao bernardo do campo",
@@ -65,7 +65,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "SP",
           "SC",
@@ -86,7 +86,7 @@
         "null_count": 0,
         "non_null_count": 1000163,
         "inferred_type": "integer",
-        "redshift_raw_type": "varchar(16)",
+        "raw_type": "varchar(16)",
         "sample_values": [
           "01037",
           "01046",
@@ -100,7 +100,7 @@
         "null_count": 0,
         "non_null_count": 1000163,
         "inferred_type": "decimal",
-        "redshift_raw_type": "decimal(18, 14)",
+        "raw_type": "decimal(18, 14)",
         "sample_values": [
           "-23.54562128115268",
           "-23.546081127035535",
@@ -114,7 +114,7 @@
         "null_count": 0,
         "non_null_count": 1000163,
         "inferred_type": "decimal",
-        "redshift_raw_type": "decimal(18, 14)",
+        "raw_type": "decimal(18, 14)",
         "sample_values": [
           "-46.63929204800168",
           "-46.64482029837157",
@@ -128,7 +128,7 @@
         "null_count": 0,
         "non_null_count": 1000163,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "sao paulo",
           "s\u00e3o paulo",
@@ -142,7 +142,7 @@
         "null_count": 0,
         "non_null_count": 1000163,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "SP",
           "RN",
@@ -163,7 +163,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "00010242fe8c5a6d1ba2dd792cb16214",
           "00018f77f2f0320c557190d7a144bdd3",
@@ -177,7 +177,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "1",
           "2",
@@ -191,7 +191,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "4244733e06e7ecb4970a6e2683c13e61",
           "e5f2d52b802189ee658865ca93d83a8f",
@@ -205,7 +205,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "48436dade18ac8b2bce089ec2a041202",
           "dd7ddc04e1b6c2c614352b383efe2d36",
@@ -219,7 +219,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-09-19 09:45:35",
           "2017-05-03 11:05:13",
@@ -233,7 +233,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "decimal",
-        "redshift_raw_type": "decimal(18, 2)",
+        "raw_type": "decimal(18, 2)",
         "sample_values": [
           "58.90",
           "239.90",
@@ -247,7 +247,7 @@
         "null_count": 0,
         "non_null_count": 112650,
         "inferred_type": "decimal",
-        "redshift_raw_type": "decimal(18, 2)",
+        "raw_type": "decimal(18, 2)",
         "sample_values": [
           "13.29",
           "19.93",
@@ -268,7 +268,7 @@
         "null_count": 0,
         "non_null_count": 103886,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "b81ef226f3fe1789b1e8b2acac839d17",
           "a9810da82917af2d9aefd1278f1dcfa0",
@@ -282,7 +282,7 @@
         "null_count": 0,
         "non_null_count": 103886,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "1",
           "2",
@@ -296,7 +296,7 @@
         "null_count": 0,
         "non_null_count": 103886,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "credit_card",
           "boleto",
@@ -310,7 +310,7 @@
         "null_count": 0,
         "non_null_count": 103886,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "8",
           "1",
@@ -324,7 +324,7 @@
         "null_count": 0,
         "non_null_count": 103886,
         "inferred_type": "decimal",
-        "redshift_raw_type": "decimal(18, 2)",
+        "raw_type": "decimal(18, 2)",
         "sample_values": [
           "99.33",
           "24.39",
@@ -345,7 +345,7 @@
         "null_count": 0,
         "non_null_count": 99224,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "7bc2406110b926393aa56f80a40eba40",
           "80e641a11e56f04c1ad469d5645fdfde",
@@ -359,7 +359,7 @@
         "null_count": 0,
         "non_null_count": 99224,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "73fc7af87114b39712e6da79b0a377eb",
           "a548910a1c6147796b98fdf73dbeba33",
@@ -373,7 +373,7 @@
         "null_count": 0,
         "non_null_count": 99224,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "4",
           "5",
@@ -387,7 +387,7 @@
         "null_count": 87656,
         "non_null_count": 11568,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(1024)",
+        "raw_type": "varchar(1024)",
         "sample_values": [
           "recomendo",
           "Super recomendo",
@@ -401,7 +401,7 @@
         "null_count": 58247,
         "non_null_count": 40977,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(65535)",
+        "raw_type": "varchar(65535)",
         "sample_values": [
           "Recebi bem antes do prazo estipulado.",
           "Parab\u00e9ns lojas lannister adorei comprar pela Internet seguro e pr\u00e1tico Parab\u00e9ns a todos feliz P\u00e1scoa",
@@ -415,7 +415,7 @@
         "null_count": 0,
         "non_null_count": 99224,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2018-01-18 00:00:00",
           "2018-03-10 00:00:00",
@@ -429,7 +429,7 @@
         "null_count": 0,
         "non_null_count": 99224,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2018-01-18 21:46:59",
           "2018-03-11 03:05:13",
@@ -450,7 +450,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "e481f51cbdc54678b7cc49136f2d6af7",
           "53cdb2fc8bc7dce0b6741e2150273451",
@@ -464,7 +464,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "9ef432eb6251297304e76186b10a928d",
           "b0830fb4747a6c6d20dea0b8c802d7ef",
@@ -478,7 +478,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "delivered",
           "invoiced",
@@ -492,7 +492,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-10-02 10:56:33",
           "2018-07-24 20:41:37",
@@ -506,7 +506,7 @@
         "null_count": 160,
         "non_null_count": 99281,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-10-02 11:07:15",
           "2018-07-26 03:24:27",
@@ -520,7 +520,7 @@
         "null_count": 1783,
         "non_null_count": 97658,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-10-04 19:55:00",
           "2018-07-26 14:31:00",
@@ -534,7 +534,7 @@
         "null_count": 2965,
         "non_null_count": 96476,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-10-10 21:25:13",
           "2018-08-07 15:27:45",
@@ -548,7 +548,7 @@
         "null_count": 0,
         "non_null_count": 99441,
         "inferred_type": "timestamp",
-        "redshift_raw_type": "timestamp",
+        "raw_type": "timestamp",
         "sample_values": [
           "2017-10-18 00:00:00",
           "2018-08-13 00:00:00",
@@ -569,7 +569,7 @@
         "null_count": 0,
         "non_null_count": 32951,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "1e9e8ef04dbcff4541ed26657ea517e5",
           "3aa071139cb16b67ca9e5dea641aaa2f",
@@ -583,7 +583,7 @@
         "null_count": 610,
         "non_null_count": 32341,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "perfumaria",
           "artes",
@@ -597,7 +597,7 @@
         "null_count": 610,
         "non_null_count": 32341,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "40",
           "44",
@@ -611,7 +611,7 @@
         "null_count": 610,
         "non_null_count": 32341,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "287",
           "276",
@@ -625,7 +625,7 @@
         "null_count": 610,
         "non_null_count": 32341,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "1",
           "4",
@@ -639,7 +639,7 @@
         "null_count": 2,
         "non_null_count": 32949,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "225",
           "1000",
@@ -653,7 +653,7 @@
         "null_count": 2,
         "non_null_count": 32949,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "16",
           "30",
@@ -667,7 +667,7 @@
         "null_count": 2,
         "non_null_count": 32949,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "10",
           "18",
@@ -681,7 +681,7 @@
         "null_count": 2,
         "non_null_count": 32949,
         "inferred_type": "integer",
-        "redshift_raw_type": "integer",
+        "raw_type": "integer",
         "sample_values": [
           "14",
           "20",
@@ -702,7 +702,7 @@
         "null_count": 0,
         "non_null_count": 3095,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "3442f8959a84dea7ee197c632cb2df15",
           "d1b65fc7debc3361ea86b5f14c68d2e2",
@@ -716,7 +716,7 @@
         "null_count": 0,
         "non_null_count": 3095,
         "inferred_type": "integer",
-        "redshift_raw_type": "varchar(16)",
+        "raw_type": "varchar(16)",
         "sample_values": [
           "13023",
           "13844",
@@ -730,7 +730,7 @@
         "null_count": 0,
         "non_null_count": 3095,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "campinas",
           "mogi guacu",
@@ -744,7 +744,7 @@
         "null_count": 0,
         "non_null_count": 3095,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "SP",
           "RJ",
@@ -765,7 +765,7 @@
         "null_count": 0,
         "non_null_count": 71,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "beleza_saude",
           "informatica_acessorios",
@@ -779,7 +779,7 @@
         "null_count": 0,
         "non_null_count": 71,
         "inferred_type": "varchar",
-        "redshift_raw_type": "varchar(256)",
+        "raw_type": "varchar(256)",
         "sample_values": [
           "health_beauty",
           "computers_accessories",

@@ -66,6 +66,11 @@ it must not overwrite `streaming/schemas/captured-writer-schemas/**` with new
 timestamps. A new frozen writer bundle requires an explicit reviewed commit,
 not a side effect of Stage V or CI.
 
+Static validation must cover the complete candidate tree, including untracked
+files that are part of the candidate. `pre-commit --all-files` is not by itself
+sufficient for this check because it may omit untracked files; the serving,
+platform and target-suite validators must run before a candidate is accepted.
+
 ## 5. Required L1/L3 test transfers
 
 The following transfers are mandatory before legacy test deletion:

@@ -43,4 +43,4 @@ lifecycle, review, correction, or hard-delete logical timestamp.
 scaffold. `OLIST_RUN_MYSQL_INTEGRATION=1` enables schema checks against an
 already provisioned instance. The mutating repeated-seed check additionally
 requires `OLIST_MYSQL_INTEGRATION_DISPOSABLE=1` and refuses to touch non-empty
-business tables. J1 must add `mysql-connector-python` before enabling it.
+business tables. The target runtime image supplies `mysql-connector-python`.

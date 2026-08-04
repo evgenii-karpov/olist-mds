@@ -1,4 +1,114 @@
-from scripts.serving.boundary import ServingBoundaryPlanner
+from scripts.serving.boundary import (
+    ServingBoundaryPlanner,
+    collapse_transaction_history,
+    transaction_boundary_state,
+)
+
+
+def test_transaction_history_collapses_split_begin_end_and_duplicate_end():
+    rows = collapse_transaction_history(
+        [
+            {
+                "transaction_id": "tx-1",
+                "status": "OPEN",
+                "begin_kafka_offset": 10,
+                "end_kafka_offset": None,
+                "recorded_at": "2026-08-04T00:00:01Z",
+            },
+            {
+                "transaction_id": "tx-1",
+                "status": "COMPLETE",
+                "begin_kafka_offset": 10,
+                "end_kafka_offset": 11,
+                "recorded_at": "2026-08-04T00:00:02Z",
+            },
+            {
+                "transaction_id": "tx-1",
+                "status": "COMPLETE",
+                "begin_kafka_offset": 10,
+                "end_kafka_offset": 11,
+                "recorded_at": "2026-08-04T00:00:03Z",
+            },
+        ]
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["status"] == "COMPLETE"
+    assert rows[0]["end_kafka_offset"] == 11
+
+
+def test_unresolved_open_transaction_is_visible_to_planner():
+    rows = [
+        {
+            "transaction_id": "tx-open",
+            "status": "OPEN",
+            "begin_kafka_offset": 20,
+            "end_kafka_offset": None,
+            "event_count": None,
+            "recorded_at": "2026-08-04T00:00:01Z",
+        }
+    ]
+
+    assert transaction_boundary_state(rows) == "READY"
+    plan = ServingBoundaryPlanner.plan_next_sync_run(
+        sync_run_seq=1,
+        runtime_state={"source_snapshot_completed": True},
+        transaction_rows=rows,
+        iceberg_snapshots={},
+    )
+    assert plan.status == "WAITING"
+    assert plan.status_reason == "OPEN_TRANSACTION"
+
+
+def test_rejected_observation_can_become_complete():
+    rows = collapse_transaction_history(
+        [
+            {
+                "transaction_id": "tx-retry",
+                "status": "REJECTED",
+                "begin_kafka_offset": 30,
+                "end_kafka_offset": None,
+                "recorded_at": "2026-08-04T00:00:01Z",
+            },
+            {
+                "transaction_id": "tx-retry",
+                "status": "COMPLETE",
+                "begin_kafka_offset": 30,
+                "end_kafka_offset": 31,
+                "event_count": 1,
+                "recorded_at": "2026-08-04T00:00:02Z",
+            },
+        ]
+    )
+
+    assert transaction_boundary_state(rows) == "READY"
+    plan = ServingBoundaryPlanner.plan_next_sync_run(
+        sync_run_seq=1,
+        runtime_state={"source_snapshot_completed": True},
+        transaction_rows=rows,
+        iceberg_snapshots={},
+    )
+    assert plan.status == "MATERIALIZING"
+    assert plan.target_transaction_id == "tx-retry"
+
+
+def test_unknown_transaction_state_fails_closed():
+    plan = ServingBoundaryPlanner.plan_next_sync_run(
+        sync_run_seq=1,
+        runtime_state={"source_snapshot_completed": True},
+        transaction_rows=[
+            {
+                "transaction_id": "tx-invalid",
+                "status": "UNKNOWN",
+                "begin_kafka_offset": 40,
+                "end_kafka_offset": None,
+            }
+        ],
+        iceberg_snapshots={},
+    )
+
+    assert plan.status == "BLOCKED"
+    assert plan.status_reason == "INVARIANT_FAILURE"
 
 
 def test_boundary_planner_not_caught_up():

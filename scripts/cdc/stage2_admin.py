@@ -15,7 +15,11 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TOPIC_MANIFEST = PROJECT_ROOT / "streaming" / "kafka" / "topics.json"
-CONNECTOR_TEMPLATE = PROJECT_ROOT / "streaming" / "connect" / "olist-postgres-cdc.json"
+CONNECTOR_NAME = "olist-mysql-cdc"
+CONNECTOR_TEMPLATE = PROJECT_ROOT / "streaming" / "connect" / f"{CONNECTOR_NAME}.json"
+DEFAULT_PASSWORD_FILE = (
+    PROJECT_ROOT / "docker" / "secrets" / "dev" / "mysql_cdc_reader_password.txt"
+)
 
 
 def request_json(
@@ -90,9 +94,13 @@ def render_connector(password_file: Path) -> dict[str, Any]:
     if not password:
         raise ValueError("CDC password file is empty")
     template = json.loads(CONNECTOR_TEMPLATE.read_text(encoding="utf-8"))
+    if template.get("name") != CONNECTOR_NAME:
+        raise ValueError(f"connector template name must be {CONNECTOR_NAME!r}")
     config = template["config"]
-    if config["database.password"] != "${OLTP_CDC_READER_PASSWORD}":
-        raise ValueError("connector template password placeholder is missing")
+    if "database.password" in config:
+        raise ValueError("connector template must not contain database.password")
+    if config.get("connector.class") != "io.debezium.connector.mysql.MySqlConnector":
+        raise ValueError("connector template must use the MySQL Debezium connector")
     config["database.password"] = password
     return template
 
@@ -113,7 +121,7 @@ def connector_status(
     connect_url: str, *, require_running: bool = True
 ) -> dict[str, Any]:
     _, status = request_json(
-        f"{connect_url.rstrip('/')}/connectors/olist-postgres-cdc/status"
+        f"{connect_url.rstrip('/')}/connectors/{CONNECTOR_NAME}/status"
     )
     connector_state = status.get("connector", {}).get("state")
     task_states = [task.get("state") for task in status.get("tasks", [])]
@@ -166,7 +174,7 @@ def register_connector(connect_url: str, password_file: Path) -> None:
     wait_http(f"{base}/connector-plugins", 120)
     _, plugins = request_json(f"{base}/connector-plugins")
     classes = {plugin.get("class") for plugin in plugins}
-    required = "io.debezium.connector.postgresql.PostgresConnector"
+    required = "io.debezium.connector.mysql.MySqlConnector"
     if required not in classes:
         raise RuntimeError(f"Required connector plugin is absent: {required}")
 
@@ -203,13 +211,12 @@ def restart_failed_connector(connect_url: str) -> None:
     base = connect_url.rstrip("/")
     wait_http(f"{base}/connectors", 120)
     request_json(
-        f"{base}/connectors/olist-postgres-cdc/restart"
-        "?includeTasks=true&onlyFailed=true",
+        f"{base}/connectors/{CONNECTOR_NAME}/restart?includeTasks=true&onlyFailed=true",
         method="POST",
         accepted=(200, 202, 204),
     )
     wait_connector_status(base, expected="RUNNING")
-    print("Connector olist-postgres-cdc failed tasks restarted and RUNNING.")
+    print(f"Connector {CONNECTOR_NAME} failed tasks restarted and RUNNING.")
 
 
 def kafka_command(*args: str) -> str:
@@ -217,7 +224,7 @@ def kafka_command(*args: str) -> str:
         "docker",
         "compose",
         "--profile",
-        "realtime-core",
+        "streaming",
         "exec",
         "-T",
         "kafka",
@@ -262,7 +269,7 @@ def validate_topics() -> None:
     unexpected_source = sorted(
         name
         for name in actual_names - expected_names
-        if name.startswith("olist_cdc.public.")
+        if name.startswith("olist_cdc.olist_oltp.")
     )
     unexpected_heartbeat = sorted(
         name
@@ -310,8 +317,8 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path(
             os.environ.get(
-                "OLTP_CDC_READER_PASSWORD_FILE",
-                "docker/secrets/dev/postgres_password.txt",
+                "MYSQL_CDC_READER_PASSWORD_FILE",
+                str(DEFAULT_PASSWORD_FILE),
             )
         ),
     )

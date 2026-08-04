@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import decimal
 import json
+import os
 import tempfile
 import unittest
 from datetime import UTC, datetime
@@ -142,6 +143,30 @@ class StageVHarnessUnitTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             probe.execute_fixture("unauthorized_drop_tables.sql")
+
+    def test_mysql_probe_default_identity_matches_simulator_secret(self) -> None:
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("scripts.simulation.database.connect") as connect,
+        ):
+            MySQLProbe()._connect()
+
+        settings = connect.call_args.args[0]
+        self.assertEqual(settings.user, "olist_simulator")
+        self.assertEqual(settings.password_file.name, "mysql_simulator_password.txt")
+
+    def test_mysql_probe_schema_fixture_uses_admin_secret(self) -> None:
+        probe = MySQLProbe()
+        connection = MagicMock()
+        cursor = MagicMock()
+        connection.cursor.return_value = cursor
+        with patch.object(probe, "_connect_admin", return_value=connection) as admin:
+            probe.execute_fixture("add_nullable_column.sql")
+
+        admin.assert_called_once_with()
+        connection.commit.assert_called_once()
+        connection.close.assert_called_once()
+        cursor.close.assert_called_once()
 
     def test_mysql_probe_fixture_connection_errors_are_not_suppressed(self) -> None:
         probe = MySQLProbe()

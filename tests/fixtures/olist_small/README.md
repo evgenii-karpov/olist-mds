@@ -8,7 +8,7 @@ This fixture is a tiny, synthetic Olist-shaped dataset for CI.
 - `source/` contains the uncompressed CSVs so fixture changes are reviewable.
 
 The fixture is intentionally committed because it is small and lets CI run the
-real ingestion, raw load, reconciliation, and dbt path without downloading the
-full dataset.
+target MySQL seed, CDC, Spark/Iceberg and serving contract checks without
+downloading the full dataset.
 
 Use the OS-specific runbook if the fixture needs to be regenerated locally.

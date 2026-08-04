@@ -11,6 +11,7 @@ import urllib.request
 from pathlib import Path
 from urllib.error import HTTPError
 
+from scripts.serving.boundary import collapse_transaction_history, transaction_sort_key
 from scripts.serving.entities import ALL_SERVING_ENTITIES, ServingEntitySpec
 from scripts.serving.models import ServingSyncReport
 
@@ -655,12 +656,17 @@ class ClickHouseServingMaterializer:
         SELECT
             transaction_id,
             status,
+            begin_kafka_offset,
             end_kafka_offset,
-            event_count
+            event_count,
+            begin_event_id,
+            end_event_id,
+            completed_at,
+            recorded_at
         FROM lakehouse."audit.mysql_transactions"
-        ORDER BY recorded_at ASC, end_kafka_offset ASC
+        ORDER BY recorded_at ASC, coalesce(end_kafka_offset, begin_kafka_offset) ASC
         """
-        transaction_rows = clickhouse_query(sql)
+        transaction_rows = collapse_transaction_history(clickhouse_query(sql))
         count_sql = """
         SELECT transaction_id, entity, count() AS entity_event_count
         FROM (
@@ -710,27 +716,7 @@ class ClickHouseServingMaterializer:
                     str(entity)
                 ] = int(count)
 
-        # The audit table can contain the same completion record more than
-        # once after a scheduler retry.  Keep one row per physical boundary;
-        # do not deduplicate by transaction_id alone because the same MySQL
-        # transaction may be observed at successive Kafka end offsets.
-        unique_rows: dict[tuple[str, str, str], dict[str, object]] = {}
         for row in transaction_rows:
-            transaction_id = row.get("transaction_id")
-            status = str(row.get("status", ""))
-            end_offset = row.get("end_kafka_offset")
-            if transaction_id is None or end_offset is None:
-                continue
-            key = (str(transaction_id), status, str(end_offset))
-            unique_rows[key] = row
-
-        for row in sorted(
-            unique_rows.values(),
-            key=lambda item: (
-                _as_int(item.get("end_kafka_offset", 0)),
-                str(item.get("transaction_id", "")),
-            ),
-        ):
             transaction_id = row.get("transaction_id")
             entity_counts = counts_by_transaction.get(str(transaction_id), {})
             row["entity_counts"] = entity_counts
@@ -739,13 +725,7 @@ class ClickHouseServingMaterializer:
                 not isinstance(raw_count, (int, float, str)) or int(raw_count) == 0
             ) and entity_counts:
                 row["event_count"] = sum(entity_counts.values())
-        return sorted(
-            unique_rows.values(),
-            key=lambda item: (
-                _as_int(item.get("end_kafka_offset", 0)),
-                str(item.get("transaction_id", "")),
-            ),
-        )
+        return sorted(transaction_rows, key=transaction_sort_key)
 
     @staticmethod
     def fetch_entity_metrics(

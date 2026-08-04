@@ -353,7 +353,7 @@ def write_profile(rows: dict[str, list[dict[str, str]]]) -> None:
             "columns": [
                 {
                     "name": column,
-                    "redshift_raw_type": RAW_TYPES[column],
+                    "raw_type": RAW_TYPES[column],
                 }
                 for column in columns
             ],

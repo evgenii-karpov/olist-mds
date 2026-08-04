@@ -132,17 +132,30 @@ class MySQLProbe(BaseProbe):
 
     def __init__(self, password_file: Path | None = None) -> None:
         super().__init__("MySQLProbe")
-        self.password_file = password_file or (
-            ROOT / "docker" / "secrets" / "dev" / "postgres_password.txt"
+        default_password_file = os.environ.get(
+            "MYSQL_PASSWORD_FILE",
+            os.environ.get(
+                "MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE",
+                str(
+                    ROOT / "docker" / "secrets" / "dev" / "mysql_simulator_password.txt"
+                ),
+            ),
         )
+        self.password_file = password_file or Path(default_password_file)
+        default_admin_password_file = os.environ.get(
+            "MYSQL_ADMIN_PASSWORD_FILE",
+            os.environ.get(
+                "MYSQL_ADMIN_PASSWORD_SOURCE_FILE",
+                str(ROOT / "docker" / "secrets" / "dev" / "mysql_admin_password.txt"),
+            ),
+        )
+        self.admin_password_file = Path(default_admin_password_file)
 
-    def _connect(self) -> Any:
-        """Open the validation MySQL connection or raise the real failure."""
+    def _connect_with(self, password_file: Path, user: str) -> Any:
+        """Open a file-secret MySQL connection or raise the real failure."""
 
-        if not self.password_file.is_file():
-            raise FileNotFoundError(
-                f"MySQL password file is missing: {self.password_file}"
-            )
+        if not password_file.is_file():
+            raise FileNotFoundError(f"MySQL password file is missing: {password_file}")
 
         from scripts.simulation.database import DatabaseSettings, connect
 
@@ -151,14 +164,30 @@ class MySQLProbe(BaseProbe):
             os.environ.get("MYSQL_HOST_PORT", os.environ.get("MYSQL_PORT", "3306"))
         )
         settings = DatabaseSettings(
-            password_file=self.password_file,
+            password_file=password_file,
             host=host,
             port=port,
             database="olist_oltp",
-            user=os.environ.get("MYSQL_USER", "root"),
+            user=user,
             connect_timeout=10,
         )
         return connect(settings)
+
+    def _connect(self) -> Any:
+        """Open the DML connection for source assertions and fixtures."""
+
+        return self._connect_with(
+            self.password_file,
+            os.environ.get("MYSQL_USER", "olist_simulator"),
+        )
+
+    def _connect_admin(self) -> Any:
+        """Open the schema-owner connection for additive DDL fixtures."""
+
+        return self._connect_with(
+            self.admin_password_file,
+            os.environ.get("MYSQL_ADMIN_USER", "olist_admin"),
+        )
 
     def execute_fixture(self, fixture_name: str) -> dict[str, Any]:
         if fixture_name not in ALLOWED_FIXTURES:
@@ -169,7 +198,11 @@ class MySQLProbe(BaseProbe):
         sql_content = fixture_path.read_text(encoding="utf-8")
         statements = [s.strip() for s in sql_content.split(";") if s.strip()]
 
-        connection = self._connect()
+        connection = (
+            self._connect_admin()
+            if fixture_name == "add_nullable_column.sql"
+            else self._connect()
+        )
         cursor: Any | None = None
         try:
             cursor_handle: Any = connection.cursor()

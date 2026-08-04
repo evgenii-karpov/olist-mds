@@ -33,7 +33,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 SMALL_ARCHIVE = ROOT / "tests" / "fixtures" / "olist_small" / "olist_small.zip"
 FULL_ARCHIVE = ROOT / "olist.zip"
-DEFAULT_PASSWORD_FILE = ROOT / "docker" / "secrets" / "dev" / "postgres_password.txt"
+DEFAULT_PASSWORD_FILE = (
+    ROOT / "docker" / "secrets" / "dev" / "mysql_simulator_password.txt"
+)
 DEFAULT_PROJECT_NAME = "olist_wave1_j1"
 COMPOSE_PROFILES = ("platform", "streaming", "serving", "observability")
 PLATFORM_PROFILES = ("platform",)
@@ -77,15 +79,16 @@ SECRET_ENV_DEFAULTS = {
     "AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE": "docker/secrets/dev/airflow_postgres_password.txt",
     "CONTROL_POSTGRES_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
     "POLARIS_DB_USERNAME_SOURCE_FILE": "docker/secrets/dev/polaris_db_user.txt",
-    "POLARIS_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
+    "POLARIS_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/polaris_db_password.txt",
     "APICURIO_DB_USERNAME_SOURCE_FILE": "docker/secrets/dev/apicurio_db_user.txt",
-    "APICURIO_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/control_postgres_password.txt",
-    "MYSQL_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
-    "MYSQL_ADMIN_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
-    "MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
-    "MYSQL_CDC_READER_PASSWORD_SOURCE_FILE": "docker/secrets/dev/postgres_password.txt",
+    "APICURIO_DB_PASSWORD_SOURCE_FILE": "docker/secrets/dev/apicurio_db_password.txt",
+    "MYSQL_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/mysql_root_password.txt",
+    "MYSQL_ADMIN_PASSWORD_SOURCE_FILE": "docker/secrets/dev/mysql_admin_password.txt",
+    "MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE": "docker/secrets/dev/mysql_simulator_password.txt",
+    "MYSQL_CDC_READER_PASSWORD_SOURCE_FILE": "docker/secrets/dev/mysql_cdc_reader_password.txt",
+    "MYSQL_REFERENCE_READER_PASSWORD_SOURCE_FILE": "docker/secrets/dev/mysql_spark_reference_reader_password.txt",
     "MINIO_ROOT_USER_SOURCE_FILE": "docker/secrets/dev/minio_root_user.txt",
-    "MINIO_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/airflow_api_secret_key.txt",
+    "MINIO_ROOT_PASSWORD_SOURCE_FILE": "docker/secrets/dev/minio_root_password.txt",
     "CLICKHOUSE_PASSWORD_SOURCE_FILE": "docker/secrets/dev/clickhouse_password.txt",
     "AIRFLOW_API_SECRET_KEY_SOURCE_FILE": "docker/secrets/dev/airflow_api_secret_key.txt",
 }
@@ -671,13 +674,19 @@ def _connector_bootstrap(args: argparse.Namespace) -> None:
         "APICURIO_REGISTRY_URL",
         "http://127.0.0.1:8081/apis/registry/v3",
     )
+    connector_password_file = _path(
+        os.environ.get(
+            "MYSQL_CDC_READER_PASSWORD_SOURCE_FILE",
+            SECRET_ENV_DEFAULTS["MYSQL_CDC_READER_PASSWORD_SOURCE_FILE"],
+        )
+    )
     _run(
         [
             sys.executable,
             "-m",
             "streaming.connect.bootstrap",
             "--password-file",
-            str(_path(args.password_file)),
+            str(connector_password_file),
             "--connect-url",
             connect_url,
             "--registry-url",
@@ -723,8 +732,32 @@ def _capture_and_contracts(args: argparse.Namespace) -> dict[str, Any]:
                 sys.executable,
                 "-m",
                 "streaming.schemas.writer_schemas",
-                "capture-bundle",
-                "--bundle",
+                "validate",
+                "--root",
+                str(capture_root),
+                "--require-captured",
+            ],
+            timeout=60,
+        )
+        contracts_root = ROOT / "streaming" / "schemas" / "contracts"
+        missing_contracts = [
+            entity
+            for entity in ALL_ENTITIES
+            if not (contracts_root / entity / "v2.json").exists()
+        ]
+        if missing_contracts:
+            raise LabError(
+                "target contracts are incomplete; generate and review them in a "
+                "separate contract change before running capture: "
+                + ", ".join(missing_contracts)
+            )
+        _run(
+            [
+                sys.executable,
+                "-m",
+                "streaming.schemas.generate_contracts",
+                "--check",
+                "--writer-root",
                 str(capture_root),
             ],
             timeout=60,
@@ -733,41 +766,9 @@ def _capture_and_contracts(args: argparse.Namespace) -> dict[str, Any]:
             [
                 sys.executable,
                 "-m",
-                "streaming.schemas.writer_schemas",
-                "validate",
-                "--require-captured",
-            ],
-            timeout=60,
-        )
-        contracts_root = ROOT / "streaming" / "schemas" / "contracts"
-        if not any(
-            (contracts_root / entity / "v2.json").exists() for entity in ALL_ENTITIES
-        ):
-            _run(
-                [
-                    sys.executable,
-                    "-m",
-                    "streaming.schemas.generate_contracts",
-                    "--write",
-                    "--new-version",
-                    "2",
-                ],
-                timeout=60,
-            )
-        _run(
-            [
-                sys.executable,
-                "-m",
-                "streaming.schemas.generate_contracts",
-                "--check",
-            ],
-            timeout=60,
-        )
-        _run(
-            [
-                sys.executable,
-                "-m",
                 "streaming.schemas.contracts",
+                "--writer-root",
+                str(capture_root),
                 "--require-captured-writers",
             ],
             timeout=60,
@@ -2293,10 +2294,12 @@ def _validate_final(args: argparse.Namespace) -> int:
                        end_kafka_offset,
                        event_count,
                        recorded_at,
-                       tuple(
-                           coalesce(end_kafka_offset, begin_kafka_offset),
-                           recorded_at
-                       ) AS effective_order
+                        tuple(
+                            coalesce(end_kafka_offset, begin_kafka_offset),
+                            recorded_at,
+                            if(end_kafka_offset IS NULL, 0, 1),
+                            if(status = 'COMPLETE', 2, if(status = 'REJECTED', 1, 0))
+                        ) AS effective_order
                 FROM lakehouse."audit.mysql_transactions"
             ) AS transaction_history
             GROUP BY transaction_id

@@ -66,8 +66,7 @@ def load_source_entities(profile_path: Path) -> list[SourceEntity]:
             entity_name=entity["entity_name"],
             columns=[column["name"] for column in entity["columns"]],
             column_types={
-                column["name"]: column["redshift_raw_type"]
-                for column in entity["columns"]
+                column["name"]: column["raw_type"] for column in entity["columns"]
             },
         )
         for entity in profile

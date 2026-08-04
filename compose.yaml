@@ -901,25 +901,25 @@ secrets:
   polaris_db_user:
     file: ${POLARIS_DB_USERNAME_SOURCE_FILE:-./docker/secrets/dev/polaris_db_user.txt}
   polaris_db_password:
-    file: ${POLARIS_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/control_postgres_password.txt}
+    file: ${POLARIS_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/polaris_db_password.txt}
   apicurio_db_user:
     file: ${APICURIO_DB_USERNAME_SOURCE_FILE:-./docker/secrets/dev/apicurio_db_user.txt}
   apicurio_db_password:
-    file: ${APICURIO_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/control_postgres_password.txt}
+    file: ${APICURIO_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/apicurio_db_password.txt}
   mysql_root_password:
-    file: ${MYSQL_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+    file: ${MYSQL_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_root_password.txt}
   mysql_admin_password:
-    file: ${MYSQL_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+    file: ${MYSQL_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_admin_password.txt}
   mysql_simulator_password:
-    file: ${MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+    file: ${MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_simulator_password.txt}
   mysql_cdc_reader_password:
-    file: ${MYSQL_CDC_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+    file: ${MYSQL_CDC_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_cdc_reader_password.txt}
   mysql_spark_reference_reader_password:
-    file: ${MYSQL_REFERENCE_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
+    file: ${MYSQL_REFERENCE_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_spark_reference_reader_password.txt}
   minio_root_user:
     file: ${MINIO_ROOT_USER_SOURCE_FILE:-./docker/secrets/dev/minio_root_user.txt}
   minio_root_password:
-    file: ${MINIO_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
+    file: ${MINIO_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/minio_root_password.txt}
   clickhouse_password:
     file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_api_secret_key:

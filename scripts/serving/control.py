@@ -354,29 +354,22 @@ class ServingControlRepository:
 
     @staticmethod
     def verify_schema_assertions() -> dict[str, object]:
-        applied_migrations = [
+        # The target serving repository owns only serving.*.  The bootstrap
+        # still applies the old audit/cdc migrations during the staged L1-L3
+        # window, but those compatibility tables must not be treated as a
+        # serving readiness signal or silently become planner dependencies.
+        target_migrations = [
+            "005_create_serving_control_tables.sql",
+            "999_grant_control_role.sql",
+        ]
+        legacy_compatibility_migrations = [
             "001_create_schemas.sql",
             "002_create_batch_control_tables.sql",
             "003_create_cdc_control_tables.sql",
             "004_create_cdc_transform_control_tables.sql",
-            "005_create_serving_control_tables.sql",
-            "999_grant_control_role.sql",
         ]
         required_tables = {
             "serving": ["sync_runs", "sync_entity_results", "runtime_state"],
-            "cdc_audit": [
-                "cdc_ingest_runs",
-                "cdc_files",
-                "cdc_file_attempts",
-                "cdc_coverage_files",
-                "cdc_offset_coverage",
-                "cdc_partition_watermarks",
-                "cdc_reconciliation",
-                "cdc_replay_requests",
-                "cdc_dead_letters",
-                "cdc_mart_freshness",
-            ],
-            "audit": ["pipeline_events", "batch_runs"],
         }
         verified_tables: list[str] = []
         with control_db_cursor() as cur:
@@ -398,10 +391,17 @@ class ServingControlRepository:
             )
             singleton_exists = cur.fetchone() is not None
 
-        all_present = len(verified_tables) >= 5  # at least serving and cdc_audit tables
+        expected_tables = {
+            f"{schema}.{table}"
+            for schema, tables in required_tables.items()
+            for table in tables
+        }
+        all_present = set(verified_tables) == expected_tables
         return {
             "status": "PASS" if all_present and singleton_exists else "FAIL",
-            "applied_migrations": applied_migrations,
+            "applied_migrations": legacy_compatibility_migrations + target_migrations,
+            "target_migrations": target_migrations,
+            "legacy_compatibility_migrations": legacy_compatibility_migrations,
             "verified_tables": verified_tables,
             "singleton_runtime_state_seeded": singleton_exists,
         }

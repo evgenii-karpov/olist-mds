@@ -4,12 +4,15 @@ import json
 import re
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 from scripts.cdc.stage2_admin import (
+    CONNECTOR_NAME,
     connector_has_failed,
     connector_is_running,
     parse_topic_description,
+    render_connector,
     wait_connector_status,
 )
 
@@ -29,11 +32,12 @@ CAPTURED = {
 
 class Stage2ConfigurationTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.topics = json.loads(
+        self.topic_manifest = json.loads(
             (ROOT / "streaming/kafka/topics.json").read_text(encoding="utf-8")
-        )["topics"]
+        )
+        self.topics = self.topic_manifest["topics"]
         self.connector = json.loads(
-            (ROOT / "streaming/connect/olist-postgres-cdc.json").read_text(
+            (ROOT / "streaming/connect/olist-mysql-cdc.json").read_text(
                 encoding="utf-8"
             )
         )
@@ -47,17 +51,15 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertNotIn("quay.io/debezium/connect:3.6\n", dockerfile)
         self.assertNotIn(":latest", compose + dockerfile)
 
-    def test_source_and_dlq_topics_match_contract(self) -> None:
+    def test_source_topics_match_contract(self) -> None:
         by_name = {topic["name"]: topic for topic in self.topics}
         for table, (partitions, _key_fields) in CAPTURED.items():
-            source = by_name[f"olist_cdc.public.{table}"]
-            dlq = by_name[f"olist_cdc.dlq.{table}"]
-            for topic in (source, dlq):
-                self.assertEqual(partitions, topic["partitions"])
-                self.assertEqual(1, topic["replication_factor"])
-                self.assertEqual("delete", topic["cleanup_policy"])
-                self.assertEqual(604_800_000, topic["retention_ms"])
-        self.assertNotIn("olist_cdc.public.geolocation", by_name)
+            source = by_name[f"olist_cdc.olist_oltp.{table}"]
+            self.assertEqual(partitions, source["partitions"])
+            self.assertEqual(1, self.topic_manifest["replication_factor"])
+            self.assertEqual("delete", source["config"]["cleanup.policy"])
+            self.assertEqual(604_800_000, int(source["config"]["retention.ms"]))
+        self.assertNotIn("olist_cdc.olist_oltp.geolocation", by_name)
 
     def test_topic_bootstrap_matches_manifest(self) -> None:
         script = (ROOT / "streaming/kafka/create-topics.sh").read_text(encoding="utf-8")
@@ -70,21 +72,25 @@ class Stage2ConfigurationTests(unittest.TestCase):
             "olist_connect_configs": (1, "compact"),
             "olist_connect_offsets": (25, "compact"),
             "olist_connect_status": (5, "compact"),
-            "olist_cdc.schema_history": (1, "compact"),
+            "olist_cdc.schema_history": (1, "delete"),
             "olist_cdc.transaction": (1, "delete"),
             "olist_cdc.heartbeat": (1, "delete"),
         }
         for name, (partitions, policy) in expected.items():
             self.assertEqual(partitions, by_name[name]["partitions"])
-            self.assertEqual(policy, by_name[name]["cleanup_policy"])
+            self.assertEqual(policy, by_name[name]["config"]["cleanup.policy"])
 
     def test_connector_is_secret_free_and_excludes_control_data(self) -> None:
         config = self.connector["config"]
-        self.assertEqual("${OLTP_CDC_READER_PASSWORD}", config["database.password"])
+        self.assertEqual(CONNECTOR_NAME, self.connector["name"])
+        self.assertEqual(
+            "io.debezium.connector.mysql.MySqlConnector", config["connector.class"]
+        )
+        self.assertNotIn("database.password", config)
         include = set(config["table.include.list"].split(","))
-        self.assertEqual({f"public.{name}" for name in CAPTURED}, include)
-        self.assertNotIn("public.geolocation", include)
-        self.assertNotIn("simulator_control", config["schema.include.list"])
+        self.assertEqual({f"olist_oltp.{name}" for name in CAPTURED}, include)
+        self.assertNotIn("olist_oltp.geolocation", include)
+        self.assertEqual("olist_oltp", config["database.include.list"])
         self.assertEqual("true", config["provide.transaction.metadata"])
         self.assertEqual("true", config["tombstones.on.delete"])
         self.assertFalse(any(key.startswith("topic.creation.") for key in config))
@@ -97,6 +103,17 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertEqual(
             "olist_cdc.heartbeat", config["transforms.routeHeartbeat.replacement"]
         )
+
+    def test_render_connector_injects_only_file_secret(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            password_file = Path(temp_dir) / "mysql-cdc-password"
+            password_file.write_text("mysql-cdc-secret\n", encoding="utf-8")
+
+            rendered = render_connector(password_file)
+
+        self.assertEqual(CONNECTOR_NAME, rendered["name"])
+        self.assertEqual("mysql-cdc-secret", rendered["config"]["database.password"])
+        self.assertNotIn("mysql-cdc-secret", json.dumps(self.connector))
 
     def test_confluent_compatible_avro_converter_contract(self) -> None:
         config = self.connector["config"]

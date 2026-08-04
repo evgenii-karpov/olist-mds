@@ -38,24 +38,24 @@
       "image": "quay.io/apicurio/apicurio-registry:3.3.0"
     },
     "prometheus": {
-      "version": "3.12.0",
-      "image": "prom/prometheus:v3.12.0"
+      "version": "3.5.0",
+      "image": "prom/prometheus:v3.5.0"
     },
     "alertmanager": {
       "version": "0.30.0",
       "image": "prom/alertmanager:v0.30.0"
     },
     "grafana": {
-      "version": "13.0.2",
-      "image": "grafana/grafana:13.0.2"
+      "version": "12.1.1",
+      "image": "grafana/grafana:12.1.1"
     },
     "alloy": {
       "version": "1.16.1",
       "image": "grafana/alloy:v1.16.1"
     },
     "loki": {
-      "version": "3.6.5",
-      "image": "grafana/loki:3.6.5"
+      "version": "3.5.0",
+      "image": "grafana/loki:3.5.0"
     },
     "node_exporter": {
       "version": "1.10.2",

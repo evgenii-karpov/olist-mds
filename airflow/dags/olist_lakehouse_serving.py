@@ -58,7 +58,10 @@ def mark_sync_run_failed(repository: Any, sync_run_seq: int, error: Exception) -
 @task(task_id="run_serving_sync")
 def run_serving_sync() -> None:
     """Execute finite serving sync run."""
-    from scripts.serving.boundary import ServingBoundaryPlanner
+    from scripts.serving.boundary import (
+        ServingBoundaryPlanner,
+        transaction_boundary_state,
+    )
     from scripts.serving.clickhouse import ClickHouseServingMaterializer
     from scripts.serving.control import ServingControlRepository
     from scripts.serving.dbt_runner import run_dbt_candidate_build
@@ -101,6 +104,7 @@ def run_serving_sync() -> None:
 
         state = ServingControlRepository.get_runtime_state()
         tx_rows = ClickHouseServingMaterializer.fetch_transaction_rows()
+        effective_boundary_state = transaction_boundary_state(tx_rows)
         snapshots = ClickHouseServingMaterializer.fetch_iceberg_snapshots()
         heartbeat()
 
@@ -114,7 +118,7 @@ def run_serving_sync() -> None:
             transaction_rows=tx_rows,
             iceberg_snapshots=snapshots,
             coverage_state="READY",
-            boundary_state="READY",
+            boundary_state=effective_boundary_state,
             entity_metrics=None,
         )
         entity_metrics = None
@@ -133,7 +137,7 @@ def run_serving_sync() -> None:
             transaction_rows=tx_rows,
             iceberg_snapshots=snapshots,
             coverage_state="READY",
-            boundary_state="READY",
+            boundary_state=effective_boundary_state,
             entity_metrics=entity_metrics,
         )
 
