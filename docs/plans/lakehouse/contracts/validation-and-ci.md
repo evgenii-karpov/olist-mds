@@ -10,7 +10,7 @@
 | Уровень | Workflow | Trigger | Обязательность |
 | --- | --- | --- | --- |
 | Fast/common | `.github/workflows/ci.yml` | каждый PR, push в `main` | required branch protection |
-| Bounded components | `.github/workflows/lakehouse-components.yml` | PR/push по target path filters; ручной повтор | обязателен для релевантных изменений |
+| Bounded components | `.github/workflows/lakehouse-components.yml` | PR/push по target path filters для быстрых jobs; `workflow_dispatch` для полного runtime | быстрые jobs обязательны для релевантных изменений; полный runtime запускается вручную |
 | Full acceptance | `.github/workflows/lakehouse-acceptance.yml` | только `workflow_dispatch` | перед контрольными переходами, не на каждый PR |
 
 Frozen baseline F0 создаётся одноразово и не регенерируется CI.
@@ -40,6 +40,12 @@ Workflow содержит стабильный агрегирующий check `c
 
 ## 3. Bounded components (`lakehouse-components.yml`)
 
+Workflow смешанный: `spark-image-contract`, `airflow-runtime` и
+`observability-contract` остаются быстрыми PR/push-проверками. Тяжёлые
+`cdc-component` и `serving-component` запускаются только через
+`workflow_dispatch`, поскольку каждый job поднимает холодный Compose runtime и
+выполняет bounded end-to-end сценарий.
+
 Jobs:
 
 1. `spark-image-contract` — pinned image, offline entrypoint help, JAR/resources/classes, filesystem permissions и secret leakage.
@@ -48,7 +54,7 @@ Jobs:
 4. `airflow-runtime` — запуск того же Airflow image, exact DAG inventory и bounded task path.
 5. `component-summary` — единое решение и публикация evidence.
 
-Workflow использует малый fixture, отдельный Compose project, жёсткие timeouts и cleanup в `always()`. Он не выполняет полный V0–V10 или F1.
+Workflow использует малый fixture, отдельный Compose project, жёсткие timeouts и cleanup в `always()`. Для Spark status mount CI заранее создаёт writable Bronze/Silver directories и проверяет запись от runtime UID до запуска streaming. Ошибка status publication не скрывается внутри Spark процесса, а readiness timeout ограничен пятью минутами. Workflow не выполняет полный V0–V10 или F1.
 
 ---
 
@@ -76,7 +82,7 @@ Destructive jobs используют protected environment и общий concur
 - загрузка JUnit/raw JSON/ограниченных логов при ошибке;
 - очистка Docker resources при `always()`;
 - отсутствие секретов в command output, artifacts и image metadata;
-- итоговый статус вычисляется из фактических проверок; missing/skipped mandatory check не равен `PASS`.
+- итоговый статус вычисляется из фактических проверок; missing/skipped mandatory check не равен `PASS`. На PR/push пропущенные manual-only bounded runtime jobs не считаются ошибкой; при `workflow_dispatch` оба runtime jobs обязательны.
 
 ---
 

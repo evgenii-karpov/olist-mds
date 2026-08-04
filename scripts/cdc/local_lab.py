@@ -897,6 +897,26 @@ def _streaming_status_paths() -> dict[str, Path]:
     }
 
 
+def _assert_streaming_status_mount() -> None:
+    for service, status_path in _streaming_status_paths().items():
+        directory = status_path.parent
+        if not directory.is_dir():
+            raise LabError(
+                f"streaming status directory is missing for {service}: {directory}"
+            )
+        probe = directory / f".local-lab-write-test-{os.getpid()}"
+        try:
+            probe.write_text("ready\n", encoding="utf-8")
+        except OSError as exc:
+            raise LabError(
+                f"streaming status directory is not writable for {service}: "
+                f"{directory}: {exc}"
+            ) from exc
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                probe.unlink()
+
+
 def _read_streaming_status() -> dict[str, dict[str, Any]]:
     statuses: dict[str, dict[str, Any]] = {}
     for name, path in _streaming_status_paths().items():
@@ -945,12 +965,24 @@ def _wait_streaming_ready(
 ) -> dict[str, Any]:
     deadline = time.monotonic() + max(timeout, 30.0)
     restart_barrier_epoch = _utc_timestamp(restart_barrier_at_utc)
+    last_observation: dict[str, Any] = {}
     if previous_query_ids and restart_barrier_epoch is None:
         raise LabError("restart barrier is missing a valid stopped_at_utc timestamp")
 
     while time.monotonic() < deadline:
         statuses = _read_streaming_status()
         query_ids = _streaming_query_ids(statuses)
+        last_observation = {
+            service: {
+                "overall_state": status.get("overall_state"),
+                "query_count": len(status.get("queries", []))
+                if isinstance(status.get("queries"), list)
+                else 0,
+                "query_ids": query_ids.get(service),
+                "updated_at_utc": status.get("updated_at_utc"),
+            }
+            for service, status in statuses.items()
+        }
         ready = set(statuses) == {"bronze", "silver"} and set(query_ids) == {
             "bronze",
             "silver",
@@ -1007,7 +1039,8 @@ def _wait_streaming_ready(
             }
         time.sleep(2)
     raise LabError(
-        "streaming status files did not prove fresh READY queries before timeout"
+        "streaming status files did not prove fresh READY queries before timeout: "
+        + json.dumps(last_observation, sort_keys=True)
     )
 
 
@@ -1087,6 +1120,7 @@ def _start_streaming(args: argparse.Namespace) -> int:
             previous_query_ids = {}
             restart_barrier_at_utc = None
     try:
+        _assert_streaming_status_mount()
         timeout = getattr(args, "timeout", 300.0)
         _compose_up(
             profiles=PLATFORM_PROFILES + STREAMING_PROFILES,

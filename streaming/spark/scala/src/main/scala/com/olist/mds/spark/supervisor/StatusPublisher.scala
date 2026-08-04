@@ -60,10 +60,11 @@ object StatusPublisher {
       Files.write(targetFile, jsonString.getBytes(StandardCharsets.UTF_8))
     } catch {
       case e: Throwable =>
-        System.err.println(
+        val message =
           s"StatusPublisher failed for $applicationName in $targetDir: ${e.getMessage}"
-        )
+        System.err.println(message)
         e.printStackTrace()
+        throw new IllegalStateException(message, e)
     }
   }
 }

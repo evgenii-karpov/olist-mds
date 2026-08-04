@@ -9,9 +9,13 @@ Fails on J1 implementation, passes after S8.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from scripts.cdc.local_lab import (
+    LabError,
+    _assert_streaming_status_mount,
     _iceberg_status,
     _status,
     _wait_streaming_ready,
@@ -20,6 +24,24 @@ from scripts.cdc.local_lab import (
 
 class TestLocalLabLiveReadiness(unittest.TestCase):
     """Test live probe behavior for status and validate."""
+
+    def test_status_mount_fails_fast_when_directory_is_missing(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            paths = {
+                "bronze": root / "bronze" / "status.json",
+                "silver": root / "silver" / "status.json",
+            }
+            with (
+                patch(
+                    "scripts.cdc.local_lab._streaming_status_paths",
+                    return_value=paths,
+                ),
+                self.assertRaisesRegex(
+                    LabError, "streaming status directory is missing for bronze"
+                ),
+            ):
+                _assert_streaming_status_mount()
 
     def test_iceberg_status_is_not_hardcoded(self) -> None:
         """_iceberg_status must not return static constant dictionary without live probing."""

@@ -135,6 +135,8 @@ class TargetObservabilityCiTests(unittest.TestCase):
             set(workflow["jobs"]),
         )
         text = path.read_text(encoding="utf-8")
+        triggers = workflow.get("on", workflow.get(True, {}))
+        self.assertIn("workflow_dispatch", triggers)
         self.assertNotIn("stage_v_candidate_e2e.py", text)
         self.assertIn("scripts/ci/validate_stage6_configuration.py", text)
         self.assertIn("airflow airflow dags list\n          --output table", text)
@@ -148,6 +150,10 @@ class TargetObservabilityCiTests(unittest.TestCase):
             ("cdc-component", "Verify bounded CDC catch-up"),
             ("serving-component", "Wait for bounded Silver catch-up"),
         ):
+            self.assertEqual(
+                "${{ github.event_name == 'workflow_dispatch' }}",
+                workflow["jobs"][job_name]["if"],
+            )
             steps = workflow["jobs"][job_name]["steps"]
             step_names = [step.get("name") for step in steps]
             observer_index = step_names.index(
@@ -159,11 +165,31 @@ class TargetObservabilityCiTests(unittest.TestCase):
                 catch_up_index,
                 msg=f"{job_name} must start ClickHouse before its catch-up barrier",
             )
+            step_text = "\n".join(str(step.get("run", "")) for step in steps)
+            self.assertIn("Prepare Spark status mount", step_names)
+            self.assertIn("--user 185:185", step_text)
+            self.assertIn("chmod 0777", step_text)
+            self.assertIn("--wait-ready --timeout 300", step_text)
+            self.assertIn("Capture bounded", " ".join(step_names))
 
         self.assertIn(
             "docker compose --profile platform --profile streaming --profile serving down",
             text,
         )
+        self.assertIn("optional_manual_jobs", text)
+
+        for component in ("bronze", "silver"):
+            self.assertTrue(
+                (ROOT / "docker/spark/status" / component / ".gitkeep").is_file()
+            )
+
+    def test_spark_status_publication_fails_closed(self) -> None:
+        source = (
+            ROOT
+            / "streaming/spark/scala/src/main/scala/com/olist/mds/spark/supervisor/StatusPublisher.scala"
+        ).read_text(encoding="utf-8")
+        self.assertIn("StatusPublisher failed", source)
+        self.assertIn("throw new IllegalStateException", source)
 
     def test_apicurio_wrapper_is_invoked_through_the_image_shell(self) -> None:
         compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
