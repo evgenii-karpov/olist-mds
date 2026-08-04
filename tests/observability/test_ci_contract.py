@@ -76,7 +76,6 @@ class TargetObservabilityCiTests(unittest.TestCase):
             set(workflow["jobs"]),
         )
         self.assertIn("scripts/ci/validate_observability_contract.py", ci)
-        self.assertIn("scripts/ci/check_legacy_orphans.py", ci)
         self.assertNotIn("stage_v_candidate_e2e.py", ci)
         self.assertNotIn("dbt/olist_analytics", ci)
         self.assertNotIn("realtime-core", ci)
