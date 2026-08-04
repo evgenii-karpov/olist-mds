@@ -2272,19 +2272,41 @@ def _validate_final(args: argparse.Namespace) -> int:
                 + json.dumps(active_runs, sort_keys=True, default=str)
             )
 
+        # TransactionBatchWriter records an immutable OPEN observation when a
+        # BEGIN and its END arrive in different Spark micro-batches.  The
+        # final invariant is about the effective state of each transaction,
+        # not about historical observations, so collapse the audit history
+        # before looking for unresolved OPEN/REJECTED transactions.
         transaction_rows = clickhouse_query(
             """
-            SELECT status, count() AS row_count
-            FROM lakehouse."audit.mysql_transactions"
-            WHERE status IN ('OPEN', 'REJECTED')
-            GROUP BY status
+            SELECT transaction_id,
+                   argMax(status, effective_order) AS status,
+                   argMax(begin_kafka_offset, effective_order) AS begin_kafka_offset,
+                   argMax(end_kafka_offset, effective_order) AS end_kafka_offset,
+                   argMax(event_count, effective_order) AS event_count,
+                   argMax(recorded_at, effective_order) AS recorded_at
+            FROM
+            (
+                SELECT transaction_id,
+                       status,
+                       begin_kafka_offset,
+                       end_kafka_offset,
+                       event_count,
+                       recorded_at,
+                       tuple(
+                           coalesce(end_kafka_offset, begin_kafka_offset),
+                           recorded_at
+                       ) AS effective_order
+                FROM lakehouse."audit.mysql_transactions"
+            ) AS transaction_history
+            GROUP BY transaction_id
             """
         )
-        open_or_rejected: list[dict[str, object]] = []
-        for row in transaction_rows:
-            raw_count = row.get("row_count")
-            if isinstance(raw_count, (int, float, str)) and int(raw_count) > 0:
-                open_or_rejected.append(dict(row))
+        open_or_rejected = [
+            dict(row)
+            for row in transaction_rows
+            if str(row.get("status", "")) in {"OPEN", "REJECTED"}
+        ]
         if open_or_rejected:
             raise LabError(
                 "Final audit transaction inventory contains OPEN/REJECTED rows: "
