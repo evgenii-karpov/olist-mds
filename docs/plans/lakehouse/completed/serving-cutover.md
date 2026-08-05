@@ -1,6 +1,6 @@
 # Coordination Plan for the Final Migration Stages
 
-- **Status**: `ACTIVE`; E/V, F0 and Stage L are complete; F1 is pending.
+- **Status**: `COMPLETE`; E/V, F0, Stage L and F1 are complete.
 - **Purpose**: define the order of the final stages, blocking points and links to executable detailed plans.
 - **Parity decision**: run legacy once before cleanup to create the frozen baseline; after cleanup, perform only a candidate-only comparison.
 
@@ -20,7 +20,7 @@ flowchart LR
 | E/V repair | `COMPLETE` | clean V0–V10 `PASS` on commit `e113c552cca990636f426b827456a77ddc9d594b`; raw evidence retained | [stage-ev-validation-repair.md](../completed/stage-ev-validation-repair.md) |
 | F0 | `COMPLETE` | immutable `main-1400d08.json` oracle (`PASS`, report: [docs/reports/mysql-spark-iceberg-f0-baseline.md](../../../reports/mysql-spark-iceberg-f0-baseline.md)) | [stage-f0-baseline-freeze.md](../completed/stage-f0-baseline-freeze.md) |
 | L | `COMPLETE` | L0 inventory, L1 target repair, L2 observability, L3 CI cutover and L4 legacy removal passed; clean Stage V acceptance is recorded | [stage-l-legacy-removal-ci-cutover.md](../completed/stage-l-legacy-removal-ci-cutover.md) |
-| F1 | `PENDING` | `PASS` candidate against frozen oracle | [stage-f1-final-parity.md](stage-f1-final-parity.md) |
+| F1 | `COMPLETE` | `PASS` candidate against frozen oracle; run `f1-400372a`, candidate `400372a31dcd6cf8f37490f4bb79c93f382f2248` | [stage-f1-final-parity.md](../completed/stage-f1-final-parity.md); [F1 report](../../../reports/mysql-spark-iceberg-f1-final-parity.md) |
 
 Progression through a stage is forbidden until its completion criteria are confirmed by evidence. A report with missing mandatory gates is not `PASS`.
 
@@ -81,6 +81,10 @@ The final check remains after cleanup and therefore validates the final tree, bu
 - the report and raw diff agree and have `PASS`;
 - evidence is tied to exact baseline/candidate SHAs.
 
+These criteria were satisfied by the accepted `f1-400372a` run. The migration
+program is complete; subsequent work belongs to the separate cloud migration
+program or post-migration maintenance.
+
 ---
 
 ## 4. CI policy for the final stages
@@ -116,3 +120,4 @@ The complete job/workflow matrix, the disposition of every old job and the repla
 - [Serving and recovery contract](../contracts/serving-and-recovery.md)
 - [Historical Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
 - [Historical Stage V report](../../../reports/mysql-spark-iceberg-stage-v-validation.md)
+- [Stage F1 report](../../../reports/mysql-spark-iceberg-f1-final-parity.md)

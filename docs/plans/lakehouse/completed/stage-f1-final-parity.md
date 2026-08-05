@@ -1,6 +1,10 @@
 # Detailed Stage F1 Plan: Final Candidate-Only Parity
 
-- **Status**: `PENDING`, runs after Stage L.
+- **Status**: `COMPLETE` (completed 2026-08-05; run `f1-400372a`; report: [docs/reports/mysql-spark-iceberg-f1-final-parity.md](../../../reports/mysql-spark-iceberg-f1-final-parity.md)).
+- **Candidate commit**: `400372a31dcd6cf8f37490f4bb79c93f382f2248`.
+- **Frozen baseline commit**: `1400d08345ad81a0121f0ee85ee9ae81cd575a73`.
+- **Oracle SHA-256**: `629c36144e64fc9910b822e0907f8a1592b3ef6eb83e438d946267fa3d5b597b`.
+- **Fixture SHA-256**: `5cf2ff7a104cae75d8a56cf8c6e00959894154a8d55aed2ddf0e3fa133a13976`.
 - **Purpose**: prove business parity between the cleaned candidate and the frozen F0 oracle without starting legacy runtime.
 
 ---
@@ -26,6 +30,12 @@ python scripts/cdc/local_lab.py final-parity \
 ```
 
 The command must run only the candidate. Any attempt to create a legacy worktree or access the symbolic `main` in F1 violates the contract.
+
+The accepted execution used run ID `f1-400372a`. The runner and an independent
+manifest comparator both returned `PASS` for all 11 relations with zero
+missing keys, extra keys, duplicate grains, or business-column mismatches.
+F0 validation was rerun successfully, and the scoped Compose cleanup returned
+`PASS`. See the [F1 evidence report](../../../reports/mysql-spark-iceberg-f1-final-parity.md).
 
 ---
 
@@ -87,16 +97,16 @@ F1 is not part of normal PR CI: its duration, destructive reset and full stack a
 
 ## 7. Program completion criteria
 
-- the F1 report has `PASS` and references the exact candidate/baseline SHAs;
-- published machine-readable artifacts agree with the Markdown report;
-- a repeat validator confirms the decision;
-- cleanup is complete;
-- the final report is added to `docs/reports/` and the roadmap marks the migration complete.
+- [x] the F1 report has `PASS` and references the exact candidate/baseline SHAs;
+- [x] published machine-readable artifacts agree with the Markdown report;
+- [x] a repeat validator confirms the decision;
+- [x] cleanup is complete;
+- [x] the final report is added to `docs/reports/` and the roadmap marks the migration complete.
 
 ---
 
 ## 8. Related documents
 
-- [F0 plan](../completed/stage-f0-baseline-freeze.md)
+- [F0 plan](stage-f0-baseline-freeze.md)
 - [Final parity contract](../contracts/final-parity.md)
-- [CI cutover plan](../completed/stage-l-legacy-removal-ci-cutover.md)
+- [CI cutover plan](stage-l-legacy-removal-ci-cutover.md)

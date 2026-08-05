@@ -4,9 +4,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Wave 1/J1, Wave 2/J2, Stage E/V revalidation, F0 and Stage L are complete; Stage F1 is pending |
+| Status | Wave 1/J1, Wave 2/J2, Stage E/V revalidation, F0, Stage L and Stage F1 are complete |
 | Last updated | 2026-08-05 |
-| Audited commit candidate | `9214cd1de05ab37cdeae27a1a0b633963e8ae8d6` (Stage L plan baseline) |
+| Audited commit candidate | `400372a31dcd6cf8f37490f4bb79c93f382f2248` (accepted Stage F1 candidate) |
 | Frozen baseline source | `main` commit `1400d08345ad81a0121f0ee85ee9ae81cd575a73` (frozen at Stage F0) |
 | Implementation branch | `feature/mysql-spark-iceberg` |
 | Evidence J1 | [docs/reports/mysql-spark-iceberg-wave1-j1-validation.md](../reports/mysql-spark-iceberg-wave1-j1-validation.md) |
@@ -105,12 +105,12 @@ flowchart LR
 | **E/V / Revalidation** | **Complete** | [lakehouse/completed/stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | clean `stage_v_clean_e113c55`: V0–V10 `PASS`, commit `e113c552cca990636f426b827456a77ddc9d594b`, raw evidence in `data/stage-v-evidence/stage_v_clean_e113c55/` |
 | **F0 / Baseline freeze** | **Complete** | [lakehouse/completed/stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | [F0 report](../reports/mysql-spark-iceberg-f0-baseline.md) |
 | **L / Legacy removal + CI cutover** | **Complete** | [lakehouse/completed/stage-l-legacy-removal-ci-cutover.md](lakehouse/completed/stage-l-legacy-removal-ci-cutover.md) | [L4 report](../reports/lakehouse-stage-l4.md), clean `stage_l4_20260805_f0_restored`: V0–V10 `PASS` |
-| **F1 / Final parity** | Pending (after L) | [lakehouse/active/stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | — |
+| **F1 / Final parity** | **Complete** | [lakehouse/completed/stage-f1-final-parity.md](lakehouse/completed/stage-f1-final-parity.md) + [lakehouse/contracts/final-parity.md](lakehouse/contracts/final-parity.md) | [F1 report](../reports/mysql-spark-iceberg-f1-final-parity.md); run `f1-400372a`, candidate `400372a31dcd6cf8f37490f4bb79c93f382f2248` |
 
 Stage sequence:
 
 ```text
-Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete) → F0 baseline freeze (Complete) → L cleanup + CI cutover (Complete) → F1 candidate-only parity
+Wave 1 / J1 (Complete) → Wave 2 / J2 (Complete) → E/V revalidation (Complete) → F0 baseline freeze (Complete) → L cleanup + CI cutover (Complete) → F1 candidate-only parity (Complete)
 ```
 
 ---
@@ -136,12 +136,12 @@ The migration documentation is divided into normative contracts, completed histo
 | **Completed** | [stage-e-serving-integration.md](lakehouse/completed/stage-e-serving-integration.md) | Completed Stage E Serving Integration implementation plan. |
 | **Completed** | [stage-v-candidate-e2e-validation.md](lakehouse/completed/stage-v-candidate-e2e-validation.md) | Completed Stage V V0–V10 plan and clean acceptance. |
 | **Completed** | [stage-ev-validation-repair.md](lakehouse/completed/stage-ev-validation-repair.md) | Completed Stage E/V revalidation plan. |
-| **Active** | [serving-cutover.md](lakehouse/active/serving-cutover.md) | Coordination order for E/V repair → F0 → L → F1 and transition barriers. |
+| **Completed** | [serving-cutover.md](lakehouse/completed/serving-cutover.md) | Completed coordination order for E/V repair → F0 → L → F1 and transition barriers. |
 | **Completed** | [stage-f0-baseline-freeze.md](lakehouse/completed/stage-f0-baseline-freeze.md) | One-shot baseline export from the exact `main` commit before cleanup. |
 | **Completed** | [stage-l-legacy-removal-ci-cutover.md](lakehouse/completed/stage-l-legacy-removal-ci-cutover.md) | Completed legacy-removal and CI-cutover plan with L4 PASS evidence. |
 | **Report** | [lakehouse-stage-l0-baseline.md](../reports/lakehouse-stage-l0-baseline.md) | Actual baseline rollback/E2E and L0 static findings. |
 | **Report** | [lakehouse-stage-l3.md](../reports/lakehouse-stage-l3.md) | CI/workflow cutover, bounded jobs, static validation and L3 decision boundary. |
-| **Active** | [stage-f1-final-parity.md](lakehouse/active/stage-f1-final-parity.md) | Final candidate-only run against the frozen oracle after cleanup. |
+| **Completed** | [stage-f1-final-parity.md](lakehouse/completed/stage-f1-final-parity.md) | Completed candidate-only run against the frozen oracle after cleanup. |
 | **Future** | [gcp-spark-iceberg-bigquery-migration.md](gcp-spark-iceberg-bigquery-migration.md) | Separate future cloud migration program for GCP/BigQuery (out of local scope). |
 
 ---
@@ -151,7 +151,7 @@ The migration documentation is divided into normative contracts, completed histo
 When documents disagree, use the following order of precedence:
 
 1. **Active contracts (`lakehouse/contracts/`)** define the current normative system behavior.
-2. **The coordination plan (`lakehouse/active/serving-cutover.md`)** defines the order of remaining stages (F1) and preserves E/V transition evidence.
+2. **The completed coordination plan (`lakehouse/completed/serving-cutover.md`)** records the order of E/V repair → F0 → L → F1 and preserves transition evidence.
 3. **Detailed plans** in `lakehouse/active/` define remaining work packages, while `lakehouse/completed/` stores frozen plans for accepted stages.
 4. **Validation reports (`docs/reports/`)** confirm only checks that are actually presented; a declaration without raw evidence does not close a mandatory gate.
 5. **Completed runbooks (`lakehouse/completed/`)** preserve historical execution context and are not active instructions.

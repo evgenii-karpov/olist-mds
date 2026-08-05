@@ -145,6 +145,6 @@ F1 runs only as the manual `final-parity` job in `.github/workflows/lakehouse-ac
 ## 8. Related documents
 
 - [F0 plan](../completed/stage-f0-baseline-freeze.md)
-- [F1 plan](../active/stage-f1-final-parity.md)
+- [F1 plan](../completed/stage-f1-final-parity.md)
 - [Validation and CI contract](validation-and-ci.md)
-- [Coordination plan](../active/serving-cutover.md)
+- [Coordination plan](../completed/serving-cutover.md)

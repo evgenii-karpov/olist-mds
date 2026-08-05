@@ -88,5 +88,5 @@ F0 is complete when the oracle and metadata pass independent validation, the rep
 ## 7. Related documents
 
 - [Final parity contract](../contracts/final-parity.md)
-- [Stage F1 plan](../active/stage-f1-final-parity.md)
-- [Coordination plan](../active/serving-cutover.md)
+- [Stage F1 plan](../completed/stage-f1-final-parity.md)
+- [Coordination plan](../completed/serving-cutover.md)

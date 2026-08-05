@@ -12,7 +12,7 @@
 - **Previous stage**: Stage E, status `PASS` in the
   [Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md).
 - **Parent stage order**:
-  [serving-cutover.md](../active/serving-cutover.md), strictly `E -> V -> L -> F`.
+  [serving-cutover.md](../completed/serving-cutover.md), strictly `E -> V -> L -> F`.
 - **Authority order**: active contracts from
   `docs/plans/lakehouse/contracts/` -> this plan -> actual machine-readable
   evidence -> final validation report.
@@ -835,7 +835,7 @@ to API, JSON, SQL results, and logs.
 
 ## 12. Related documents
 
-- [Operational cutover E -> V -> L -> F](../active/serving-cutover.md)
+- [Operational cutover E -> V -> L -> F](../completed/serving-cutover.md)
 - [Detailed Stage E plan](stage-e-serving-integration.md)
 - [Stage E report](../../../reports/mysql-spark-iceberg-stage-e-validation.md)
 - [Spark Structured Streaming contract](../contracts/spark-streaming.md)

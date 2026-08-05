@@ -113,7 +113,7 @@ Stage E/V is re-accepted only if:
 
 ## 5. Related documents
 
-- [Final-stage coordination plan](../active/serving-cutover.md)
+- [Final-stage coordination plan](../completed/serving-cutover.md)
 - [F0 baseline freeze plan](stage-f0-baseline-freeze.md)
 - [Validation & CI contract](../contracts/validation-and-ci.md)
 

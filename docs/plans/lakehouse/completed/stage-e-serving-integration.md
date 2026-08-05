@@ -1383,7 +1383,7 @@ The implementer follows this name map to avoid creating alternative packages/DAG
 ### 18.1 Documents
 
 - This file is the only detailed active Stage E implementation plan.
-- `docs/plans/lakehouse/active/serving-cutover.md` is the link and high-level gate, without duplicating details.
+- `docs/plans/lakehouse/completed/serving-cutover.md` is the link and high-level gate, without duplicating details.
 - Contracts in `docs/plans/lakehouse/contracts/` provide normative table/CLI/runtime/CI semantics.
 - New runbooks:
   - `docs/runbooks/lakehouse-serving-sync.md`;
@@ -1505,7 +1505,7 @@ The public CLI remains in `scripts/cdc/local_lab.py`; it calls the package API a
 ## 20. Related documents
 
 - [Migration roadmap](../../mysql-spark-iceberg-lakehouse-migration.md)
-- [E/V repair → F0 → L → F1 coordination plan](../active/serving-cutover.md)
+- [E/V repair → F0 → L → F1 coordination plan](../completed/serving-cutover.md)
 - [Serving & Recovery contract](../contracts/serving-and-recovery.md)
 - [Spark Structured Streaming contract](../contracts/spark-streaming.md)
 - [Iceberg data model contract](../contracts/iceberg-data-model.md)
