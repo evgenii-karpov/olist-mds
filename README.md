@@ -1,77 +1,102 @@
 # Olist Modern Data Stack
 
-Local-first lakehouse for the Olist Brazilian e-commerce dataset. The target
-runtime has one authoritative business source and one serving path:
+An end-to-end local data platform built around CDC (change data capture) for
+the Olist Brazilian e-commerce dataset. It captures changes from MySQL,
+processes them as events, stores them in an Iceberg lakehouse and publishes
+analytical data through ClickHouse.
+
+## High-level architecture
 
 ```text
-MySQL -> Debezium/Kafka Connect -> Kafka + Apicurio
-      -> Spark Structured Streaming -> Iceberg/Polaris on MinIO
-      -> ClickHouse serving -> Airflow/dbt publication
+MySQL
+  -> Debezium / Kafka Connect
+  -> Kafka + Apicurio Registry
+  -> Spark Structured Streaming
+  -> Iceberg through Polaris on MinIO
+  -> ClickHouse serving
+  -> Airflow and dbt publication
 ```
 
-MySQL owns business data. PostgreSQL is limited to the platform and serving
-control planes. MinIO is the local S3-compatible adapter for Iceberg; no
-external cloud warehouse runtime is part of this repository.
+The runtime is reproducible with Docker Compose. MySQL owns business data.
+PostgreSQL stores Airflow metadata, Polaris catalog metadata and serving
+control data.
+
+## Key capabilities
+
+- **CDC ingestion:** Debezium, Kafka Connect and Kafka transport source
+  changes reliably between services.
+- **Data contracts:** Avro and Apicurio Registry validate event structure,
+  keys and schema compatibility.
+- **Lakehouse processing:** Spark Structured Streaming writes Bronze, Silver
+  and audit Iceberg tables.
+- **Consistent serving:** the ClickHouse serving boundary prevents incomplete
+  or rejected source transactions from being published.
+- **Analytics:** Airflow coordinates serving operations and dbt builds
+  ClickHouse dimensions, facts and analytical marts.
+- **Operations:** lifecycle, recovery, rebuild, maintenance and validation
+  procedures are documented and testable.
+- **Observability:** metrics, alerts, dashboards and container logs are
+  collected and validated as part of the platform.
+
+## Technology stack
+
+| Area                    | Technologies                                          | Purpose                                                               |
+| ----------------------- | ----------------------------------------------------- | --------------------------------------------------------------------- |
+| Source                  | MySQL 8.4                                             | Operational source of business entities and CDC transactions.         |
+| CDC and transport       | Debezium MySQL Connector, Kafka Connect, Apache Kafka | Captures and transports source changes.                               |
+| Contracts               | Apache Avro, Apicurio Registry                        | Defines event schemas and checks compatibility.                       |
+| Processing              | Apache Spark Structured Streaming, Scala              | Decodes events and writes Iceberg tables.                             |
+| Lakehouse               | Apache Iceberg, Apache Polaris, MinIO                 | Provides versioned tables, catalog metadata and local object storage. |
+| Serving                 | ClickHouse                                            | Supports fast serving queries and analytical models.                  |
+| Orchestration           | Apache Airflow                                        | Coordinates serving synchronization and maintenance.                  |
+| Modeling                | dbt for ClickHouse                                    | Builds tested dimensions, facts and analytical marts.                 |
+| Control plane           | PostgreSQL                                            | Stores orchestration, catalog and serving state.                      |
+| Metrics                 | Prometheus, Kafka exporter, target-probe              | Monitors services, Kafka positions and CDC/serving health.            |
+| Alerting and dashboards | Alertmanager, Grafana                                 | Routes alerts and presents operational views.                         |
+| Logs                    | Grafana Alloy, Loki                                   | Collects and stores Docker container logs.                            |
+| Quality and delivery    | Docker Compose, GitHub Actions, Pytest, Ruff, Pyright | Provides reproducible execution and automated validation.             |
+
+## Engineering focus
+
+- Contract-first integration and schema evolution.
+- Layered lakehouse modeling with raw evidence, normalized state and audit
+  records.
+- Transaction-aware and idempotent serving operations.
+- Recovery runbooks, deterministic fixtures and reviewable CI evidence.
+- Secret-file based configuration with credentials excluded from logs and
+  command arguments.
 
 ## Repository layout
 
 ```text
-airflow/dags/             Target maintenance and serving DAGs.
-dbt/olist_clickhouse/     Target ClickHouse dbt project.
-docker/                   Airflow, Spark and runtime image definitions.
-infra/mysql/              MySQL source schema, CDC user and simulator users.
-infra/control-postgres/   Serving control ledger migrations.
-infra/polaris/             Polaris catalog and MinIO bootstrap.
-infra/clickhouse/lakehouse/ Native serving DDL and catalog smoke checks.
-streaming/connect/         Debezium MySQL connector image and bootstrap.
-streaming/kafka/           Target topic manifest and topic bootstrap.
-streaming/schemas/         Versioned Avro/entity contracts and writer evidence.
-streaming/spark/           Bronze/Silver/ops/replay data plane.
-scripts/cdc/               Target lifecycle and bounded CDC operations.
-scripts/serving/           ClickHouse serving boundary and control repository.
-scripts/simulation/        Deterministic MySQL fixture seeding and workload.
-observability/             Prometheus, Alertmanager, Grafana, Loki and Alloy.
-tests/                     Target contract suites and frozen acceptance fixtures.
+airflow/dags/             Serving and maintenance DAGs.
+dbt/olist_clickhouse/     ClickHouse dbt project and model catalog.
+docker/                   Runtime image definitions and local secrets.
+infra/                    MySQL, PostgreSQL, Polaris and ClickHouse setup.
+streaming/                Kafka, Debezium, schemas, Spark and MinIO resources.
+scripts/cdc/              Local CDC lifecycle and validation helpers.
+scripts/serving/          ClickHouse serving boundary and control code.
+scripts/simulation/       Deterministic MySQL fixture simulator.
+observability/            Metrics, alerts, dashboards and log collection.
+tests/                    Component contracts and local acceptance tests.
+docs/                     Architecture, data model, CI and operational guides.
 ```
-
-## Local validation
-
-Install the locked environment and inspect prerequisites:
-
-```powershell
-uv sync --all-groups
-uv run python scripts/cdc/local_lab.py doctor
-```
-
-Run a clean bounded bootstrap:
-
-```powershell
-uv run python scripts/cdc/local_lab.py reset --yes
-uv run python scripts/cdc/local_lab.py bootstrap `
-  --archive tests/fixtures/olist_small/olist_small.zip `
-  --run-id local-small-seed
-uv run python scripts/cdc/local_lab.py status --require platform
-```
-
-The authoritative full acceptance command is:
-
-```powershell
-uv run python scripts/validation/stage_v_candidate_e2e.py run `
-  --run-id local-stage-v `
-  --evidence-dir data/stage-l-evidence/manual/local-stage-v `
-  --confirm-reset
-```
-
-For component-specific checks, use the target test suites named in
-`docs/plans/lakehouse/contracts/testing-and-evidence.md`. Observability has a
-separate contract validator and is not implicitly started by the Stage V
-runner.
 
 ## Documentation
 
+Operational commands are kept in the platform runbooks:
+
+- [Windows runbook](docs/runbook_windows.md)
+- [macOS and Linux runbook](docs/runbook_macos.md)
+- [All operational runbooks](docs/runbooks/)
+
+Architecture and design references:
+
 - [Architecture](docs/architecture.md)
-- [Target source contract](docs/source_contract.md)
-- [CI and validation contract](docs/plans/lakehouse/contracts/validation-and-ci.md)
-- [Observability contract](docs/plans/lakehouse/contracts/observability.md)
-- [Stage L plan](docs/plans/lakehouse/completed/stage-l-legacy-removal-ci-cutover.md)
+- [Architecture diagrams](docs/diagrams.md)
+- [Data model](docs/data_model.md)
+- [Source contract](docs/source_contract.md)
+- [CI and validation](docs/ci.md)
+- [Observability](docs/observability.md)
+- [ClickHouse model catalog](dbt/olist_clickhouse/MODEL_CATALOG.md)
 - [Data license](DATA_LICENSE.md)

@@ -1,10 +1,21 @@
-# Runbook: Lakehouse ClickHouse Rebuild
+# ClickHouse serving rebuild
 
-## 1. Overview
-Rebuilds all four derived ClickHouse databases (`serving_cdc`, `serving_control`, `gold_store`, `gold`) strictly from Iceberg tables without affecting source MySQL, Kafka, Polaris, MinIO, or Spark checkpoints.
+The rebuild recreates the ClickHouse serving projection from the Iceberg tables.
+It does not change MySQL, Kafka or Spark checkpoints.
 
-## 2. Operation
+Run it only for the disposable local project:
+
 ```powershell
-python scripts/cdc/local_lab.py rebuild-serving --yes [--run-id <id>]
+uv run python scripts/cdc/local_lab.py rebuild-serving --yes --run-id local-rebuild
+uv run python scripts/cdc/local_lab.py validate-rebuild --sync-run-seq <sync_run_seq> --sync-run-id <sync_run_id>
+uv run python scripts/cdc/local_lab.py validate --scope serving
 ```
-Note: `--yes` flag is mandatory.
+
+Use the `sync_run_seq` and `sync_run_id` values returned by the rebuild
+command.
+
+Inspect the rebuild result with:
+
+```powershell
+uv run python scripts/cdc/local_lab.py status --require serving
+```

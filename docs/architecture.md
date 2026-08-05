@@ -1,67 +1,68 @@
-# Target lakehouse architecture
+# Local CDC architecture
 
-## Scope
+## Data flow
 
-The repository implements a local, reproducible target stack for the Olist
-dataset. MySQL is the only authoritative business source. The data-plane
-boundary is:
+The local runtime moves source changes through one path:
 
 ```text
 MySQL
   -> Debezium MySQL Connector / Kafka Connect
-  -> Kafka + Apicurio Registry (Confluent-compatible Avro)
+  -> Kafka and Apicurio Registry
   -> Spark Structured Streaming
-  -> Iceberg Bronze/Silver/Audit through Polaris
-  -> ClickHouse serving boundary
-  -> Airflow serving DAGs and dbt Gold candidate publication
+  -> Iceberg Bronze, Silver and audit tables
+  -> ClickHouse serving tables
+  -> Airflow serving operations and dbt models
 ```
 
-MinIO provides the local S3-compatible storage adapter for Iceberg and Spark
-checkpoints. It does not imply a cloud-provider deployment. PostgreSQL is
-reserved for platform metadata and the `serving` control ledger.
+Polaris provides the Iceberg catalog. MinIO stores Iceberg data and Spark
+checkpoints. They run as local Compose services.
 
-## Data contracts
+## Component responsibilities
 
-The eight captured MySQL entities have versioned contracts under
-`streaming/schemas/contracts/`. Kafka topics, primary keys, Avro writer
-fingerprints, Spark reader schemas and Iceberg projections are validated as one
-contract. Bronze keeps the raw framed record and framing evidence. Silver owns
-append-only changes and current projections. Normalization failures are
-recorded in `audit.normalization_errors` or `audit.schema_violations`; a
-rejected transaction remains visible to serving until a later valid completion
-resolves it.
+| Component                                         | Responsibility                                                                         |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| MySQL                                             | Authoritative Olist business source and CDC transaction source.                        |
+| PostgreSQL                                        | Airflow metadata, Polaris catalog metadata and serving control data.                   |
+| Debezium / Kafka Connect                          | Reads MySQL changes and publishes the CDC envelope.                                    |
+| Kafka                                             | Carries entity, transaction, heartbeat and schema-history topics.                      |
+| Apicurio Registry                                 | Stores and validates the Avro key and value schemas.                                   |
+| Spark                                             | Decodes CDC records, writes Bronze/Silver Iceberg tables and records processing state. |
+| Polaris / MinIO                                   | Catalogs and stores Iceberg tables and checkpoints.                                    |
+| ClickHouse                                        | Stores the serving projection and published analytical models.                         |
+| Airflow                                           | Runs serving sync, rebuild and maintenance operations.                                 |
+| dbt                                               | Builds ClickHouse candidate models and stable publication views.                       |
+| Prometheus, Alertmanager, Grafana, Loki and Alloy | Collect, route, display and retain local telemetry.                                    |
 
-The durable Iceberg table inventory and migrations are defined in
-`streaming/spark/platform/table_specs.py`. The serving boundary consumes only
-effective transaction state and never publishes past an unresolved `OPEN` or
-effective `REJECTED` transaction.
+The business source remains in MySQL. PostgreSQL is not a business-data store.
 
-## Control and serving
+## Data boundaries
 
-`infra/control-postgres/initdb/` creates only the target `serving` schema.
-`scripts/serving/control.py` owns leases, sync-run state, entity results and
-runtime state. ClickHouse native DDL under `infra/clickhouse/lakehouse/` owns
-the serving event/current-version projection; dbt under
-`dbt/olist_clickhouse/` owns candidate Gold models and stable publication
-views.
+The eight keyed source entities captured by the connector have versioned
+contracts in `streaming/schemas/contracts/`. Bronze preserves the transport
+identity and framing evidence. Silver owns normalized event records and
+current projections. Invalid records remain visible in the audit tables.
 
-`scripts/cdc/local_lab.py` is the lifecycle boundary for the disposable
-Compose project. It emits bounded redacted JSON and delegates business and
-serving invariants to the target components. The full V0–V10 acceptance
-runner is `scripts/validation/stage_v_candidate_e2e.py`.
+The serving planner publishes only a complete transaction prefix. An `OPEN`
+or `REJECTED` transaction blocks publication at that boundary. The control
+schema in `infra/control-postgres/` records serving leases, sync runs,
+entity results and publication state.
 
-## Observability
+## Local lifecycle
 
-Prometheus, Alertmanager, Grafana, Loki and Alloy are target services with
-explicit scrape owners, dashboards, alerts and runbooks. `target-probe` owns
-bounded control-plane and serving signals; Kafka exporter owns target consumer
-lag. Observability is validated separately by
-`scripts/ci/validate_observability_contract.py` and the observability test
-suite.
+[`scripts/cdc/local_lab.py`](../scripts/cdc/local_lab.py) is the lifecycle
+entry point. It owns Compose startup, fixture bootstrap, connector setup,
+streaming readiness, serving sync, rebuild and validation commands. It emits
+one redacted JSON result for each command.
 
-## Removed architecture
+Compose profiles group the runtime:
 
-The repository no longer contains the former source, orchestration, raw-file
-loader or analytical-project implementations. Historical design and migration
-records under `docs/cdc/`, `docs/postgresql-to-clickhouse/`, `docs/plans/` and
-`docs/reports/` are provenance, not active runtime instructions.
+| Profile         | Services                                                         |
+| --------------- | ---------------------------------------------------------------- |
+| `platform`      | MySQL, PostgreSQL, Kafka, Apicurio, Polaris and MinIO bootstrap. |
+| `streaming`     | Kafka Connect and Spark.                                         |
+| `serving`       | ClickHouse, Airflow and serving bootstrap.                       |
+| `observability` | Prometheus, Alertmanager, Grafana and target probe.              |
+| `logs`          | Loki and Alloy.                                                  |
+
+The acceptance runner does not start observability services. Start the
+observability and log profiles explicitly when telemetry is being checked.

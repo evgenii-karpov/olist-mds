@@ -1,37 +1,27 @@
-# Runbook: Lakehouse Serving Sync
+# Serving sync
 
-## 1. Overview
-The `olist_lakehouse_serving_sync` Airflow DAG publishes transaction-complete Iceberg data into ClickHouse and dbt Gold when triggered manually.
+The serving sync reads the completed Iceberg transaction boundary, materializes
+ClickHouse serving tables and publishes the dbt views for that sync.
 
-## 2. Operation
-Start the serving profile and wait for its dependencies before triggering a sync:
+Start the serving services:
+
 ```powershell
-python scripts/cdc/local_lab.py start-serving [--build] [--timeout <seconds>]
+uv run python scripts/cdc/local_lab.py start-serving --build
 ```
 
-The command starts the Compose `platform` and `serving` profiles and verifies
-healthy `clickhouse`/`airflow` containers plus successful serving bootstrap
-jobs.
+Run a named sync:
 
-To trigger serving sync manually:
 ```powershell
-python scripts/cdc/local_lab.py sync-serving [--run-id <id>]
+uv run python scripts/cdc/local_lab.py sync-serving --run-id local-serving-sync
 ```
 
-Serving, quality, maintenance and rebuild DAGs are manual-only (`schedule=None`)
-and are created unpaused. This prevents the scheduler from creating a
-competing boundary while a validation run is in progress.
+Check the result:
 
-To validate the published candidate and stable interfaces after a successful
-non-NOOP sync:
 ```powershell
-python scripts/cdc/local_lab.py validate-serving `
-  --sync-run-seq <seq> `
-  --sync-run-id <sync-run-id>
+uv run python scripts/cdc/local_lab.py status --require serving
+uv run python scripts/cdc/local_lab.py validate --scope serving
 ```
 
-## 3. Verification
-Check status:
-```powershell
-python scripts/cdc/local_lab.py status --require serving
-```
+The control schema records the sync state, entity results and publication
+boundary. A retry with the same run identifier must not expose an incomplete
+or rejected source transaction.

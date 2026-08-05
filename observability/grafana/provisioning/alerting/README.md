@@ -1,5 +1,4 @@
-# Grafana-managed alerting
+# Grafana alerting directory
 
-Prometheus and Alertmanager own Phase 6 alert evaluation and routing. This
-directory is intentionally present so Grafana provisioning does not report a
-missing optional path.
+Prometheus and Alertmanager evaluate and route local alerts. This directory is
+kept for Grafana provisioning so the optional alerting path is explicit.

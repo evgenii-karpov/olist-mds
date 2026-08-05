@@ -1,49 +1,50 @@
-# CI Quality Gates
+# CI and local validation
 
-CI is split into focused jobs so a failure identifies the affected target
-boundary instead of hiding behind one monolithic pipeline. Pull-request CI
-uses local, reproducible services and does not require cloud credentials.
+CI checks the local CDC runtime in small, focused jobs. Each job uses the
+repository files and pinned service images.
 
-## Automatic checks
+## Automatic workflows
 
-- `docs-and-repository-contracts` validates Markdown/YAML/TOML contracts,
-  Python compilation, the target DAG inventory, the frozen F0 oracle, the
-  bounded source fixture and the L4 legacy-orphan guard.
-- `python-quality` runs Ruff and Pyright.
-- `python-contract-tests` collects the explicit MySQL, CDC, platform, dbt,
-  serving and Stage V suites. Observability has its own component job.
-- `scala-fast` builds the Spark job image and checks the dependency boundary
-  and required application classes.
-- `compose-contract` renders every supported target profile combination and
-  validates the observability inventory.
-- `airflow-dag-imports` builds the target Airflow image and checks the exact
-  target DAG inventory.
-- `dbt-clickhouse-static` starts an isolated ClickHouse container with
-  `docker run`, then parses and compiles `dbt/olist_clickhouse` and validates
-  its model/source/selector contract.
+- `ci.yml` runs repository contracts, Python quality, unit tests, the Spark
+  checks, the Airflow import check and dbt static checks.
+- `lakehouse-components.yml` checks the Spark image, Airflow runtime and
+  observability configuration.
+- `lakehouse-cdc.yml` checks the CDC component contracts.
+- `lakehouse-serving.yml` checks ClickHouse serving and serving operations.
 
-The required `ci-success` job aggregates these checks. A missing or skipped
-required job is a failure of the workflow contract.
+The component workflows use Compose only for the services required by the job.
+The dbt static job starts ClickHouse directly and does not start the rest of
+the Compose project.
 
-## Bounded and manual checks
+## Manual acceptance
 
-`lakehouse-components.yml` owns fast Spark, Airflow and observability checks.
-The observability job validates the actual producer → scrape → rule →
-dashboard mapping and runs `tests/observability`; it is intentionally
-independent of the Stage V runner.
+`lakehouse-acceptance.yml` is started manually with a candidate commit and an
+explicit confirmation for disposable Compose reset. It can run the full local
+acceptance path, the final data comparison, or both. The jobs upload raw JSON,
+logs and reports as workflow artifacts.
 
-`lakehouse-cdc.yml` and `lakehouse-serving.yml` are dispatch-only bounded
-component workflows. `lakehouse-acceptance.yml` is the dispatch-only full
-acceptance workflow: it publishes diagnostics even when a gate fails and runs
-the complete Stage V V0–V10 candidate script plus the separate F1 parity gate.
+The acceptance runner and the observability job are independent. The runner
+does not start observability services; `lakehouse-components.yml` validates
+their configuration and tests separately.
 
-## Fixture and evidence policy
+## Local checks
 
-The committed bounded fixture is `tests/fixtures/olist_small`. Source-contract
-validation checks its archive and profile without mutating either. Stage V
-evidence belongs under `data/stage-l-evidence/<stage>/<run-id>/`; reports must
-include the candidate SHA, fixture checksum, command, Compose project, gate
-statuses and raw failure output with secrets redacted.
+```powershell
+uv run ruff check .
+uv run ruff format --check .
+uv run pyright
+$env:PYTHONPATH='.'
+uv run pytest -q
+uv run python scripts/ci/check_repository_contracts.py
+uv run python scripts/ci/check_dbt_clickhouse_contract.py
+uv run python scripts/ci/validate_observability_contract.py
+```
 
-The Stage V runner does not start or validate observability services. Those
-services are covered by the dedicated observability component contract.
+Validate the committed fixture directly:
+
+```powershell
+uv run python scripts/utilities/validate_source_contract.py --archive tests/fixtures/olist_small/olist_small.zip --profile tests/fixtures/olist_small/source_profile_small.json
+```
+
+Acceptance evidence belongs under `data/` and must not contain secret values.
+Use a distinct `COMPOSE_PROJECT_NAME` for concurrent local runs.

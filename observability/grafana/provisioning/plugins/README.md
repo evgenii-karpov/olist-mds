@@ -1,5 +1,4 @@
-# Grafana plugins
+# Grafana plugins directory
 
-Phase 6 uses bundled panels and data sources only. This directory is
-intentionally present so Grafana provisioning does not report a missing
-optional path.
+The local dashboards use bundled panels and data sources. This directory is
+kept explicit so Grafana provisioning has a stable plugin path.

@@ -1,91 +1,67 @@
-# Target architecture diagrams
+# Local architecture diagrams
 
-## End-to-end data path
+## CDC data path
 
 ```mermaid
 flowchart LR
-    mysql["MySQL OLTP"]
-    connect["Debezium / Kafka Connect"]
-    kafka["Kafka topics"]
-    registry["Apicurio Registry"]
-    spark["Spark Bronze/Silver"]
-    storage["Iceberg on MinIO"]
-    polaris["Polaris catalog"]
-    serving["ClickHouse serving"]
-    airflow["Airflow serving DAGs"]
-    dbt["dbt ClickHouse Gold"]
-    obs["Prometheus / Alertmanager / Grafana / Loki / Alloy"]
-
-    mysql --> connect
-    connect --> kafka
-    registry --> connect
+    mysql["MySQL"] --> connect["Debezium / Kafka Connect"]
+    connect --> kafka["Kafka"]
+    registry["Apicurio Registry"] --> connect
+    registry --> spark["Spark Structured Streaming"]
     kafka --> spark
-    registry --> spark
-    spark --> storage
-    polaris --> storage
-    storage --> serving
-    airflow --> serving
-    serving --> dbt
-    mysql --> obs
-    connect --> obs
-    kafka --> obs
-    spark --> obs
-    serving --> obs
+    spark --> iceberg["Iceberg tables"]
+    polaris["Polaris catalog"] --> iceberg
+    minio["MinIO"] --> iceberg
+    iceberg --> clickhouse["ClickHouse serving"]
+    clickhouse --> airflow["Airflow serving operations"]
+    clickhouse --> dbt["dbt ClickHouse models"]
 ```
 
-## Transaction and rejection boundary
+## Transaction publication boundary
 
 ```mermaid
 flowchart LR
-    event["CDC event"] --> bronze["Bronze raw/framing evidence"]
+    event["CDC event"] --> bronze["Bronze"]
     bronze --> normalize["Spark normalization"]
-    normalize --> changes["Silver changes"]
-    normalize --> current["Silver current"]
-    normalize --> audit["normalization_errors / schema_violations"]
-    normalize --> tx["audit.mysql_transactions"]
-    tx --> planner["Serving boundary planner"]
-    changes --> planner
-    current --> planner
+    normalize --> silver_events["Silver events"]
+    normalize --> silver_current["Silver current"]
+    normalize --> audit["Audit records"]
+    silver_events --> planner["Serving planner"]
+    silver_current --> planner
+    audit --> planner
     planner -->|complete prefix| candidate["ClickHouse candidate"]
-    planner -->|OPEN or REJECTED| blocked["WAITING/BLOCKED"]
-    candidate --> publish["Finite publication"]
+    planner -->|OPEN or REJECTED| waiting["Wait for valid source state"]
+    candidate --> publish["Published views"]
 ```
 
-## Serving state machine
+## Serving states
 
 ```mermaid
 stateDiagram-v2
     [*] --> PLANNING
-    PLANNING --> WAITING: source not caught up or OPEN transaction
+    PLANNING --> WAITING: source is not caught up
     PLANNING --> BLOCKED: rejected boundary or invariant failure
     PLANNING --> MATERIALIZING: complete transaction prefix
     MATERIALIZING --> PUBLISHING
     PUBLISHING --> SUCCEEDED
-    PUBLISHING --> NOOP: already published boundary
+    PUBLISHING --> NOOP: boundary is already published
     MATERIALIZING --> FAILED_RETRYABLE
     FAILED_RETRYABLE --> PLANNING
-    SUCCEEDED --> [*]
-    NOOP --> [*]
 ```
 
-## Target dbt publication
+## Compose and telemetry
 
 ```mermaid
-sequenceDiagram
-    participant Airflow
-    participant Control as serving control ledger
-    participant Iceberg
-    participant ClickHouse
-    participant DBT as dbt olist_clickhouse
-
-    Airflow->>Control: allocate finite sync run
-    Control->>Iceberg: resolve completed transaction boundary
-    Iceberg-->>Control: candidate snapshot and counts
-    Airflow->>ClickHouse: materialize serving candidate
-    Airflow->>DBT: build candidate Gold models
-    DBT->>ClickHouse: publish stable views for approved run
-    ClickHouse-->>Control: entity results and publication evidence
+flowchart TB
+    platform["platform profile"] --> streaming["streaming profile"]
+    streaming --> serving["serving profile"]
+    platform --> observability["observability profile"]
+    streaming --> observability
+    serving --> observability
+    observability --> prometheus["Prometheus"]
+    prometheus --> alertmanager["Alertmanager"]
+    prometheus --> grafana["Grafana"]
+    logs["logs profile"] --> loki["Loki"]
+    logs --> alloy["Alloy"]
+    loki --> grafana
 ```
-
-Historical phase diagrams remain in the migration records under `docs/cdc/`
-and `docs/reports/`; they are not operating instructions for the target stack.

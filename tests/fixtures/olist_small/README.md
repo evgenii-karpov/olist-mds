@@ -1,14 +1,10 @@
-# Small Olist Fixture
+# Small Olist fixture
 
-This fixture is a tiny, synthetic Olist-shaped dataset for CI.
+This committed fixture is a small Olist-shaped dataset for local CDC checks.
 
-- `olist_small.zip` contains the same CSV file names and headers as the full
-  Kaggle archive.
-- `source_profile_small.json` is the matching source contract.
-- `source/` contains the uncompressed CSVs so fixture changes are reviewable.
+- `olist_small.zip` contains the expected CSV names and headers.
+- `source_profile_small.json` contains the matching source profile.
+- `source/` contains the CSV files for review.
 
-The fixture is intentionally committed because it is small and lets CI run the
-target MySQL seed, CDC, Spark/Iceberg and serving contract checks without
-downloading the full dataset.
-
-Use the OS-specific runbook if the fixture needs to be regenerated locally.
+The fixture lets MySQL, CDC, Spark/Iceberg, serving and dbt checks run without
+external data downloads. Use the operating-system runbook when regenerating it.

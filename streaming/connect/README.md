@@ -1,36 +1,19 @@
-# MySQL Debezium and Apicurio bootstrap
+# Debezium connector bootstrap
 
-`olist-mysql-cdc.json` is the secret-free connector contract. It captures only
-the eight `olist_oltp` business tables, keeps the complete Debezium envelope,
-and uses only the heartbeat topic router SMT. Both key and value converters
-emit Confluent-framed Avro and register artifacts in the `olist_cdc` Apicurio
-group.
+`olist-mysql-cdc.json` is the secret-free connector contract. It captures
+the eight keyed `olist_oltp` entities and publishes Confluent-framed Avro
+keys and values to Kafka with Apicurio Registry.
 
-`bootstrap.py` is deliberately standard-library-only. It first creates the
-`olist_cdc` Registry v3 group and its group-level
-`COMPATIBILITY=BACKWARD_TRANSITIVE` rule, then reads the MySQL CDC password from
-a file and inserts `database.password` only into the in-memory request body.
-Registration is idempotent. `database.password` is sent only in the create
-`POST /connectors` body; an existing connector is checked without comparing or
-printing its password. Non-secret config drift causes a failure instead of a
-secret-bearing PUT, delete, or resnapshot. After create or idempotent reuse,
-bootstrap polls until both the connector and task 0 are `RUNNING`; `FAILED`
-stops immediately, while `PAUSED`, `UNASSIGNED`, `RESTARTING`, and an empty task
-list are bounded by the readiness timeout. Secret-bearing HTTP failures never
-include the response body, and literal plus JSON-escaped secret variants are
-redacted from status and transport diagnostics.
+`bootstrap.py` creates the `olist_cdc` Registry group, applies the
+compatibility rule, reads the MySQL CDC password from a file and registers the
+connector. It never prints or compares the password. Existing non-secret
+configuration drift fails closed.
 
-`apicurio-contract.json` also fixes SQL/PostgreSQL storage and the two `_FILE`
-credential inputs. If the selected Registry image does not expand `_FILE`
-itself, `apicurio-file-env.sh` is a no-echo entrypoint wrapper that exports the
-two values only into the Registry process environment.
+Use the helper after Kafka topics and Connect are available:
 
 ```text
-python -m streaming.connect.bootstrap \
-  --password-file /run/secrets/mysql_cdc_reader_password
+python -m streaming.connect.bootstrap --password-file /run/secrets/mysql_cdc_reader_password
 ```
 
-The integration join must mount that secret file, make Kafka Connect available
-at `http://kafka-connect:8083`, and run topic bootstrap before Connect starts.
-No connector credential belongs in Compose environment, the connector JSON,
-logs, or diagnostic reports.
+Connect must be reachable at `http://kafka-connect:8083`. Connector
+credentials belong in secret files, not Compose environment values or logs.

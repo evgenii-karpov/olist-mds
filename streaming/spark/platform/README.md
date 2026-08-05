@@ -1,27 +1,26 @@
-# Spark lakehouse platform
+# Spark platform
 
-This directory is the Wave 1 platform contract. It contains no entity business
-transformations.
+This directory defines Spark runtime configuration and Iceberg table
+migrations. Entity decoding and table writes use the contracts under
+`streaming/schemas/`.
 
-`render_spark_properties.py` reads all credentials through `*_FILE` variables
-and atomically writes a mode `0600` Spark properties file. Required secret
-inputs are:
+`render_spark_properties.py` reads credentials only through `*_FILE`
+variables and writes a mode `0600` properties file. Required inputs are:
 
 - `POLARIS_SPARK_CLIENT_ID_FILE`
 - `POLARIS_SPARK_CLIENT_SECRET_FILE`
-- `OBJECT_STORE_ACCESS_KEY_FILE` (the checkpoint-only MinIO identity)
+- `OBJECT_STORE_ACCESS_KEY_FILE`
 - `OBJECT_STORE_SECRET_KEY_FILE`
 
-The catalog alias is always `lakehouse`; its Polaris resource and REST
-warehouse are both `olist_lakehouse`. Checkpoints are accepted only below
-`s3a://olist-checkpoints/` and are never catalog table locations.
+The catalog alias is `lakehouse` and the Polaris warehouse is
+`olist_lakehouse`. Checkpoints use the `olist-checkpoints` bucket
+and are separate from table locations.
 
-Run the initial migration inside the Spark image with:
+Run the table migration inside the Spark image:
 
 ```text
-/usr/local/bin/run-with-platform-config.sh \
-  /opt/olist/streaming/spark/platform/migrate.py
+/usr/local/bin/run-with-platform-config.sh /opt/olist/streaming/spark/platform/migrate.py
 ```
 
-The wrapper passes only the properties-file path to `spark-submit`; it never
-puts a catalog credential or object-store key on the command line.
+The wrapper passes the properties-file path to `spark-submit` and keeps
+credentials out of command arguments.

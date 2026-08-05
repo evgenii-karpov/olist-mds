@@ -1,15 +1,26 @@
-# Target Kafka replay
+# Kafka consumer recovery
 
-Kafka replay is a bounded consumer recovery operation, not a source reset.
+The local runtime keeps Kafka topics and Spark checkpoints during a normal
+service restart. Use this procedure when a consumer needs to resume from its
+configured checkpoint.
 
-1. Record the topic, partition, current consumer group offsets and the latest
-   Bronze/Silver status evidence.
-2. Stop only the affected target Spark query through the documented lifecycle
-   command; preserve Kafka Connect internal topics and the source database.
-3. Reset only explicitly selected partitions and offsets, then restart the
-   target query with its existing checkpoint contract.
-4. Verify Bronze event identity/deduplication, Silver progress, transaction
-   state and serving catch-up before publication.
+1. Record the topic, partition, consumer group and current position.
+2. Stop only the Spark streaming services:
 
-Never combine replay with topic deletion, retention changes or credential
-rotation. Keep before/after offsets in the evidence record.
+   ```powershell
+   uv run python scripts/cdc/local_lab.py stop-streaming
+   ```
+
+3. Correct the selected consumer position with the Kafka administration tool
+   for the active Compose project. Do not delete Connect internal topics or
+   the source database.
+4. Start streaming and wait for the source to catch up:
+
+   ```powershell
+   uv run python scripts/cdc/local_lab.py start-streaming --wait-ready
+   uv run python scripts/cdc/local_lab.py wait-caught-up --timeout 1800
+   uv run python scripts/cdc/local_lab.py validate --scope serving
+   ```
+
+If a checkpoint or topic cannot be trusted, use the clean connector
+resnapshot runbook instead of changing multiple offsets manually.

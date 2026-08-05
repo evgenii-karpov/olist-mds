@@ -1,9 +1,8 @@
 # Grafana Alloy
 
-Alloy discovers local Docker containers through a read-only Docker socket and
-forwards Docker-decoded logs to the real Loki service. It attaches only the
-bounded `environment` and `service` labels. Correlation IDs, business keys,
-object URIs and error messages remain in log bodies and are never labels.
+Alloy discovers local Compose containers through a read-only Docker socket and
+sends their logs to Loki. It attaches only bounded `environment` and
+`service` labels.
 
-The service exposes its own readiness and metrics endpoint on port `12345` and
-has no authority to start, stop or mutate containers.
+Business keys, object locations and exception text remain in log bodies. Alloy
+does not start, stop or mutate containers.

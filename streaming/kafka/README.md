@@ -1,11 +1,16 @@
-# Target Kafka topology
+# Kafka topology
 
-Kafka carries the eight MySQL entity topics plus the target transaction,
-heartbeat and schema-history topics declared in `topics.json`. Debezium
-publishes the source records; Spark consumes them with the explicit target
-consumer group and checkpoint contract.
+Kafka carries the eight MySQL entity topics plus transaction, heartbeat and
+schema-history topics declared in `topics.json`. Debezium publishes the
+source records and Spark consumes them with the configured consumer groups and
+checkpoint paths.
 
-`create-topics.sh` is generated from the committed topic manifest and is safe
-to rerun. Connect internal topics are compacted and are never reset as part of
-a bounded data replay. Topic names, partition counts, retention and cleanup
-policies are validated by `tests/cdc_contracts`.
+`create-topics.sh` is generated from the topic manifest and is safe to
+rerun. Connect internal topics are compacted and are not changed by normal CDC
+recovery operations.
+
+Run the topic contract checks with:
+
+```powershell
+uv run pytest -q tests/cdc_contracts
+```

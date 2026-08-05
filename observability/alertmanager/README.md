@@ -1,9 +1,8 @@
 # Alertmanager
 
 The local Alertmanager route sends firing and resolved notifications to the
-repository-owned target-probe webhook. This keeps the acceptance path
-secret-free while proving that Prometheus rules reach Alertmanager and that
-resolved transitions are delivered.
+repository-owned `target-probe` webhook. Notification credentials are
+not stored in this directory.
 
-Production notification credentials do not belong in this file. Use
-`docs/runbooks/cdc-alert-testing.md` for bounded fire/resolve checks.
+Use [`docs/runbooks/cdc-alert-testing.md`](../../docs/runbooks/cdc-alert-testing.md)
+for a local fire/resolve check.

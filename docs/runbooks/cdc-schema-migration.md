@@ -1,15 +1,22 @@
-# Target CDC schema migration
+# CDC schema migration
 
-Compatible changes are limited to nullable fields with a default `null`.
+A compatible schema change adds a nullable field with a null default.
 
-1. Update the versioned entity contract and captured writer evidence.
-2. Run `check_avro_schema_compatibility.py` and the Apicurio compatibility
-   check.
-3. Verify MySQL, Avro, Spark reader and Iceberg projection types together.
-4. Roll out the reader before publishing the new writer schema.
-5. Run bounded CDC and serving checks, then the full Stage V acceptance before
-   removing any old version.
+1. Update the entity contract under `streaming/schemas/contracts/` and
+   the captured writer schema evidence.
+2. Run the contract generators and compatibility tests:
 
-Breaking changes, key changes and partition changes require the documented
-full-reset action. Never weaken registry compatibility or accept an unknown
-writer fingerprint to bypass a migration failure.
+   ```powershell
+   python -m streaming.schemas.generate_contracts --check
+   python -m streaming.schemas.writer_schemas validate
+   uv run pytest -q tests/cdc_contracts
+   ```
+
+3. Check the MySQL column, Avro schema, Spark reader and Iceberg projection
+   together.
+4. Deploy the reader contract before the connector emits the new field.
+5. Run the local CDC acceptance and serving checks.
+
+Do not change a key, remove an existing field or weaken Registry compatibility
+as part of a compatible migration. Use a clean local reset when the source
+contract and reader cannot be evolved together.

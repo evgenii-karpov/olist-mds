@@ -1,16 +1,20 @@
-# Target observability alert testing
+# Observability alert testing
 
-Observability is a separate target contract. It is not started or validated by
-the Stage V runner.
+Start the runtime and telemetry profiles:
 
-Validate the static inventory first:
+```powershell
+docker compose --profile platform --profile streaming --profile serving --profile observability --profile logs up -d --build --wait
+```
+
+Validate the static contract and alert test suite:
 
 ```powershell
 uv run python scripts/ci/validate_observability_contract.py
+$env:PYTHONPATH='.'
 uv run pytest -q tests/observability
 ```
 
-For bounded local transitions, use the target failure injector:
+Exercise one local failure at a time:
 
 ```powershell
 uv run python scripts/cdc/failure_injection.py --scenario connect --execute
@@ -18,6 +22,5 @@ uv run python scripts/cdc/failure_injection.py --scenario minio --execute
 uv run python scripts/cdc/failure_injection.py --scenario target-probe --execute
 ```
 
-Capture alert state, bounded logs and the resolve result. Never treat a
-dashboard screenshot without a firing and resolved alert transition as
-evidence.
+For each scenario, record the firing alert, bounded logs and the resolved
+alert. A dashboard view alone is not a validation result.

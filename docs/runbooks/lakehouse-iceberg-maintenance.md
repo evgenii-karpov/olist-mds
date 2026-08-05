@@ -1,10 +1,11 @@
-# Runbook: Lakehouse Iceberg Maintenance
+# Iceberg maintenance
 
-## 1. Overview
-The `olist_iceberg_maintenance` DAG runs daily at 03:00 UTC to execute data file compaction, manifest rewriting, snapshot expiration, and orphan file cleanup on Iceberg tables.
+Run the local maintenance operation after the serving services are healthy:
 
-## 2. Operation
-To trigger maintenance manually:
 ```powershell
-python scripts/cdc/local_lab.py run-maintenance [--run-id <id>]
+uv run python scripts/cdc/local_lab.py run-maintenance --run-id local-maintenance
+uv run python scripts/cdc/local_lab.py status --require serving
 ```
+
+Review the operation result and Spark logs before removing any local volume.
+Keep Spark checkpoints and table locations together.

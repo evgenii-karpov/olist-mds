@@ -1,17 +1,13 @@
-# MySQL Olist source
+# MySQL source
 
-This directory is the initialization contract for the disposable MySQL 8.4
-source. The instance owns two databases:
+This directory defines the local MySQL 8.4 source.
 
-- `olist_oltp` contains the nine Olist business tables. Debezium captures the
-  eight keyed CDC entities and deliberately excludes `geolocation`.
-- `olist_simulator` contains deterministic simulator state, seed identity,
-  replay mappings, pending transitions, and the Debezium heartbeat target.
+- `olist_oltp` contains the Olist business tables. The connector captures
+  the eight keyed entities and excludes `geolocation`.
+- `olist_simulator` contains deterministic fixture and workload state.
 
-Mount `conf.d/olist.cnf` read-only below `/etc/mysql/conf.d/` and mount
-`initdb/` read-only below `/docker-entrypoint-initdb.d/`. The user bootstrap
-script expects these Docker secret paths unless their corresponding `_FILE`
-variables override them:
+The initialization scripts are mounted read-only at
+`/docker-entrypoint-initdb.d`. The source uses these secret files:
 
 ```text
 /run/secrets/mysql_admin_password
@@ -19,11 +15,8 @@ variables override them:
 /run/secrets/mysql_cdc_reader_password
 ```
 
-The official image still receives the root credential through
-`MYSQL_ROOT_PASSWORD_FILE`. Root is only used by the image entrypoint and the
-first-volume bootstrap. Application code uses `olist_simulator`, schema
-migrations use `olist_admin`, and Kafka Connect uses `olist_cdc_reader`.
-
-The schema intentionally preserves the source column spellings such as
-`product_name_lenght`. Business timestamps are UTC-semantic `DATETIME(6)`,
-money is `DECIMAL(18,2)`, and coordinates are `DECIMAL(18,14)`.
+Application code uses the simulator user, schema setup uses the admin user and
+Kafka Connect uses the CDC reader user. The source schema preserves Olist
+column spellings such as `product_name_lenght`. Business timestamps use
+UTC semantics, money uses `DECIMAL(18,2)` and coordinates use
+`DECIMAL(18,14)`.

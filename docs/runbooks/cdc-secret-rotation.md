@@ -1,14 +1,21 @@
-# Target secret rotation
+# Local secret rotation
 
-The target runtime accepts credentials through Docker secret files or explicit
-`*_SOURCE_FILE` paths. Never paste resolved values into commands, logs, issues
-or evidence.
+Local credentials are supplied through Docker secret files or the corresponding
+`*_FILE` settings. Never put a resolved value in a command, log, issue
+or evidence file.
 
-1. Inventory the target identity and capture health without reading the value.
-2. Rotate the server-side identity and replace only its secret file with
-   restrictive permissions.
-3. Recreate affected target clients, preserving Kafka offsets and Iceberg
-   checkpoints.
-4. Verify MySQL, Kafka Connect, Apicurio, MinIO/Polaris, Spark and serving
-   authentication, then confirm the relevant observability alert resolves.
-5. Revoke the old value after all clients use the replacement.
+1. Identify the service and credential file without opening the value.
+2. Replace the file with restrictive permissions.
+3. Recreate only the clients that use the credential:
+
+   ```powershell
+   docker compose up -d --force-recreate <service>
+   ```
+
+4. Verify MySQL, Kafka Connect, Apicurio, MinIO, Polaris, Spark, ClickHouse
+   and Airflow authentication as applicable.
+5. Confirm the related observability alert resolves.
+
+If the Polaris catalog or object-store identities are inconsistent, use
+`local_lab.py reset --yes` so the local credential projections and
+catalog identities are created together.

@@ -1,12 +1,13 @@
-# Target MinIO runtime
+# MinIO object store
 
-This image is the local S3-compatible object-store adapter for the target
-Iceberg/Polaris runtime. It stores the isolated checkpoint and lakehouse data
-used by Spark and Polaris; it runs as a local service rather than a cloud
-deployment.
+This image provides the local object store used by Polaris and Spark. It holds
+Iceberg data and Spark checkpoints for the Compose project.
 
-`start.sh` reads the root credentials from the Docker secret mounted at
-`/run/secrets/minio_root_password` and starts MinIO without printing the
-resolved value. Bucket creation, policy and service identities are owned by
-`infra/polaris/minio/init.sh`, so this image contains no legacy pipeline
-identities or loader policies.
+`start.sh` reads the root credential from
+`/run/secrets/minio_root_password` without printing it. Bucket creation,
+policies and service identities are owned by
+`infra/polaris/minio/init.sh`.
+
+Use separate identities for the Iceberg warehouse, Spark checkpoints, Polaris,
+ClickHouse and Airflow. Do not place resolved credentials in environment files,
+commands or logs.
