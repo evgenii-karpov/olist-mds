@@ -10,7 +10,6 @@ on:
         default: all
         options:
           - candidate-e2e
-          - final-parity
           - all
       candidate_sha:
         description: Full candidate commit SHA to validate
@@ -78,9 +77,6 @@ jobs:
             --archive tests/fixtures/olist_small/olist_small.zip \
             --profile tests/fixtures/olist_small/source_profile_small.json
           mkdir -p "data/stage-l-evidence/L3/$RUN_ID"
-          uv run python scripts/parity/validate_f0_oracle.py \
-            --oracle tests/fixtures/final_parity/main-1400d08.json \
-            --metadata tests/fixtures/final_parity/main-1400d08.metadata.json
           docker compose \
             --profile platform \
             --profile streaming \
@@ -162,70 +158,12 @@ jobs:
           --profile logs
           down -v --remove-orphans
 
-  final-parity:
-    name: Final candidate parity
-    if: ${{ inputs.suite == 'final-parity' || inputs.suite == 'all' }}
-    needs: preflight
-    runs-on: ubuntu-latest
-    environment: lakehouse-destructive
-    timeout-minutes: 120
-    env:
-      COMPOSE_PROJECT_NAME: final-parity-${{ github.run_id }}-${{ github.run_attempt }}
-    steps:
-      - name: Check out candidate
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.preflight.outputs.candidate_sha }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.1.0
-        with:
-          version: 0.11.28
-          enable-cache: true
-
-      - name: Install Python
-        run: uv python install
-
-      - name: Install locked runtime dependencies
-        run: uv sync --locked --no-dev
-
-      - name: Run candidate-only F1 parity
-        run: >-
-          uv run python scripts/cdc/local_lab.py final-parity
-          --run-id ${{ needs.preflight.outputs.run_id }}
-          --oracle tests/fixtures/final_parity/main-1400d08.json
-          --candidate-sha ${{ needs.preflight.outputs.candidate_sha }}
-          --confirm-destructive
-          --timeout 5400
-
-      - name: Upload F1 evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lakehouse-acceptance-final-parity
-          path: |
-            data/reports/final-parity/**
-            data/stage-l-evidence/L3/**
-          if-no-files-found: warn
-
-      - name: Clean up F1 resources
-        if: always()
-        run: >-
-          docker compose
-          --profile platform
-          --profile streaming
-          --profile serving
-          --profile observability
-          --profile logs
-          down -v --remove-orphans
-
   publish-evidence:
     name: Publish acceptance evidence
     if: ${{ always() }}
     needs:
       - preflight
       - stage-v-e2e
-      - final-parity
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

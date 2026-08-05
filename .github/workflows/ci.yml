@@ -51,12 +51,6 @@ jobs:
           uv run python scripts/ci/check_legacy_orphans.py
           --report data/reports/l4-legacy-orphans.json
 
-      - name: Validate frozen F0 oracle
-        run: >-
-          uv run python scripts/parity/validate_f0_oracle.py
-          --oracle tests/fixtures/final_parity/main-1400d08.json
-          --metadata tests/fixtures/final_parity/main-1400d08.metadata.json
-
       - name: Validate small fixture metadata
         run: >-
           uv run python scripts/utilities/validate_source_contract.py

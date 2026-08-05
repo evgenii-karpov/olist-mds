@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import subprocess
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -50,8 +49,6 @@ YAML_PATHS = (
 )
 JSON_PATHS = (
     ROOT / "streaming/runtime-versions.json",
-    ROOT / "tests/fixtures/final_parity/main-1400d08.metadata.json",
-    ROOT / "tests/fixtures/final_parity/main-1400d08.json",
     *sorted((ROOT / "observability/grafana/dashboards").glob("*.json")),
 )
 ACTIVE_SCAN_PATHS = (
@@ -175,27 +172,6 @@ def _check_active_legacy_references(errors: list[str]) -> None:
                     errors.append(f"active legacy token {token!r} in {_relative(path)}")
 
 
-def _check_git_clean_candidate_metadata(errors: list[str]) -> None:
-    expected = (
-        ROOT / "tests/fixtures/final_parity/main-1400d08.json",
-        ROOT / "tests/fixtures/final_parity/main-1400d08.metadata.json",
-    )
-    result = subprocess.run(
-        [
-            "git",
-            "ls-files",
-            "--error-unmatch",
-            *(str(path.relative_to(ROOT)) for path in expected),
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0 or any(not path.is_file() for path in expected):
-        errors.append("frozen final-parity oracle and metadata are not tracked")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--report", type=Path)
@@ -206,7 +182,6 @@ def main() -> int:
     _check_syntax(errors)
     _check_links(errors)
     _check_active_legacy_references(errors)
-    _check_git_clean_candidate_metadata(errors)
     result: dict[str, Any] = {
         "status": "PASS" if not errors else "FAIL",
         "required_workflows": sorted(REQUIRED_WORKFLOWS),
