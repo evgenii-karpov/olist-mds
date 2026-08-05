@@ -1,1 +1,1 @@
-"""Targeted tests for Parallel Wave 1 Kafka/CDC contracts."""
+"""Targeted tests for Kafka and CDC contracts."""

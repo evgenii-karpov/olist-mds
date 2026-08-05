@@ -331,7 +331,7 @@ def main() -> int:
     parser.add_argument(
         "--report",
         type=Path,
-        default=Path("data/stage-l-evidence/L2/observability-acceptance.json"),
+        default=Path("data/acceptance/observability-acceptance.json"),
     )
     args = parser.parse_args()
 
@@ -400,8 +400,8 @@ def main() -> int:
     result = {
         "status": "PASS" if not errors else "FAIL",
         "started_at": datetime.now(UTC).isoformat(),
-        "candidate": "uncommitted L2 worktree",
-        "stage_v_e2e": "not_run_and_not_modified",
+        "candidate": "uncommitted worktree",
+        "local_cdc_acceptance": "not_run_and_not_modified",
         "checks": checks,
         "errors": errors,
     }

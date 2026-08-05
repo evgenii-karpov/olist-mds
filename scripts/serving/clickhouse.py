@@ -323,7 +323,7 @@ class ClickHouseServingMaterializer:
 
     @staticmethod
     def fetch_audit_error_counts() -> dict[str, int]:
-        """Return rejected/schema-error counts used by the Stage V oracle."""
+        """Return rejected/schema-error counts used by acceptance checks."""
 
         queries = {
             "rejected": """

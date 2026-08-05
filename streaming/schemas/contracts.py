@@ -63,7 +63,7 @@ class VersionedEntityContract:
         if avro.get("writer_schema_capture_state") != "captured":
             raise WriterSchemasPending(
                 f"{self.entity} v{self.version} writer schema provenance is pending; "
-                "J1 runtime capture is required"
+                "runtime writer-schema capture is required"
             )
         if not self.allowed_fingerprints(kind):
             raise EntityContractError(

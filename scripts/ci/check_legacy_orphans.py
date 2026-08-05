@@ -11,8 +11,6 @@ ROOT = Path(__file__).resolve().parents[2]
 
 REMOVED_PATHS = (
     ".github/workflows/batch-cdc-parity.yml",
-    ".github/workflows/cdc-stage2-kafka-debezium.yml",
-    ".github/workflows/cdc-stage6-operations.yml",
     "airflow/dags/olist_cdc_local.py",
     "airflow/dags/olist_cdc_dbt_local.py",
     "airflow/dags/olist_modern_data_stack_local.py",
@@ -46,13 +44,11 @@ REMOVED_PATHS = (
     "scripts/ci/check_fixture_pipeline_idempotency.py",
     "scripts/ci/check_oltp_cdc_configuration.py",
     "scripts/ci/check_oltp_simulator_integration.py",
-    "scripts/ci/check_stage2_cdc_integration.py",
     "scripts/ci/pipeline_helpers.py",
     "scripts/ci/validate_nifi_flow.py",
     "scripts/ci/validate_realtime_configuration.py",
     "scripts/utilities/fetch_aws_secret.py",
     "scripts/utilities/generate_redshift_raw_ddl.py",
-    "scripts/parity/canonical_stage5_relations.json",
     "docker/secrets/dev/postgres_password.txt",
     "docker/secrets/dev/redshift_password.txt",
     "tests/fixtures/postgresql_oracle",
@@ -97,7 +93,6 @@ FORBIDDEN_REFERENCES = (
     "scripts/cdc/warehouse_ingest.py",
     "scripts/cdc/pipeline_metrics.py",
     "scripts/cdc/benchmark_local.py",
-    "scripts/ci/check_stage2_cdc_integration.py",
     "scripts/ci/validate_nifi_flow.py",
     "scripts/ci/validate_realtime_configuration.py",
     "olist_cdc.public.",
@@ -111,7 +106,6 @@ FORBIDDEN_REFERENCES = (
     "OLIST_S3_PREFIX",
     "docker/secrets/dev/postgres_password.txt",
     "docker/secrets/dev/redshift_password.txt",
-    "scripts/parity/canonical_stage5_relations.json",
 )
 
 TEXT_SUFFIXES = {

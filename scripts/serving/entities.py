@@ -1,4 +1,4 @@
-"""Serving entity specifications and unified registry for Stage E."""
+"""Serving entity specifications and unified registry."""
 
 from __future__ import annotations
 

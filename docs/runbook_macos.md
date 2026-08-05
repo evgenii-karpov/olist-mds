@@ -29,7 +29,7 @@ uv run python scripts/cdc/local_lab.py validate --scope serving
 For the complete local acceptance check:
 
 ```bash
-uv run python scripts/validation/stage_v_candidate_e2e.py run --run-id unix-acceptance --evidence-dir data/acceptance/unix-acceptance --confirm-reset
+uv run python scripts/validation/local_cdc_acceptance.py run --run-id unix-acceptance --evidence-dir data/acceptance/local-cdc/unix-acceptance --confirm-reset
 ```
 
 ## Observability

@@ -112,7 +112,7 @@ def _new_manifest() -> dict[str, Any]:
     return {
         "manifest_version": 1,
         "capture_state": CAPTURED,
-        "j1_capture_command": (
+        "capture_command": (
             "python -m streaming.schemas.writer_schemas capture-bundle "
             "--bundle <runtime-export-directory>"
         ),

@@ -50,3 +50,7 @@ docker run --rm --entrypoint amtool -v "$PWD:/workspace:ro" prom/alertmanager:v0
 The CDC acceptance runner does not start telemetry services. Use
 [`docs/runbooks/cdc-alert-testing.md`](runbooks/cdc-alert-testing.md) for
 fire/resolve checks and the service runbook for recovery.
+
+For a standalone observability report, run
+`scripts/observability/observability_acceptance.py`. Its report defaults to
+`data/acceptance/observability-acceptance.json`.

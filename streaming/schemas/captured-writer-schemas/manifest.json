@@ -1,7 +1,7 @@
 {
   "manifest_version": 1,
   "capture_state": "captured",
-  "j1_capture_command": "python -m streaming.schemas.writer_schemas capture-bundle --bundle <runtime-export-directory>",
+  "capture_command": "python -m streaming.schemas.writer_schemas capture-bundle --bundle <runtime-export-directory>",
   "entities": [
     {
       "entity": "customers",

@@ -1,4 +1,4 @@
-"""Explicit Wave 2 guard for the not-yet-implemented streaming drivers."""
+"""Explicit guard for unsupported streaming driver commands."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ from collections.abc import Sequence
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", required=True)
+    parser.add_argument("--scope", required=True)
     args = parser.parse_args(argv)
     print(
         json.dumps(
             {
                 "status": "not_available_until",
-                "not_available_until": "J2",
-                "phase": args.phase,
+                "not_available_until": "streaming-runtime",
+                "scope": args.scope,
             },
             sort_keys=True,
         )

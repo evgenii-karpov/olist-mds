@@ -1,9 +1,9 @@
-"""Common normalization API frozen at the J1 join point.
+"""Common normalization API shared by all entity normalizers.
 
 This module contains interfaces and transport-level invariants only.  It does
 not contain an entity schema, business transform, Spark query, or MERGE
-implementation.  Wave 2 entity agents implement the protocols from their
-owned entity paths and must not edit this module.
+implementation. Entity modules implement the protocols from their owned paths
+and must not edit this module.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ DEDUPE_RULE = (
     "insert-only MERGE semantics"
 )
 ENTITY_AGENT_GUARDRAIL = (
-    "Wave 2 entity agents may implement only their entity contract/normalizer "
+    "Entity modules may implement only their entity contract/normalizer "
     "paths; common platform modules are integration-owned."
 )
 

@@ -1,4 +1,4 @@
-"""Airflow DAGs for Stage E Serving Integration: sync and quality checks."""
+"""Airflow DAGs for serving integration: sync and quality checks."""
 
 from __future__ import annotations
 

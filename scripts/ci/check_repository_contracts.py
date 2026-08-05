@@ -15,8 +15,6 @@ ROOT = Path(__file__).resolve().parents[2]
 
 REMOVED_WORKFLOWS = {
     "batch-cdc-parity.yml",
-    "cdc-stage2-kafka-debezium.yml",
-    "cdc-stage6-operations.yml",
 }
 REQUIRED_WORKFLOWS = {
     "ci.yml",

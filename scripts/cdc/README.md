@@ -30,8 +30,8 @@ uv run python scripts/cdc/local_lab.py sync-serving --run-id local-serving-sync
 ```
 
 The acceptance runner is
-`scripts/validation/stage_v_candidate_e2e.py`. Use it for a clean
-end-to-end check and keep its evidence under `data/`.
+`scripts/validation/local_cdc_acceptance.py`. Use it for a clean end-to-end
+check and keep its evidence under `data/acceptance/`.
 
-`stage2_admin.py` contains the Debezium connector registration helper.
+`cdc_admin.py` contains the Debezium connector registration helper.
 `failure_injection.py` exercises the local alert transitions.

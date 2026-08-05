@@ -20,7 +20,7 @@ def _manifest_rows() -> list[tuple[str, str, str]]:
     return rows
 
 
-def test_spark_image_pins_the_wave_one_runtime() -> None:
+def test_spark_image_pins_the_runtime() -> None:
     dockerfile = (SPARK_DIRECTORY / "Dockerfile").read_text(encoding="utf-8")
 
     assert "apache/spark:4.1.3-scala2.13-java17-python3-ubuntu" in dockerfile

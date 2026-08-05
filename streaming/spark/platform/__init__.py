@@ -1,8 +1,7 @@
 """Shared lakehouse platform contracts.
 
 This package intentionally contains infrastructure and table definitions only.
-Entity decoding and business normalization belong to the Wave 2 entity
-packages.
+Entity decoding and business normalization belong to the entity packages.
 """
 
 from .config import SparkPlatformConfig

@@ -160,7 +160,7 @@ class EntityContractTests(unittest.TestCase):
                 self.assertNotIn("float", spark_type.lower())
                 self.assertNotIn("double", spark_type.lower())
 
-    def test_writer_fingerprints_fail_closed_until_j1_capture(self) -> None:
+    def test_writer_fingerprints_fail_closed_until_runtime_capture(self) -> None:
         repository = load_writer_schema_repository()
         if repository.capture_complete:
             for _entity, versioned in self.contracts.items():
@@ -186,7 +186,7 @@ class EntityContractTests(unittest.TestCase):
                     versioned.assert_fingerprint_allowed(kind, "0" * 64)
         errors = validate_writer_schema_repository(require_captured=True)
         self.assertEqual(1, len(errors))
-        self.assertIn("J1 must run", errors[0])
+        self.assertIn("runtime capture is required", errors[0])
 
     def test_generator_adds_v1_through_vn_without_rewriting_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

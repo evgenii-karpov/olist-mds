@@ -1,4 +1,4 @@
-"""Read-only Prometheus exporter for Stage E serving metrics."""
+"""Read-only Prometheus exporter for serving metrics."""
 
 from __future__ import annotations
 

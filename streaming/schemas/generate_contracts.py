@@ -469,7 +469,7 @@ def _allowed_writer_fingerprints(
                     if isinstance(digest, str) and digest not in seen:
                         entries.append(dict(entry))
                         seen.add(digest)
-    # A partially captured manifest is useful as a J1 work product, but must
+    # A partially captured manifest is useful as runtime evidence, but must
     # not activate any production allowlist. Only the complete 8x2 bundle is
     # eligible to generate new approved fingerprints.
     if repository.capture_complete:

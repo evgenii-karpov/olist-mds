@@ -127,7 +127,7 @@ jobs:
           tests/lakehouse_platform
           tests/dbt_clickhouse
           tests/serving
-          tests/stage_v
+          tests/local_cdc_acceptance
           --junitxml=data/reports/python-contract-tests.xml
 
       - name: Upload Python JUnit evidence

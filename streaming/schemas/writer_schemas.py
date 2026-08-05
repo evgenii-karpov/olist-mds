@@ -2,8 +2,8 @@
 
 Reader schemas generated from the MySQL contract are useful for decoding, but
 they are not evidence of what Debezium and the configured converter actually
-wrote.  This repository therefore starts in a fail-closed pending state.  J1
-imports a runtime-captured bundle; only schemas with checked-in bytes, complete
+wrote.  This repository therefore starts in a fail-closed pending state. A
+runtime capture imports a bundle; only schemas with checked-in bytes, complete
 registry provenance, and a recomputed canonical SHA-256 become allowlisted.
 """
 
@@ -35,7 +35,7 @@ ENTITY_NAMES = (
 SCHEMA_KINDS = ("key", "value")
 PENDING = "pending_runtime_capture"
 CAPTURED = "captured"
-J1_CAPTURE_COMMAND = (
+CAPTURE_COMMAND = (
     "python -m streaming.schemas.writer_schemas capture-bundle "
     "--bundle <runtime-export-directory>"
 )
@@ -105,7 +105,7 @@ class WriterSchemaRepository:
         raise WriterSchemasPending(
             "writer schema capture is pending for "
             + ", ".join(pending)
-            + f"; J1 must run: {J1_CAPTURE_COMMAND}"
+            + f"; runtime capture is required: {CAPTURE_COMMAND}"
         )
 
     def record_for_digest(
@@ -190,8 +190,8 @@ def load_writer_schema_repository(
     manifest = _load_json(root / "manifest.json")
     if manifest.get("manifest_version") != 1:
         raise WriterSchemaContractError("writer-schema manifest_version must be 1")
-    if manifest.get("j1_capture_command") != J1_CAPTURE_COMMAND:
-        raise WriterSchemaContractError("writer-schema J1 capture command is stale")
+    if manifest.get("capture_command") != CAPTURE_COMMAND:
+        raise WriterSchemaContractError("writer-schema capture command is stale")
     entries = manifest.get("entities")
     if not isinstance(entries, list):
         raise WriterSchemaContractError("writer-schema entities must be an array")
@@ -316,7 +316,7 @@ def validate_writer_schema_repository(
 
 
 def capture_bundle(bundle: Path, destination: Path = WRITER_SCHEMAS_ROOT) -> None:
-    """Import a J1 evidence bundle without inventing registry fingerprints."""
+    """Import a runtime evidence bundle without inventing registry fingerprints."""
 
     repository = load_writer_schema_repository(bundle, require_captured=True)
     destination.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,4 @@
-"""Typed probes and canonical manifest generator for Stage V validation harness."""
+"""Typed probes and canonical manifest generator for local CDC acceptance."""
 
 from __future__ import annotations
 
@@ -15,17 +15,17 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 
 ALLOWLISTED_FIXTURES = {
-    "insert.sql": ROOT / "tests" / "stage_v" / "fixtures" / "insert.sql",
-    "update.sql": ROOT / "tests" / "stage_v" / "fixtures" / "update.sql",
-    "delete.sql": ROOT / "tests" / "stage_v" / "fixtures" / "delete.sql",
+    "insert.sql": ROOT / "tests" / "local_cdc_acceptance" / "fixtures" / "insert.sql",
+    "update.sql": ROOT / "tests" / "local_cdc_acceptance" / "fixtures" / "update.sql",
+    "delete.sql": ROOT / "tests" / "local_cdc_acceptance" / "fixtures" / "delete.sql",
     "add_nullable_column.sql": ROOT
     / "tests"
-    / "stage_v"
+    / "local_cdc_acceptance"
     / "fixtures"
     / "add_nullable_column.sql",
     "emit_nullable_event.sql": ROOT
     / "tests"
-    / "stage_v"
+    / "local_cdc_acceptance"
     / "fixtures"
     / "emit_nullable_event.sql",
 }
@@ -222,7 +222,7 @@ class MySQLProbe(BaseProbe):
         }
 
     def inspect_table_counts(self, tables: list[str]) -> dict[str, int]:
-        """Read exact source counts for the Stage V oracle."""
+        """Read exact source counts for the acceptance expectations."""
 
         if not tables or any(
             not re.fullmatch(r"[A-Za-z0-9_]+", table) for table in tables
@@ -253,7 +253,7 @@ class MySQLProbe(BaseProbe):
         self,
         customer_id: str,
         expected_city: str,
-        column_name: str = "stage_v_optional_note",
+        column_name: str = "acceptance_optional_note",
     ) -> dict[str, Any]:
         """Verify the source nullable/default contract and emitted source row."""
 
@@ -354,16 +354,16 @@ class ClickHouseProbe(BaseProbe):
     def __init__(self) -> None:
         super().__init__("ClickHouseProbe")
 
-    def inspect_stage_counts(
+    def inspect_acceptance_counts(
         self,
-        phase: str,
+        checkpoint: str,
         expected: Mapping[str, Any],
         source_probe: MySQLProbe | None = None,
         operation_expected: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Verify exact Silver/current counts and duplicate-event invariants.
 
-        The expected values come from the versioned Stage V oracle file.  The
+        The expected values come from the versioned acceptance expectations file.  The
         observed values are queried from Iceberg-backed ClickHouse relations,
         so a command exit code alone cannot produce a PASS.
         """
@@ -447,18 +447,20 @@ class ClickHouseProbe(BaseProbe):
         audit_errors = ClickHouseServingMaterializer.fetch_audit_error_counts()
 
         expected_entity_changes = expected.get("entity_changes")
-        if phase == "initial_snapshot":
+        if checkpoint == "initial_snapshot":
             expected_entity_changes = {
                 spec.entity: expected.get(spec.entity, 0)
                 for spec in ALL_SERVING_ENTITIES
             }
         if not isinstance(expected_entity_changes, Mapping):
-            raise RuntimeError(f"Oracle has no entity_changes for phase {phase}")
+            raise RuntimeError(
+                f"Expected counts have no entity_changes for checkpoint {checkpoint}"
+            )
         expected_entity_changes = {
             str(key): int(value) for key, value in expected_entity_changes.items()
         }
         expected_visible = expected.get("entity_visible_current")
-        if phase == "initial_snapshot":
+        if checkpoint == "initial_snapshot":
             expected_visible = {
                 spec.entity: expected.get(spec.entity, 0)
                 for spec in ALL_SERVING_ENTITIES
@@ -477,7 +479,7 @@ class ClickHouseProbe(BaseProbe):
             source_counts = source_probe.inspect_table_counts(["geolocation"])
 
         observed = {
-            "phase": phase,
+            "checkpoint": checkpoint,
             "entity_changes": entity_changes,
             "total_applied_changes": sum(entity_changes.values()),
             "entity_visible_current": visible_current,
@@ -594,7 +596,7 @@ class ClickHouseProbe(BaseProbe):
         failed_checks = sorted(name for name, ok in checks.items() if not ok)
         if failed_checks:
             raise RuntimeError(
-                f"Exact Stage V oracle mismatch for {phase}: "
+                f"Exact acceptance-count mismatch for {checkpoint}: "
                 + json.dumps(
                     {
                         "failed_checks": failed_checks,
@@ -607,7 +609,7 @@ class ClickHouseProbe(BaseProbe):
             )
         return {
             "status": "VERIFIED",
-            "phase": phase,
+            "checkpoint": checkpoint,
             "checks": checks,
             "observed": observed,
         }
@@ -616,7 +618,7 @@ class ClickHouseProbe(BaseProbe):
         self,
         customer_id: str,
         expected_city: str,
-        column_name: str = "stage_v_optional_note",
+        column_name: str = "acceptance_optional_note",
     ) -> dict[str, Any]:
         """Verify nullable writer schema propagation through Bronze/Silver/serving."""
 

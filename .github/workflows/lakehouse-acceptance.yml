@@ -9,7 +9,7 @@ on:
         type: choice
         default: all
         options:
-          - candidate-e2e
+          - local-cdc-acceptance
           - all
       candidate_sha:
         description: Full candidate commit SHA to validate
@@ -63,7 +63,7 @@ jobs:
         env:
           REQUESTED_SHA: ${{ inputs.candidate_sha }}
           CONFIRM_DESTRUCTIVE: ${{ inputs.confirm_destructive }}
-          RUN_ID: stage-l3-${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_ID: local-cdc-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
           test "$CONFIRM_DESTRUCTIVE" = true
@@ -76,7 +76,7 @@ jobs:
           uv run python scripts/utilities/validate_source_contract.py \
             --archive tests/fixtures/olist_small/olist_small.zip \
             --profile tests/fixtures/olist_small/source_profile_small.json
-          mkdir -p "data/stage-l-evidence/L3/$RUN_ID"
+          mkdir -p "data/acceptance/local-cdc/$RUN_ID"
           docker compose \
             --profile platform \
             --profile streaming \
@@ -84,7 +84,7 @@ jobs:
             --profile observability \
             --profile logs \
             config --quiet
-          cat > "data/stage-l-evidence/L3/$RUN_ID/preflight.json" <<EOF
+          cat > "data/acceptance/local-cdc/$RUN_ID/preflight.json" <<EOF
           {
             "status": "PASS",
             "candidate_sha": "$actual_sha",
@@ -102,18 +102,18 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lakehouse-acceptance-preflight
-          path: data/stage-l-evidence/L3/**
+          path: data/acceptance/local-cdc/**
           if-no-files-found: warn
 
-  stage-v-e2e:
-    name: Stage V candidate E2E
-    if: ${{ inputs.suite == 'candidate-e2e' || inputs.suite == 'all' }}
+  local-cdc-acceptance:
+    name: Local CDC acceptance
+    if: ${{ inputs.suite == 'local-cdc-acceptance' || inputs.suite == 'all' }}
     needs: preflight
     runs-on: ubuntu-latest
     environment: lakehouse-destructive
     timeout-minutes: 120
     env:
-      COMPOSE_PROJECT_NAME: stage-v-${{ github.run_id }}-${{ github.run_attempt }}
+      COMPOSE_PROJECT_NAME: olist_local_cdc_acceptance
     steps:
       - name: Check out candidate
         uses: actions/checkout@v4
@@ -132,22 +132,22 @@ jobs:
       - name: Install locked runtime dependencies
         run: uv sync --locked --no-dev
 
-      - name: Run full Stage V candidate acceptance
+      - name: Run full local CDC acceptance
         run: >-
-          uv run python scripts/validation/stage_v_candidate_e2e.py run
+          uv run python scripts/validation/local_cdc_acceptance.py run
           --run-id ${{ needs.preflight.outputs.run_id }}
-          --evidence-dir data/stage-l-evidence/L3/${{ needs.preflight.outputs.run_id }}
+          --evidence-dir data/acceptance/local-cdc/${{ needs.preflight.outputs.run_id }}
           --confirm-reset
 
-      - name: Upload Stage V evidence
+      - name: Upload local CDC acceptance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lakehouse-acceptance-stage-v
-          path: data/stage-l-evidence/L3/**
+          name: lakehouse-acceptance-local-cdc
+          path: data/acceptance/local-cdc/**
           if-no-files-found: warn
 
-      - name: Clean up Stage V resources
+      - name: Clean up local CDC acceptance resources
         if: always()
         run: >-
           docker compose
@@ -163,7 +163,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - preflight
-      - stage-v-e2e
+      - local-cdc-acceptance
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

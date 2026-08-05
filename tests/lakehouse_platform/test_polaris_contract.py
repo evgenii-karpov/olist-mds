@@ -6,7 +6,7 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 POLARIS_DIRECTORY = REPOSITORY_ROOT / "infra" / "polaris"
-APPROVED_POLARIS_1_6_WAVE1_GRANTS = {
+APPROVED_POLARIS_1_6_GRANTS = {
     "CATALOG_READ_PROPERTIES",
     "NAMESPACE_LIST",
     "NAMESPACE_READ_PROPERTIES",
@@ -99,7 +99,7 @@ def test_setup_declares_separate_principals_roles_and_least_privilege_grants() -
         assert isinstance(privileges, list)
         assert principal_role in setup
         assert _setup_role_privileges(setup, catalog_role) == set(privileges)
-        assert set(privileges) <= APPROVED_POLARIS_1_6_WAVE1_GRANTS
+        assert set(privileges) <= APPROVED_POLARIS_1_6_GRANTS
 
     forbidden_fragments = (
         "DROP",

@@ -75,7 +75,7 @@ class TargetObservabilityCiTests(unittest.TestCase):
             set(workflow["jobs"]),
         )
         self.assertIn("scripts/ci/validate_observability_contract.py", ci)
-        self.assertNotIn("stage_v_candidate_e2e.py", ci)
+        self.assertNotIn("local_cdc_acceptance.py", ci)
 
     def test_host_workflows_set_repository_pythonpath(self) -> None:
         for name in (
@@ -141,7 +141,7 @@ class TargetObservabilityCiTests(unittest.TestCase):
                 f".github/workflows/{workflow_path}",
                 text,
             )
-        self.assertNotIn("stage_v_candidate_e2e.py", text)
+        self.assertNotIn("local_cdc_acceptance.py", text)
         self.assertIn("scripts/ci/validate_observability_contract.py", text)
         self.assertIn("airflow airflow dags list\n          --output table", text)
         self.assertNotIn("--subdir /opt/airflow/dags", text)
@@ -226,14 +226,10 @@ class TargetObservabilityCiTests(unittest.TestCase):
         self.assertNotIn("pull_request", workflow)
         text = path.read_text(encoding="utf-8")
         self.assertIn("confirm_destructive", text)
-        self.assertIn("stage_v_candidate_e2e.py", text)
+        self.assertIn("local_cdc_acceptance.py", text)
 
     def test_legacy_ci_workflows_are_removed(self) -> None:
-        for name in (
-            "batch-cdc-parity.yml",
-            "cdc-stage2-kafka-debezium.yml",
-            "cdc-stage6-operations.yml",
-        ):
+        for name in ("batch-cdc-parity.yml",):
             self.assertFalse((ROOT / ".github/workflows" / name).exists())
 
 

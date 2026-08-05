@@ -1,4 +1,4 @@
-name: ${COMPOSE_PROJECT_NAME:-olist_wave1_j1}
+name: ${COMPOSE_PROJECT_NAME:-olist_local_cdc}
 
 services:
   platform-postgres:

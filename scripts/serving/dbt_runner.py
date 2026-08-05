@@ -1,4 +1,4 @@
-"""Programmatic dbt invocation helper for Stage E serving candidate models."""
+"""Programmatic dbt invocation helper for serving candidate models."""
 
 from __future__ import annotations
 

@@ -9,15 +9,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from scripts.validation.stage_v_candidate_e2e import (
+from scripts.validation.local_cdc_acceptance import (
     MANDATORY_GATES,
     REQUIRED_ASSERTIONS,
-    StageVOrchestrator,
+    LocalCdcAcceptanceOrchestrator,
     valid_additive_snapshot_transition,
     valid_serving_target_offsets,
     validate_acceptance_summary,
 )
-from scripts.validation.stage_v_probes import (
+from scripts.validation.local_cdc_acceptance_probes import (
     ClickHouseProbe,
     MySQLProbe,
     build_canonical_manifest,
@@ -28,7 +28,7 @@ from scripts.validation.stage_v_probes import (
 ROOT = Path(__file__).resolve().parents[2]
 
 
-class StageVHarnessUnitTests(unittest.TestCase):
+class LocalCdcAcceptanceHarnessUnitTests(unittest.TestCase):
     def test_secrets_redaction(self) -> None:
         raw_log = "Error connecting with password=my_secret_pwd_123; mysql://user:pass123@localhost:3306/db"
         sanitized = sanitize_text(raw_log)
@@ -252,7 +252,7 @@ class StageVHarnessUnitTests(unittest.TestCase):
                 {"name": "customer_city", "type": "string"},
                 {"name": "customer_state", "type": "string"},
                 {
-                    "name": "stage_v_optional_note",
+                    "name": "acceptance_optional_note",
                     "type": ["null", "string"],
                     "default": None,
                 },
@@ -262,8 +262,8 @@ class StageVHarnessUnitTests(unittest.TestCase):
             [
                 {
                     "event_id": "event-001",
-                    "customer_id": "wave2_customer_001",
-                    "customer_city": "sao paulo stage v",
+                    "customer_id": "acceptance_customer_001",
+                    "customer_city": "sao paulo acceptance",
                     "optional_value": None,
                     "apply_status": "APPLIED",
                     "is_deleted": 0,
@@ -301,15 +301,15 @@ class StageVHarnessUnitTests(unittest.TestCase):
             [{"error_count": 0}],
             [
                 {
-                    "customer_id": "wave2_customer_001",
-                    "customer_city": "sao paulo stage v",
+                    "customer_id": "acceptance_customer_001",
+                    "customer_city": "sao paulo acceptance",
                     "optional_value": None,
                 }
             ],
         ]
 
         result = ClickHouseProbe().inspect_nullable_event(
-            "wave2_customer_001", "sao paulo stage v"
+            "acceptance_customer_001", "sao paulo acceptance"
         )
 
         self.assertEqual(result["status"], "VERIFIED")
@@ -408,14 +408,14 @@ class StageVHarnessUnitTests(unittest.TestCase):
 
         mock_clickhouse_query.return_value = [
             {"name": "customer_id", "type": "String"},
-            {"name": "stage_v_optional_note", "type": "Nullable(String)"},
+            {"name": "acceptance_optional_note", "type": "Nullable(String)"},
         ]
 
         columns = ClickHouseServingMaterializer._serving_business_columns(
             get_entity_spec("customers")
         )
 
-        self.assertIn("stage_v_optional_note", columns)
+        self.assertIn("acceptance_optional_note", columns)
         statements = [call.args[0] for call in mock_clickhouse_execute.call_args_list]
         self.assertTrue(
             any(
@@ -461,14 +461,14 @@ class StageVHarnessUnitTests(unittest.TestCase):
         insert_sql = mock_clickhouse_query.call_args.args[0]
         self.assertIn(r'{\\"sync_run_seq\\": 7', insert_sql)
 
-    @patch.object(StageVOrchestrator, "run_cmd")
+    @patch.object(LocalCdcAcceptanceOrchestrator, "run_cmd")
     def test_orchestrator_prepare_creates_evidence_dirs(
         self, mock_run_cmd: MagicMock
     ) -> None:
         mock_run_cmd.return_value = (0, "Mocked output", "")
         with tempfile.TemporaryDirectory() as tmp_dir:
             ev_dir = Path(tmp_dir) / "evidence"
-            orchestrator = StageVOrchestrator("test_run_001", ev_dir)
+            orchestrator = LocalCdcAcceptanceOrchestrator("test_run_001", ev_dir)
             res = orchestrator.prepare()
             self.assertIn("status", res)
             self.assertTrue((ev_dir / "00-preflight" / "summary.json").exists())
@@ -482,7 +482,9 @@ class StageVHarnessUnitTests(unittest.TestCase):
             gate_summary.write_text("{}", encoding="utf-8")
             (ev_dir / "summary.json").write_text("{}", encoding="utf-8")
 
-            checksums = StageVOrchestrator("test_run_002", ev_dir).generate_checksums()
+            checksums = LocalCdcAcceptanceOrchestrator(
+                "test_run_002", ev_dir
+            ).generate_checksums()
 
             self.assertIn("00-preflight/summary.json", checksums)
             self.assertNotIn("summary.json", checksums)
@@ -491,7 +493,7 @@ class StageVHarnessUnitTests(unittest.TestCase):
     def test_failed_run_preserves_runtime_for_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             ev_dir = Path(tmp_dir) / "evidence"
-            orchestrator = StageVOrchestrator("failed_run", ev_dir)
+            orchestrator = LocalCdcAcceptanceOrchestrator("failed_run", ev_dir)
 
             orchestrator.preserve_runtime_for_diagnostics(
                 {"status": "FAIL", "gate": "03-initial-snapshot"}

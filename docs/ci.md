@@ -19,9 +19,9 @@ the Compose project.
 ## Manual acceptance
 
 `lakehouse-acceptance.yml` is started manually with a candidate commit and an
-explicit confirmation for disposable Compose reset. It can run the full local
-acceptance path, the final data comparison, or both. The jobs upload raw JSON,
-logs and reports as workflow artifacts.
+explicit confirmation for disposable Compose reset. Its
+`local-cdc-acceptance` suite runs the complete local acceptance path. The job
+uploads raw JSON, logs, and reports as workflow artifacts.
 
 The acceptance runner and the observability job are independent. The runner
 does not start observability services; `lakehouse-components.yml` validates

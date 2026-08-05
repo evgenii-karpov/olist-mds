@@ -1,8 +1,8 @@
 """Tests enforcing profile boundaries for local_lab CLI commands.
 
-S0 requirement: Verify that platform commands (bootstrap, up, status, validate)
+Requirement: Verify that platform commands (bootstrap, up, status, validate)
 use only the platform profile and do not depend on serving (ClickHouse/Airflow).
-These tests fail on J1 implementation (which uses SERVING_PROFILES) and pass after S8.
+These tests protect the current profile boundary.
 """
 
 from __future__ import annotations
@@ -78,8 +78,7 @@ class TestLocalLabProfileBoundaries(unittest.TestCase):
         mock_val.return_value = {"status": "ready"}
         _bootstrap(args)
 
-        # In J1, _compose_up was called twice: first with PLATFORM_PROFILES, then with SERVING_PROFILES.
-        # In S8, _compose_up must be called ONLY with PLATFORM_PROFILES.
+        # Bootstrap must call _compose_up only with PLATFORM_PROFILES.
         for call_item in mock_compose_up.call_args_list:
             _, kwargs = call_item
             self.assertEqual(kwargs.get("profiles"), PLATFORM_PROFILES)

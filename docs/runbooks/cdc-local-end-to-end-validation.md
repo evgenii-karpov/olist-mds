@@ -24,8 +24,19 @@ uv run python scripts/cdc/local_lab.py validate --scope serving
 For the complete acceptance runner:
 
 ```powershell
-uv run python scripts/validation/stage_v_candidate_e2e.py run --run-id local-acceptance --evidence-dir data/acceptance/local-acceptance --confirm-reset
+uv run python scripts/validation/local_cdc_acceptance.py run --run-id local-acceptance --evidence-dir data/acceptance/local-cdc/local-acceptance --confirm-reset
 ```
+
+The acceptance runner validates one disposable local CDC run from source to
+serving. It checks the initial snapshot, CRUD delivery after a streaming
+restart, bounded catch-up, ClickHouse serving synchronization, dbt models and
+stable views, additive nullable-schema propagation, a serving rebuild, and
+the final evidence bundle. It writes JSON evidence and a Markdown report to
+the requested directory.
+
+Observability is intentionally outside this runner. Start and validate the
+telemetry stack separately using [`docs/observability.md`](../observability.md)
+and [`docs/runbooks/cdc-alert-testing.md`](cdc-alert-testing.md).
 
 Inspect the resulting status without reading secrets:
 

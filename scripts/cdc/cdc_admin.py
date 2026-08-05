@@ -360,7 +360,7 @@ def main() -> int:
         elif args.command == "validate-topics":
             validate_topics()
     except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
-        print(f"Stage 2 administration failed: {exc}", file=sys.stderr)
+        print(f"CDC administration failed: {exc}", file=sys.stderr)
         return 1
     return 0
 

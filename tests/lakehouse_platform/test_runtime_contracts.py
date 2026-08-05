@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.cdc import stage2_admin
+from scripts.cdc import cdc_admin
 from scripts.cdc.local_lab import (
     DEFAULT_PASSWORD_FILE,
     SECRET_ENV_DEFAULTS,
@@ -51,10 +51,10 @@ def test_source_profiles_use_target_neutral_raw_type_metadata():
     assert all(entity.columns for entity in entities)
 
 
-def test_stage2_admin_uses_the_target_mysql_connector():
-    assert stage2_admin.CONNECTOR_NAME == "olist-mysql-cdc"
-    assert stage2_admin.CONNECTOR_TEMPLATE.is_file()
-    template = json.loads(stage2_admin.CONNECTOR_TEMPLATE.read_text(encoding="utf-8"))
+def test_cdc_admin_uses_the_target_mysql_connector():
+    assert cdc_admin.CONNECTOR_NAME == "olist-mysql-cdc"
+    assert cdc_admin.CONNECTOR_TEMPLATE.is_file()
+    template = json.loads(cdc_admin.CONNECTOR_TEMPLATE.read_text(encoding="utf-8"))
     assert template["config"]["connector.class"] == (
         "io.debezium.connector.mysql.MySqlConnector"
     )

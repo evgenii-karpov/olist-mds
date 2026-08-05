@@ -34,7 +34,7 @@ FULL_ARCHIVE = ROOT / "olist.zip"
 DEFAULT_PASSWORD_FILE = (
     ROOT / "docker" / "secrets" / "dev" / "mysql_simulator_password.txt"
 )
-DEFAULT_PROJECT_NAME = "olist_wave1_j1"
+DEFAULT_PROJECT_NAME = "olist_local_cdc"
 COMPOSE_PROFILES = ("platform", "streaming", "serving", "observability")
 PLATFORM_PROFILES = ("platform",)
 STREAMING_PROFILES = ("streaming",)
@@ -102,9 +102,9 @@ class LabError(RuntimeError):
 class NotAvailableUntil(LabError):
     """A command outside the currently implemented lifecycle was requested."""
 
-    def __init__(self, phase: str, command: str) -> None:
-        super().__init__(f"{command} is not available until {phase}")
-        self.phase = phase
+    def __init__(self, requirement: str, command: str) -> None:
+        super().__init__(f"{command} is not available until {requirement}")
+        self.requirement = requirement
         self.command = command
 
 
@@ -387,7 +387,7 @@ def _compose_up(
 
     # Compose returns 1 from `up --wait` when the graph contains a
     # service_completed_successfully one-shot service that exited with code
-    # zero.  That is a successful platform state for J1 (for example,
+    # zero.  That is a successful platform state for example,
     # iceberg-migration).  A dependent service can still be health=starting
     # at that instant, so keep polling the bounded Compose state briefly.
     deadline = time.monotonic() + max(timeout, 180.0)
@@ -697,14 +697,14 @@ def _connector_bootstrap(args: argparse.Namespace) -> None:
 
 
 def _capture_and_contracts(args: argparse.Namespace) -> dict[str, Any]:
-    capture_root = Path(tempfile.mkdtemp(prefix="olist-wave1-j1-capture-"))
+    capture_root = Path(tempfile.mkdtemp(prefix="olist-cdc-capture-"))
     try:
         bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
         registry_url = os.environ.get(
             "APICURIO_CCOMPAT_URL",
             "http://127.0.0.1:8081/apis/ccompat/v7",
         )
-        group_id = "olist-j1-capture-" + str(int(time.time()))
+        group_id = "olist-cdc-capture-" + str(int(time.time()))
         _run(
             [
                 sys.executable,
@@ -790,7 +790,7 @@ def _bootstrap(args: argparse.Namespace) -> int:
     return _emit(
         "bootstrap",
         "ready" if validation["status"] == "ready" else "failed",
-        readiness_level="wave1_platform",
+        readiness_level="platform",
         seed=seed_details,
         capture=capture_details,
         validation=validation,
@@ -1623,11 +1623,13 @@ def _validate_serving(args: argparse.Namespace) -> int:
 
 
 def _not_available(args: argparse.Namespace) -> int:
-    exc = NotAvailableUntil(args.phase, args.command)
+    exc = NotAvailableUntil(
+        getattr(args, "requirement", "the current runtime"), args.command
+    )
     return _emit(
         args.command,
         "not_available_until",
-        not_available_until=exc.phase,
+        not_available_until=exc.requirement,
         error=str(exc),
     )
 
@@ -2485,7 +2487,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     bootstrap = commands.add_parser("bootstrap")
     bootstrap.add_argument("--archive", default=str(SMALL_ARCHIVE))
-    bootstrap.add_argument("--run-id", default="wave1_j1_small_seed")
+    bootstrap.add_argument("--run-id", default="local_cdc_small_seed")
     bootstrap.add_argument(
         "--random-seed", "--seed", dest="random_seed", type=int, default=20260801
     )

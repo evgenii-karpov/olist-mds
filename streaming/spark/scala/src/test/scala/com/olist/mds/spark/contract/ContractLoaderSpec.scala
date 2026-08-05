@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class ContractLoaderSpec extends AnyFunSuite with Matchers {
 
-  test("LakehouseSchemaContract checksum matches J1 expected SHA-256") {
+  test("LakehouseSchemaContract checksum matches the expected SHA-256") {
     val checksum = LakehouseSchemaContract.calculateChecksum()
     checksum shouldBe LakehouseSchemaContract.ExpectedChecksum
   }

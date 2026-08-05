@@ -1,9 +1,9 @@
 """Tests for live readiness checks in local_lab.py.
 
-S0 requirement: Ensure status and validate check actual live runtime
+Requirement: Ensure status and validate check actual live runtime
 (Polaris RBAC, Iceberg inventory/checksum via spark-ops) rather than returning
 hardcoded Python dictionaries or constants.
-Fails on J1 implementation, passes after S8.
+These tests protect the live readiness contract.
 """
 
 from __future__ import annotations
@@ -45,9 +45,9 @@ class TestLocalLabLiveReadiness(unittest.TestCase):
 
     def test_iceberg_status_is_not_hardcoded(self) -> None:
         """_iceberg_status must not return static constant dictionary without live probing."""
-        # In J1 implementation, _iceberg_status() returns:
+        # A stale implementation might return:
         # {"migration": "compose-managed", "namespaces": ["bronze", "silver", "reference", "audit"], "expected_table_count": 26}
-        # In S8, _iceberg_status() / LakehouseStatusMain queries live Polaris/Iceberg.
+        # _iceberg_status() / LakehouseStatusMain must query live Polaris/Iceberg.
         # We verify that if live probe fails or returns unexpected data, status reflects it.
         result = _iceberg_status()
         self.assertNotIn("compose-managed", str(result.get("migration")))

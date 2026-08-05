@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from scripts.cdc.stage2_admin import (
+from scripts.cdc.cdc_admin import (
     CONNECTOR_NAME,
     connector_has_failed,
     connector_is_running,
@@ -30,7 +30,7 @@ CAPTURED = {
 }
 
 
-class Stage2ConfigurationTests(unittest.TestCase):
+class CdcConfigurationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.topic_manifest = json.loads(
             (ROOT / "streaming/kafka/topics.json").read_text(encoding="utf-8")
@@ -151,8 +151,8 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertTrue(connector_has_failed(failed))
         self.assertFalse(connector_has_failed(partial))
 
-    @patch("scripts.cdc.stage2_admin.time.sleep")
-    @patch("scripts.cdc.stage2_admin.request_json")
+    @patch("scripts.cdc.cdc_admin.time.sleep")
+    @patch("scripts.cdc.cdc_admin.request_json")
     def test_wait_connector_status_retries_transient_startup(
         self, request_json_mock: Mock, _sleep_mock: Mock
     ) -> None:
@@ -180,7 +180,7 @@ class Stage2ConfigurationTests(unittest.TestCase):
         self.assertEqual(running, result)
         self.assertEqual(3, request_json_mock.call_count)
 
-    @patch("scripts.cdc.stage2_admin.request_json")
+    @patch("scripts.cdc.cdc_admin.request_json")
     def test_wait_connector_status_observes_failed_task(
         self, request_json_mock: Mock
     ) -> None:

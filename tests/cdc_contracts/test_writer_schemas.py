@@ -18,9 +18,9 @@ from streaming.schemas.generate_contracts import (
     write_contracts,
 )
 from streaming.schemas.writer_schemas import (
+    CAPTURE_COMMAND,
     CAPTURED,
     ENTITY_NAMES,
-    J1_CAPTURE_COMMAND,
     SCHEMA_KINDS,
     WriterSchemaContractError,
     load_writer_schema_repository,
@@ -70,7 +70,7 @@ def write_synthetic_captured_repository(root: Path) -> None:
     manifest = {
         "manifest_version": 1,
         "capture_state": CAPTURED,
-        "j1_capture_command": J1_CAPTURE_COMMAND,
+        "capture_command": CAPTURE_COMMAND,
         "entities": entries,
     }
     (root / "manifest.json").write_text(

@@ -1,4 +1,4 @@
-"""Airflow DAGs for Stage E Maintenance and Rebuild."""
+"""Airflow DAGs for maintenance and rebuild."""
 
 from __future__ import annotations
 

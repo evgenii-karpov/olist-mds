@@ -112,7 +112,7 @@ def _assert_migration_history(spark: Any, checksum: str) -> bool:
 
 
 def apply(spark: Any) -> str:
-    """Idempotently create and then verify all Wave 1 Iceberg relations."""
+    """Idempotently create and then verify all configured Iceberg relations."""
 
     checksum = contract_checksum()
     already_applied = _assert_migration_history(spark, checksum)

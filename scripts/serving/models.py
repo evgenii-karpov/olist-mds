@@ -1,4 +1,4 @@
-"""Data models, enums, canonical JSON report generation and checksum helpers for Stage E."""
+"""Data models, enums, canonical JSON reports, and checksum helpers for serving."""
 
 from __future__ import annotations
 

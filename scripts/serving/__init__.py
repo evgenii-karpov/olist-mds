@@ -1,4 +1,4 @@
-"""Serving layer integration package for Olist MDS Lakehouse Stage E."""
+"""Serving layer integration package for Olist MDS Lakehouse."""
 
 from __future__ import annotations
 

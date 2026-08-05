@@ -29,7 +29,7 @@ uv run python scripts/cdc/local_lab.py validate --scope serving
 For the complete local acceptance check:
 
 ```powershell
-uv run python scripts/validation/stage_v_candidate_e2e.py run --run-id windows-acceptance --evidence-dir data/acceptance/windows-acceptance --confirm-reset
+uv run python scripts/validation/local_cdc_acceptance.py run --run-id windows-acceptance --evidence-dir data/acceptance/local-cdc/windows-acceptance --confirm-reset
 ```
 
 ## Observability

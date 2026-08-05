@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Stage V Candidate E2E Validation Harness and Gate Orchestrator.
+"""Local CDC acceptance harness and gate orchestrator.
 
-Enforces gates V0-V10 in a single clean-domain run, collects evidence,
-verifies invariants, and produces the Stage V validation report.
+Runs the complete local CDC path against a clean disposable domain, collects
+evidence, verifies invariants, and writes an acceptance report.
 """
 
 from __future__ import annotations
@@ -25,14 +25,14 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.validation.stage_v_probes import (
+from scripts.validation.local_cdc_acceptance_probes import (
     ALLOWED_FIXTURES,
     ClickHouseProbe,
     MySQLProbe,
     sanitize_text,
 )
 
-EXPECTED_COMPOSE_PROJECT = "olist_stage_v"
+EXPECTED_COMPOSE_PROJECT = "olist_local_cdc_acceptance"
 
 
 def sha256_file(path: Path) -> str:
@@ -118,13 +118,13 @@ def valid_additive_snapshot_transition(
     current_payload: Mapping[str, Any],
     changed_entities: frozenset[str] = ADDITIVE_SCHEMA_CHANGED_ENTITIES,
 ) -> bool:
-    """Validate the expected Iceberg snapshot transition for V8.
+    """Validate the expected Iceberg snapshot transition for additive schema.
 
     The nullable-column fixture targets ``customers``.  Unrelated entities
-    must retain the snapshots established by V6, while every affected entity
+    must retain the snapshots established by the serving sync, while every affected entity
     must receive a new committed progress row.  Iceberg snapshot IDs are
     opaque, so the assertion checks identity transition rather than numeric
-    ordering.  The downstream V8 probes still provide the authoritative proof
+    ordering.  The downstream schema probes still provide the authoritative proof
     that the nullable event reached Bronze, Silver and serving.
     """
 
@@ -187,7 +187,7 @@ REQUIRED_ASSERTIONS: dict[str, tuple[str, ...]] = {
     "01-harness-ready": tuple(
         [
             *(f"fixture_{name}_exists" for name in sorted(ALLOWED_FIXTURES)),
-            "oracle_file_exists",
+            "expected_counts_file_exists",
         ]
     ),
     "02-clean-bootstrap": ("lab_reset", "lab_bootstrap_seed"),
@@ -195,7 +195,7 @@ REQUIRED_ASSERTIONS: dict[str, tuple[str, ...]] = {
         "start_streaming",
         "start_serving_observer",
         "initial_snapshot_caught_up",
-        "initial_snapshot_exact_oracle",
+        "initial_snapshot_expected_counts",
     ),
     "04-crud-and-restart": (
         "stop_spark_streaming",
@@ -204,7 +204,7 @@ REQUIRED_ASSERTIONS: dict[str, tuple[str, ...]] = {
     ),
     "05-caught-up": (
         "crud_caught_up",
-        "post_crud_exact_oracle",
+        "post_crud_expected_counts",
         "restart_freshness",
     ),
     "06-serving-sync": (
@@ -222,8 +222,8 @@ REQUIRED_ASSERTIONS: dict[str, tuple[str, ...]] = {
         "schema_evolution_caught_up",
         "additive_schema_publish",
         "nullable_avro_bronze_silver_serving_propagation",
-        "post_schema_exact_oracle",
-        "post_schema_candidate_dbt_and_stable_parity",
+        "post_schema_expected_counts",
+        "post_schema_dbt_and_stable_parity",
     ),
     "09-rebuild": (
         "rebuild_serving_from_iceberg",
@@ -250,7 +250,7 @@ EXPECTED_ENDPOINTS = {
     "CLICKHOUSE_PORT": "8123",
     "AIRFLOW_URL": "http://127.0.0.1:8080",
 }
-ORACLE_PATH = ROOT / "tests" / "stage_v" / "oracles" / "initial_counts.json"
+EXPECTED_COUNTS_PATH = ROOT / "tests" / "local_cdc_acceptance" / "expected_counts.json"
 
 
 def _expected_assertion_names(gate_name: str) -> tuple[str, ...]:
@@ -286,7 +286,7 @@ def validate_acceptance_summary(summary_data: object) -> list[str]:
 
     declared_gates = summary_data.get("mandatory_gates")
     if declared_gates != list(MANDATORY_GATES):
-        errors.append("mandatory_gates does not match the V0-V10 registry")
+        errors.append("mandatory_gates does not match the acceptance gate registry")
 
     actual_gate_names = sorted(str(name) for name in gates)
     expected_gate_names = sorted(MANDATORY_GATES)
@@ -460,8 +460,8 @@ def verify_evidence_directory(evidence_dir: Path, summary_data: object) -> list[
     return errors
 
 
-class StageVOrchestrator:
-    """Orchestrates gates V0-V10 for Stage V E2E validation."""
+class LocalCdcAcceptanceOrchestrator:
+    """Orchestrates the complete local CDC acceptance sequence."""
 
     def __init__(self, run_id: str, evidence_dir: Path) -> None:
         self.run_id = run_id
@@ -473,7 +473,7 @@ class StageVOrchestrator:
         self._command_log: list[list[str]] = []
         self._command_results: list[dict[str, Any]] = []
         self._last_logged_command_index = 0
-        self.oracle: dict[str, Any] = {}
+        self.expected_counts: dict[str, Any] = {}
         self.runtime_cleanup: dict[str, Any] = {"status": "NOT_RUN"}
 
     def dag_run_id(self, label: str) -> str:
@@ -649,16 +649,16 @@ class StageVOrchestrator:
             else:
                 shutil.rmtree(child)
 
-    def load_oracle(self) -> dict[str, Any]:
+    def load_expected_counts(self) -> dict[str, Any]:
         try:
-            payload = json.loads(ORACLE_PATH.read_text(encoding="utf-8"))
+            payload = json.loads(EXPECTED_COUNTS_PATH.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise RuntimeError(
-                f"Stage V oracle is unreadable: {ORACLE_PATH}: {exc}"
+                f"Acceptance expectations are unreadable: {EXPECTED_COUNTS_PATH}: {exc}"
             ) from exc
         if not isinstance(payload, dict):
-            raise RuntimeError("Stage V oracle must be a JSON object")
-        self.oracle = payload
+            raise RuntimeError("Acceptance expectations must be a JSON object")
+        self.expected_counts = payload
         return payload
 
     def cleanup_runtime(self) -> bool:
@@ -713,7 +713,7 @@ class StageVOrchestrator:
         )
 
     def prepare(self) -> dict[str, Any]:
-        """Execute Gates V0 and V1 (Read-only preflight and harness readiness)."""
+        """Execute the read-only preflight and harness-readiness checks."""
         t0 = time.time()
         assertions = []
 
@@ -767,9 +767,9 @@ class StageVOrchestrator:
             }
         )
 
-        # Gate V0 checks.  A dirty tree is allowed for this candidate run, but
+        # Preflight checks.  A dirty tree is allowed for this acceptance run, but
         # its identity must be captured honestly; a bare HEAD SHA is not
-        # sufficient when pre-commit or the candidate itself changed files.
+        # sufficient when pre-commit or the acceptance run itself changed files.
         source_identity = self._capture_source_tree_identity()
         assertions.append(
             {
@@ -804,7 +804,7 @@ class StageVOrchestrator:
                 "tests/mysql",
                 "tests/dbt_clickhouse",
                 "tests/serving",
-                "tests/stage_v",
+                "tests/local_cdc_acceptance",
             ]
         )
         assertions.append(
@@ -835,17 +835,19 @@ class StageVOrchestrator:
             }
         )
 
-        v0_status = "PASS" if all(a["status"] == "PASS" for a in assertions) else "FAIL"
-        self.log_gate("00-preflight", v0_status, time.time() - t0, assertions)
-        if v0_status != "PASS":
+        gate0_status = (
+            "PASS" if all(a["status"] == "PASS" for a in assertions) else "FAIL"
+        )
+        self.log_gate("00-preflight", gate0_status, time.time() - t0, assertions)
+        if gate0_status != "PASS":
             return {"status": "FAIL", "gate": "00-preflight"}
 
-        # Gate V1: Harness readiness
+        # Acceptance harness readiness
         t1 = time.time()
-        v1_assertions = []
+        gate1_assertions = []
         for fix_name, fix_path in ALLOWED_FIXTURES.items():
             exists = fix_path.exists()
-            v1_assertions.append(
+            gate1_assertions.append(
                 {
                     "name": f"fixture_{fix_name}_exists",
                     "status": "PASS" if exists else "FAIL",
@@ -853,50 +855,60 @@ class StageVOrchestrator:
                 }
             )
 
-        oracle_path = ORACLE_PATH
-        oracle_valid = False
-        oracle_detail: object = str(oracle_path)
+        expected_counts_path = EXPECTED_COUNTS_PATH
+        expected_counts_valid = False
+        expected_counts_detail: object = str(expected_counts_path)
         try:
-            oracle = self.load_oracle()
-            required_phases = {"initial_snapshot", "post_crud", "post_schema"}
-            oracle_valid = required_phases.issubset(oracle)
-            oracle_detail = {
-                "path": str(oracle_path),
-                "sha256": sha256_file(oracle_path) if oracle_path.is_file() else None,
-                "phases": sorted(oracle),
+            expected_counts = self.load_expected_counts()
+            required_checkpoints = {
+                "initial_snapshot",
+                "post_crud",
+                "post_schema",
+            }
+            expected_counts_valid = required_checkpoints.issubset(expected_counts)
+            expected_counts_detail = {
+                "path": str(expected_counts_path),
+                "sha256": sha256_file(expected_counts_path)
+                if expected_counts_path.is_file()
+                else None,
+                "checkpoints": sorted(expected_counts),
             }
         except RuntimeError as exc:
-            oracle_detail = sanitize_text(str(exc))
-        v1_assertions.append(
+            expected_counts_detail = sanitize_text(str(exc))
+        gate1_assertions.append(
             {
-                "name": "oracle_file_exists",
-                "status": "PASS" if oracle_path.exists() and oracle_valid else "FAIL",
-                "detail": oracle_detail,
+                "name": "expected_counts_file_exists",
+                "status": "PASS"
+                if expected_counts_path.exists() and expected_counts_valid
+                else "FAIL",
+                "detail": expected_counts_detail,
             }
         )
 
-        v1_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v1_assertions) else "FAIL"
+        gate1_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate1_assertions) else "FAIL"
         )
-        self.log_gate("01-harness-ready", v1_status, time.time() - t1, v1_assertions)
-        if v1_status != "PASS":
+        self.log_gate(
+            "01-harness-ready", gate1_status, time.time() - t1, gate1_assertions
+        )
+        if gate1_status != "PASS":
             return {"status": "FAIL", "gate": "01-harness-ready"}
 
         return {"status": "PASS", "run_id": self.run_id}
 
     def run_e2e_acceptance(self) -> dict[str, Any]:
-        """Execute Gates V2-V10 in sequence with strict fail-fast."""
+        """Execute the remaining acceptance gates in sequence with strict fail-fast."""
         prep_res = self.prepare()
         if prep_res.get("status") != "PASS":
             return prep_res
 
-        # Gate V2: 02-clean-bootstrap
+        # 02-clean-bootstrap
         t2 = time.time()
-        v2_assertions = []
+        gate2_assertions = []
         reset_code, reset_out, _ = self.run_cmd(
             ["uv", "run", "python", "scripts/cdc/local_lab.py", "reset", "--yes"]
         )
-        v2_assertions.append(
+        gate2_assertions.append(
             {
                 "name": "lab_reset",
                 "status": "PASS" if reset_code == 0 else "FAIL",
@@ -904,7 +916,9 @@ class StageVOrchestrator:
             }
         )
         if reset_code != 0:
-            self.log_gate("02-clean-bootstrap", "FAIL", time.time() - t2, v2_assertions)
+            self.log_gate(
+                "02-clean-bootstrap", "FAIL", time.time() - t2, gate2_assertions
+            )
             return {"status": "FAIL", "gate": "02-clean-bootstrap"}
 
         boot_code, boot_out, _ = self.run_cmd(
@@ -920,23 +934,25 @@ class StageVOrchestrator:
                 "20260801",
             ]
         )
-        v2_assertions.append(
+        gate2_assertions.append(
             {
                 "name": "lab_bootstrap_seed",
                 "status": "PASS" if boot_code == 0 else "FAIL",
                 "detail": boot_out.strip() or "Bootstrap completed",
             }
         )
-        v2_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v2_assertions) else "FAIL"
+        gate2_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate2_assertions) else "FAIL"
         )
-        self.log_gate("02-clean-bootstrap", v2_status, time.time() - t2, v2_assertions)
-        if v2_status != "PASS":
+        self.log_gate(
+            "02-clean-bootstrap", gate2_status, time.time() - t2, gate2_assertions
+        )
+        if gate2_status != "PASS":
             return {"status": "FAIL", "gate": "02-clean-bootstrap"}
 
-        # Gate V3: 03-initial-snapshot
+        # 03-initial-snapshot
         t3 = time.time()
-        v3_assertions = []
+        gate3_assertions = []
         stream_code, stream_out, _ = self.run_cmd(
             [
                 "uv",
@@ -949,7 +965,7 @@ class StageVOrchestrator:
                 "600",
             ]
         )
-        v3_assertions.append(
+        gate3_assertions.append(
             {
                 "name": "start_streaming",
                 "status": "PASS" if stream_code == 0 else "FAIL",
@@ -958,7 +974,7 @@ class StageVOrchestrator:
         )
         if stream_code != 0:
             self.log_gate(
-                "03-initial-snapshot", "FAIL", time.time() - t3, v3_assertions
+                "03-initial-snapshot", "FAIL", time.time() - t3, gate3_assertions
             )
             return {"status": "FAIL", "gate": "03-initial-snapshot"}
 
@@ -971,7 +987,7 @@ class StageVOrchestrator:
                 "start-serving-observer",
             ]
         )
-        v3_assertions.append(
+        gate3_assertions.append(
             {
                 "name": "start_serving_observer",
                 "status": "PASS" if observer_code == 0 else "FAIL",
@@ -980,7 +996,7 @@ class StageVOrchestrator:
         )
         if observer_code != 0:
             self.log_gate(
-                "03-initial-snapshot", "FAIL", time.time() - t3, v3_assertions
+                "03-initial-snapshot", "FAIL", time.time() - t3, gate3_assertions
             )
             return {"status": "FAIL", "gate": "03-initial-snapshot"}
 
@@ -995,7 +1011,7 @@ class StageVOrchestrator:
                 "1200",
             ]
         )
-        v3_assertions.append(
+        gate3_assertions.append(
             {
                 "name": "initial_snapshot_caught_up",
                 "status": "PASS" if wait1_code == 0 else "FAIL",
@@ -1004,37 +1020,39 @@ class StageVOrchestrator:
         )
         if wait1_code != 0:
             self.log_gate(
-                "03-initial-snapshot", "FAIL", time.time() - t3, v3_assertions
+                "03-initial-snapshot", "FAIL", time.time() - t3, gate3_assertions
             )
             return {"status": "FAIL", "gate": "03-initial-snapshot"}
         try:
-            initial_oracle = ClickHouseProbe().inspect_stage_counts(
+            initial_expected_counts = ClickHouseProbe().inspect_acceptance_counts(
                 "initial_snapshot",
-                self.oracle["initial_snapshot"],
+                self.expected_counts["initial_snapshot"],
                 MySQLProbe(),
             )
-            initial_oracle_status = "PASS"
-            initial_oracle_detail: object = initial_oracle
+            initial_expected_counts_status = "PASS"
+            initial_expected_counts_detail: object = initial_expected_counts
         except Exception as exc:
-            initial_oracle_status = "FAIL"
-            initial_oracle_detail = sanitize_text(str(exc))
-        v3_assertions.append(
+            initial_expected_counts_status = "FAIL"
+            initial_expected_counts_detail = sanitize_text(str(exc))
+        gate3_assertions.append(
             {
-                "name": "initial_snapshot_exact_oracle",
-                "status": initial_oracle_status,
-                "detail": initial_oracle_detail,
+                "name": "initial_snapshot_expected_counts",
+                "status": initial_expected_counts_status,
+                "detail": initial_expected_counts_detail,
             }
         )
-        v3_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v3_assertions) else "FAIL"
+        gate3_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate3_assertions) else "FAIL"
         )
-        self.log_gate("03-initial-snapshot", v3_status, time.time() - t3, v3_assertions)
-        if v3_status != "PASS":
+        self.log_gate(
+            "03-initial-snapshot", gate3_status, time.time() - t3, gate3_assertions
+        )
+        if gate3_status != "PASS":
             return {"status": "FAIL", "gate": "03-initial-snapshot"}
 
-        # Gate V4: 04-crud-and-restart
+        # 04-crud-and-restart
         t4 = time.time()
-        v4_assertions = []
+        gate4_assertions = []
         stop_code, stop_out, _ = self.run_cmd(
             [
                 "uv",
@@ -1044,7 +1062,7 @@ class StageVOrchestrator:
                 "stop-streaming",
             ]
         )
-        v4_assertions.append(
+        gate4_assertions.append(
             {
                 "name": "stop_spark_streaming",
                 "status": "PASS" if stop_code == 0 else "FAIL",
@@ -1053,7 +1071,7 @@ class StageVOrchestrator:
         )
         if stop_code != 0:
             self.log_gate(
-                "04-crud-and-restart", "FAIL", time.time() - t4, v4_assertions
+                "04-crud-and-restart", "FAIL", time.time() - t4, gate4_assertions
             )
             return {"status": "FAIL", "gate": "04-crud-and-restart"}
 
@@ -1063,7 +1081,7 @@ class StageVOrchestrator:
             res_upd = probe.execute_fixture("update.sql")
             res_del = probe.execute_fixture("delete.sql")
         except Exception as exc:
-            v4_assertions.append(
+            gate4_assertions.append(
                 {
                     "name": "execute_crud_fixtures",
                     "status": "FAIL",
@@ -1071,10 +1089,10 @@ class StageVOrchestrator:
                 }
             )
             self.log_gate(
-                "04-crud-and-restart", "FAIL", time.time() - t4, v4_assertions
+                "04-crud-and-restart", "FAIL", time.time() - t4, gate4_assertions
             )
             return {"status": "FAIL", "gate": "04-crud-and-restart"}
-        v4_assertions.append(
+        gate4_assertions.append(
             {
                 "name": "execute_crud_fixtures",
                 "status": "PASS",
@@ -1094,7 +1112,7 @@ class StageVOrchestrator:
                 "600",
             ]
         )
-        v4_assertions.append(
+        gate4_assertions.append(
             {
                 "name": "start_spark_streaming_recovery",
                 "status": "PASS" if start_code == 0 else "FAIL",
@@ -1102,16 +1120,18 @@ class StageVOrchestrator:
             }
         )
         restart_payload = parse_json_payload(start_out)
-        v4_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v4_assertions) else "FAIL"
+        gate4_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate4_assertions) else "FAIL"
         )
-        self.log_gate("04-crud-and-restart", v4_status, time.time() - t4, v4_assertions)
-        if v4_status != "PASS":
+        self.log_gate(
+            "04-crud-and-restart", gate4_status, time.time() - t4, gate4_assertions
+        )
+        if gate4_status != "PASS":
             return {"status": "FAIL", "gate": "04-crud-and-restart"}
 
-        # Gate V5: 05-caught-up
+        # 05-caught-up
         t5 = time.time()
-        v5_assertions = []
+        gate5_assertions = []
         wait2_code, wait2_out, _ = self.run_cmd(
             [
                 "uv",
@@ -1123,7 +1143,7 @@ class StageVOrchestrator:
                 "1200",
             ]
         )
-        v5_assertions.append(
+        gate5_assertions.append(
             {
                 "name": "crud_caught_up",
                 "status": "PASS" if wait2_code == 0 else "FAIL",
@@ -1131,22 +1151,22 @@ class StageVOrchestrator:
             }
         )
         if wait2_code != 0:
-            self.log_gate("05-caught-up", "FAIL", time.time() - t5, v5_assertions)
+            self.log_gate("05-caught-up", "FAIL", time.time() - t5, gate5_assertions)
             return {"status": "FAIL", "gate": "05-caught-up"}
         try:
-            post_crud_oracle = ClickHouseProbe().inspect_stage_counts(
+            post_crud_expected_counts = ClickHouseProbe().inspect_acceptance_counts(
                 "post_crud",
-                self.oracle["post_crud"],
-                operation_expected=self.oracle["crud_delta"],
+                self.expected_counts["post_crud"],
+                operation_expected=self.expected_counts["crud_delta"],
             )
             post_crud_status = "PASS"
-            post_crud_detail: object = post_crud_oracle
+            post_crud_detail: object = post_crud_expected_counts
         except Exception as exc:
             post_crud_status = "FAIL"
             post_crud_detail = sanitize_text(str(exc))
-        v5_assertions.append(
+        gate5_assertions.append(
             {
-                "name": "post_crud_exact_oracle",
+                "name": "post_crud_expected_counts",
                 "status": post_crud_status,
                 "detail": post_crud_detail,
             }
@@ -1163,7 +1183,7 @@ class StageVOrchestrator:
             and restart_payload.get("freshness_basis")
             == "status_updated_at_after_restart_barrier"
         )
-        v5_assertions.append(
+        gate5_assertions.append(
             {
                 "name": "restart_freshness",
                 "status": "PASS" if restart_fresh else "FAIL",
@@ -1172,16 +1192,16 @@ class StageVOrchestrator:
                 or "Restart freshness was not proven",
             }
         )
-        v5_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v5_assertions) else "FAIL"
+        gate5_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate5_assertions) else "FAIL"
         )
-        self.log_gate("05-caught-up", v5_status, time.time() - t5, v5_assertions)
-        if v5_status != "PASS":
+        self.log_gate("05-caught-up", gate5_status, time.time() - t5, gate5_assertions)
+        if gate5_status != "PASS":
             return {"status": "FAIL", "gate": "05-caught-up"}
 
-        # Gate V6: 06-serving-sync
+        # 06-serving-sync
         t6 = time.time()
-        v6_assertions = []
+        gate6_assertions = []
         serving_code, serving_out, _ = self.run_cmd(
             [
                 "uv",
@@ -1194,7 +1214,7 @@ class StageVOrchestrator:
                 "1800",
             ]
         )
-        v6_assertions.append(
+        gate6_assertions.append(
             {
                 "name": "start_serving",
                 "status": "PASS" if serving_code == 0 else "FAIL",
@@ -1207,7 +1227,7 @@ class StageVOrchestrator:
                 "06-serving-sync",
                 "FAIL",
                 time.time() - t6,
-                v6_assertions,
+                gate6_assertions,
             )
             return {"status": "FAIL", "gate": "06-serving-sync"}
 
@@ -1300,7 +1320,7 @@ class StageVOrchestrator:
             and isinstance(sync1_payload.get("dbt_result"), dict)
             and sync1_payload.get("dbt_result", {}).get("success") is True
         )
-        v6_assertions.append(
+        gate6_assertions.append(
             {
                 "name": "sync_serving_crud",
                 "status": "PASS" if sync1_valid else "FAIL",
@@ -1309,7 +1329,7 @@ class StageVOrchestrator:
             }
         )
         if not sync1_valid:
-            self.log_gate("06-serving-sync", "FAIL", time.time() - t6, v6_assertions)
+            self.log_gate("06-serving-sync", "FAIL", time.time() - t6, gate6_assertions)
             return {"status": "FAIL", "gate": "06-serving-sync"}
 
         sync_repeat_code, sync_repeat_out, _ = self.run_cmd(
@@ -1349,7 +1369,7 @@ class StageVOrchestrator:
             and int(sync_repeat_payload.get("materialized_event_count") or 0) == 0
             and repeat_entity_counts_zero
         )
-        v6_assertions.append(
+        gate6_assertions.append(
             {
                 "name": "sync_serving_crud_repeat_noop",
                 "status": "PASS" if repeat_valid else "FAIL",
@@ -1357,16 +1377,18 @@ class StageVOrchestrator:
                 or "Repeated CRUD serving sync was not an authoritative NOOP",
             }
         )
-        v6_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v6_assertions) else "FAIL"
+        gate6_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate6_assertions) else "FAIL"
         )
-        self.log_gate("06-serving-sync", v6_status, time.time() - t6, v6_assertions)
-        if v6_status != "PASS":
+        self.log_gate(
+            "06-serving-sync", gate6_status, time.time() - t6, gate6_assertions
+        )
+        if gate6_status != "PASS":
             return {"status": "FAIL", "gate": "06-serving-sync"}
 
-        # Gate V7: 07-dbt-and-stable-views
+        # 07-dbt-and-stable-views
         t7 = time.time()
-        v7_assertions = []
+        gate7_assertions = []
         val_serving_code, val_serving_out, _ = self.run_cmd(
             [
                 "uv",
@@ -1378,7 +1400,7 @@ class StageVOrchestrator:
                 "serving",
             ]
         )
-        v7_assertions.append(
+        gate7_assertions.append(
             {
                 "name": "serving_static_validation",
                 "status": "PASS" if val_serving_code == 0 else "FAIL",
@@ -1387,7 +1409,7 @@ class StageVOrchestrator:
         )
         if val_serving_code != 0:
             self.log_gate(
-                "07-dbt-and-stable-views", "FAIL", time.time() - t7, v7_assertions
+                "07-dbt-and-stable-views", "FAIL", time.time() - t7, gate7_assertions
             )
             return {"status": "FAIL", "gate": "07-dbt-and-stable-views"}
 
@@ -1408,39 +1430,41 @@ class StageVOrchestrator:
         live_serving_valid = (
             live_serving_code == 0 and live_serving_payload.get("status") == "ready"
         )
-        v7_assertions.append(
+        gate7_assertions.append(
             {
                 "name": "dbt_and_stable_views_validation",
                 "status": "PASS" if live_serving_valid else "FAIL",
                 "detail": live_serving_payload
                 or live_serving_out.strip()
-                or "Candidate dbt build evidence and stable views verified",
+                or "dbt build evidence and stable views verified",
             }
         )
-        v7_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v7_assertions) else "FAIL"
+        gate7_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate7_assertions) else "FAIL"
         )
         self.log_gate(
-            "07-dbt-and-stable-views", v7_status, time.time() - t7, v7_assertions
+            "07-dbt-and-stable-views", gate7_status, time.time() - t7, gate7_assertions
         )
-        if v7_status != "PASS":
+        if gate7_status != "PASS":
             return {"status": "FAIL", "gate": "07-dbt-and-stable-views"}
 
-        # Gate V8: 08-additive-schema
+        # 08-additive-schema
         t8 = time.time()
-        v8_assertions = []
+        gate8_assertions = []
         try:
             res_add = probe.execute_fixture("add_nullable_column.sql")
             res_evt = probe.execute_fixture("emit_nullable_event.sql")
         except Exception as exc:
-            v8_assertions.append(
+            gate8_assertions.append(
                 {
                     "name": "execute_nullable_schema_fixtures",
                     "status": "FAIL",
                     "detail": sanitize_text(str(exc)),
                 }
             )
-            self.log_gate("08-additive-schema", "FAIL", time.time() - t8, v8_assertions)
+            self.log_gate(
+                "08-additive-schema", "FAIL", time.time() - t8, gate8_assertions
+            )
             return {"status": "FAIL", "gate": "08-additive-schema"}
 
         fixtures_valid = all(
@@ -1448,7 +1472,7 @@ class StageVOrchestrator:
             and positive_int(result.get("statements_count"))
             for result in (res_add, res_evt)
         )
-        v8_assertions.append(
+        gate8_assertions.append(
             {
                 "name": "execute_nullable_schema_fixtures",
                 "status": "PASS" if fixtures_valid else "FAIL",
@@ -1459,19 +1483,21 @@ class StageVOrchestrator:
             }
         )
         if not fixtures_valid:
-            self.log_gate("08-additive-schema", "FAIL", time.time() - t8, v8_assertions)
+            self.log_gate(
+                "08-additive-schema", "FAIL", time.time() - t8, gate8_assertions
+            )
             return {"status": "FAIL", "gate": "08-additive-schema"}
 
         try:
             source_schema_evidence = probe.inspect_nullable_event(
-                "wave2_customer_001", "sao paulo stage v"
+                "acceptance_customer_001", "sao paulo acceptance"
             )
             source_schema_status = "PASS"
             source_schema_detail: object = source_schema_evidence
         except Exception as exc:
             source_schema_status = "FAIL"
             source_schema_detail = sanitize_text(str(exc))
-        v8_assertions.append(
+        gate8_assertions.append(
             {
                 "name": "mysql_nullable_source_contract",
                 "status": source_schema_status,
@@ -1479,7 +1505,9 @@ class StageVOrchestrator:
             }
         )
         if source_schema_status != "PASS":
-            self.log_gate("08-additive-schema", "FAIL", time.time() - t8, v8_assertions)
+            self.log_gate(
+                "08-additive-schema", "FAIL", time.time() - t8, gate8_assertions
+            )
             return {"status": "FAIL", "gate": "08-additive-schema"}
         wait3_code, wait3_out, wait3_err = self.run_cmd(
             [
@@ -1492,7 +1520,7 @@ class StageVOrchestrator:
                 "1200",
             ]
         )
-        v8_assertions.append(
+        gate8_assertions.append(
             {
                 "name": "schema_evolution_caught_up",
                 "status": "PASS" if wait3_code == 0 else "FAIL",
@@ -1502,7 +1530,9 @@ class StageVOrchestrator:
             }
         )
         if wait3_code != 0:
-            self.log_gate("08-additive-schema", "FAIL", time.time() - t8, v8_assertions)
+            self.log_gate(
+                "08-additive-schema", "FAIL", time.time() - t8, gate8_assertions
+            )
             return {"status": "FAIL", "gate": "08-additive-schema"}
         sync2_code, sync2_out, _ = self.run_cmd(
             [
@@ -1542,7 +1572,7 @@ class StageVOrchestrator:
             and isinstance(sync2_payload.get("dbt_result"), dict)
             and sync2_payload.get("dbt_result", {}).get("success") is True
         )
-        v8_assertions.append(
+        gate8_assertions.append(
             {
                 "name": "additive_schema_publish",
                 "status": "PASS" if sync2_valid else "FAIL",
@@ -1554,7 +1584,7 @@ class StageVOrchestrator:
         if sync2_valid:
             try:
                 clickhouse_schema_evidence = ClickHouseProbe().inspect_nullable_event(
-                    "wave2_customer_001", "sao paulo stage v"
+                    "acceptance_customer_001", "sao paulo acceptance"
                 )
                 clickhouse_schema_status = "PASS"
                 clickhouse_schema_detail: object = clickhouse_schema_evidence
@@ -1564,7 +1594,7 @@ class StageVOrchestrator:
         else:
             clickhouse_schema_status = "FAIL"
             clickhouse_schema_detail = "Skipped Bronze/Silver/serving probe because schema publish was not valid"
-        v8_assertions.append(
+        gate8_assertions.append(
             {
                 "name": "nullable_avro_bronze_silver_serving_propagation",
                 "status": clickhouse_schema_status,
@@ -1574,24 +1604,26 @@ class StageVOrchestrator:
 
         if sync2_valid:
             try:
-                post_schema_oracle = ClickHouseProbe().inspect_stage_counts(
-                    "post_schema", self.oracle["post_schema"]
+                post_schema_expected_counts = (
+                    ClickHouseProbe().inspect_acceptance_counts(
+                        "post_schema", self.expected_counts["post_schema"]
+                    )
                 )
-                post_schema_oracle_status = "PASS"
-                post_schema_oracle_detail: object = post_schema_oracle
+                post_schema_expected_counts_status = "PASS"
+                post_schema_expected_counts_detail: object = post_schema_expected_counts
             except Exception as exc:
-                post_schema_oracle_status = "FAIL"
-                post_schema_oracle_detail = sanitize_text(str(exc))
+                post_schema_expected_counts_status = "FAIL"
+                post_schema_expected_counts_detail = sanitize_text(str(exc))
         else:
-            post_schema_oracle_status = "FAIL"
-            post_schema_oracle_detail = (
-                "Skipped post-schema exact oracle because publish was invalid"
+            post_schema_expected_counts_status = "FAIL"
+            post_schema_expected_counts_detail = (
+                "Skipped post-schema expected-count check because publish was invalid"
             )
-        v8_assertions.append(
+        gate8_assertions.append(
             {
-                "name": "post_schema_exact_oracle",
-                "status": post_schema_oracle_status,
-                "detail": post_schema_oracle_detail,
+                "name": "post_schema_expected_counts",
+                "status": post_schema_expected_counts_status,
+                "detail": post_schema_expected_counts_detail,
             }
         )
 
@@ -1624,23 +1656,25 @@ class StageVOrchestrator:
         else:
             schema_validation_valid = False
             schema_validation_detail = "Skipped post-schema serving validation because schema publish was not valid"
-        v8_assertions.append(
+        gate8_assertions.append(
             {
-                "name": "post_schema_candidate_dbt_and_stable_parity",
+                "name": "post_schema_dbt_and_stable_parity",
                 "status": "PASS" if schema_validation_valid else "FAIL",
                 "detail": schema_validation_detail,
             }
         )
-        v8_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v8_assertions) else "FAIL"
+        gate8_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate8_assertions) else "FAIL"
         )
-        self.log_gate("08-additive-schema", v8_status, time.time() - t8, v8_assertions)
-        if v8_status != "PASS":
+        self.log_gate(
+            "08-additive-schema", gate8_status, time.time() - t8, gate8_assertions
+        )
+        if gate8_status != "PASS":
             return {"status": "FAIL", "gate": "08-additive-schema"}
 
-        # Gate V9: 09-rebuild
+        # 09-rebuild
         t9 = time.time()
-        v9_assertions = []
+        gate9_assertions = []
         rebuild_code, rebuild_out, _ = self.run_cmd(
             [
                 "uv",
@@ -1680,7 +1714,7 @@ class StageVOrchestrator:
                 "product_category_translation",
             }
         )
-        v9_assertions.append(
+        gate9_assertions.append(
             {
                 "name": "rebuild_serving_from_iceberg",
                 "status": "PASS" if rebuild_basic_valid else "FAIL",
@@ -1718,21 +1752,21 @@ class StageVOrchestrator:
         else:
             rebuild_validation_valid = False
             rebuild_validation_detail = "Skipped post-rebuild parity validation because rebuild evidence was invalid"
-        v9_assertions.append(
+        gate9_assertions.append(
             {
                 "name": "rebuild_iceberg_current_gold_and_dbt_parity",
                 "status": "PASS" if rebuild_validation_valid else "FAIL",
                 "detail": rebuild_validation_detail,
             }
         )
-        v9_status = (
-            "PASS" if all(a["status"] == "PASS" for a in v9_assertions) else "FAIL"
+        gate9_status = (
+            "PASS" if all(a["status"] == "PASS" for a in gate9_assertions) else "FAIL"
         )
-        self.log_gate("09-rebuild", v9_status, time.time() - t9, v9_assertions)
-        if v9_status != "PASS":
+        self.log_gate("09-rebuild", gate9_status, time.time() - t9, gate9_assertions)
+        if gate9_status != "PASS":
             return {"status": "FAIL", "gate": "09-rebuild"}
 
-        # Gate V10: 10-final
+        # 10-final
         t10 = time.time()
         v10_assertions = []
         if rebuild_basic_valid:
@@ -1885,10 +1919,8 @@ class StageVOrchestrator:
         return checksums
 
     def write_report(self) -> Path:
-        """Create final Stage V validation report in docs/reports/mysql-spark-iceberg-stage-v-validation.md."""
-        report_path = (
-            ROOT / "docs" / "reports" / "mysql-spark-iceberg-stage-v-validation.md"
-        )
+        """Write the local CDC acceptance report beside its raw evidence."""
+        report_path = self.evidence_dir / "report.md"
         report_path.parent.mkdir(parents=True, exist_ok=True)
 
         summary_file = self.evidence_dir / "summary.json"
@@ -1927,7 +1959,7 @@ class StageVOrchestrator:
         )
         report_accepted = not verify_evidence_directory(self.evidence_dir, summary_data)
 
-        report_content = f"""# Stage V Candidate E2E Validation Report
+        report_content = f"""# Local CDC Acceptance Report
 
 - **Status**: `{overall}`
 - **Run ID**: `{self.run_id}`
@@ -1937,17 +1969,15 @@ class StageVOrchestrator:
 
 ---
 
-## 1. Final Verdict
+## 1. Result
 
-Stage V validation completed with status `{overall}`.
+The local CDC acceptance run completed with status `{overall}`.
 
 {"All mandatory gates passed in a single clean-domain run." if report_accepted else "Validation evidence is not accepted."}
 
-- **Stage L Authorization**: {"`AUTHORIZED` (allowed to proceed to Stage L)" if report_accepted else "`FORBIDDEN` (Stage L blocked)"}
-
 ---
 
-## 2. Gate Execution Results (V0 - V10)
+## 2. Acceptance checks
 
 | Gate | Name | Status | Duration (s) |
 | --- | --- | --- | ---: |
@@ -1977,16 +2007,16 @@ reconstructed from static claims.
 
 ---
 
-## 4. Evidence Artifacts
+## 4. Evidence
 
-Raw evidence persisted in `data/stage-v-evidence/{self.run_id}/`.
+Raw evidence and this report are persisted in `{self.evidence_dir.as_posix()}/`.
 """
         report_path.write_text(report_content, encoding="utf-8")
         return report_path
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Stage V Candidate E2E Validation CLI")
+    parser = argparse.ArgumentParser(description="Local CDC acceptance CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # prepare
@@ -2007,7 +2037,7 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "prepare":
-        orchestrator = StageVOrchestrator(args.run_id, args.evidence_dir)
+        orchestrator = LocalCdcAcceptanceOrchestrator(args.run_id, args.evidence_dir)
         res = orchestrator.prepare()
         orchestrator.generate_manifests_and_checksums()
         print(json.dumps(res, indent=2))
@@ -2023,7 +2053,7 @@ def main() -> None:
             )
             sys.exit(1)
 
-        orchestrator = StageVOrchestrator(args.run_id, args.evidence_dir)
+        orchestrator = LocalCdcAcceptanceOrchestrator(args.run_id, args.evidence_dir)
         orchestrator.clear_evidence()
         try:
             res = orchestrator.run_e2e_acceptance()
@@ -2091,7 +2121,7 @@ def main() -> None:
 
         summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
         run_id = summary_data.get("run_id", "unknown")
-        orchestrator = StageVOrchestrator(run_id, evidence_dir)
+        orchestrator = LocalCdcAcceptanceOrchestrator(run_id, evidence_dir)
         acceptance_errors = verify_evidence_directory(evidence_dir, summary_data)
         report_path = orchestrator.write_report()
         if acceptance_errors:

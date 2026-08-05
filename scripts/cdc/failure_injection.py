@@ -74,14 +74,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--project-name",
-        default=os.environ.get("COMPOSE_PROJECT_NAME", "olist_wave1_j1"),
+        default=os.environ.get("COMPOSE_PROJECT_NAME", "olist_local_cdc"),
     )
     parser.add_argument("--fire-timeout-seconds", type=int, default=240)
     parser.add_argument("--resolve-timeout-seconds", type=int, default=240)
     parser.add_argument(
         "--report",
         type=Path,
-        default=Path("data/stage-l-evidence/L2/failure-injection.json"),
+        default=Path("data/acceptance/failure-injection.json"),
     )
     args = parser.parse_args()
     service, alert = SCENARIOS[args.scenario]
