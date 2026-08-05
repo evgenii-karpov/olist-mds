@@ -108,4 +108,25 @@ def load_contract(path: Path) -> dict[str, Any]:
             raise ValueError(f"relation {qualified} must declare a grain")
         for column in [*grain, *relation.get("exclude_columns", [])]:
             validate_identifier(column)
+        candidate = relation.get("candidate")
+        if candidate is not None:
+            if not isinstance(candidate, dict):
+                raise ValueError(f"relation {qualified} candidate must be an object")
+            candidate_schema = validate_identifier(candidate["schema"])
+            candidate_name = validate_identifier(candidate["name"])
+            candidate_columns = candidate.get("columns")
+            if not isinstance(candidate_columns, list) or not candidate_columns:
+                raise ValueError(f"relation {qualified} candidate must declare columns")
+            seen_candidate_columns: set[str] = set()
+            for column in candidate_columns:
+                validate_identifier(column)
+                if column in seen_candidate_columns:
+                    raise ValueError(
+                        f"relation {qualified} candidate has duplicate column: {column}"
+                    )
+                seen_candidate_columns.add(column)
+            if candidate_schema == schema and candidate_name == name:
+                raise ValueError(
+                    f"relation {qualified} candidate must identify a separate source"
+                )
     return payload

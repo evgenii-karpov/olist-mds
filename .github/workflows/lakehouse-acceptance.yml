@@ -194,6 +194,7 @@ jobs:
           uv run python scripts/cdc/local_lab.py final-parity
           --run-id ${{ needs.preflight.outputs.run_id }}
           --oracle tests/fixtures/final_parity/main-1400d08.json
+          --candidate-sha ${{ needs.preflight.outputs.candidate_sha }}
           --confirm-destructive
           --timeout 5400
 

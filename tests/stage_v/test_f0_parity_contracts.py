@@ -16,6 +16,7 @@ from scripts.parity.canonical_manifest import (
     load_contract,
     row_hash,
 )
+from scripts.parity.compare_manifests import compare_manifests
 
 
 class CanonicalManifestTests(unittest.TestCase):
@@ -79,6 +80,38 @@ class CanonicalManifestTests(unittest.TestCase):
             metadata_payload["baseline_commit"],
         )
         self.assertEqual(11, len(metadata_payload["relation_summary"]))
+
+    def test_final_parity_contract_maps_every_relation_to_candidate_columns(
+        self,
+    ) -> None:
+        contract = load_contract(Path("scripts/parity/final_parity_contract.json"))
+        self.assertEqual(11, len(contract["relations"]))
+        for relation in contract["relations"]:
+            candidate = relation["candidate"]
+            self.assertNotEqual(
+                (relation["schema"], relation["name"]),
+                (candidate["schema"], candidate["name"]),
+            )
+            self.assertTrue(candidate["columns"])
+
+    def test_final_parity_comparator_exposes_bounded_relation_diagnostics(self) -> None:
+        oracle = json.loads(
+            Path("tests/fixtures/final_parity/main-1400d08.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        candidate = json.loads(json.dumps(oracle))
+        candidate["relations"][0]["rows"][0]["hash"] = "0" * 64
+        result = compare_manifests(oracle, candidate)
+        self.assertEqual("FAIL", result["status"])
+        self.assertEqual(1, result["column_mismatch_count"])
+        customers = next(
+            relation
+            for relation in result["relations"]
+            if relation["relation"] == "public.customers"
+        )
+        self.assertEqual("FAIL", customers["status"])
+        self.assertEqual(1, customers["column_mismatch_count"])
 
 
 if __name__ == "__main__":

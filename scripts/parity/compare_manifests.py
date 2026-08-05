@@ -63,25 +63,60 @@ def compare_manifests(
     oracle: dict[str, Any], candidate: dict[str, Any], sample_limit: int = 10
 ) -> dict[str, Any]:
     mismatches: list[dict[str, Any]] = []
+    relation_results: list[dict[str, Any]] = []
     oracle_relations = _relation_map(oracle)
     candidate_relations = _relation_map(candidate)
     for relation_name in sorted(set(oracle_relations) | set(candidate_relations)):
         if relation_name not in oracle_relations:
+            relation_results.append(
+                {
+                    "relation": relation_name,
+                    "status": "FAIL",
+                    "issue": "extra_relation",
+                    "oracle_row_count": 0,
+                    "candidate_row_count": candidate_relations[relation_name].get(
+                        "row_count", 0
+                    ),
+                    "missing_key_count": 0,
+                    "extra_key_count": len(
+                        candidate_relations[relation_name].get("grain_keys", [])
+                    ),
+                    "column_mismatch_count": 0,
+                }
+            )
             mismatches.append(
                 {"relation": relation_name, "check": "relation", "issue": "extra"}
             )
             continue
         if relation_name not in candidate_relations:
+            relation_results.append(
+                {
+                    "relation": relation_name,
+                    "status": "FAIL",
+                    "issue": "missing_relation",
+                    "oracle_row_count": oracle_relations[relation_name].get(
+                        "row_count", 0
+                    ),
+                    "candidate_row_count": 0,
+                    "missing_key_count": len(
+                        oracle_relations[relation_name].get("grain_keys", [])
+                    ),
+                    "extra_key_count": 0,
+                    "column_mismatch_count": 0,
+                }
+            )
             mismatches.append(
                 {"relation": relation_name, "check": "relation", "issue": "missing"}
             )
             continue
         expected = oracle_relations[relation_name]
         observed = candidate_relations[relation_name]
+        relation_mismatch_count = 0
         semantic_mismatches = _semantic_columns_mismatch(
             expected["semantic_columns"], observed["semantic_columns"]
         )
         if semantic_mismatches:
+            relation_mismatch_count += 1
             mismatches.append(
                 {
                     "relation": relation_name,
@@ -91,6 +126,7 @@ def compare_manifests(
             )
         for check in ("row_count", "duplicate_grain_count", "aggregate_hash"):
             if expected[check] != observed[check]:
+                relation_mismatch_count += 1
                 mismatches.append(
                     {
                         "relation": relation_name,
@@ -99,15 +135,24 @@ def compare_manifests(
                         "candidate": observed[check],
                     }
                 )
-        if expected["grain_keys"] != observed["grain_keys"]:
+        expected_key_strings = {
+            json.dumps(value, sort_keys=True) for value in expected["grain_keys"]
+        }
+        observed_key_strings = {
+            json.dumps(value, sort_keys=True) for value in observed["grain_keys"]
+        }
+        missing_keys = expected_key_strings - observed_key_strings
+        extra_keys = observed_key_strings - expected_key_strings
+        if missing_keys or extra_keys:
+            relation_mismatch_count += 1
             mismatches.append(
                 {
                     "relation": relation_name,
                     "check": "grain_keys",
+                    "missing_key_count": len(missing_keys),
+                    "extra_key_count": len(extra_keys),
                     "sample": _sample_difference(
-                        expected["grain_keys"],
-                        observed["grain_keys"],
-                        sample_limit,
+                        expected["grain_keys"], observed["grain_keys"], sample_limit
                     ),
                 }
             )
@@ -127,6 +172,7 @@ def compare_manifests(
             if expected_rows[key]["hash"] != observed_rows[key]["hash"]
         ]
         if hash_mismatches:
+            relation_mismatch_count += 1
             mismatches.append(
                 {
                     "relation": relation_name,
@@ -135,6 +181,7 @@ def compare_manifests(
                 }
             )
         if expected["metrics"] != observed["metrics"]:
+            relation_mismatch_count += 1
             mismatches.append(
                 {
                     "relation": relation_name,
@@ -143,11 +190,43 @@ def compare_manifests(
                     "candidate": observed["metrics"],
                 }
             )
+        relation_results.append(
+            {
+                "relation": relation_name,
+                "status": "PASS" if relation_mismatch_count == 0 else "FAIL",
+                "oracle_row_count": expected.get("row_count", 0),
+                "candidate_row_count": observed.get("row_count", 0),
+                "oracle_duplicate_grain_count": expected.get(
+                    "duplicate_grain_count", 0
+                ),
+                "candidate_duplicate_grain_count": observed.get(
+                    "duplicate_grain_count", 0
+                ),
+                "missing_key_count": len(missing_keys),
+                "extra_key_count": len(extra_keys),
+                "column_mismatch_count": len(hash_mismatches),
+                "semantic_column_mismatch_count": len(semantic_mismatches),
+                "aggregate_hash_match": expected.get("aggregate_hash")
+                == observed.get("aggregate_hash"),
+                "metrics_match": expected.get("metrics") == observed.get("metrics"),
+                "mismatch_sample": hash_mismatches[:sample_limit],
+            }
+        )
     return {
         "format_version": 1,
         "dataset": oracle.get("dataset"),
         "status": "PASS" if not mismatches else "FAIL",
         "mismatch_count": len(mismatches),
+        "missing_key_count": sum(
+            relation["missing_key_count"] for relation in relation_results
+        ),
+        "extra_key_count": sum(
+            relation["extra_key_count"] for relation in relation_results
+        ),
+        "column_mismatch_count": sum(
+            relation["column_mismatch_count"] for relation in relation_results
+        ),
+        "relations": relation_results,
         "mismatches": mismatches,
     }
 

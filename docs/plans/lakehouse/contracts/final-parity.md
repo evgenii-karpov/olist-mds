@@ -63,6 +63,16 @@ Surrogate keys, date keys, batch IDs and load timestamps are excluded.
 2. `mart_monthly_arpu`, grain `order_month`:
    `order_month`, `active_customers`, `total_revenue`, `arpu`, `orders_count`, `orders_per_customer`, `average_order_value`, `repeat_customer_rate`.
 
+### 3.4 Candidate source mapping
+
+The frozen relation names above are the comparison names. The candidate does
+not recreate the legacy PostgreSQL schemas: the explicit `candidate` mapping in
+`scripts/parity/final_parity_contract.json` reads current entities from
+`serving_cdc.*_current` and derived relations from `gold.*`. Each mapping also
+declares the exact business columns to include, so transport metadata such as
+Kafka offsets, publication fields, and candidate run identifiers cannot enter
+the parity hash.
+
 ---
 
 ## 4. Canonicalization
@@ -102,6 +112,11 @@ The runner must:
 6. save the raw machine-readable diff before generating the summary;
 7. compute the exit code and `PASS/FAIL` only from the diff;
 8. clean up only its own resources on every outcome.
+
+The candidate exporter must preserve the frozen relation names in its output
+while using the candidate source mapping described in section 3.4. A missing
+source relation or business column is a hard failure; silently falling back to
+the legacy relation name is forbidden.
 
 ---
 

@@ -190,20 +190,35 @@ def _relation_metrics(
 def relation_manifest(
     connection: ClickHouseManifestConnection, spec: dict[str, Any]
 ) -> dict[str, object]:
-    schema = spec["schema"]
-    name = spec["name"]
+    output_schema = spec["schema"]
+    output_name = spec["name"]
+    candidate = spec.get("candidate", {})
+    source_schema = candidate.get("schema", output_schema)
+    source_name = candidate.get("name", output_name)
     grain = list(spec["grain"])
     excluded = set(spec.get("exclude_columns", []))
-    all_types = connection.columns(schema, name)
+    all_types = connection.columns(source_schema, source_name)
     missing = sorted(set(grain) - set(all_types))
     if missing:
-        raise ValueError(f"{schema}.{name} grain columns not found: {missing}")
-    column_types = {
-        column: column_type
-        for column, column_type in all_types.items()
-        if column not in excluded
-    }
-    rows = connection.fetch_rows(schema, name, list(column_types))
+        raise ValueError(
+            f"{source_schema}.{source_name} grain columns not found: {missing}"
+        )
+    candidate_columns = candidate.get("columns")
+    if candidate_columns is not None:
+        missing_columns = sorted(set(candidate_columns) - set(all_types))
+        if missing_columns:
+            raise ValueError(
+                f"{source_schema}.{source_name} candidate columns not found: "
+                f"{missing_columns}"
+            )
+        column_types = {column: all_types[column] for column in candidate_columns}
+    else:
+        column_types = {
+            column: column_type
+            for column, column_type in all_types.items()
+            if column not in excluded
+        }
+    rows = connection.fetch_rows(source_schema, source_name, list(column_types))
     canonical_grains = [
         [canonical_value(row[column], all_types[column]) for column in grain]
         for row in rows
@@ -213,7 +228,7 @@ def relation_manifest(
     paired = sorted(zip(grain_strings, canonical_grains, hashes, strict=True))
     duplicate_count = len(grain_strings) - len(set(grain_strings))
     return {
-        "name": f"{schema}.{name}",
+        "name": f"{output_schema}.{output_name}",
         "grain": grain,
         "semantic_columns": {
             column: {
