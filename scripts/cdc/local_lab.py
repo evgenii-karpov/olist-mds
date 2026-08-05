@@ -1641,6 +1641,18 @@ def _not_available(args: argparse.Namespace) -> int:
     )
 
 
+def _is_initial_snapshot_publication(sync_run: dict[str, object]) -> bool:
+    """Return whether a successful sync published the initial snapshot only."""
+
+    return (
+        sync_run.get("source_snapshot_completed") is True
+        and sync_run.get("previous_transaction_id") is None
+        and sync_run.get("previous_transaction_end_offset") is None
+        and sync_run.get("target_transaction_id") is None
+        and sync_run.get("target_transaction_end_offset") is None
+    )
+
+
 def _sync_serving(args: argparse.Namespace) -> int:
     try:
         from scripts.serving.airflow_api import AirflowApiClient
@@ -1709,10 +1721,18 @@ def _sync_serving(args: argparse.Namespace) -> int:
             else:
                 expected_count = latest_run.get("expected_event_count")
                 materialized_count = latest_run.get("materialized_event_count")
+                has_transaction_boundary = (
+                    bool(latest_run.get("target_transaction_id"))
+                    and latest_run.get("target_transaction_end_offset") is not None
+                )
+                valid_boundary = (
+                    has_transaction_boundary
+                    or _is_initial_snapshot_publication(latest_run)
+                )
                 if (
                     is_noop
                     or report.get("status") != "SUCCEEDED"
-                    or not latest_run.get("target_transaction_id")
+                    or not valid_boundary
                     or not target_offsets
                     or set(snapshots) != set(ALL_ENTITIES)
                     or not isinstance(expected_count, (int, float, str))
@@ -1726,7 +1746,17 @@ def _sync_serving(args: argparse.Namespace) -> int:
                         dag_run_id=dag_run_id,
                         error="Authoritative serving sync report failed boundary/materialization checks",
                         sync_run_seq=latest_run.get("sync_run_seq"),
-                        report=report,
+                        report_status=report.get("status"),
+                        report_status_reason=report.get("status_reason"),
+                        expected_event_count=expected_count,
+                        materialized_event_count=materialized_count,
+                        target_transaction_id=latest_run.get("target_transaction_id"),
+                        target_transaction_end_offset=latest_run.get(
+                            "target_transaction_end_offset"
+                        ),
+                        source_snapshot_completed=latest_run.get(
+                            "source_snapshot_completed"
+                        ),
                     )
 
             return _emit(

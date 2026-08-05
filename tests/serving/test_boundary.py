@@ -1,3 +1,4 @@
+from scripts.cdc.local_lab import _is_initial_snapshot_publication
 from scripts.serving.boundary import (
     ServingBoundaryPlanner,
     collapse_transaction_history,
@@ -213,6 +214,27 @@ def test_boundary_planner_initial_snapshot_without_transaction_boundary():
     assert plan.expected_entity_counts == {
         entity: metrics[entity]["event_count"] for entity in metrics
     }
+
+
+def test_initial_snapshot_publication_has_no_transaction_boundary():
+    assert _is_initial_snapshot_publication(
+        {
+            "source_snapshot_completed": True,
+            "previous_transaction_id": None,
+            "previous_transaction_end_offset": None,
+            "target_transaction_id": None,
+            "target_transaction_end_offset": None,
+        }
+    )
+    assert not _is_initial_snapshot_publication(
+        {
+            "source_snapshot_completed": True,
+            "previous_transaction_id": None,
+            "previous_transaction_end_offset": None,
+            "target_transaction_id": "tx-1",
+            "target_transaction_end_offset": 42,
+        }
+    )
 
 
 def test_boundary_planner_ignores_empty_complete_transactions():
