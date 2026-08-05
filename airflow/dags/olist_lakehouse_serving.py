@@ -123,12 +123,21 @@ def run_serving_sync() -> None:
         )
         entity_metrics = None
         if boundary_plan.status == "MATERIALIZING":
-            if boundary_plan.target_transaction_end_offset is None:
+            initial_snapshot_only = (
+                not bool(state.get("source_snapshot_completed"))
+                and boundary_plan.target_transaction_end_offset is None
+            )
+            if (
+                boundary_plan.target_transaction_end_offset is None
+                and not initial_snapshot_only
+            ):
                 raise RuntimeError(
                     "Serving planner returned MATERIALIZING without a transaction boundary"
                 )
             entity_metrics = ClickHouseServingMaterializer.fetch_entity_metrics(
-                boundary_plan.target_transaction_end_offset
+                None
+                if initial_snapshot_only
+                else boundary_plan.target_transaction_end_offset
             )
 
         plan = ServingBoundaryPlanner.plan_next_sync_run(

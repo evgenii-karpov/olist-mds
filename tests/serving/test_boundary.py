@@ -165,6 +165,56 @@ def test_boundary_planner_complete_transactions():
     assert plan.expected_event_count == 8
 
 
+def test_boundary_planner_initial_snapshot_without_transaction_boundary():
+    metrics = {
+        entity: {
+            "event_count": count,
+            "target_offsets": {
+                f"olist_cdc.olist_oltp.{entity}:0": count - 1,
+            },
+        }
+        for entity, count in {
+            "customers": 8,
+            "orders": 12,
+            "order_items": 16,
+            "order_payments": 14,
+            "order_reviews": 12,
+            "products": 8,
+            "sellers": 4,
+            "product_category_translation": 5,
+        }.items()
+    }
+    plan = ServingBoundaryPlanner.plan_next_sync_run(
+        sync_run_seq=1,
+        runtime_state={"source_snapshot_completed": False},
+        transaction_rows=[],
+        iceberg_snapshots={
+            entity: 10
+            for entity in (
+                "customers",
+                "orders",
+                "order_items",
+                "order_payments",
+                "order_reviews",
+                "products",
+                "sellers",
+                "product_category_translation",
+            )
+        },
+        entity_metrics=metrics,
+    )
+
+    assert plan.status == "MATERIALIZING"
+    assert plan.is_noop is False
+    assert plan.target_transaction_id is None
+    assert plan.target_transaction_end_offset is None
+    assert plan.source_snapshot_completed is True
+    assert plan.expected_event_count == 79
+    assert plan.expected_entity_counts == {
+        entity: metrics[entity]["event_count"] for entity in metrics
+    }
+
+
 def test_boundary_planner_ignores_empty_complete_transactions():
     plan = ServingBoundaryPlanner.plan_next_sync_run(
         sync_run_seq=1,

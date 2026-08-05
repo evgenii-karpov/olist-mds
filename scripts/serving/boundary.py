@@ -344,7 +344,18 @@ class ServingBoundaryPlanner:
                 expected_entity_counts=entity_counts,
             )
 
-        if target_tx_id is None or target_offset is None:
+        # The first publication may contain only the completed initial
+        # snapshot.  Snapshot rows intentionally have no transaction ID or
+        # transaction-topic end offset; the per-entity Kafka offsets supplied
+        # by ``entity_metrics`` are the publication boundary in that case.
+        # Once the snapshot has already been published, a non-NOOP plan must
+        # always have a real complete transaction boundary.
+        initial_snapshot_only = (
+            not snapshot_done and not complete_txs and open_transaction is None
+        )
+        if (
+            target_tx_id is None or target_offset is None
+        ) and not initial_snapshot_only:
             return TransactionCandidatePlan(
                 sync_run_seq=sync_run_seq,
                 operation_type="SYNC",
