@@ -3,7 +3,7 @@
 This document describes the local Olist archive used to seed MySQL.
 The committed small fixture follows the same file and header contract.
 
-Source archive: olist.zip
+Source archive: `olist.zip`
 
 ## File summary
 
@@ -22,7 +22,7 @@ Source archive: olist.zip
 ## Entity columns
 
 Column names are preserved when the source schema is created in MySQL.
-The raw type is the source-facing type used by the schema initializer.
+The raw type is the documented source-facing type for the MySQL source schema.
 
 ### customers
 

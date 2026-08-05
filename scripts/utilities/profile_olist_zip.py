@@ -1,4 +1,4 @@
-"""Profile the Olist Kaggle dataset archive and generate a source contract.
+"""Profile a local Olist dataset archive and generate a source contract.
 
 The script intentionally uses only the Python standard library so it can run in
 minimal local environments before project dependencies are installed.
@@ -225,113 +225,54 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
     ]
 
     lines = [
-        "# Source Contract",
+        "# Source contract",
         "",
-        "This document is generated from the local Olist dataset archive used by the",
-        "MySQL seed and bounded Stage V fixture checks.",
+        "This document describes the local Olist archive used to seed MySQL.",
+        "The committed small fixture follows the same file and header contract.",
         "",
         f"Source archive: `{archive_path.name}`",
         "",
-        "## File Summary",
+        "## File summary",
         "",
         markdown_table(
             ["Entity", "File", "Rows", "Columns"],
             summary_rows,
         ),
         "",
-        "## Expected Source Files",
+        "## Entity columns",
         "",
-        "The source-contract check should fail fast if any of these files are missing:",
+        "Column names are preserved when the source schema is created in MySQL.",
+        "The raw type is the documented source-facing type for the MySQL source",
+        "schema.",
         "",
     ]
 
-    lines.extend(f"- `{file_name}`" for file_name in EXPECTED_FILES)
-
-    lines.extend(
-        [
-            "",
-            "## Entity Contracts",
-            "",
-            "The `Inferred type` column is based on sampled non-null values. The",
-            "`Raw type` column is the recommended first-pass type for the",
-            "source/seed schema. Target transformations can cast to stricter",
-            "business types where needed.",
-            "",
-        ]
-    )
-
     for profile in profiles:
-        rows = []
-        for column in profile.columns:
-            null_pct = (
-                column.null_count / profile.row_count * 100 if profile.row_count else 0
-            )
-            rows.append(
-                [
-                    f"`{column.name}`",
-                    column.inferred_type,
-                    raw_type(column.name, column.inferred_type),
-                    str(column.null_count),
-                    f"{null_pct:.2f}%",
-                    ", ".join(f"`{value}`" for value in column.sample_values),
-                ]
-            )
-
+        rows = [
+            [column.name, raw_type(column.name, column.inferred_type)]
+            for column in profile.columns
+        ]
         lines.extend(
             [
                 f"### {profile.entity_name}",
                 "",
-                f"Source file: `{profile.file_name}`",
+                f"File: {profile.file_name}",
                 "",
-                f"Rows: `{profile.row_count}`",
-                "",
-                markdown_table(
-                    [
-                        "Column",
-                        "Inferred type",
-                        "Raw type",
-                        "Nulls",
-                        "Null %",
-                        "Sample values",
-                    ],
-                    rows,
-                ),
+                markdown_table(["Column", "Source type"], rows),
                 "",
             ]
         )
 
     lines.extend(
         [
-            "## Source Metadata Columns",
+            "## Rules",
             "",
-            "The bounded source and seed contract uses these deterministic metadata",
-            "fields when a source record is materialized:",
-            "",
-            markdown_table(
-                ["Column", "Recommended type", "Description"],
-                [
-                    ["`_batch_id`", "varchar(128)", "Deterministic batch identifier."],
-                    ["`_loaded_at`", "timestamp", "Materialization timestamp."],
-                    [
-                        "`_source_file`",
-                        "varchar(512)",
-                        "Original source file.",
-                    ],
-                    [
-                        "`_source_system`",
-                        "varchar(64)",
-                        "Source system name, initially `olist_kaggle`.",
-                    ],
-                ],
-            ),
-            "",
-            "## Contract Rules",
-            "",
-            "- Source validation must fail if an expected file is missing.",
-            "- Source validation must fail if a header changes unexpectedly.",
-            "- Seed and fixture materialization must be deterministic and batch-addressable.",
-            "- Target transformations own stricter type casting and business naming.",
-            "- Rejected-event and replay semantics belong to the target Spark/Iceberg contracts.",
+            "- The archive must contain every expected source file.",
+            "- Header names and order must match this contract.",
+            "- Nullable source values remain nullable in MySQL and CDC records.",
+            "- Zip-code prefixes remain strings so leading zeroes are preserved.",
+            "- Timestamps use the source timezone semantics defined by the MySQL schema.",
+            "- Source changes are transported through Debezium and the versioned Avro contracts.",
             "",
         ]
     )
