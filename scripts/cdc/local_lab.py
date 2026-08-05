@@ -2856,6 +2856,16 @@ def _final_parity(args: argparse.Namespace) -> int:
             timeout=remaining_timeout(900),
         )
         run_step(
+            "start-serving-observer",
+            [
+                *python_command,
+                "start-serving-observer",
+                "--timeout",
+                str(int(remaining_timeout(600))),
+            ],
+            timeout=remaining_timeout(600),
+        )
+        run_step(
             "wait-caught-up",
             [
                 *python_command,

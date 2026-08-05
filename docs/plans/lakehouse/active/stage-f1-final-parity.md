@@ -34,13 +34,15 @@ The command must run only the candidate. Any attempt to create a legacy worktree
 1. Verify the candidate SHA, oracle/metadata schema and all checksums.
 2. Create a clean Compose domain; perform a scoped reset only for its resources.
 3. Start platform and streaming and load the same fixture.
-4. Wait for the initial snapshot, committed Bronze/Silver progress and no rejects.
-5. Run finite serving sync at the real boundary and `dbt build`.
-6. Export candidate current state, fact and marts with the same manifest used by F0.
-7. Canonicalize values with the same rules version.
-8. For each relation, compare the grain, key set and every business column.
-9. Write the machine-readable diff and Markdown summary.
-10. Recheck that report status is computed from the diff, then clean the Compose domain on every outcome.
+4. Start the candidate ClickHouse serving observer before the catch-up barrier;
+   the barrier uses ClickHouse audit/progress queries in addition to Spark status.
+5. Wait for the initial snapshot, committed Bronze/Silver progress and no rejects.
+6. Run finite serving sync at the real boundary and `dbt build`.
+7. Export candidate current state, fact and marts with the same manifest used by F0.
+8. Canonicalize values with the same rules version.
+9. For each relation, compare the grain, key set and every business column.
+10. Write the machine-readable diff and Markdown summary.
+11. Recheck that report status is computed from the diff, then clean the Compose domain on every outcome.
 
 ---
 
