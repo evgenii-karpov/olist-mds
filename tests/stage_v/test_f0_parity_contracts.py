@@ -23,6 +23,7 @@ class CanonicalManifestTests(unittest.TestCase):
     def test_canonical_values_preserve_semantic_distinctions(self) -> None:
         self.assertEqual(NULL_VALUE, canonical_value(None, ColumnType("string")))
         self.assertEqual("", canonical_value("", ColumnType("string")))
+        self.assertEqual("RJ", canonical_value(b"RJ", ColumnType("string")))
         self.assertEqual(
             "1.20", canonical_value(Decimal("1.2"), ColumnType("decimal", 2))
         )

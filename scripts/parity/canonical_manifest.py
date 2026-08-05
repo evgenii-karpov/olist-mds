@@ -33,6 +33,8 @@ def canonical_value(value: object, column_type: ColumnType) -> object:
         return NULL_VALUE
     semantic_type = column_type.semantic_type
     if semantic_type == "string":
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            return bytes(value).decode("utf-8")
         return str(value)
     if semantic_type == "boolean":
         return bool(value)
