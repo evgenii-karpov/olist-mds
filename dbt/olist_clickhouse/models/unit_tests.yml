@@ -1,0 +1,74 @@
+version: 2
+
+unit_tests:
+  - name: payment_allocation_is_proportional_at_item_grain
+    model: int_order_payment_allocations
+    given:
+      - input: ref('stg_order_items_current')
+        format: dict
+        rows:
+          - {order_id: order-1, order_item_id: 1, price: 60.00, freight_value: 0.00}
+          - {order_id: order-1, order_item_id: 2, price: 40.00, freight_value: 0.00}
+      - input: ref('stg_order_payments_current')
+        format: dict
+        rows:
+          - {order_id: order-1, payment_value: 50.00}
+          - {order_id: order-1, payment_value: 50.00}
+    expect:
+      format: dict
+      rows:
+        - {order_id: order-1, order_item_id: 1, allocated_payment_value: 60.00}
+        - {order_id: order-1, order_item_id: 2, allocated_payment_value: 40.00}
+
+  - name: zero_gross_order_has_null_payment_allocation
+    model: int_order_payment_allocations
+    given:
+      - input: ref('stg_order_items_current')
+        format: dict
+        rows:
+          - {order_id: order-zero, order_item_id: 1, price: 0.00, freight_value: 0.00}
+      - input: ref('stg_order_payments_current')
+        format: dict
+        rows:
+          - {order_id: order-zero, payment_value: 10.00}
+    expect:
+      format: dict
+      rows:
+        - {order_id: order-zero, order_item_id: 1, allocated_payment_value: null}
+
+  - name: customer_scd2_collapses_identical_update_and_closes_on_delete
+    model: dim_customer_scd2
+    overrides:
+      vars:
+        sync_run_seq: 1
+        sync_run_id: unit-customer-scd2
+    given:
+      - input: ref('stg_customers_events')
+        rows:
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: original, customer_state: SP, event_id: snapshot, source_ts: '2026-01-01 00:00:00', kafka_topic: customers, kafka_partition: 0, kafka_offset: 1, is_snapshot: true, is_deleted: false, row_hash: same-row}
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: original, customer_state: SP, event_id: identical-update, source_ts: '2026-01-02 00:00:00', kafka_topic: customers, kafka_partition: 0, kafka_offset: 2, is_snapshot: false, is_deleted: false, row_hash: same-row}
+          - {customer_id: c1, customer_unique_id: u1, customer_zip_code_prefix: '00100', customer_city: original, customer_state: SP, event_id: delete, source_ts: '2026-01-03 00:00:00', kafka_topic: customers, kafka_partition: 0, kafka_offset: 3, is_snapshot: false, is_deleted: true, row_hash: same-row}
+    expect:
+      rows:
+        - {customer_unique_id: u1, customer_city: original, valid_from: '1900-01-01 00:00:00', valid_to: '2026-01-03 00:00:00', is_current: false, opening_event_id: snapshot}
+
+  - name: product_translation_does_not_resurrect_an_old_category
+    model: dim_product_scd2
+    overrides:
+      vars:
+        sync_run_seq: 1
+        sync_run_id: unit-product-scd2
+    given:
+      - input: ref('stg_products_events')
+        rows:
+          - {product_id: p1, product_category_name: cat-a, product_name_lenght: null, product_description_lenght: null, product_photos_qty: null, product_weight_g: null, product_length_cm: null, product_height_cm: null, product_width_cm: null, event_id: product-snapshot, source_ts: '2026-01-01 00:00:00', kafka_topic: products, kafka_partition: 0, kafka_offset: 1, is_snapshot: true, is_deleted: false}
+          - {product_id: p1, product_category_name: cat-b, product_name_lenght: null, product_description_lenght: null, product_photos_qty: null, product_weight_g: null, product_length_cm: null, product_height_cm: null, product_width_cm: null, event_id: product-category-move, source_ts: '2026-01-02 00:00:00', kafka_topic: products, kafka_partition: 0, kafka_offset: 2, is_snapshot: false, is_deleted: false}
+      - input: ref('stg_product_category_translation_events')
+        rows:
+          - {product_category_name: cat-a, product_category_name_english: Category A, event_id: translation-a-snapshot, source_ts: '2025-12-31 00:00:00', kafka_topic: translations, kafka_partition: 0, kafka_offset: 1, is_snapshot: true, is_deleted: false}
+          - {product_category_name: cat-b, product_category_name_english: Category B, event_id: translation-b-snapshot, source_ts: '2025-12-31 00:00:00', kafka_topic: translations, kafka_partition: 0, kafka_offset: 2, is_snapshot: true, is_deleted: false}
+          - {product_category_name: cat-a, product_category_name_english: Category A changed, event_id: translation-a-update, source_ts: '2026-01-03 00:00:00', kafka_topic: translations, kafka_partition: 0, kafka_offset: 3, is_snapshot: false, is_deleted: false}
+    expect:
+      rows:
+        - {product_id: p1, product_category_name: cat-a, product_category_name_english: Category A, valid_from: '1900-01-01 00:00:00', valid_to: '2026-01-02 00:00:00', is_current: false, opening_event_id: product-snapshot}
+        - {product_id: p1, product_category_name: cat-b, product_category_name_english: Category B, valid_from: '2026-01-02 00:00:00', valid_to: null, is_current: true, opening_event_id: product-category-move}

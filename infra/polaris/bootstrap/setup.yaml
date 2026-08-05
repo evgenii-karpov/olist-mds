@@ -1,0 +1,76 @@
+principal_roles:
+  - spark_writer_role
+  - clickhouse_reader_role
+  - airflow_maintenance_role
+
+principals:
+  spark_writer:
+    type: service
+    roles:
+      - spark_writer_role
+  clickhouse_reader:
+    type: service
+    roles:
+      - clickhouse_reader_role
+  airflow_maintenance:
+    type: service
+    roles:
+      - airflow_maintenance_role
+
+catalogs:
+  - name: olist_lakehouse
+    type: internal
+    storage_type: s3
+    default_base_location: s3://olist-lakehouse/warehouse
+    allowed_locations:
+      - s3://olist-lakehouse/warehouse
+    endpoint: http://minio:9000
+    endpoint_internal: http://minio:9000
+    sts_endpoint: http://minio:9000
+    region: us-east-1
+    kms_unavailable: true
+    path_style_access: true
+    roles:
+      spark_writer_catalog_role:
+        assign_to:
+          - spark_writer_role
+        privileges:
+          catalog:
+            - CATALOG_READ_PROPERTIES
+            - NAMESPACE_LIST
+            - NAMESPACE_READ_PROPERTIES
+            - TABLE_CREATE
+            - TABLE_LIST
+            - TABLE_READ_PROPERTIES
+            - TABLE_WRITE_PROPERTIES
+            - TABLE_READ_DATA
+            - TABLE_WRITE_DATA
+      clickhouse_reader_catalog_role:
+        assign_to:
+          - clickhouse_reader_role
+        privileges:
+          catalog:
+            - CATALOG_READ_PROPERTIES
+            - NAMESPACE_LIST
+            - NAMESPACE_READ_PROPERTIES
+            - TABLE_LIST
+            - TABLE_READ_PROPERTIES
+            - TABLE_READ_DATA
+      airflow_maintenance_catalog_role:
+        assign_to:
+          - airflow_maintenance_role
+        privileges:
+          catalog:
+            - CATALOG_READ_PROPERTIES
+            - NAMESPACE_LIST
+            - NAMESPACE_READ_PROPERTIES
+            - TABLE_LIST
+            - TABLE_READ_PROPERTIES
+            - TABLE_WRITE_PROPERTIES
+            - TABLE_READ_DATA
+            - TABLE_WRITE_DATA
+    namespaces:
+      - bronze
+      - silver
+      - reference
+      - audit

@@ -1,17 +1,26 @@
-# CDC Kafka replay
+# Kafka consumer recovery
 
-Kafka replay is a consumer recovery operation, not a source resnapshot.
+The local runtime keeps Kafka topics and Spark checkpoints during a normal
+service restart. Use this procedure when a consumer needs to resume from its
+configured checkpoint.
 
-1. Record the target topic, partitions, current group offsets, and immutable
-   object/warehouse watermarks.
-2. Stop NiFi and export the current `olist-nifi-cdc-v1` group offsets.
-3. Reset only the selected topic partitions to an explicitly recorded offset;
-   never reset Connect internal topics or the Debezium connector group.
-4. Start NiFi and observe lag drain, deterministic object names, verified
-   coverage, warehouse `_event_id` deduplication, and offset continuity.
-5. Compare object rows, inserted rows, duplicates, and rejected rows. A replay
-   may increase duplicate counters but must not increase unique event or mart
-   grain counts.
+1. Record the topic, partition, consumer group and current position.
+2. Stop only the Spark streaming services:
 
-Keep the before/after offsets in the incident record. Do not combine replay with
-topic deletion, retention changes, or resnapshot.
+   ```powershell
+   uv run python scripts/cdc/local_lab.py stop-streaming
+   ```
+
+3. Correct the selected consumer position with the Kafka administration tool
+   for the active Compose project. Do not delete Connect internal topics or
+   the source database.
+4. Start streaming and wait for the source to catch up:
+
+   ```powershell
+   uv run python scripts/cdc/local_lab.py start-streaming --wait-ready
+   uv run python scripts/cdc/local_lab.py wait-caught-up --timeout 1800
+   uv run python scripts/cdc/local_lab.py validate --scope serving
+   ```
+
+If a checkpoint or topic cannot be trusted, use the clean connector
+resnapshot runbook instead of changing multiple offsets manually.

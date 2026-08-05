@@ -35,7 +35,7 @@ def schema(fields: list[dict[str, object]]) -> dict[str, object]:
     return {
         "type": "record",
         "name": "CompatibilityProbe",
-        "namespace": "io.olist.stage2",
+        "namespace": "io.olist.cdc",
         "fields": fields,
     }
 
@@ -48,7 +48,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    subject = f"olist-stage2-compatibility-{uuid.uuid4()}"
+    subject = f"olist-cdc-compatibility-{uuid.uuid4()}"
     v1 = schema([{"name": "entity_id", "type": "string"}])
     v2 = schema(
         [

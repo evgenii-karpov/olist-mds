@@ -1,15 +1,24 @@
-# CDC Avro schemas
+# CDC schema contracts
 
-Store reviewed logical Avro schemas as
-`streaming/schemas/<subject>/v<positive-integer>.avsc`. Versions must be
-contiguous, beginning with `v1.avsc`.
+`contracts/<entity>/vN.json` defines the Kafka topic, key, MySQL columns,
+Avro reader schema, Iceberg projection and evolution rules for each captured
+entity. `contracts/manifest.json` records the versions and digests.
 
-CI enforces the committed `BACKWARD_TRANSITIVE` policy: every new reader schema
-must be able to read every older writer schema. The Phase 0 checker is
-intentionally conservative: removing or renaming fields and changing existing
-types fails; new fields require defaults. Registry-side compatibility remains a
-required integration check when Apicurio is introduced in Phase 2.
+Writer schema evidence is stored in
+`captured-writer-schemas/__. The validator checks the Registry group,
+artifact, version, schema ID, topic provenance and canonical digest before a
+writer fingerprint is accepted.
 
-`cdc-coverage/v1.schema.json` is a JSON control-plane contract rather than an
-Avro event schema. It classifies landing Kafka offsets into business-event and
-tombstone ranges and is validated independently from registry compatibility.
+Useful checks:
+
+```powershell
+python -m streaming.schemas.generate_contracts --check
+python -m streaming.schemas.writer_schemas validate
+python -m streaming.schemas.contracts
+uv run pytest -q tests/cdc_contracts
+```
+
+`avro.py` preserves malformed-frame evidence for Bronze and decodes the
+Confluent header when it is valid. `registry.py` resolves Apicurio
+references into Spark-readable schemas. Compatibility checks reject key changes,
+renames, drops, incompatible type changes and non-nullable additions.

@@ -14,6 +14,8 @@ RUN cd /tmp/project-deps \
 
 WORKDIR /opt/airflow/project
 
+ENV PYTHONPATH=/opt/airflow/project
+
 COPY --chown=airflow:0 pyproject.toml /opt/airflow/project/pyproject.toml
 COPY --chown=airflow:0 docker /opt/airflow/project/docker
 COPY --chown=airflow:0 docs /opt/airflow/project/docs
@@ -34,11 +36,10 @@ RUN chmod 0660 /opt/airflow/runtime/simple_auth_manager_passwords.json
 USER airflow
 
 COPY --chown=airflow:0 airflow /opt/airflow/project/airflow
-COPY --chown=airflow:0 dbt/olist_analytics /opt/airflow/project/dbt/olist_analytics
+COPY --chown=airflow:0 dbt/olist_clickhouse /opt/airflow/project/dbt/olist_clickhouse
 
-RUN cd /opt/airflow/project/dbt/olist_analytics \
+RUN cd /opt/airflow/project/dbt/olist_clickhouse \
     && cp profiles.yml.example profiles.yml \
     && dbt deps \
-    && edr --help >/dev/null \
     && mkdir -p /opt/airflow/dags \
     && cp -r /opt/airflow/project/airflow/dags/. /opt/airflow/dags/

@@ -1,189 +1,184 @@
 groups:
-  - name: cdc-component-health
+  - name: lakehouse-target-health
     rules:
-      - alert: CdcConnectorNotRunning
-        expr: olist_connect_connector_running{connector="olist-postgres-cdc"} != 1 or absent(olist_connect_connector_running{connector="olist-postgres-cdc"})
-        for: 2m
+      - alert: LakehouseMySQLUnavailable
+        expr: olist_target_up{target="mysql"} != 1 or absent(olist_target_up{target="mysql"})
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: Debezium connector is not running
+          summary: Target MySQL is unavailable
           runbook: docs/runbooks/cdc-service-restart.md
 
-      - alert: CdcConnectorTaskNotRunning
-        expr: olist_connect_tasks_running{connector="olist-postgres-cdc"} != 1 or absent(olist_connect_tasks_running{connector="olist-postgres-cdc"})
-        for: 2m
+      - alert: LakehouseKafkaUnavailable
+        expr: olist_target_up{target="kafka"} != 1 or absent(olist_target_up{target="kafka"})
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: Debezium connector task is not running
+          summary: Target Kafka broker is unavailable
           runbook: docs/runbooks/cdc-service-restart.md
 
-      - alert: CdcNifiUnavailable
-        expr: up{job="nifi"} != 1 or absent(up{job="nifi"}) or olist_nifi_metrics_proxy_up != 1
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: NiFi metrics or runtime is unavailable
-          runbook: docs/runbooks/cdc-service-restart.md
-
-      - alert: CdcMinioUnavailable
-        expr: up{job="minio"} != 1 or absent(up{job="minio"})
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: MinIO metrics or runtime is unavailable
-          runbook: docs/runbooks/cdc-service-restart.md
-
-      - alert: CdcWarehousePipelineUnavailable
-        expr: up{job="cdc-pipeline"} != 1 or absent(up{job="cdc-pipeline"}) or olist_cdc_pipeline_up != 1
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: CDC warehouse audit metrics are unavailable
-          runbook: docs/runbooks/cdc-warehouse-ingest.md
-
-      - alert: CdcClickHouseUnavailable
-        expr: up{job="clickhouse"} != 1 or absent(up{job="clickhouse"})
-        for: 2m
-        labels:
-          severity: critical
-        annotations:
-          summary: ClickHouse warehouse metrics are unavailable
-          runbook: docs/runbooks/cdc-warehouse-ingest.md
-
-      - alert: CdcWarehouseOffsetGap
-        expr: sum(olist_cdc_offset_gaps) > 0
+      - alert: LakehouseKafkaLagHigh
+        expr: sum(olist_kafka_consumer_lag{consumer_group=~"olist-spark-bronze(-.*)?", topic=~"olist_cdc\\.(olist_oltp\\.(customers|orders|order_items|order_payments|order_reviews|products|sellers|product_category_translation)|transaction|heartbeat)"}) > 10000
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: CDC warehouse offset coverage contains a gap
-          runbook: docs/runbooks/cdc-warehouse-ingest.md
-
-      - alert: CdcHeartbeatMissing
-        expr: olist_cdc_heartbeat_age_seconds{component_name="debezium"} > 180 or absent(olist_cdc_heartbeat_age_seconds{component_name="debezium"})
-        labels:
-          severity: critical
-        annotations:
-          summary: Debezium source heartbeat is older than three minutes
-          runbook: docs/runbooks/cdc-service-restart.md
-
-      - alert: CdcRetainedWalHighAndGrowing
-        expr: min_over_time(olist_cdc_replication_slot_retained_wal_bytes[15m]) > 536870912 and deriv(olist_cdc_replication_slot_retained_wal_bytes[15m]) > 0
-        labels:
-          severity: critical
-        annotations:
-          summary: PostgreSQL CDC slot retains more than 512 MiB and is growing
-          runbook: docs/runbooks/cdc-service-restart.md
-
-      - alert: CdcDlqOrQuarantineRecords
-        expr: olist_cdc_dlq_open_records > 0 or olist_cdc_quarantine_recent_records > 0
-        for: 1m
-        labels:
-          severity: warning
-        annotations:
-          summary: CDC records require DLQ or quarantine investigation
-          runbook: docs/runbooks/cdc-schema-migration.md
-
-      - alert: CdcNifiBackpressureHigh
-        expr: olist_cdc:nifi_queue_utilization_ratio > 0.7
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: NiFi queue is above 70 percent of the object threshold
-          runbook: docs/runbooks/cdc-service-restart.md
-
-      - alert: CdcKafkaBacklogHigh
-        expr: olist_cdc:kafka_consumer_lag > 10000
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: NiFi Kafka consumer backlog exceeds the tuned local threshold
+          summary: Target Kafka consumer lag is high
           runbook: docs/runbooks/cdc-kafka-replay.md
 
-      - alert: CdcCommitToMartSloBreach
-        expr: olist_cdc:commit_to_mart_latency_p95_seconds > 300
-        for: 10m
+      - alert: LakehouseKafkaConnectUnavailable
+        expr: olist_target_up{target="kafka-connect"} != 1 or absent(olist_target_up{target="kafka-connect"})
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: CDC p95 commit-to-mart latency exceeds five minutes
-          runbook: docs/runbooks/cdc-alert-testing.md
+          summary: Target Kafka Connect or MySQL connector is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
 
-      - alert: CdcLatencyErrorBudgetBurn
-        expr: olist_cdc:latency_error_budget_burn_ratio_10m > 0.05
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: More than five percent of recent mart observations exceed the SLO
-          runbook: docs/runbooks/cdc-alert-testing.md
-
-      - alert: CdcIngestStalled
-        expr: time() - (olist_cdc_last_ingest_success_timestamp_seconds or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
-        for: 2m
+      - alert: LakehouseKafkaConnectTaskNotRunning
+        expr: olist_connect_task_running{connector="olist-mysql-cdc", task="0"} != 1 or absent(olist_connect_task_running{connector="olist-mysql-cdc", task="0"})
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: Source events are recent but warehouse ingest has not succeeded
-          runbook: docs/runbooks/cdc-warehouse-ingest.md
+          summary: Target MySQL CDC connector task is not running
+          runbook: docs/runbooks/cdc-connector-resnapshot.md
 
-      - alert: CdcTransformStalled
-        expr: time() - (olist_cdc_last_transform_success_timestamp_seconds or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
-        for: 2m
+      - alert: LakehouseApicurioUnavailable
+        expr: olist_target_up{target="apicurio"} != 1 or absent(olist_target_up{target="apicurio"})
+        for: 30s
         labels:
           severity: critical
         annotations:
-          summary: Source events are recent but realtime transform has not succeeded
-          runbook: docs/runbooks/cdc-realtime-dbt.md
+          summary: Target Apicurio Registry is unavailable
+          runbook: docs/runbooks/cdc-schema-migration.md
 
-      - alert: CdcTooManySmallFiles
-        expr: olist_cdc_files_last_hour > 100 or (olist_cdc_files_last_hour > 10 and olist_cdc_file_median_size_bytes < 1048576)
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: CDC object output is producing too many or too-small files
-          runbook: docs/runbooks/cdc-alert-testing.md
-
-      - alert: CdcAirflowDagFailure
-        expr: increase(airflow_dagrun_duration_seconds_count{status="failed"}[10m]) > 0
+      - alert: LakehouseApicurioCompatibilityUnavailable
+        expr: olist_apicurio_compatibility_ready != 1 or absent(olist_apicurio_compatibility_ready)
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: An Airflow DAG run failed
+          summary: Target Apicurio compatibility rule is unavailable
+          runbook: docs/runbooks/cdc-schema-migration.md
+
+      - alert: LakehouseSparkUnavailable
+        expr: olist_target_up{target="spark"} != 1 or absent(olist_target_up{target="spark"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target Spark master or worker is unavailable
           runbook: docs/runbooks/cdc-service-restart.md
 
-      - alert: CdcDbtTransformFailure
-        expr: increase(olist_cdc_transform_failures_total[10m]) > 0
+      - alert: LakehouseSparkStreamingDegraded
+        expr: min(olist_spark_streaming_state{component=~"bronze|silver"}) != 1 or absent(olist_spark_streaming_state{component="bronze"}) or absent(olist_spark_streaming_state{component="silver"}) or (max(olist_spark_streaming_status_stale{component=~"bronze|silver"}) == 1 and olist_lakehouse:kafka_business_consumer_lag > 0)
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: A realtime dbt transform failed
-          runbook: docs/runbooks/cdc-realtime-dbt.md
-
-      - alert: CdcMartStale
-        expr: time() - (max(olist_cdc_mart_build_timestamp_seconds) or vector(0)) > 600 and time() - max(olist_cdc_raw_max_source_timestamp_seconds) < 600
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: Realtime marts are stale while source events remain active
-          runbook: docs/runbooks/cdc-realtime-dbt.md
-
-      - alert: CdcContainerDiskPressure
-        expr: 1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) > 0.85
-        for: 10m
-        labels:
-          severity: warning
-        annotations:
-          summary: Local host filesystem usage exceeds 85 percent
+          summary: Target Spark Bronze or Silver progress is degraded
           runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: LakehouseMinioUnavailable
+        expr: up{job="minio"} != 1 or absent(up{job="minio"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target MinIO object storage is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: LakehousePolarisUnavailable
+        expr: olist_target_up{target="polaris"} != 1 or absent(olist_target_up{target="polaris"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target Polaris catalog is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: LakehouseClickHouseUnavailable
+        expr: up{job="clickhouse"} != 1 or absent(up{job="clickhouse"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target ClickHouse serving is unavailable
+          runbook: docs/runbooks/lakehouse-serving-sync.md
+
+      - alert: LakehouseAirflowUnavailable
+        expr: olist_target_up{target="airflow"} != 1 or absent(olist_target_up{target="airflow"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target Airflow API is unavailable
+          runbook: docs/runbooks/cdc-service-restart.md
+
+      - alert: LakehouseControlPostgresUnavailable
+        expr: olist_target_up{target="control-postgres"} != 1 or absent(olist_target_up{target="control-postgres"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target serving control database is unavailable
+          runbook: docs/runbooks/lakehouse-serving-sync.md
+
+  - name: lakehouse-observability-health
+    rules:
+      - alert: ObservabilityTargetProbeUnavailable
+        expr: up{job="target-probe"} != 1 or absent(up{job="target-probe"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Target observability probe is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: ObservabilityPrometheusUnavailable
+        expr: up{job="prometheus"} != 1 or absent(up{job="prometheus"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Prometheus is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: ObservabilityAlertmanagerUnavailable
+        expr: up{job="alertmanager"} != 1 or absent(up{job="alertmanager"})
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Alertmanager is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: ObservabilityGrafanaUnavailable
+        expr: up{job="grafana"} != 1 or absent(up{job="grafana"})
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Grafana is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: ObservabilityLokiUnavailable
+        expr: up{job="loki"} != 1 or absent(up{job="loki"})
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Loki is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md
+
+      - alert: ObservabilityAlloyUnavailable
+        expr: up{job="alloy"} != 1 or absent(up{job="alloy"})
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: Alloy is unavailable
+          runbook: docs/runbooks/cdc-alert-testing.md

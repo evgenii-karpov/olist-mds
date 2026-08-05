@@ -1,231 +1,105 @@
+name: ${COMPOSE_PROJECT_NAME:-olist_local_cdc}
+
 services:
-  airflow-postgres:
+  platform-postgres:
     image: postgres:17.10
-    container_name: olist-airflow-postgres
+    profiles: [platform]
     restart: unless-stopped
     shm_size: 128mb
     environment:
-      POSTGRES_DB: ${AIRFLOW_POSTGRES_DB:-airflow}
-      POSTGRES_USER: ${AIRFLOW_POSTGRES_USER:-airflow}
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
       POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      POLARIS_DB_USERNAME_FILE: /run/secrets/polaris_db_user
+      POLARIS_DB_PASSWORD_FILE: /run/secrets/polaris_db_password
+      APICURIO_DB_USERNAME_FILE: /run/secrets/apicurio_db_user
+      APICURIO_DB_PASSWORD_FILE: /run/secrets/apicurio_db_password
+    ports:
+      - "${PLATFORM_POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
-      - airflow_postgres_data:/var/lib/postgresql/data
+      - platform_postgres_data:/var/lib/postgresql/data
+      - ./infra/polaris/postgres/010_create_polaris_database.sh:/docker-entrypoint-initdb.d/010_create_polaris_database.sh:ro
+      - ./infra/platform-postgres/initdb/020_create_apicurio_database.sh:/docker-entrypoint-initdb.d/020_create_apicurio_database.sh:ro
+      - ./infra/platform-postgres:/opt/olist/platform-postgres:ro
+      - ./infra/polaris/postgres:/opt/olist/polaris-postgres:ro
+      - ./infra/control-postgres:/opt/olist/control-postgres:ro
     secrets:
       - airflow_postgres_password
+      - polaris_db_user
+      - polaris_db_password
+      - apicurio_db_user
+      - apicurio_db_password
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-airflow} -d $${POSTGRES_DB:-airflow}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 20
+      start_period: 15s
 
-  clickhouse:
-    image: clickhouse/clickhouse-server:26.3.17.4
-    container_name: olist-clickhouse
-    restart: unless-stopped
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    environment:
-      CLICKHOUSE_DB: "${CLICKHOUSE_DATABASE:-analytics}"
-      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
-      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
-    ports:
-      - "${CLICKHOUSE_HTTP_HOST_PORT:-8123}:8123"
-      - "${CLICKHOUSE_NATIVE_HOST_PORT:-19000}:9000"
-    volumes:
-      - olist_clickhouse_data:/var/lib/clickhouse
-      - ./docker/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
-      - ./docker/clickhouse/users.d/local.xml:/etc/clickhouse-server/users.d/local.xml:ro
-    secrets:
-      - clickhouse_password
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          clickhouse-client
-          --host 127.0.0.1
-          --user "$${CLICKHOUSE_USER:-olist}"
-          --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)"
-          --query "SELECT 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 45s
-
-  clickhouse-init:
-    image: clickhouse/clickhouse-server:26.3.17.4
-    container_name: olist-clickhouse-init
-    restart: "no"
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    entrypoint: ["bash", "/opt/olist/clickhouse/init-clickhouse.sh"]
-    environment:
-      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
-    volumes:
-      - ./infra/clickhouse/initdb:/opt/olist/clickhouse/initdb:ro
-      - ./docker/clickhouse/init-clickhouse.sh:/opt/olist/clickhouse/init-clickhouse.sh:ro
-    secrets:
-      - clickhouse_password
-
-  control-db-init:
+  platform-postgres-bootstrap:
     image: postgres:17.10
-    container_name: olist-control-db-init
+    profiles: [platform]
     restart: "no"
     depends_on:
-      airflow-postgres:
+      platform-postgres:
         condition: service_healthy
-    entrypoint: ["bash", "/opt/olist/control-postgres/init-control-db.sh"]
+    entrypoint: ["bash", "/opt/olist/platform-postgres/bootstrap.sh"]
     environment:
-      AIRFLOW_POSTGRES_HOST: airflow-postgres
-      AIRFLOW_POSTGRES_PORT: "5432"
-      AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
-      AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
+      PLATFORM_POSTGRES_HOST: platform-postgres
+      PLATFORM_POSTGRES_PORT: "5432"
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
       AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
-      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
-      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
       CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
+      POLARIS_DB_USERNAME_FILE: /run/secrets/polaris_db_user
+      POLARIS_DB_PASSWORD_FILE: /run/secrets/polaris_db_password
+      APICURIO_DB_USERNAME_FILE: /run/secrets/apicurio_db_user
+      APICURIO_DB_PASSWORD_FILE: /run/secrets/apicurio_db_password
     volumes:
+      - ./infra/platform-postgres:/opt/olist/platform-postgres:ro
+      - ./infra/polaris/postgres:/opt/olist/polaris-postgres:ro
       - ./infra/control-postgres:/opt/olist/control-postgres:ro
     secrets:
       - airflow_postgres_password
       - control_postgres_password
+      - polaris_db_user
+      - polaris_db_password
+      - apicurio_db_user
+      - apicurio_db_password
 
-  airflow:
-    build:
-      context: .
-      dockerfile: docker/airflow/Dockerfile
-    image: olist-airflow:local
-    container_name: olist-airflow
+  mysql:
+    image: mysql:8.4.10
+    profiles: [platform]
     restart: unless-stopped
-    working_dir: /opt/airflow/project
-    depends_on:
-      airflow-postgres:
-        condition: service_healthy
-      control-db-init:
-        condition: service_completed_successfully
-      clickhouse-init:
-        condition: service_completed_successfully
-    command:
-      - bash
-      - /opt/airflow/project/docker/airflow/load-env-and-run.sh
-      - airflow
-      - standalone
-    ports:
-      - "8080:8080"
+    command: ["mysqld", "--defaults-extra-file=/etc/mysql/conf.d/olist.cnf"]
     environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
-      # Keep the mutable auth-manager state outside the project bind mount.
-      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/runtime/simple_auth_manager_passwords.json
-      AIRFLOW__METRICS__STATSD_ON: "${AIRFLOW_STATSD_ON:-false}"
-      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
-      AIRFLOW__METRICS__STATSD_PORT: "9125"
-      AIRFLOW__METRICS__STATSD_PREFIX: airflow
-      OLIST_PROJECT_ROOT: /opt/airflow/project
-      OLIST_PYTHON_BIN: python
-      OLIST_AIRFLOW_RETRIES: "${OLIST_AIRFLOW_RETRIES:-2}"
-      OLIST_AIRFLOW_RETRY_DELAY_SECONDS: "${OLIST_AIRFLOW_RETRY_DELAY_SECONDS:-300}"
-      DBT_PROFILES_DIR: /opt/airflow/project/dbt/olist_analytics
-      DBT_TARGET: "${DBT_TARGET:-local_clickhouse}"
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
-      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
-      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-analytics}"
-      CLICKHOUSE_SECURE: "${CLICKHOUSE_SECURE:-false}"
-      AIRFLOW_POSTGRES_HOST: airflow-postgres
-      AIRFLOW_POSTGRES_PORT: "5432"
-      AIRFLOW_POSTGRES_DB: "${AIRFLOW_POSTGRES_DB:-airflow}"
-      AIRFLOW_POSTGRES_USER: "${AIRFLOW_POSTGRES_USER:-airflow}"
-      AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
-      CONTROL_POSTGRES_HOST: airflow-postgres
-      CONTROL_POSTGRES_PORT: "5432"
-      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
-      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
-      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
-      AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
-      AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
-      REDSHIFT_PASSWORD_FILE: /run/secrets/redshift_password
-      CDC_S3_ENDPOINT: http://minio:9000
-      CDC_S3_REGION: us-east-1
-      CDC_S3_BUCKET: olist-cdc
-      CDC_S3_ACCESS_KEY: olist_cdc_loader
-      CDC_S3_SECRET_FILE: /run/secrets/minio_cdc_loader_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    ports:
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
-      - ./:/opt/airflow/project
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
+      - mysql_data:/var/lib/mysql
+      - ./infra/mysql/conf.d/olist.cnf:/etc/mysql/conf.d/olist.cnf:ro
+      - ./infra/mysql/initdb:/docker-entrypoint-initdb.d:ro
     secrets:
-      - clickhouse_password
-      - airflow_postgres_password
-      - control_postgres_password
-      - airflow_api_secret_key
-      - redshift_password
-      - minio_cdc_loader_password
+      - mysql_root_password
+      - mysql_admin_password
+      - mysql_simulator_password
+      - mysql_cdc_reader_password
+      - mysql_spark_reference_reader_password
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"
-          && python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v2/monitor/health', timeout=5)"
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-
-  oltp-postgres:
-    image: postgres:18.4
-    profiles: [realtime-core]
-    container_name: olist-oltp-postgres
-    restart: unless-stopped
-    shm_size: 128mb
-    environment:
-      POSTGRES_DB: ${OLTP_POSTGRES_DB:-olist_oltp}
-      POSTGRES_USER: ${OLTP_POSTGRES_ADMIN_USER:-olist_admin}
-      POSTGRES_PASSWORD_FILE: /run/secrets/oltp_admin_password
-      PGDATA: /var/lib/postgresql/18/docker
-    command:
-      - postgres
-      - -c
-      - wal_level=logical
-      - -c
-      - max_replication_slots=10
-      - -c
-      - max_wal_senders=10
-      - -c
-      - max_slot_wal_keep_size=1GB
-      - -c
-      - wal_keep_size=128MB
-    ports:
-      - "${OLTP_POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - olist_oltp_data:/var/lib/postgresql
-      - ./infra/oltp/initdb:/docker-entrypoint-initdb.d:ro
-    secrets:
-      - oltp_admin_password
-      - oltp_simulator_password
-      - oltp_cdc_reader_password
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-olist_admin} -d $${POSTGRES_DB:-olist_oltp}"]
+          mysqladmin ping --protocol=tcp --host=127.0.0.1 --user=root
+          --password="$$(tr -d '\r\n' < /run/secrets/mysql_root_password)"
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 20s
+      retries: 30
+      start_period: 30s
 
   kafka:
     image: apache/kafka:4.3.1
-    profiles: [realtime-core]
-    container_name: olist-kafka
-    hostname: kafka
+    profiles: [platform]
     restart: unless-stopped
     ports:
       - "${KAFKA_HOST_PORT:-9092}:9092"
@@ -246,47 +120,52 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
     volumes:
-      - olist_kafka_data:/var/lib/kafka/data
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:29092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 30
       start_period: 20s
 
   kafka-topics:
     image: apache/kafka:4.3.1
-    profiles: [realtime-core]
-    container_name: olist-kafka-topics
+    profiles: [platform]
     restart: "no"
     depends_on:
       kafka:
         condition: service_healthy
     volumes:
       - ./streaming/kafka/create-topics.sh:/opt/olist/create-topics.sh:ro
+      - ./streaming/kafka/topics.json:/opt/olist/topics.json:ro
     command: ["bash", "/opt/olist/create-topics.sh", "kafka:29092"]
 
   apicurio-registry:
     image: quay.io/apicurio/apicurio-registry:3.3.0
-    profiles: [realtime-core]
-    container_name: olist-apicurio-registry
-    hostname: apicurio-registry
+    profiles: [platform]
     restart: unless-stopped
     depends_on:
-      kafka:
-        condition: service_healthy
-      kafka-topics:
+      platform-postgres-bootstrap:
         condition: service_completed_successfully
     ports:
       - "${APICURIO_HOST_PORT:-8081}:8080"
+    entrypoint: ["/bin/sh", "/opt/olist/apicurio-file-env.sh"]
     environment:
-      APICURIO_STORAGE_KIND: kafkasql
-      APICURIO_KAFKASQL_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_STORAGE_KIND: sql
+      APICURIO_STORAGE_SQL_KIND: postgresql
+      APICURIO_DATASOURCE_URL: jdbc:postgresql://platform-postgres:5432/apicurio
+      APICURIO_DATASOURCE_USERNAME_FILE: /run/secrets/apicurio_db_user
+      APICURIO_DATASOURCE_PASSWORD_FILE: /run/secrets/apicurio_db_password
+    volumes:
+      - ./streaming/connect/apicurio-file-env.sh:/opt/olist/apicurio-file-env.sh:ro
+    secrets:
+      - apicurio_db_user
+      - apicurio_db_password
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/apis/registry/v3/system/info >/dev/null"]
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/apis/registry/v3/system/info >/dev/null"]
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 40
       start_period: 30s
 
   kafka-connect:
@@ -294,24 +173,20 @@ services:
       context: streaming/connect
       dockerfile: Dockerfile
     image: olist-kafka-connect:3.6.0.Final
-    profiles: [realtime-core]
-    container_name: olist-kafka-connect
-    hostname: kafka-connect
+    profiles: [platform]
     restart: unless-stopped
     depends_on:
-      oltp-postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
       kafka-topics:
         condition: service_completed_successfully
       apicurio-registry:
+        condition: service_healthy
+      mysql:
         condition: service_healthy
     ports:
       - "${KAFKA_CONNECT_HOST_PORT:-8083}:8083"
     environment:
       BOOTSTRAP_SERVERS: kafka:29092
-      GROUP_ID: olist-connect-cluster
+      GROUP_ID: olist_cdc
       CONFIG_STORAGE_TOPIC: olist_connect_configs
       OFFSET_STORAGE_TOPIC: olist_connect_offsets
       STATUS_STORAGE_TOPIC: olist_connect_status
@@ -325,13 +200,11 @@ services:
       ENABLE_APICURIO_CONVERTERS: "true"
       CONNECT_TOPIC_CREATION_ENABLE: "false"
       REST_ADVERTISED_HOST_NAME: kafka-connect
-    secrets:
-      - oltp_cdc_reader_password
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8083/connectors >/dev/null"]
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8083/connectors >/dev/null"]
       interval: 5s
       timeout: 5s
-      retries: 30
+      retries: 40
       start_period: 30s
 
   minio:
@@ -339,323 +212,855 @@ services:
       context: streaming/minio
       dockerfile: Dockerfile
     image: olist-minio:RELEASE.2025-10-15T17-29-55Z
-    profiles: [realtime-core]
-    container_name: olist-minio
-    hostname: minio
+    profiles: [platform]
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
-      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
       MINIO_PROMETHEUS_AUTH_TYPE: public
     ports:
       - "${MINIO_API_HOST_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
     volumes:
-      - olist_minio_data:/data
+      - minio_data:/data
     secrets:
+      - minio_root_user
       - minio_root_password
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://localhost:9000/minio/health/ready >/dev/null"]
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:9000/minio/health/ready >/dev/null"]
       interval: 5s
       timeout: 5s
       retries: 30
       start_period: 20s
 
   minio-init:
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
-    profiles: [realtime-core]
-    container_name: olist-minio-init
-    restart: "no"
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: ["/bin/sh", "/opt/olist/init.sh"]
-    volumes:
-      - ./streaming/minio/init.sh:/opt/olist/init.sh:ro
-      - ./streaming/minio/nifi-policy.json:/opt/olist/nifi-policy.json:ro
-      - ./streaming/minio/cdc-loader-policy.json:/opt/olist/cdc-loader-policy.json:ro
-    secrets:
-      - minio_root_password
-      - minio_nifi_password
-      - minio_cdc_loader_password
-
-  nifi:
     build:
       context: .
-      dockerfile: streaming/nifi/Dockerfile
-    image: olist-nifi:2.10.0
-    profiles: [realtime-core]
-    container_name: olist-nifi
-    hostname: nifi
-    restart: unless-stopped
-    depends_on:
-      kafka:
-        condition: service_healthy
-      apicurio-registry:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-    environment:
-      NIFI_ADMIN_USERNAME: nifi-admin
-      NIFI_WEB_PROXY_HOST: "nifi:8443,localhost:${NIFI_HOST_PORT:-8443}"
-      NIFI_JVM_HEAP_INIT: 2g
-      NIFI_JVM_HEAP_MAX: 4g
-    ports:
-      - "${NIFI_HOST_PORT:-8443}:8443"
-    volumes:
-      - olist_nifi_conf:/opt/nifi/nifi-current/conf
-      - olist_nifi_database:/opt/nifi/nifi-current/database_repository
-      - olist_nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
-      - olist_nifi_content:/opt/nifi/nifi-current/content_repository
-      - olist_nifi_provenance:/opt/nifi/nifi-current/provenance_repository
-      - olist_nifi_state:/opt/nifi/nifi-current/state
-    secrets:
-      - nifi_admin_password
-      - minio_nifi_password
-    healthcheck:
-      test: ["CMD-SHELL", "curl --silent --insecure --output /dev/null https://nifi:8443/nifi-api/access/config"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 60s
-
-  nifi-bootstrap:
-    image: olist-nifi:2.10.0
-    profiles: [realtime-core]
-    container_name: olist-nifi-bootstrap
+      dockerfile: infra/polaris/minio/Dockerfile
+    image: olist-minio-init:RELEASE.2025-08-13T08-35-41Z
+    profiles: [platform]
     restart: "no"
     depends_on:
-      nifi:
+      polaris-credentials-prepare:
+        condition: service_completed_successfully
+      minio:
         condition: service_healthy
-    entrypoint: ["python3", "/opt/olist/deploy_flow.py"]
-    command: ["--url", "https://nifi:8443/nifi-api"]
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      POLARIS_CREDENTIALS_DIR: /run/polaris-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials
     secrets:
-      - nifi_admin_password
+      - minio_root_user
+      - minio_root_password
+
+  polaris-credentials-prepare:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/Dockerfile
+    image: olist-polaris-credentials:1.0
+    profiles: [platform]
+    restart: "no"
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials
+
+  polaris-admin-projector:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/projector.Dockerfile
+    image: olist-polaris-projector:1.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      polaris-credentials-prepare:
+        condition: service_completed_successfully
+    environment:
+      CREDENTIAL_CONSUMER: polaris-admin
+      CREDENTIAL_TARGET_UID: "10000"
+      CREDENTIAL_TARGET_GID: "10001"
+      CREDENTIAL_SOURCE_DIR: /run/polaris-credentials
+      CREDENTIAL_PROJECTION_DIR: /run/projected-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials:ro
+      - polaris_admin_credentials:/run/projected-credentials
+
+  polaris-admin:
+    build:
+      context: .
+      dockerfile: infra/polaris/admin/Dockerfile
+    image: olist-polaris-admin:1.6.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      platform-postgres-bootstrap:
+        condition: service_completed_successfully
+      polaris-admin-projector:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_DB: airflow
+      POLARIS_JDBC_URL: jdbc:postgresql://platform-postgres:5432/polaris
+      POLARIS_DB_USERNAME_FILE: /run/secrets/polaris_db_user
+      POLARIS_DB_PASSWORD_FILE: /run/secrets/polaris_db_password
+      POLARIS_ROOT_CLIENT_ID_FILE: /run/projected-credentials/bootstrap-admin-client-id
+      POLARIS_ROOT_CLIENT_SECRET_FILE: /run/projected-credentials/bootstrap-admin-client-secret
+    volumes:
+      - polaris_admin_credentials:/run/projected-credentials:ro
+    secrets:
+      - polaris_db_user
+      - polaris_db_password
+
+  polaris:
+    build:
+      context: .
+      dockerfile: infra/polaris/server/Dockerfile
+    image: olist-polaris:1.6.0
+    profiles: [platform]
+    restart: unless-stopped
+    depends_on:
+      polaris-admin:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+      polaris-server-projector:
+        condition: service_completed_successfully
+    ports:
+      - "${POLARIS_HOST_PORT:-8181}:8181"
+    environment:
+      POLARIS_JDBC_URL: jdbc:postgresql://platform-postgres:5432/polaris
+      POLARIS_DB_USERNAME_FILE: /run/secrets/polaris_db_user
+      POLARIS_DB_PASSWORD_FILE: /run/secrets/polaris_db_password
+      POLARIS_ROOT_CLIENT_ID_FILE: /run/projected-credentials/bootstrap-admin-client-id
+      POLARIS_ROOT_CLIENT_SECRET_FILE: /run/projected-credentials/bootstrap-admin-client-secret
+      POLARIS_WAREHOUSE_ACCESS_KEY_FILE: /run/projected-credentials/minio-polaris-access-key
+      POLARIS_WAREHOUSE_SECRET_KEY_FILE: /run/projected-credentials/minio-polaris-secret-key
+      OBJECT_STORE_REGION: us-east-1
+    volumes:
+      - polaris_server_credentials:/run/projected-credentials:ro
+    secrets:
+      - polaris_db_user
+      - polaris_db_password
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8182/q/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 30s
+
+  polaris-server-projector:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/projector.Dockerfile
+    image: olist-polaris-projector:1.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+      polaris-credentials-prepare:
+        condition: service_completed_successfully
+    environment:
+      CREDENTIAL_CONSUMER: polaris-server
+      CREDENTIAL_TARGET_UID: "10000"
+      CREDENTIAL_TARGET_GID: "10001"
+      CREDENTIAL_SOURCE_DIR: /run/polaris-credentials
+      CREDENTIAL_PROJECTION_DIR: /run/projected-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials:ro
+      - polaris_server_credentials:/run/projected-credentials
+
+  polaris-bootstrap:
+    build:
+      context: .
+      dockerfile: infra/polaris/bootstrap/Dockerfile
+    image: olist-polaris-bootstrap:1.6.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      polaris:
+        condition: service_healthy
+    environment:
+      POLARIS_BASE_URL: http://polaris:8181
+      POLARIS_REALM: POLARIS
+      POLARIS_CREDENTIALS_DIR: /run/polaris-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials
+
+  spark-master:
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [platform]
+    restart: unless-stopped
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    command: ["/opt/spark/sbin/start-master.sh"]
+    ports:
+      - "${SPARK_MASTER_HOST_PORT:-7077}:7077"
+      - "${SPARK_MASTER_WEB_HOST_PORT:-8082}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080', timeout=3)\" >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  spark-worker:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [platform]
+    restart: unless-stopped
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_WORKER_CORES: "${SPARK_WORKER_CORES:-4}"
+      SPARK_WORKER_MEMORY: "${SPARK_WORKER_MEMORY:-6g}"
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+
+  iceberg-migration:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+      spark-projector:
+        condition: service_completed_successfully
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - /opt/olist/streaming/spark/platform/migrate.py
+    environment:
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      OBJECT_STORE_PATH_STYLE: "true"
+      OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
+      POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
+      OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
+      OBJECT_STORE_SECRET_KEY_FILE: /run/projected-credentials/minio-checkpoints-secret-key
+    volumes:
+      - spark_credentials:/run/projected-credentials:ro
+
+  spark-projector:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/projector.Dockerfile
+    image: olist-polaris-projector:1.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      CREDENTIAL_CONSUMER: spark
+      CREDENTIAL_TARGET_UID: "185"
+      CREDENTIAL_TARGET_GID: "185"
+      CREDENTIAL_SOURCE_DIR: /run/polaris-credentials
+      CREDENTIAL_PROJECTION_DIR: /run/projected-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials:ro
+      - spark_credentials:/run/projected-credentials
+
+  spark-geolocation:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [platform]
+    restart: "no"
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+      spark-projector:
+        condition: service_completed_successfully
+      iceberg-migration:
+        condition: service_completed_successfully
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.GeolocationMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      OBJECT_STORE_PATH_STYLE: "true"
+      OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
+      POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
+      OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
+      OBJECT_STORE_SECRET_KEY_FILE: /run/projected-credentials/minio-checkpoints-secret-key
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      MYSQL_REFERENCE_READER_USERNAME: olist_spark_reference_reader
+      MYSQL_REFERENCE_READER_PASSWORD_FILE: /run/secrets/mysql_spark_reference_reader_password
+    volumes:
+      - spark_credentials:/run/projected-credentials:ro
+    secrets:
+      - mysql_spark_reference_reader_password
+
+  spark-bronze:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [streaming]
+    restart: unless-stopped
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+      spark-projector:
+        condition: service_completed_successfully
+      iceberg-migration:
+        condition: service_completed_successfully
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.BronzeMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      OBJECT_STORE_PATH_STYLE: "true"
+      OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
+      POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
+      OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
+      OBJECT_STORE_SECRET_KEY_FILE: /run/projected-credentials/minio-checkpoints-secret-key
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v2
+      APICURIO_CCOMPAT_URL: http://apicurio-registry:8080/apis/ccompat/v7
+      SPARK_STATUS_DIR: /var/run/olist-spark
+    volumes:
+      - spark_credentials:/run/projected-credentials:ro
+      - ./docker/spark/status:/var/run/olist-spark
+
+  spark-silver:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [streaming]
+    restart: unless-stopped
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+      spark-projector:
+        condition: service_completed_successfully
+      iceberg-migration:
+        condition: service_completed_successfully
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=2
+      - --conf
+      - spark.executor.cores=2
+      - --conf
+      - spark.executor.memory=3g
+      - --class
+      - com.olist.mds.spark.app.SilverMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      OBJECT_STORE_PATH_STYLE: "true"
+      OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
+      POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
+      OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
+      OBJECT_STORE_SECRET_KEY_FILE: /run/projected-credentials/minio-checkpoints-secret-key
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v2
+      APICURIO_CCOMPAT_URL: http://apicurio-registry:8080/apis/ccompat/v7
+      SPARK_STATUS_DIR: /var/run/olist-spark
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      MYSQL_REFERENCE_READER_USERNAME: olist_spark_reference_reader
+      MYSQL_REFERENCE_READER_PASSWORD_FILE: /run/secrets/mysql_spark_reference_reader_password
+    volumes:
+      - spark_credentials:/run/projected-credentials:ro
+      - ./docker/spark/status:/var/run/olist-spark
+    secrets:
+      - mysql_spark_reference_reader_password
+
+  spark-ops:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [streaming]
+    restart: "no"
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+      spark-projector:
+        condition: service_completed_successfully
+      iceberg-migration:
+        condition: service_completed_successfully
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.LakehouseStatusMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      OBJECT_STORE_PATH_STYLE: "true"
+      OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
+      POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
+      OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
+      OBJECT_STORE_SECRET_KEY_FILE: /run/projected-credentials/minio-checkpoints-secret-key
+      SPARK_STATUS_DIR: /var/run/olist-spark
+    volumes:
+      - spark_credentials:/run/projected-credentials:ro
+      - ./docker/spark/status:/var/run/olist-spark
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    profiles: [serving]
+    restart: unless-stopped
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      CLICKHOUSE_DB: serving_cdc
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "${CLICKHOUSE_HTTP_HOST_PORT:-8123}:8123"
+      - "${CLICKHOUSE_NATIVE_HOST_PORT:-19000}:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/config.d:/etc/clickhouse-server/config.d:ro
+      - ./docker/clickhouse/users.d/local.xml:/etc/clickhouse-server/users.d/local.xml:ro
+    secrets:
+      - clickhouse_password
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          clickhouse-client --host 127.0.0.1 --user "$${CLICKHOUSE_USER}"
+          --password "$$(tr -d '\r\n' < /run/secrets/clickhouse_password)"
+          --query "SELECT 1"
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+
+  clickhouse-projector:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/projector.Dockerfile
+    image: olist-polaris-projector:1.0
+    profiles: [serving]
+    restart: "no"
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      CREDENTIAL_CONSUMER: clickhouse
+      CREDENTIAL_TARGET_UID: "101"
+      CREDENTIAL_TARGET_GID: "101"
+      CREDENTIAL_SOURCE_DIR: /run/polaris-credentials
+      CREDENTIAL_PROJECTION_DIR: /run/projected-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials:ro
+      - clickhouse_polaris_credentials:/run/projected-credentials
+
+  clickhouse-init:
+    image: clickhouse/clickhouse-server:26.3.17.4
+    profiles: [serving]
+    restart: "no"
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      iceberg-migration:
+        condition: service_completed_successfully
+      clickhouse-projector:
+        condition: service_completed_successfully
+    entrypoint: ["bash", "/opt/olist/lakehouse/init.sh"]
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "9000"
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      POLARIS_PRINCIPAL_ID_FILE: /run/projected-credentials/polaris-clickhouse-client-id
+      POLARIS_PRINCIPAL_SECRET_FILE: /run/projected-credentials/polaris-clickhouse-client-secret
+      CLICKHOUSE_CATALOG_TEMPLATE: /opt/olist/lakehouse/catalog.sql.template
+    volumes:
+      - ./infra/clickhouse/lakehouse:/opt/olist/lakehouse:ro
+      - clickhouse_polaris_credentials:/run/projected-credentials:ro
+    secrets:
+      - clickhouse_password
+
+  airflow-projector:
+    build:
+      context: .
+      dockerfile: infra/polaris/credentials/projector.Dockerfile
+    image: olist-polaris-projector:1.0
+    profiles: [serving]
+    restart: "no"
+    depends_on:
+      polaris-bootstrap:
+        condition: service_completed_successfully
+    environment:
+      CREDENTIAL_CONSUMER: airflow
+      CREDENTIAL_TARGET_UID: "50000"
+      CREDENTIAL_TARGET_GID: "0"
+      CREDENTIAL_SOURCE_DIR: /run/polaris-credentials
+      CREDENTIAL_PROJECTION_DIR: /run/projected-credentials
+    volumes:
+      - polaris_credentials_root:/run/polaris-credentials:ro
+      - airflow_polaris_credentials:/run/projected-credentials
+
+  airflow:
+    build:
+      context: .
+      dockerfile: docker/airflow/Dockerfile
+    image: olist-airflow:local
+    profiles: [serving]
+    restart: unless-stopped
+    working_dir: /opt/airflow/project
+    depends_on:
+      platform-postgres-bootstrap:
+        condition: service_completed_successfully
+      clickhouse-init:
+        condition: service_completed_successfully
+      airflow-projector:
+        condition: service_completed_successfully
+    command: ["bash", "/opt/airflow/project/docker/airflow/load-env-and-run.sh", "airflow", "standalone"]
+    ports:
+      - "${AIRFLOW_HOST_PORT:-8080}:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: admin:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/runtime/simple_auth_manager_passwords.json
+      OLIST_PROJECT_ROOT: /opt/airflow/project
+      OLIST_PYTHON_BIN: python
+      PYTHONPATH: /opt/airflow/project
+      DBT_PROFILES_DIR: /opt/airflow/project/dbt/olist_clickhouse
+      DBT_TARGET: local_clickhouse
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v3
+      ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
+      ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_WAREHOUSE: olist_lakehouse
+      OBJECT_STORE_ENDPOINT: http://minio:9000
+      OBJECT_STORE_REGION: us-east-1
+      SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+      CLICKHOUSE_USER: olist
+      CLICKHOUSE_DATABASE: serving_cdc
+      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
+      AIRFLOW_POSTGRES_HOST: platform-postgres
+      AIRFLOW_POSTGRES_PORT: "5432"
+      AIRFLOW_POSTGRES_DB: airflow
+      AIRFLOW_POSTGRES_USER: airflow
+      AIRFLOW_POSTGRES_PASSWORD_FILE: /run/secrets/airflow_postgres_password
+      CONTROL_POSTGRES_HOST: platform-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: olist_control
+      CONTROL_POSTGRES_USER: olist_control
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
+      AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
+      AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
+      POLARIS_AIRFLOW_CLIENT_ID_FILE: /run/projected-credentials/polaris-airflow-client-id
+      POLARIS_AIRFLOW_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-airflow-client-secret
+    volumes:
+      - ./:/opt/airflow/project
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - airflow_polaris_credentials:/run/projected-credentials:ro
+    secrets:
+      - clickhouse_password
+      - airflow_postgres_password
+      - control_postgres_password
+      - airflow_api_secret_key
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/v2/monitor/health', timeout=5)\" >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
 
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
     profiles: [observability]
-    container_name: olist-kafka-exporter
-    restart: unless-stopped
-    command: ["--kafka.server=kafka:29092", "--group.filter=olist-.*"]
-
-  postgres-exporter-oltp:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.18.1
-    profiles: [observability]
-    container_name: olist-postgres-exporter-oltp
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_URI: oltp-postgres:5432/olist_oltp?sslmode=disable
-      DATA_SOURCE_USER: olist_cdc_reader
-      DATA_SOURCE_PASS_FILE: /run/secrets/oltp_cdc_reader_password
-      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/oltp-queries.yml
-    volumes:
-      - ./observability/postgres/oltp-queries.yml:/etc/postgres-exporter/oltp-queries.yml:ro
-    secrets:
-      - oltp_cdc_reader_password
-
-  statsd-exporter:
-    image: prom/statsd-exporter:v0.29.0
-    profiles: [observability]
-    container_name: olist-statsd-exporter
-    restart: unless-stopped
-    command: ["--statsd.mapping-config=/etc/statsd/statsd-mapping.yml"]
-    volumes:
-      - ./observability/statsd/statsd-mapping.yml:/etc/statsd/statsd-mapping.yml:ro
-
-  node-exporter:
-    image: prom/node-exporter:v1.10.2
-    profiles: [observability]
-    container_name: olist-node-exporter
-    restart: unless-stopped
-    command: ["--path.rootfs=/host"]
-    volumes:
-      - /:/host:ro
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.55.1
-    profiles: [observability]
-    container_name: olist-cadvisor
-    restart: unless-stopped
-    privileged: true
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker:/var/lib/docker:ro
-
-  nifi-metrics-proxy:
-    image: olist-nifi:2.10.0
-    profiles: [observability]
-    container_name: olist-nifi-metrics-proxy
-    restart: unless-stopped
-    entrypoint: ["python3", "/opt/olist/metrics_proxy.py"]
-    command: ["--url", "https://nifi:8443/nifi-api", "--port", "9105"]
-    secrets:
-      - nifi_admin_password
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9105/-/healthy', timeout=3)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  cdc-component-exporter:
-    image: olist-nifi:2.10.0
-    profiles: [observability]
-    container_name: olist-cdc-component-exporter
-    restart: unless-stopped
-    entrypoint: ["python3", "/opt/olist/component_metrics.py"]
-    command: ["--connect-url", "http://kafka-connect:8083", "--port", "9106"]
-
-  cdc-pipeline-exporter:
-    image: olist-airflow:local
-    profiles: [observability]
-    container_name: olist-cdc-pipeline-exporter
-    restart: unless-stopped
-    depends_on:
-      control-db-init:
-        condition: service_completed_successfully
-      clickhouse-init:
-        condition: service_completed_successfully
-    entrypoint: ["python", "/opt/airflow/project/scripts/cdc/pipeline_metrics.py"]
-    command: ["--listen-port", "9107"]
-    environment:
-      CLICKHOUSE_HOST: clickhouse
-      CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-olist}"
-      CLICKHOUSE_PASSWORD_FILE: /run/secrets/clickhouse_password
-      CLICKHOUSE_DATABASE: "${CLICKHOUSE_DATABASE:-analytics}"
-      CLICKHOUSE_SECURE: "${CLICKHOUSE_SECURE:-false}"
-      CONTROL_POSTGRES_HOST: airflow-postgres
-      CONTROL_POSTGRES_PORT: "5432"
-      CONTROL_POSTGRES_DB: "${CONTROL_POSTGRES_DB:-olist_control}"
-      CONTROL_POSTGRES_USER: "${CONTROL_POSTGRES_USER:-olist_control}"
-      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
-    secrets:
-      - clickhouse_password
-      - control_postgres_password
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9107/-/healthy', timeout=3)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  prometheus:
-    image: prom/prometheus:v3.12.0
-    profiles: [observability]
-    container_name: olist-prometheus
     restart: unless-stopped
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.path=/prometheus
-      - --web.enable-lifecycle
+      - --kafka.server=kafka:29092
+      - --web.listen-address=:9308
+      - --group.filter=^olist-spark-bronze(-.*)?$
+      - --topic.filter=^olist_cdc\.(olist_oltp\.(customers|orders|order_items|order_payments|order_reviews|products|sellers|product_category_translation)|transaction|heartbeat)$
+    ports:
+      - "${KAFKA_EXPORTER_HOST_PORT:-9308}:9308"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:9308/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  target-probe:
+    build:
+      context: .
+      dockerfile: docker/observability/Dockerfile
+    image: olist-observability-probe:1.0.0
+    profiles: [observability]
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      MYSQL_USER: olist_cdc_reader
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_cdc_reader_password
+      KAFKA_HOST: kafka
+      KAFKA_PORT: "29092"
+      KAFKA_EXPORTER_URL: http://kafka-exporter:9308
+      KAFKA_CONNECT_URL: http://kafka-connect:8083
+      CONNECTOR_NAME: olist-mysql-cdc
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v3
+      SPARK_STATUS_DIR: /var/run/olist-spark
+      CONTROL_POSTGRES_HOST: platform-postgres
+      CONTROL_POSTGRES_PORT: "5432"
+      CONTROL_POSTGRES_DB: olist_control
+      CONTROL_POSTGRES_USER: olist_control
+      CONTROL_POSTGRES_PASSWORD_FILE: /run/secrets/control_postgres_password
+    volumes:
+      - ./docker/spark/status:/var/run/olist-spark:ro
+    secrets:
+      - mysql_cdc_reader_password
+      - control_postgres_password
+    ports:
+      - "${TARGET_PROBE_HOST_PORT:-9108}:9108"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:9108/healthz', timeout=5)"
+          >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [observability]
+    restart: unless-stopped
+    depends_on:
+      alertmanager:
+        condition: service_healthy
+      target-probe:
+        condition: service_healthy
     ports:
       - "${PROMETHEUS_HOST_PORT:-9090}:9090"
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/prometheus/rules:/etc/prometheus/rules:ro
-      - olist_prometheus_data:/prometheus
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    profiles: [observability]
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_HOST_PORT:-3000}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
 
   alertmanager:
     image: prom/alertmanager:v0.30.0
     profiles: [observability]
-    container_name: olist-alertmanager
     restart: unless-stopped
-    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    depends_on:
+      target-probe:
+        condition: service_healthy
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
     ports:
       - "${ALERTMANAGER_HOST_PORT:-9093}:9093"
     volumes:
       - ./observability/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - olist_alertmanager_data:/alertmanager
-
-  grafana:
-    image: grafana/grafana:13.0.2
-    profiles: [observability]
-    container_name: olist-grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    ports:
-      - "${GRAFANA_HOST_PORT:-3000}:3000"
-    volumes:
-      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - olist_grafana_data:/var/lib/grafana
-    secrets:
-      - grafana_admin_password
-    depends_on:
-      - prometheus
+      - alertmanager_data:/alertmanager
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:9093/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   loki:
     image: grafana/loki:3.6.5
     profiles: [logs]
-    container_name: olist-loki
     restart: unless-stopped
-    command: ["-config.file=/etc/loki/loki.yml"]
     ports:
       - "${LOKI_HOST_PORT:-3100}:3100"
     volumes:
-      - ./observability/loki/loki.yml:/etc/loki/loki.yml:ro
-      - olist_loki_data:/loki
+      - ./observability/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-version"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   alloy:
     image: grafana/alloy:v1.16.1
     profiles: [logs]
-    container_name: olist-alloy
     restart: unless-stopped
-    command: ["run", "/etc/alloy/config.alloy", "--storage.path=/var/lib/alloy/data"]
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - /etc/alloy/config.alloy
+    ports:
+      - "${ALLOY_HOST_PORT:-12345}:12345"
     volumes:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - olist_alloy_data:/var/lib/alloy/data
-    depends_on:
-      loki:
-        condition: service_started
+    healthcheck:
+      test: ["CMD", "/bin/alloy", "fmt", "--test", "/etc/alloy/config.alloy"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
 volumes:
-  airflow_postgres_data:
-  olist_clickhouse_data:
-  olist_oltp_data:
-  olist_kafka_data:
-  olist_minio_data:
-  olist_nifi_conf:
-  olist_nifi_database:
-  olist_nifi_flowfile:
-  olist_nifi_content:
-  olist_nifi_provenance:
-  olist_nifi_state:
-  olist_prometheus_data:
-  olist_alertmanager_data:
-  olist_grafana_data:
-  olist_loki_data:
-  olist_alloy_data:
+  platform_postgres_data:
+  mysql_data:
+  kafka_data:
+  minio_data:
+  polaris_credentials_root:
+  polaris_admin_credentials:
+  polaris_server_credentials:
+  spark_credentials:
+  clickhouse_polaris_credentials:
+  airflow_polaris_credentials:
+  clickhouse_data:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  loki_data:
 
 secrets:
-  clickhouse_password:
-    file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_postgres_password:
     file: ${AIRFLOW_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_postgres_password.txt}
   control_postgres_password:
     file: ${CONTROL_POSTGRES_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/control_postgres_password.txt}
+  polaris_db_user:
+    file: ${POLARIS_DB_USERNAME_SOURCE_FILE:-./docker/secrets/dev/polaris_db_user.txt}
+  polaris_db_password:
+    file: ${POLARIS_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/polaris_db_password.txt}
+  apicurio_db_user:
+    file: ${APICURIO_DB_USERNAME_SOURCE_FILE:-./docker/secrets/dev/apicurio_db_user.txt}
+  apicurio_db_password:
+    file: ${APICURIO_DB_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/apicurio_db_password.txt}
+  mysql_root_password:
+    file: ${MYSQL_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_root_password.txt}
+  mysql_admin_password:
+    file: ${MYSQL_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_admin_password.txt}
+  mysql_simulator_password:
+    file: ${MYSQL_SIMULATOR_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_simulator_password.txt}
+  mysql_cdc_reader_password:
+    file: ${MYSQL_CDC_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_cdc_reader_password.txt}
+  mysql_spark_reference_reader_password:
+    file: ${MYSQL_REFERENCE_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/mysql_spark_reference_reader_password.txt}
+  minio_root_user:
+    file: ${MINIO_ROOT_USER_SOURCE_FILE:-./docker/secrets/dev/minio_root_user.txt}
+  minio_root_password:
+    file: ${MINIO_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/minio_root_password.txt}
+  clickhouse_password:
+    file: ${CLICKHOUSE_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/clickhouse_password.txt}
   airflow_api_secret_key:
     file: ${AIRFLOW_API_SECRET_KEY_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
-  redshift_password:
-    file: ${REDSHIFT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/redshift_password.txt}
-  oltp_admin_password:
-    file: ${OLTP_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
-  oltp_simulator_password:
-    file: ${OLTP_SIMULATOR_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
-  oltp_cdc_reader_password:
-    file: ${OLTP_CDC_READER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/postgres_password.txt}
-  minio_root_password:
-    file: ${MINIO_ROOT_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
-  minio_nifi_password:
-    file: ${MINIO_NIFI_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
-  minio_cdc_loader_password:
-    file: ${MINIO_CDC_LOADER_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
-  nifi_admin_password:
-    file: ${NIFI_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}
-  grafana_admin_password:
-    file: ${GRAFANA_ADMIN_PASSWORD_SOURCE_FILE:-./docker/secrets/dev/airflow_api_secret_key.txt}

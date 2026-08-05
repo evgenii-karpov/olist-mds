@@ -1,29 +1,20 @@
-# Realtime observability assets
+# Local observability stack
 
-This directory owns the complete local CDC telemetry stack: Prometheus,
-Alertmanager, Grafana, ClickHouse metrics, the OLTP PostgreSQL exporter,
-Kafka/NiFi/pipeline exporters, node exporter, cAdvisor, Airflow StatsD, Loki,
-and Alloy. Runtime image versions are pinned in `streaming/runtime-versions.json`.
+This directory owns telemetry for the MySQL, CDC, Spark, Iceberg, ClickHouse
+and Airflow services.
 
-The local stack uses stable committed development-only Docker secrets. Build
-the custom runtime images and start the three explicit profiles:
+Prometheus collects native metrics and metrics from `target-probe` and
+Kafka exporter. Alertmanager handles firing and resolved notifications.
+Grafana reads Prometheus and Loki. Alloy sends Docker logs to Loki.
+
+Start and validate the stack with:
 
 ```powershell
-$env:AIRFLOW_STATSD_ON="true"
-docker compose --profile realtime-core build airflow kafka-connect minio nifi
-docker compose --profile realtime-core --profile observability --profile logs up -d --wait
+docker compose --profile platform --profile streaming --profile serving --profile observability --profile logs up -d --build --wait
+uv run python scripts/ci/validate_observability_contract.py
+$env:PYTHONPATH='.'
+uv run pytest -q tests/observability
 ```
 
-Grafana is on `http://localhost:3000`, Prometheus on `http://localhost:9090`,
-Alertmanager on `http://localhost:9093`, and Loki on `http://localhost:3100`.
-Grafana credentials come from the local Docker secret contract. Loki retains local logs
-for seven days. Alloy labels only `environment` and `service`; correlation IDs
-remain in log bodies to avoid unbounded cardinality.
-
-Prometheus scrapes ClickHouse directly at `clickhouse:9363`. The warehouse
-PostgreSQL exporter is intentionally absent from the ClickHouse candidate path;
-the OLTP PostgreSQL exporter remains because Debezium source health still
-depends on the local OLTP database.
-
-Run `uv run python scripts/ci/validate_stage6_configuration.py` after changing
-dashboards, alerts, log labels, retention, or runbook links.
+The service URLs and operational checks are documented in
+`docs/observability.md`.

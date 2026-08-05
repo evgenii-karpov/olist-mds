@@ -3,8 +3,10 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: '^docker/spark/status/'
 
       - id: end-of-file-fixer
+        exclude: '^docker/spark/status/'
 
       - id: check-yaml
 
@@ -31,7 +33,11 @@ repos:
 
       - id: dbt-parse
         name: dbt-parse
-        entry: uv run dbt parse --project-dir dbt/olist_analytics --profiles-dir dbt/olist_analytics --target local_pg --no-partial-parse --show-all-deprecations
+        entry: >-
+          uv run dbt parse --project-dir dbt/olist_clickhouse
+          --profiles-dir dbt/olist_clickhouse --target local_clickhouse
+          --vars '{"sync_run_seq": 1, "sync_run_id": "pre-commit-parse"}'
+          --no-partial-parse --show-all-deprecations
         language: system
         pass_filenames: false
-        files: ^dbt/olist_analytics/(dbt_project\.yml|profiles\.yml|models/|macros/|snapshots/|tests/|analyses/)
+        files: ^dbt/olist_clickhouse/(dbt_project\.yml|profiles\.yml(?:\.example)?|selectors\.yml|models/|macros/|tests/)

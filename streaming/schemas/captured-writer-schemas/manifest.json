@@ -1,0 +1,335 @@
+{
+  "manifest_version": 1,
+  "capture_state": "captured",
+  "capture_command": "python -m streaming.schemas.writer_schemas capture-bundle --bundle <runtime-export-directory>",
+  "entities": [
+    {
+      "entity": "customers",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "customers/key/schema-7-9f5700fa7eb8f9b4.avsc",
+            "sha256": "9f5700fa7eb8f9b4c50f039c643512e955f42bf102dd37ad588157d507aa82dc",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.customers-key",
+              "artifact_version": "1",
+              "schema_id": 7,
+              "captured_at_utc": "2026-08-03T17:47:57.626102Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.customers"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "customers/value/schema-10-86778e42358beb24.avsc",
+            "sha256": "86778e42358beb24a9918b88c5f30e3ac3244398d4fe5c6ad7f0a07b35d4c970",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.customers-value",
+              "artifact_version": "1",
+              "schema_id": 10,
+              "captured_at_utc": "2026-08-03T17:47:57.888884Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.customers"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "orders",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "orders/key/schema-11-5ea6fb639b50c1f8.avsc",
+            "sha256": "5ea6fb639b50c1f8435462dc48e83867e81ae9c9fe3e21b2635ee559f0cba3bf",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.orders-key",
+              "artifact_version": "1",
+              "schema_id": 11,
+              "captured_at_utc": "2026-08-03T17:47:57.946283Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.orders"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "orders/value/schema-13-36873a348c768312.avsc",
+            "sha256": "36873a348c7683126e63ececcc6d4a94110cdf596906410804f564d11ecf790d",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.orders-value",
+              "artifact_version": "1",
+              "schema_id": 13,
+              "captured_at_utc": "2026-08-03T17:47:58.179511Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.orders"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "order_items",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_items/key/schema-14-58a3342219bc4279.avsc",
+            "sha256": "58a3342219bc4279a0b1e21b93f0ce028825a0c47684d3c79000f4f3347aa516",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_items-key",
+              "artifact_version": "1",
+              "schema_id": 14,
+              "captured_at_utc": "2026-08-03T17:47:58.229128Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_items"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_items/value/schema-16-405694a7e8a40115.avsc",
+            "sha256": "405694a7e8a40115616a392c6836b10979c6a52f33061ae1cec5ba4a5fe7c25b",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_items-value",
+              "artifact_version": "1",
+              "schema_id": 16,
+              "captured_at_utc": "2026-08-03T17:47:58.388897Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_items"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "order_payments",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_payments/key/schema-17-46772035e5530523.avsc",
+            "sha256": "46772035e5530523b9a6c87aebd8b5b4d7038cf24c09f6f5c0ddcae1917b4a0a",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_payments-key",
+              "artifact_version": "1",
+              "schema_id": 17,
+              "captured_at_utc": "2026-08-03T17:47:58.458047Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_payments"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_payments/value/schema-19-5788388ef63117c7.avsc",
+            "sha256": "5788388ef63117c72db4354a124d789b375e28dc11b5c69b3869b8b29ebe3968",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_payments-value",
+              "artifact_version": "1",
+              "schema_id": 19,
+              "captured_at_utc": "2026-08-03T17:47:58.628773Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_payments"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "order_reviews",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_reviews/key/schema-20-007e02f1df31717b.avsc",
+            "sha256": "007e02f1df31717b45176fc4bf3c70d82559ce1d8511763076a4ad1544a865b8",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_reviews-key",
+              "artifact_version": "1",
+              "schema_id": 20,
+              "captured_at_utc": "2026-08-03T17:47:58.671466Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_reviews"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "order_reviews/value/schema-22-60bc008106640ed5.avsc",
+            "sha256": "60bc008106640ed59b1f462e50c952e936e0f8e6dc419fbd2fadc118510a75d0",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.order_reviews-value",
+              "artifact_version": "1",
+              "schema_id": 22,
+              "captured_at_utc": "2026-08-03T17:47:58.798133Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.order_reviews"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "products",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "products/key/schema-23-909264b1b3628550.avsc",
+            "sha256": "909264b1b362855066fc14e5804ae1f0f3ca2e6c897a1426e3ffadfeba2c5576",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.products-key",
+              "artifact_version": "1",
+              "schema_id": 23,
+              "captured_at_utc": "2026-08-03T17:47:58.846936Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.products"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "products/value/schema-25-5518567779fd234c.avsc",
+            "sha256": "5518567779fd234cc6a8dfc0ef828d21435687d797f1156f4a5687f633ca5f2e",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.products-value",
+              "artifact_version": "1",
+              "schema_id": 25,
+              "captured_at_utc": "2026-08-03T17:47:58.973745Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.products"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "sellers",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "sellers/key/schema-26-3076f14faa4e4313.avsc",
+            "sha256": "3076f14faa4e431303a7644c3812792df86f9d890b43ce10c164f0dad5199c03",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.sellers-key",
+              "artifact_version": "1",
+              "schema_id": 26,
+              "captured_at_utc": "2026-08-03T17:47:59.008420Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.sellers"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "sellers/value/schema-28-6b66dd6e45a4170d.avsc",
+            "sha256": "6b66dd6e45a4170d2fc65d43ae03c505ed11c3ce88a7f7759349c08ffc5c4a4b",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.sellers-value",
+              "artifact_version": "1",
+              "schema_id": 28,
+              "captured_at_utc": "2026-08-03T17:47:59.160783Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.sellers"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "entity": "product_category_translation",
+      "key": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "product_category_translation/key/schema-29-29e926b11bf32beb.avsc",
+            "sha256": "29e926b11bf32beb60f0fcfdec72da362a03e7254b9c4775f25aadd23a7382f5",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.product_category_translation-key",
+              "artifact_version": "1",
+              "schema_id": 29,
+              "captured_at_utc": "2026-08-03T17:47:59.212804Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.product_category_translation"
+            }
+          }
+        ]
+      },
+      "value": {
+        "state": "captured",
+        "schemas": [
+          {
+            "path": "product_category_translation/value/schema-31-6b9036c22e2ff6f4.avsc",
+            "sha256": "6b9036c22e2ff6f42b3afcfc7d1e77e54eafb0d537c9bcbd1b5bc7e8b16c6b1b",
+            "provenance": {
+              "registry_url": "http://127.0.0.1:8081/apis/ccompat/v7",
+              "registry_group": "olist_cdc",
+              "artifact_id": "olist_cdc.olist_oltp.product_category_translation-value",
+              "artifact_version": "1",
+              "schema_id": 31,
+              "captured_at_utc": "2026-08-03T17:47:59.347810Z",
+              "connector_name": "olist-mysql-cdc",
+              "topic": "olist_cdc.olist_oltp.product_category_translation"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

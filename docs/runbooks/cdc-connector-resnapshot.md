@@ -1,15 +1,30 @@
-# Controlled Debezium resnapshot
+# Connector resnapshot
 
-Resnapshot is a last-resort migration and always uses a new isolation boundary.
+Use a resnapshot when the local MySQL-to-Kafka boundary must be recreated.
+This operation resets the disposable local state.
 
-1. Pause simulator writes and record source LSNs, Kafka offsets, object
-   watermarks, and warehouse counts.
-2. Stop the connector without deleting its old slot, publication, offsets, or
-   topics.
-3. Create a new explicitly named slot and topic prefix. Update a copy of the
-   connector template; never reuse `olist_cdc_slot` for the trial snapshot.
-4. Snapshot into new topics and a new NiFi/object load boundary.
-5. Reconcile the snapshot with OLTP, build in isolated warehouse schemas, and
-   run full parity.
-6. Switch consumers only after approval. Retain the old boundary until rollback
-   is no longer required, then remove it through a separately reviewed change.
+1. Record connector status and the local run identifier.
+2. Stop streaming:
+
+   ```powershell
+   uv run python scripts/cdc/local_lab.py stop-streaming
+   ```
+
+3. Recreate MySQL, Kafka, the catalog, checkpoints and serving state:
+
+   ```powershell
+   uv run python scripts/cdc/local_lab.py reset --yes
+   uv run python scripts/cdc/local_lab.py bootstrap --archive tests/fixtures/olist_small/olist_small.zip --run-id local-resnapshot
+   ```
+
+4. Start CDC and wait for the source to catch up:
+
+   ```powershell
+   uv run python scripts/cdc/local_lab.py start-streaming --wait-ready
+   uv run python scripts/cdc/local_lab.py wait-caught-up --timeout 1800
+   ```
+
+5. Run the serving sync and validation before using the local result.
+
+The reset is intentional: the local project has no supported in-place
+resnapshot that preserves previous offsets and checkpoints.

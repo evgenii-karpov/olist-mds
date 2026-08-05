@@ -1,135 +1,50 @@
-# CI Quality Gates
+# CI and local validation
 
-The GitHub Actions workflow is split into focused jobs so a failing check points
-to a useful layer instead of one opaque pipeline failure.
+CI checks the local CDC runtime in small, focused jobs. Each job uses the
+repository files and pinned service images.
 
-CI intentionally runs only local, self-contained services. The AWS/S3/Redshift
-path is available for manual validation, but pull-request checks stay local so
-they remain reproducible and independent of cloud credentials or infrastructure
-availability.
+## Automatic workflows
 
-## Workflow
+- `ci.yml` runs repository contracts, Python quality, unit tests, the Spark
+  checks, the Airflow import check and dbt static checks.
+- `lakehouse-components.yml` checks the Spark image, Airflow runtime and
+  observability configuration.
+- `lakehouse-cdc.yml` checks the CDC component contracts.
+- `lakehouse-serving.yml` checks ClickHouse serving and serving operations.
 
-```text
-lint
-  -> Ruff, SQLFluff, and pre-commit checks.
+The component workflows use Compose only for the services required by the job.
+The dbt static job starts ClickHouse directly and does not start the rest of
+the Compose project.
 
-python-unit
-  -> Python syntax, source-contract fixture validation, unit tests,
-     and targeted negative data-quality tests.
+## Manual acceptance
 
-dbt-static
-  -> dbt parse without a warehouse connection.
+`lakehouse-acceptance.yml` is started manually with a candidate commit and an
+explicit confirmation for disposable Compose reset. Its
+`local-cdc-acceptance` suite runs the complete local acceptance path. The job
+uploads raw JSON, logs, and reports as workflow artifacts.
 
-airflow-imports
-  -> Docker Compose validation, Airflow image build, metadata database startup,
-     and isolated DAG imports.
+The acceptance runner and the observability job are independent. The runner
+does not start observability services; `lakehouse-components.yml` validates
+their configuration and tests separately.
 
-clickhouse-incremental-edges
-  -> Starts isolated ClickHouse services and verifies the Phase 4
-     `fact_order_items` incremental `insert_overwrite` edge fixture for moved
-     keys, stale fact row removal, and affected partitions that become empty.
+## Local checks
 
-clickhouse-runtime-contract
-  -> Starts isolated ClickHouse, validates the local ClickHouse connection,
-     compiles the batch, realtime transform, and realtime parity selectors for
-     `local_clickhouse`, and exercises the canonical manifest comparator
-     artifact contract with a fixture self-check. It is not a semantic
-     PostgreSQL-vs-ClickHouse parity gate.
-
-cdc-clickhouse-ingest-resilience
-  -> Starts ClickHouse, MinIO, and the PostgreSQL control plane, writes bounded
-     normalized and coverage manifests, then verifies raw CDC retry after an
-     injected ClickHouse acknowledgement failure, offset-gap closure through
-     tombstone coverage, and idempotent replay requests.
-
-cdc-source-oltp-simulator
-  -> Starts the isolated OLTP PostgreSQL source and
-     validates deterministic seed, lifecycle, replay, and stop behavior.
-
-CDC source capture drill
-  -> Manual-only workflow: validates Kafka topics, Apicurio
-     compatibility, Debezium snapshot/CRUD semantics, and connector restart
-     recovery.
-
-batch-fixture-idempotency
-  -> Small fixture end-to-end path through the local Airflow DAG, ClickHouse,
-     reconciliation, dbt snapshots/build/tests, batch-control checks, raw file
-     comparison, and incremental replay idempotency.
-
-dbt-selector-boundaries
-  -> Resolves all named selectors with `dbt ls`, restricts batch to project
-     batch resources plus the required Elementary observability package,
-     rejects realtime resources in batch, restricts cross-group refs to
-     `models/parity`, and rejects unbounded `dbt build` commands in DAGs and CI
-     workflows.
-
-python-unit / CDC Stage 6 observability contract
-  -> Validates real Loki/Alloy services, ClickHouse warehouse metrics, six
-     dashboard domains, the complete alert inventory, runbook links, retention,
-     and low-cardinality log labels. Destructive or long-running
-     fault/benchmark execution remains manual or nightly through
-     `failure_injection.py` and `benchmark_local.py`.
+```powershell
+uv run ruff check .
+uv run ruff format --check .
+uv run pyright
+$env:PYTHONPATH='.'
+uv run pytest -q
+uv run python scripts/ci/check_repository_contracts.py
+uv run python scripts/ci/check_dbt_clickhouse_contract.py
+uv run python scripts/ci/validate_observability_contract.py
 ```
 
-The regular `CI` workflow runs on pull requests and pushes to `main`/`master`.
+Validate the committed fixture directly:
 
-The manual `Batch and CDC parity integration` workflow is the full-stack
-ClickHouse release/cutover gate. It runs the deterministic batch and
-CDC/realtime path with `DBT_TARGET=local_clickhouse`, stages the accepted
-canonical manifest, exports a ClickHouse manifest from the resulting
-ClickHouse relations, and fails unless the canonical comparator reports zero
-semantic mismatches. The former optional repeated ClickHouse evidence
-job is intentionally folded into the regular `clickhouse-runtime-contract` CI
-job to avoid duplicate manual work.
+```powershell
+uv run python scripts/utilities/validate_source_contract.py --archive tests/fixtures/olist_small/olist_small.zip --profile tests/fixtures/olist_small/source_profile_small.json
+```
 
-## Small Fixture Dataset
-
-The committed fixture lives in `tests/fixtures/olist_small`.
-
-It contains:
-
-- `olist_small.zip`, with the original Olist file names and headers.
-- `source_profile_small.json`, the matching source contract.
-- `source/`, reviewable uncompressed CSVs.
-
-The fixture is synthetic, small, and referentially consistent. It exercises real
-joins, correction feed generation, reconciliation, dbt snapshots, core models,
-marts, and tests without requiring the full Kaggle archive in CI.
-
-CI uses `DEFAULT_FIXTURE_BATCH_DATE` (`2018-09-01`) as the default fixture
-batch date. This date is intentionally after all generated customer/product
-correction `effective_at` values, so one fixture run sees the complete
-synthetic SCD2 scenario instead of needing a multi-batch backfill sequence.
-
-## What CI Tests
-
-Happy path:
-
-- source contract validation against the small fixture archive;
-- raw file preparation with row-level validation;
-- generated correction feeds;
-- ClickHouse raw load;
-- batch control state transitions;
-- source-to-raw reconciliation;
-- dbt staging and intermediate build;
-- dbt snapshots;
-- dbt core and mart build;
-- dbt tests.
-- incremental replay of the same fixture batch through Airflow with stable raw
-  file and analytical output fingerprints.
-- ClickHouse `fact_order_items` incremental partition replacement with moved
-  keys, stale row cleanup, and empty affected partition drop.
-- ClickHouse dbt selector compilation and canonical manifest
-  comparator artifact generation.
-
-Failure modes:
-
-- source contract failure when a required column is missing;
-- corrupt source row being routed to the dead-letter path;
-- dead-letter threshold failure;
-- reconciliation gate failure.
-
-The full `olist.zip` run remains a local/manual validation path. Use the
-[Windows runbook](runbook_windows.md) or [macOS runbook](runbook_macos.md) for
-the concrete local commands.
+Acceptance evidence belongs under `data/` and must not contain secret values.
+Use a distinct `COMPOSE_PROJECT_NAME` for concurrent local runs.

@@ -1,27 +1,19 @@
-# Local Debezium Connect contract
+# Debezium connector bootstrap
 
-The local image is built from the version-pinned Debezium tag
-`quay.io/debezium/connect:3.6.0.Final`.
-The base contains PostgreSQL connector 3.6.0.Final and Apicurio converter 3.2.5.
-The Dockerfile verifies the primary JAR checksums at build time and downloads
-nothing at container startup.
+`olist-mysql-cdc.json` is the secret-free connector contract. It captures
+the eight keyed `olist_oltp` entities and publishes Confluent-framed Avro
+keys and values to Kafka with Apicurio Registry.
 
-`olist-postgres-cdc.json` is secret-free. The administration command reads the
-CDC password from a file, renders it only in memory, and creates or updates the
-connector without printing the resolved configuration:
+`bootstrap.py` creates the `olist_cdc` Registry group, applies the
+compatibility rule, reads the MySQL CDC password from a file and registers the
+connector. It never prints or compares the password. Existing non-secret
+configuration drift fails closed.
 
-```text
-python scripts/cdc/stage2_admin.py register-connector \
-  --password-file docker/secrets/dev/postgres_password.txt
-python scripts/cdc/stage2_admin.py connector-status
-```
-
-Registration is idempotent and refuses a FAILED connector/task. After the
-underlying dependency is healthy, restart only failed work explicitly:
+Use the helper after Kafka topics and Connect are available:
 
 ```text
-python scripts/cdc/stage2_admin.py restart-failed
+python -m streaming.connect.bootstrap --password-file /run/secrets/mysql_cdc_reader_password
 ```
 
-Neither path deletes Connect offsets, drops `olist_cdc_slot`, or triggers a
-resnapshot. A controlled resnapshot is intentionally not an ordinary update.
+Connect must be reachable at `http://kafka-connect:8083`. Connector
+credentials belong in secret files, not Compose environment values or logs.

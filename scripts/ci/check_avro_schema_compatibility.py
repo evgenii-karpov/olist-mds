@@ -38,7 +38,7 @@ def load_schema(path: Path) -> dict[str, Any]:
 def canonical_type(avro_type: Any) -> Any:
     if isinstance(avro_type, dict):
         # Treat nested definitions as an atomic contract. This is stricter than
-        # Avro resolution, but it prevents the Phase 0 stub from overlooking a
+        # Avro resolution, but it prevents a placeholder from overlooking a
         # nested record, enum, fixed, array, map, or logical-type change.
         return json.dumps(avro_type, sort_keys=True, separators=(",", ":"))
     if isinstance(avro_type, list):

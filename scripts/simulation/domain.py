@@ -6,11 +6,41 @@ import hashlib
 import random
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Literal
 
 Outcome = Literal["delivered", "canceled", "unavailable"]
 Correction = Literal["customer", "product"]
+
+SPEED_MULTIPLIER_QUANTUM = Decimal("0.0001")
+SPEED_MULTIPLIER_MAX = Decimal("99999999.9999")
+
+
+def normalize_speed_multiplier(value: Decimal | float | str) -> Decimal:
+    """Return the exact positive value persisted in MySQL DECIMAL(12,4)."""
+    try:
+        candidate = value if isinstance(value, Decimal) else Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("speed_multiplier must be a finite decimal number") from exc
+
+    if not candidate.is_finite():
+        raise ValueError("speed_multiplier must be a finite decimal number")
+    if candidate <= 0:
+        raise ValueError("speed_multiplier must be greater than zero")
+    if candidate > SPEED_MULTIPLIER_MAX:
+        raise ValueError("speed_multiplier exceeds DECIMAL(12,4) precision")
+    try:
+        normalized = candidate.quantize(
+            SPEED_MULTIPLIER_QUANTUM,
+            rounding=ROUND_HALF_UP,
+        )
+    except InvalidOperation as exc:
+        raise ValueError("speed_multiplier exceeds DECIMAL(12,4) precision") from exc
+    if normalized == 0:
+        raise ValueError("speed_multiplier rounds to zero at DECIMAL(12,4) scale")
+    if normalized > SPEED_MULTIPLIER_MAX:
+        raise ValueError("speed_multiplier exceeds DECIMAL(12,4) precision")
+    return normalized
 
 
 @dataclass(frozen=True)

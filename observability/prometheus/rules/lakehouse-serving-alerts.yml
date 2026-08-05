@@ -1,0 +1,29 @@
+groups:
+  - name: lakehouse-serving-health
+    rules:
+      - alert: LakehouseServingPublicationStalled
+        expr: olist_serving_publication_age_seconds > 600
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: Lakehouse serving publication is stale
+          runbook: docs/runbooks/lakehouse-serving-sync.md
+
+      - alert: LakehouseServingRejectedBoundary
+        expr: olist_serving_rejected_boundary == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Lakehouse serving reached a rejected transaction boundary
+          runbook: docs/runbooks/lakehouse-serving-rejected-boundary.md
+
+      - alert: LakehouseServingLeaseStalled
+        expr: olist_serving_active_lease == 1 and olist_serving_publication_age_seconds > 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Lakehouse serving holds a lease while publication is stale
+          runbook: docs/runbooks/lakehouse-serving-sync.md

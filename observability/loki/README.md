@@ -1,9 +1,7 @@
 # Loki
 
-The local single-process Loki uses filesystem TSDB storage in a named Compose
-volume and retains data for 168 hours. Authentication is disabled only inside
-the local Compose lab; the host port is for developer diagnostics and must not
-be exposed outside the workstation.
+Loki runs as a local single-process service with filesystem storage in a named
+Compose volume. Grafana reads it as a log data source.
 
-Grafana provisions Loki as a non-default datasource. Clear the named Loki
-volume only when the operator explicitly intends to discard local evidence.
+The host endpoint is intended for local diagnostics. Remove the named volume
+only when local log evidence is no longer needed.

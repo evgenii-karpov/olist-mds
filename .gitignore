@@ -15,7 +15,6 @@ target/
 dbt_packages/
 edr_target/
 logs/
-profiles.yml
 .user.yml
 
 # Airflow
@@ -33,10 +32,13 @@ airflow/webserver_config.py
 .secrets/
 *.pem
 *.key
-aws_credentials*
 
 # OS/editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+
+# Spark runtime status
+docker/spark/status/*/*.json
+!docker/spark/status/*/.gitkeep

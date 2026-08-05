@@ -1,0 +1,290 @@
+{
+  "entity": "product_category_translation",
+  "contract_version": 1,
+  "topic": "olist_cdc.olist_oltp.product_category_translation",
+  "topic_partitions": 1,
+  "primary_key": [
+    "product_category_name"
+  ],
+  "mysql_database": "olist_oltp",
+  "mysql_table": "product_category_translation",
+  "mysql_columns": [
+    {
+      "name": "product_category_name",
+      "mysql_type": "VARCHAR(256)",
+      "nullable": false,
+      "spark_type": "string",
+      "iceberg_type": "string",
+      "primary_key_ordinal": 1
+    },
+    {
+      "name": "product_category_name_english",
+      "mysql_type": "VARCHAR(256)",
+      "nullable": false,
+      "spark_type": "string",
+      "iceberg_type": "string"
+    }
+  ],
+  "avro": {
+    "wire_format": "confluent",
+    "magic_byte": 0,
+    "schema_id_bytes": 4,
+    "schema_id_byte_order": "big-endian",
+    "fingerprint_algorithm": "sha256-canonical-json-v1",
+    "reader_schema_role": "contractual_reader_not_writer_provenance",
+    "writer_schema_capture_state": "pending_runtime_capture",
+    "key_reader_schema": {
+      "type": "record",
+      "name": "Key",
+      "namespace": "olist_cdc.olist_oltp.product_category_translation",
+      "fields": [
+        {
+          "name": "product_category_name",
+          "type": "string"
+        }
+      ]
+    },
+    "value_reader_schema": {
+      "type": "record",
+      "name": "Envelope",
+      "namespace": "olist_cdc.olist_oltp.product_category_translation",
+      "fields": [
+        {
+          "name": "before",
+          "type": [
+            "null",
+            {
+              "type": "record",
+              "name": "Value",
+              "namespace": "olist_cdc.olist_oltp.product_category_translation",
+              "fields": [
+                {
+                  "name": "product_category_name",
+                  "type": "string"
+                },
+                {
+                  "name": "product_category_name_english",
+                  "type": "string"
+                }
+              ]
+            }
+          ],
+          "default": null
+        },
+        {
+          "name": "after",
+          "type": [
+            "null",
+            "Value"
+          ],
+          "default": null
+        },
+        {
+          "name": "source",
+          "type": {
+            "type": "record",
+            "name": "Source",
+            "namespace": "io.debezium.connector.mysql",
+            "fields": [
+              {
+                "name": "version",
+                "type": "string"
+              },
+              {
+                "name": "connector",
+                "type": "string"
+              },
+              {
+                "name": "name",
+                "type": "string"
+              },
+              {
+                "name": "ts_ms",
+                "type": "long"
+              },
+              {
+                "name": "snapshot",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "db",
+                "type": "string"
+              },
+              {
+                "name": "sequence",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "ts_us",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "ts_ns",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "table",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "server_id",
+                "type": "long"
+              },
+              {
+                "name": "gtid",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              },
+              {
+                "name": "file",
+                "type": "string"
+              },
+              {
+                "name": "pos",
+                "type": "long"
+              },
+              {
+                "name": "row",
+                "type": "int"
+              },
+              {
+                "name": "thread",
+                "type": [
+                  "null",
+                  "long"
+                ],
+                "default": null
+              },
+              {
+                "name": "query",
+                "type": [
+                  "null",
+                  "string"
+                ],
+                "default": null
+              }
+            ]
+          }
+        },
+        {
+          "name": "transaction",
+          "type": [
+            "null",
+            {
+              "type": "record",
+              "name": "Transaction",
+              "namespace": "io.olist.cdc.debezium",
+              "fields": [
+                {
+                  "name": "id",
+                  "type": "string"
+                },
+                {
+                  "name": "total_order",
+                  "type": "long"
+                },
+                {
+                  "name": "data_collection_order",
+                  "type": "long"
+                }
+              ]
+            }
+          ],
+          "default": null
+        },
+        {
+          "name": "op",
+          "type": "string"
+        },
+        {
+          "name": "ts_ms",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        },
+        {
+          "name": "ts_us",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        },
+        {
+          "name": "ts_ns",
+          "type": [
+            "null",
+            "long"
+          ],
+          "default": null
+        }
+      ]
+    },
+    "allowed_key_fingerprints": [],
+    "allowed_value_fingerprints": []
+  },
+  "spark_reader_schema": {
+    "key_schema_json_pointer": "#/avro/key_reader_schema",
+    "value_schema_json_pointer": "#/avro/value_reader_schema",
+    "strip_confluent_prefix_bytes": 5,
+    "from_avro_mode": "FAILFAST",
+    "writer_schema_source": "bronze.avro_schemas.spark_self_contained_schema_json"
+  },
+  "iceberg_projection": {
+    "changes_table": "silver.product_category_translation_changes",
+    "current_table": "silver.product_category_translation_current",
+    "business_columns": [
+      {
+        "name": "product_category_name",
+        "type": "string",
+        "nullable": false
+      },
+      {
+        "name": "product_category_name_english",
+        "type": "string",
+        "nullable": false
+      }
+    ]
+  },
+  "evolution": {
+    "registry_compatibility": "BACKWARD_TRANSITIVE",
+    "allowed": [
+      "add_nullable_field_with_default_null"
+    ],
+    "forbidden": [
+      "rename",
+      "drop",
+      "type_narrowing",
+      "primary_key_change",
+      "key_schema_change"
+    ],
+    "unknown_fingerprint_action": "stop_affected_silver_query",
+    "incompatible_registration_action": "stop_connector",
+    "key_schema_or_partition_change_action": "full_reset"
+  }
+}

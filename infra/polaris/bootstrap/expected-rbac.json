@@ -1,0 +1,50 @@
+{
+  "catalog": "olist_lakehouse",
+  "smoke_namespace": "bronze",
+  "principals": {
+    "airflow_maintenance": {
+      "artifact_prefix": "polaris-airflow",
+      "principal_role": "airflow_maintenance_role",
+      "catalog_role": "airflow_maintenance_catalog_role",
+      "catalog_privileges": [
+        "CATALOG_READ_PROPERTIES",
+        "NAMESPACE_LIST",
+        "NAMESPACE_READ_PROPERTIES",
+        "TABLE_LIST",
+        "TABLE_READ_PROPERTIES",
+        "TABLE_WRITE_PROPERTIES",
+        "TABLE_READ_DATA",
+        "TABLE_WRITE_DATA"
+      ]
+    },
+    "clickhouse_reader": {
+      "artifact_prefix": "polaris-clickhouse",
+      "principal_role": "clickhouse_reader_role",
+      "catalog_role": "clickhouse_reader_catalog_role",
+      "catalog_privileges": [
+        "CATALOG_READ_PROPERTIES",
+        "NAMESPACE_LIST",
+        "NAMESPACE_READ_PROPERTIES",
+        "TABLE_LIST",
+        "TABLE_READ_PROPERTIES",
+        "TABLE_READ_DATA"
+      ]
+    },
+    "spark_writer": {
+      "artifact_prefix": "polaris-spark",
+      "principal_role": "spark_writer_role",
+      "catalog_role": "spark_writer_catalog_role",
+      "catalog_privileges": [
+        "CATALOG_READ_PROPERTIES",
+        "NAMESPACE_LIST",
+        "NAMESPACE_READ_PROPERTIES",
+        "TABLE_CREATE",
+        "TABLE_LIST",
+        "TABLE_READ_PROPERTIES",
+        "TABLE_WRITE_PROPERTIES",
+        "TABLE_READ_DATA",
+        "TABLE_WRITE_DATA"
+      ]
+    }
+  }
+}

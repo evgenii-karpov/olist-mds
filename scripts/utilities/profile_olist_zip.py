@@ -1,4 +1,4 @@
-"""Profile the Olist Kaggle dataset archive and generate a source contract.
+"""Profile a local Olist dataset archive and generate a source contract.
 
 The script intentionally uses only the Python standard library so it can run in
 minimal local environments before project dependencies are installed.
@@ -34,7 +34,7 @@ TIMESTAMP_FORMATS = (
     "%Y-%m-%d",
 )
 
-WAREHOUSE_TYPE_OVERRIDES = {
+RAW_TYPE_OVERRIDES = {
     "customer_zip_code_prefix": "varchar(16)",
     "geolocation_zip_code_prefix": "varchar(16)",
     "seller_zip_code_prefix": "varchar(16)",
@@ -115,9 +115,9 @@ def infer_type(values: Iterable[str]) -> str:
     return "varchar"
 
 
-def warehouse_raw_type(column_name: str, inferred_type: str) -> str:
-    if column_name in WAREHOUSE_TYPE_OVERRIDES:
-        return WAREHOUSE_TYPE_OVERRIDES[column_name]
+def raw_type(column_name: str, inferred_type: str) -> str:
+    if column_name in RAW_TYPE_OVERRIDES:
+        return RAW_TYPE_OVERRIDES[column_name]
 
     mapping = {
         "integer": "integer",
@@ -225,110 +225,54 @@ def render_contract(profiles: list[FileProfile], archive_path: Path) -> str:
     ]
 
     lines = [
-        "# Source Contract",
+        "# Source contract",
         "",
-        "This document is generated from the local Olist dataset archive.",
+        "This document describes the local Olist archive used to seed MySQL.",
+        "The committed small fixture follows the same file and header contract.",
         "",
         f"Source archive: `{archive_path.name}`",
         "",
-        "## File Summary",
+        "## File summary",
         "",
         markdown_table(
             ["Entity", "File", "Rows", "Columns"],
             summary_rows,
         ),
         "",
-        "## Expected Source Files",
+        "## Entity columns",
         "",
-        "The ingestion layer should fail fast if any of these files are missing:",
+        "Column names are preserved when the source schema is created in MySQL.",
+        "The raw type is the documented source-facing type for the MySQL source",
+        "schema.",
         "",
     ]
 
-    lines.extend(f"- `{file_name}`" for file_name in EXPECTED_FILES)
-
-    lines.extend(
-        [
-            "",
-            "## Entity Contracts",
-            "",
-            "The `Inferred type` column is based on sampled non-null values. The",
-            "`Warehouse raw type` column is the recommended first-pass type for raw",
-            "DDL. Staging models can cast to stricter business types where needed.",
-            "",
-        ]
-    )
-
     for profile in profiles:
-        rows = []
-        for column in profile.columns:
-            null_pct = (
-                column.null_count / profile.row_count * 100 if profile.row_count else 0
-            )
-            rows.append(
-                [
-                    f"`{column.name}`",
-                    column.inferred_type,
-                    warehouse_raw_type(column.name, column.inferred_type),
-                    str(column.null_count),
-                    f"{null_pct:.2f}%",
-                    ", ".join(f"`{value}`" for value in column.sample_values),
-                ]
-            )
-
+        rows = [
+            [column.name, raw_type(column.name, column.inferred_type)]
+            for column in profile.columns
+        ]
         lines.extend(
             [
                 f"### {profile.entity_name}",
                 "",
-                f"Source file: `{profile.file_name}`",
+                f"File: {profile.file_name}",
                 "",
-                f"Rows: `{profile.row_count}`",
-                "",
-                markdown_table(
-                    [
-                        "Column",
-                        "Inferred type",
-                        "Warehouse raw type",
-                        "Nulls",
-                        "Null %",
-                        "Sample values",
-                    ],
-                    rows,
-                ),
+                markdown_table(["Column", "Source type"], rows),
                 "",
             ]
         )
 
     lines.extend(
         [
-            "## Raw Metadata Columns",
+            "## Rules",
             "",
-            "Every raw table should include these ingestion metadata columns:",
-            "",
-            markdown_table(
-                ["Column", "Recommended type", "Description"],
-                [
-                    ["`_batch_id`", "varchar(128)", "Deterministic batch identifier."],
-                    ["`_loaded_at`", "timestamp", "Warehouse load timestamp."],
-                    [
-                        "`_source_file`",
-                        "varchar(512)",
-                        "Original raw object or source file.",
-                    ],
-                    [
-                        "`_source_system`",
-                        "varchar(64)",
-                        "Source system name, initially `olist_kaggle`.",
-                    ],
-                ],
-            ),
-            "",
-            "## Contract Rules",
-            "",
-            "- Ingestion must fail if an expected file is missing.",
-            "- Ingestion must fail if a source header changes unexpectedly.",
-            "- Raw data should be append-only and batch-addressable.",
-            "- dbt staging models own stricter type casting and business naming.",
-            "- Correction feeds for SCD2 simulation should be versioned as separate source entities.",
+            "- The archive must contain every expected source file.",
+            "- Header names and order must match this contract.",
+            "- Nullable source values remain nullable in MySQL and CDC records.",
+            "- Zip-code prefixes remain strings so leading zeroes are preserved.",
+            "- Timestamps use the source timezone semantics defined by the MySQL schema.",
+            "- Source changes are transported through Debezium and the versioned Avro contracts.",
             "",
         ]
     )
@@ -350,7 +294,7 @@ def write_json_profile(profiles: list[FileProfile], output_path: Path) -> None:
                         "null_count": column.null_count,
                         "non_null_count": column.non_null_count,
                         "inferred_type": column.inferred_type,
-                        "redshift_raw_type": warehouse_raw_type(
+                        "raw_type": raw_type(
                             column.name,
                             column.inferred_type,
                         ),

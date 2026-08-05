@@ -1,8 +1,8 @@
 # Alertmanager
 
-The local receiver intentionally keeps routing secret-free. Every Prometheus
-alert includes a repository runbook annotation; production notification
-credentials belong in an external secret provider, not this file.
+The local Alertmanager route sends firing and resolved notifications to the
+repository-owned `target-probe` webhook. Notification credentials are
+not stored in this directory.
 
-Use `docs/runbooks/cdc-alert-testing.md` to exercise `firing -> resolved`
-transitions against a disposable stack.
+Use [`docs/runbooks/cdc-alert-testing.md`](../../docs/runbooks/cdc-alert-testing.md)
+for a local fire/resolve check.

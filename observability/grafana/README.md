@@ -1,13 +1,8 @@
 # Grafana
 
-Grafana provisions Prometheus and Loki plus six Phase 6 operational views:
+Grafana provisions Prometheus and Loki as read-only data sources and provides
+operational views for CDC health, Kafka position, Spark/Iceberg progress,
+serving publication, Airflow and local service health.
 
-- SLO, latency, freshness, and error-budget burn;
-- source PostgreSQL, retained WAL, heartbeat, and Debezium;
-- Kafka partitions, consumer lag, and Connect;
-- NiFi queues/backpressure and object-file behavior;
-- Airflow, dbt, warehouse ingest, and mart freshness;
-- host/container capacity and correlated Loki logs.
-
-Dashboard JSON is immutable in the UI (`editable=false`); review changes in
-source control and keep queries on low-cardinality metrics.
+Dashboard JSON is managed in source control. Query or panel changes must pass
+the observability contract validator.

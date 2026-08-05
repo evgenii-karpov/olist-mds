@@ -1,0 +1,157 @@
+name: Lakehouse bounded serving component
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+concurrency:
+  group: lakehouse-bounded-serving-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  serving-component:
+    name: Bounded serving component
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      COMPOSE_PROJECT_NAME: ci-serving-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and test dependencies
+        run: |
+          uv python install
+          uv sync --locked --group quality
+
+      - name: Prepare test evidence directory
+        run: mkdir -p data/reports
+
+      - name: Prepare Spark status mount
+        run: |
+          mkdir -p docker/spark/status/bronze docker/spark/status/silver
+          rm -f docker/spark/status/bronze/status.json docker/spark/status/silver/status.json
+          chmod 0777 docker/spark/status/bronze docker/spark/status/silver
+
+      - name: Run serving contract tests
+        run: >-
+          uv run pytest -q tests/serving tests/dbt_clickhouse
+          --junitxml=data/reports/serving-component-tests.xml
+
+      - name: Bootstrap bounded candidate input
+        run: >-
+          uv run python scripts/cdc/local_lab.py bootstrap
+          --archive tests/fixtures/olist_small/olist_small.zip
+          --run-id ci-serving-${{ github.run_id }}
+          --password-file docker/secrets/dev/mysql_simulator_password.txt
+          --timeout 1200
+          > data/reports/serving-bootstrap.json
+
+      - name: Verify Spark status mount is writable
+        run: |
+          docker run --rm \
+            --user 185:185 \
+            --entrypoint /bin/sh \
+            --mount "type=bind,source=${GITHUB_WORKSPACE}/docker/spark/status,target=/var/run/olist-spark" \
+            olist-spark:4.1.3-iceberg1.11.0 \
+            -ec 'mkdir -p /var/run/olist-spark/bronze /var/run/olist-spark/silver; printf ready > /var/run/olist-spark/bronze/.write-test; printf ready > /var/run/olist-spark/silver/.write-test; rm -f /var/run/olist-spark/bronze/.write-test /var/run/olist-spark/silver/.write-test'
+
+      - name: Start streaming boundary for serving
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-streaming
+          --wait-ready --timeout 300
+          > data/reports/serving-streaming-ready.json
+
+      - name: Start ClickHouse serving observer for catch-up barrier
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-serving-observer
+          > data/reports/serving-observer.json
+
+      - name: Wait for bounded Silver catch-up
+        run: >-
+          uv run python scripts/cdc/local_lab.py wait-caught-up
+          --timeout 900
+          > data/reports/serving-caught-up.json
+
+      - name: Start serving runtime
+        run: >-
+          uv run python scripts/cdc/local_lab.py start-serving
+          --build --timeout 1200
+          > data/reports/serving-runtime.json
+
+      - name: Execute finite serving sync
+        run: >-
+          uv run python scripts/cdc/local_lab.py sync-serving
+          --run-id ci-serving-sync-${{ github.run_id }}
+          --timeout 1800
+          > data/reports/serving-sync.json
+
+      - name: Prove finite serving no-op retry
+        run: >-
+          uv run python scripts/cdc/local_lab.py sync-serving
+          --run-id ci-serving-noop-${{ github.run_id }}
+          --timeout 1800
+          > data/reports/serving-noop.json
+
+      - name: Validate no-op retry result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("data/reports/serving-noop.json").read_text())
+          if result.get("status") != "succeeded" or result.get("is_noop") is not True:
+              raise SystemExit(f"bounded serving retry was not an authoritative NOOP: {result}")
+          PY
+
+      - name: Exercise destructive serving rebuild contract
+        run: >-
+          uv run python scripts/cdc/local_lab.py rebuild-serving
+          --yes --run-id ci-serving-rebuild-${{ github.run_id }}
+          --timeout 3000
+          > data/reports/serving-rebuild.json
+
+      - name: Exercise bounded maintenance DAG path
+        run: >-
+          uv run python scripts/cdc/local_lab.py run-maintenance
+          --run-id ci-serving-maintenance-${{ github.run_id }}
+          --timeout 1800
+          > data/reports/serving-maintenance.json
+
+      - name: Capture bounded serving diagnostics
+        if: failure()
+        run: |
+          docker compose --profile platform --profile streaming --profile serving ps -a \
+            > data/reports/serving-compose-ps.txt || true
+          docker compose --profile platform --profile streaming --profile serving logs \
+            --no-color --tail=300 spark-bronze spark-silver \
+            > data/reports/serving-spark.log || true
+          find docker/spark/status -maxdepth 3 -type f -print \
+            > data/reports/serving-spark-status.txt || true
+
+      - name: Upload serving evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serving-component
+          path: |
+            data/reports/serving-*.json
+            data/reports/serving-*.log
+            data/reports/serving-*.txt
+            data/reports/serving-component-tests.xml
+          if-no-files-found: warn
+
+      - name: Clean up serving Compose resources
+        if: always()
+        run: docker compose --profile platform --profile streaming --profile serving down -v --remove-orphans

@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.order_items",
+  "fields": [
+    {
+      "name": "order_id",
+      "type": "string"
+    },
+    {
+      "name": "order_item_id",
+      "type": "int"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.order_items.Key"
+}

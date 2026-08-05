@@ -1,0 +1,12 @@
+{
+  "type": "record",
+  "name": "Key",
+  "namespace": "olist_cdc.olist_oltp.products",
+  "fields": [
+    {
+      "name": "product_id",
+      "type": "string"
+    }
+  ],
+  "connect.name": "olist_cdc.olist_oltp.products.Key"
+}

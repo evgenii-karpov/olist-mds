@@ -1,4 +1,4 @@
-"""Idempotent FK-safe loading of an Olist archive into the OLTP source."""
+"""Idempotent FK-safe loading of an Olist archive into MySQL."""
 
 from __future__ import annotations
 
@@ -7,17 +7,27 @@ import hashlib
 import io
 import json
 from collections.abc import Iterable, Iterator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, Protocol, TextIO
 from zipfile import ZipFile
 
-from psycopg2.extras import execute_values
-
-from scripts.simulation.database import SimulatorRepository
 from scripts.simulation.domain import SimulationConfig
+
+SEED_BATCH_SIZE = 5_000
+
+
+class SeedRepository(Protocol):
+    def start_run(
+        self, run_id: str, command: str, config: SimulationConfig
+    ) -> None: ...
+
+    def transaction(self) -> AbstractContextManager[Any]: ...
+
+    def finish_run(self, run_id: str, state: str, finished_at: datetime) -> None: ...
 
 
 @dataclass(frozen=True)
@@ -184,12 +194,14 @@ def source_identity(path: Path) -> str:
 @contextmanager
 def open_source(path: Path, file_name: str) -> Iterator[TextIO]:
     if path.is_dir():
-        with (path / file_name).open(encoding="utf-8-sig", newline="") as handle:
+        source_file = path / file_name
+        if not source_file.is_file():
+            raise ValueError(f"Source directory is missing required file: {file_name}")
+        with source_file.open(encoding="utf-8-sig", newline="") as handle:
             yield handle
         return
     with ZipFile(path) as archive:
-        names = set(archive.namelist())
-        if file_name not in names:
+        if file_name not in set(archive.namelist()):
             raise ValueError(f"Archive is missing required file: {file_name}")
         with (
             archive.open(file_name) as raw,
@@ -212,7 +224,7 @@ def convert_row(spec: SeedSpec, row: dict[str, str]) -> tuple[Any, ...]:
         elif column in spec.integer_columns:
             converted.append(int(value))
         elif column in spec.decimal_columns:
-            converted.append(value)
+            converted.append(Decimal(value))
         elif column in spec.timestamp_columns:
             converted.append(datetime.fromisoformat(value))
         else:
@@ -221,8 +233,10 @@ def convert_row(spec: SeedSpec, row: dict[str, str]) -> tuple[Any, ...]:
 
 
 def batches(
-    rows: Iterable[tuple[Any, ...]], size: int = 2000
+    rows: Iterable[tuple[Any, ...]], size: int = SEED_BATCH_SIZE
 ) -> Iterator[list[tuple[Any, ...]]]:
+    if size < 1:
+        raise ValueError("batch size must be positive")
     batch: list[tuple[Any, ...]] = []
     for row in rows:
         batch.append(row)
@@ -235,59 +249,90 @@ def batches(
 
 def upsert_statement(spec: SeedSpec) -> str:
     columns = ", ".join(spec.columns)
-    keys = ", ".join(spec.key_columns)
+    placeholders = ", ".join("%s" for _ in spec.columns)
     mutable = [column for column in spec.columns if column not in spec.key_columns]
-    update = ", ".join(f"{column} = excluded.{column}" for column in mutable)
-    action = f"do update set {update}" if update else "do nothing"
-    return f"insert into public.{spec.entity_name} ({columns}) values %s on conflict ({keys}) {action}"
+    prefix = "INSERT" if mutable else "INSERT IGNORE"
+    statement = (
+        f"{prefix} INTO olist_oltp.{spec.entity_name} ({columns}) "
+        f"VALUES ({placeholders})"
+    )
+    if mutable:
+        statement += " AS new"
+        updates = ", ".join(f"{column} = new.{column}" for column in mutable)
+        statement += f" ON DUPLICATE KEY UPDATE {updates}"
+    return statement
 
 
 def load_geolocation(
     cursor: Any,
     rows: Iterable[tuple[Any, ...]],
     identity: str,
+    *,
+    run_id: str,
+    loaded_at: datetime,
 ) -> int:
-    loaded = 0
+    """Load generated-key rows idempotently via deterministic seed markers."""
+    source_count = 0
     row_number = 2
     for batch in batches(rows):
-        candidates = [
-            (identity, row_number + index, *values)
-            for index, values in enumerate(batch)
-        ]
-        execute_values(
-            cursor,
+        token = f"loading:{run_id}:{row_number}"
+        cursor.executemany(
             """
-            with candidates (
-                seed_identity, source_row_number, zip_prefix, lat, lng, city, state
-            ) as (values %s),
-            new_rows as (
-                insert into simulator_control.seed_rows (
-                    seed_identity, entity_name, source_row_number,
-                    business_key, loaded_at
-                )
-                select seed_identity, 'geolocation', source_row_number, null,
-                       current_timestamp
-                from candidates
-                on conflict do nothing
-                returning seed_identity, source_row_number
-            )
-            insert into public.geolocation (
-                geolocation_zip_code_prefix, geolocation_lat, geolocation_lng,
-                geolocation_city, geolocation_state
-            )
-            select c.zip_prefix, c.lat::numeric, c.lng::numeric, c.city, c.state
-            from candidates c join new_rows n using (seed_identity, source_row_number)
+            INSERT IGNORE INTO olist_simulator.seed_rows (
+                seed_identity, entity_name, source_row_number,
+                business_key, loaded_at
+            ) VALUES (%s, 'geolocation', %s, %s, %s)
             """,
-            candidates,
-            page_size=len(candidates),
+            [
+                (identity, row_number + index, token, loaded_at)
+                for index in range(len(batch))
+            ],
         )
-        loaded += len(batch)
+        cursor.execute(
+            """
+            SELECT source_row_number
+            FROM olist_simulator.seed_rows
+            WHERE seed_identity = %s
+              AND entity_name = 'geolocation'
+              AND business_key = %s
+            ORDER BY source_row_number
+            FOR UPDATE
+            """,
+            (identity, token),
+        )
+        inserted_numbers = {int(row[0]) for row in cursor.fetchall()}
+        candidates = [
+            values
+            for index, values in enumerate(batch)
+            if row_number + index in inserted_numbers
+        ]
+        if candidates:
+            cursor.executemany(
+                """
+                INSERT INTO olist_oltp.geolocation (
+                    geolocation_zip_code_prefix, geolocation_lat,
+                    geolocation_lng, geolocation_city, geolocation_state
+                ) VALUES (%s, %s, %s, %s, %s)
+                """,
+                candidates,
+            )
+            cursor.execute(
+                """
+                UPDATE olist_simulator.seed_rows
+                SET business_key = CONCAT('geolocation:', source_row_number)
+                WHERE seed_identity = %s
+                  AND entity_name = 'geolocation'
+                  AND business_key = %s
+                """,
+                (identity, token),
+            )
+        source_count += len(batch)
         row_number += len(batch)
-    return loaded
+    return source_count
 
 
 def seed_archive(
-    repository: SimulatorRepository,
+    repository: SeedRepository,
     source_path: Path,
     *,
     random_seed: int,
@@ -311,43 +356,51 @@ def seed_archive(
                     raise ValueError(f"{spec.file_name} has no header")
                 if tuple(reader.fieldnames) != spec.columns:
                     raise ValueError(
-                        f"Unexpected header for {spec.file_name}: {tuple(reader.fieldnames)!r}"
+                        f"Unexpected header for {spec.file_name}: "
+                        f"{tuple(reader.fieldnames)!r}"
                     )
                 converted = (convert_row(spec, row) for row in reader)
-                with repository.connection, repository.connection.cursor() as cursor:
+                with repository.transaction() as cursor:
                     if spec.entity_name == "geolocation":
                         counts[spec.entity_name] = load_geolocation(
-                            cursor, converted, identity
+                            cursor,
+                            converted,
+                            identity,
+                            run_id=run_id,
+                            loaded_at=logical_time,
                         )
                         continue
+
                     entity_count = 0
                     for batch in batches(converted):
                         if spec.entity_name == "products":
                             categories = sorted({row[1] for row in batch if row[1]})
                             if categories:
-                                execute_values(
-                                    cursor,
+                                cursor.executemany(
                                     """
-                                    insert into public.product_category_translation
-                                        (product_category_name, product_category_name_english)
-                                    values %s on conflict (product_category_name) do nothing
+                                    INSERT IGNORE INTO
+                                        olist_oltp.product_category_translation (
+                                            product_category_name,
+                                            product_category_name_english
+                                        )
+                                    VALUES (%s, %s)
                                     """,
                                     [(value, value) for value in categories],
                                 )
-                        execute_values(
-                            cursor, upsert_statement(spec), batch, page_size=len(batch)
-                        )
+                        cursor.executemany(upsert_statement(spec), batch)
                         entity_count += len(batch)
                     counts[spec.entity_name] = entity_count
-        with repository.connection, repository.connection.cursor() as cursor:
+
+        with repository.transaction() as cursor:
             cursor.execute(
                 """
-                update simulator_control.simulation_runs
-                set counters = %s::jsonb,
+                UPDATE olist_simulator.simulation_runs
+                SET counters = %s,
                     last_committed_source_timestamp = %s,
                     heartbeat_at = %s,
-                    state = 'completed', finished_at = %s
-                where run_id = %s
+                    state = 'completed',
+                    finished_at = %s
+                WHERE run_id = %s
                 """,
                 (
                     json.dumps(counts, sort_keys=True),
@@ -358,7 +411,6 @@ def seed_archive(
                 ),
             )
     except Exception:
-        repository.connection.rollback()
         repository.finish_run(run_id, "failed", logical_time)
         raise
     return counts

@@ -1,0 +1,218 @@
+name: Lakehouse bounded components
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/lakehouse-components.yml"
+      - ".github/workflows/lakehouse-cdc.yml"
+      - ".github/workflows/lakehouse-serving.yml"
+      - "compose.yaml"
+      - "docker/**"
+      - "streaming/**"
+      - "airflow/**"
+      - "dbt/olist_clickhouse/**"
+      - "scripts/cdc/**"
+      - "scripts/serving/**"
+      - "scripts/observability/**"
+      - "observability/**"
+      - "tests/**"
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - ".github/workflows/lakehouse-components.yml"
+      - ".github/workflows/lakehouse-cdc.yml"
+      - ".github/workflows/lakehouse-serving.yml"
+      - "compose.yaml"
+      - "docker/**"
+      - "streaming/**"
+      - "airflow/**"
+      - "dbt/olist_clickhouse/**"
+      - "scripts/cdc/**"
+      - "scripts/serving/**"
+      - "scripts/observability/**"
+      - "observability/**"
+      - "tests/**"
+permissions:
+  contents: read
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
+
+concurrency:
+  group: lakehouse-components-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  spark-image-contract:
+    name: Spark image contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build target Spark runtime image
+        env:
+          IMAGE: olist-ci-spark-runtime:${{ github.run_id }}-${{ github.run_attempt }}
+        run: >-
+          docker build --progress=plain --target runtime
+          --tag "$IMAGE" --file docker/spark/Dockerfile .
+
+      - name: Verify runtime entrypoint, JAR and dependency boundary
+        env:
+          IMAGE: olist-ci-spark-runtime:${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          docker run --rm --entrypoint /usr/local/bin/verify-olist-spark-runtime "$IMAGE"
+          docker run --rm --entrypoint /opt/spark/bin/spark-submit "$IMAGE" --version
+
+  airflow-runtime:
+    name: Airflow target runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      COMPOSE_PROJECT_NAME: ci-airflow-runtime-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build target Airflow image
+        run: docker compose --profile platform --profile serving build airflow
+
+      - name: Validate target DAG imports and exact inventory
+        run: >-
+          docker compose --profile platform --profile serving run --rm --no-deps
+          airflow python scripts/ci/check_airflow_dag_imports.py
+
+      - name: Start Airflow metadata database
+        run: docker compose --profile platform up -d --wait platform-postgres
+
+      - name: Initialize Airflow metadata database
+        run: >-
+          docker compose --profile platform --profile serving run --rm --no-deps
+          airflow airflow db migrate
+
+      - name: Check target Airflow CLI path
+        run: >-
+          docker compose --profile platform --profile serving run --rm --no-deps
+          airflow airflow dags list
+          --output table
+
+      - name: Upload Airflow diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail=500 airflow
+
+      - name: Clean up Airflow Compose resources
+        if: always()
+        run: docker compose --profile platform --profile serving down -v --remove-orphans
+
+  observability-contract:
+    name: Observability contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: ci-observability-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python and test dependencies
+        run: |
+          uv python install
+          uv sync --locked --group quality
+
+      - name: Prepare test evidence directory
+        run: mkdir -p data/reports
+
+      - name: Validate all target Compose profiles
+        run: >-
+          docker compose
+          --profile platform
+          --profile streaming
+          --profile serving
+          --profile observability
+          --profile logs
+          config --quiet
+
+      - name: Validate observability contract
+        run: uv run python scripts/ci/validate_observability_contract.py
+
+      - name: Run observability contract tests
+        run: >-
+          uv run pytest -q
+          tests/observability
+          --junitxml=data/reports/observability-contract-tests.xml
+
+      - name: Validate Prometheus and Alertmanager configuration
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            prom/prometheus:v3.5.0 \
+            check config /workspace/observability/prometheus/prometheus.yml
+          docker run --rm --entrypoint amtool \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            prom/alertmanager:v0.30.0 \
+            check-config /workspace/observability/alertmanager/alertmanager.yml
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            grafana/alloy:v1.16.1 \
+            fmt --test /workspace/observability/alloy/config.alloy
+
+      - name: Upload observability evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observability-contract
+          path: data/reports/observability-contract-tests.xml
+          if-no-files-found: warn
+
+      - name: Clean up observability Compose resources
+        if: always()
+        run: >-
+          docker compose
+          --profile platform
+          --profile streaming
+          --profile serving
+          --profile observability
+          --profile logs
+          down -v --remove-orphans
+
+  component-summary:
+    name: component-summary
+    if: ${{ always() }}
+    needs:
+      - spark-image-contract
+      - airflow-runtime
+      - observability-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail on failed required component jobs
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          python - <<'PY'
+          import json
+          import os, sys
+
+          needs = json.loads(os.environ["NEEDS_JSON"])
+          bad = {
+              name: value.get("result")
+              for name, value in needs.items()
+              if value.get("result") != "success"
+          }
+          if bad:
+              print(json.dumps({"status": "FAIL", "jobs": bad}, sort_keys=True))
+              sys.exit(1)
+          print(json.dumps({"status": "PASS", "jobs": sorted(needs)}, sort_keys=True))
+          PY

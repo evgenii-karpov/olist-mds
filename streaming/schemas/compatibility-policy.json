@@ -1,5 +1,22 @@
 {
   "format": "AVRO",
-  "compatibility": "BACKWARD_TRANSITIVE",
-  "file_layout": "<subject>/v<positive-integer>.avsc"
+  "registry_group": "olist_cdc",
+  "registry_rule_type": "COMPATIBILITY",
+  "registry_rule_config": "BACKWARD_TRANSITIVE",
+  "contract_layout": "contracts/<entity>/v<positive-integer>.json",
+  "allowed_evolution": [
+    "add_nullable_field_with_default_null"
+  ],
+  "forbidden_evolution": [
+    "rename",
+    "drop",
+    "type_narrowing",
+    "primary_key_change",
+    "key_schema_change"
+  ],
+  "topic_partition_change_action": "require_explicit_full_reset",
+  "allowed_writer_fingerprint_evolution": "monotonic_superset",
+  "writer_schema_provenance": "checked_in_runtime_capture_only",
+  "pending_writer_schema_action": "fail_closed",
+  "unknown_fingerprint_action": "stop_affected_silver_query"
 }

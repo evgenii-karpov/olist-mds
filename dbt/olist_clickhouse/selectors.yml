@@ -1,0 +1,13 @@
+version: 2
+
+selectors:
+  - name: serving_candidate
+    description: "Gold models and downstream tests for the serving publication flow"
+    definition:
+      union:
+        - method: tag
+          value: gold_candidate
+          parents: true
+        - method: tag
+          value: serving_candidate
+          parents: true

@@ -1,0 +1,66 @@
+{
+  "initial_snapshot": {
+    "customers": 8,
+    "orders": 12,
+    "order_items": 16,
+    "order_payments": 14,
+    "order_reviews": 12,
+    "products": 8,
+    "sellers": 4,
+    "product_category_translation": 5,
+    "geolocation": 6,
+    "total_business": 79,
+    "total_applied_changes": 79,
+    "total_visible_current": 79,
+    "rejected": 0,
+    "schema_violations": 0
+  },
+  "crud_delta": {
+    "insert_events": 7,
+    "update_events": 2,
+    "delete_events": 1,
+    "total_crud_events": 10
+  },
+  "post_crud": {
+    "total_applied_changes": 89,
+    "total_visible_current": 85,
+    "total_physical_current": 86,
+    "total_deleted_current": 1,
+    "entity_changes": {
+      "customers": 9,
+      "orders": 14,
+      "order_items": 19,
+      "order_payments": 16,
+      "order_reviews": 14,
+      "products": 8,
+      "sellers": 4,
+      "product_category_translation": 5
+    },
+    "entity_visible_current": {
+      "customers": 9,
+      "orders": 13,
+      "order_items": 18,
+      "order_payments": 16,
+      "order_reviews": 12,
+      "products": 8,
+      "sellers": 4,
+      "product_category_translation": 5
+    }
+  },
+  "post_schema": {
+    "total_applied_changes": 90,
+    "total_visible_current": 85,
+    "total_physical_current": 86,
+    "total_deleted_current": 1,
+    "entity_changes": {
+      "customers": 10,
+      "orders": 14,
+      "order_items": 19,
+      "order_payments": 16,
+      "order_reviews": 14,
+      "products": 8,
+      "sellers": 4,
+      "product_category_translation": 5
+    }
+  }
+}

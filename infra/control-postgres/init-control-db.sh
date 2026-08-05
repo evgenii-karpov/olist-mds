@@ -75,7 +75,5 @@ psql \
   --dbname "${CONTROL_POSTGRES_DB}" \
   --set "control_user=${CONTROL_POSTGRES_USER}" \
   --file /opt/olist/control-postgres/initdb/001_create_schemas.sql \
-  --file /opt/olist/control-postgres/initdb/002_create_batch_control_tables.sql \
-  --file /opt/olist/control-postgres/initdb/003_create_cdc_control_tables.sql \
-  --file /opt/olist/control-postgres/initdb/004_create_cdc_transform_control_tables.sql \
+  --file /opt/olist/control-postgres/initdb/005_create_serving_control_tables.sql \
   --file /opt/olist/control-postgres/initdb/999_grant_control_role.sql

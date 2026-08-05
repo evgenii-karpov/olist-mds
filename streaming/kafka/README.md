@@ -1,19 +1,16 @@
-# Local Kafka contract
+# Kafka topology
 
-Phase 2 runs `apache/kafka:4.3.1` as one persistent KRaft broker. Container
-clients use `kafka:29092`; host tools use `localhost:9092`. ZooKeeper and broker
-topic auto-creation are disabled.
+Kafka carries the eight MySQL entity topics plus transaction, heartbeat and
+schema-history topics declared in `topics.json`. Debezium publishes the
+source records and Spark consumes them with the configured consumer groups and
+checkpoint paths.
 
-`topics.json` is the machine-readable contract. `create-topics.sh` creates its
-22 topics idempotently before Connect starts. Source and reserved DLQ topics
-retain data for seven days. DLQ partitions match their source topic so Phase 3
-can preserve parallelism, but no producer is attached to them in Phase 2.
+`create-topics.sh` is generated from the topic manifest and is safe to
+rerun. Connect internal topics are compacted and are not changed by normal CDC
+recovery operations.
 
-Validate the live broker with:
+Run the topic contract checks with:
 
-```text
-python scripts/cdc/stage2_admin.py validate-topics
+```powershell
+uv run pytest -q tests/cdc_contracts
 ```
-
-The validator checks names, partition counts, replication factor, cleanup
-policy, retention, and unexpected source or derived heartbeat topics.

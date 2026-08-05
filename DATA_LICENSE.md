@@ -1,7 +1,7 @@
 # Data License
 
-This repository includes `olist.zip`, the source archive used by the full local
-pipeline.
+This repository includes `olist.zip`, the source archive used by the local CDC
+runtime.
 
 Dataset attribution:
 

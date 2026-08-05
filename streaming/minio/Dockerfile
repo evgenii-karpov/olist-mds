@@ -24,4 +24,3 @@ USER minio
 EXPOSE 9000 9001
 ENTRYPOINT ["/usr/local/bin/start-minio"]
 CMD ["server", "/data", "--console-address", ":9001"]
-

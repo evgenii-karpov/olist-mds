@@ -1,12 +1,18 @@
 groups:
-  - name: cdc-slo-recording
+  - name: lakehouse-target-recordings
     interval: 30s
     rules:
-      - record: olist_cdc:commit_to_mart_latency_p95_seconds
-        expr: histogram_quantile(0.95, sum by (le) (olist_cdc_event_commit_to_mart_latency_seconds_bucket))
-      - record: olist_cdc:latency_error_budget_burn_ratio_10m
-        expr: 1 - (sum(olist_cdc_event_commit_to_mart_latency_seconds_bucket{le="300"}) / sum(olist_cdc_event_commit_to_mart_latency_seconds_count))
-      - record: olist_cdc:kafka_consumer_lag
-        expr: sum(kafka_consumergroup_lag{consumergroup="olist-nifi-cdc-v1"})
-      - record: olist_cdc:nifi_queue_utilization_ratio
-        expr: sum(nifi_amount_items_queued) / 10000
+      - record: olist_lakehouse:kafka_consumer_lag
+        expr: sum(olist_kafka_consumer_lag{consumer_group=~"olist-spark-bronze(-.*)?", topic=~"olist_cdc\\.(olist_oltp\\.(customers|orders|order_items|order_payments|order_reviews|products|sellers|product_category_translation)|transaction|heartbeat)"})
+
+      - record: olist_lakehouse:kafka_business_consumer_lag
+        expr: sum(olist_kafka_consumer_lag{consumer_group=~"olist-spark-bronze(-.*)?", topic=~"olist_cdc\\.olist_oltp\\.(customers|orders|order_items|order_payments|order_reviews|products|sellers|product_category_translation)"})
+
+      - record: olist_lakehouse:spark_streaming_ready
+        expr: min(olist_spark_streaming_state{component=~"bronze|silver"})
+
+      - record: olist_lakehouse:spark_streaming_status_stale
+        expr: max(olist_spark_streaming_status_stale{component=~"bronze|silver"})
+
+      - record: olist_lakehouse:publication_age_seconds
+        expr: olist_serving_publication_age_seconds
