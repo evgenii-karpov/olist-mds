@@ -25,6 +25,9 @@ airflow/*.db
 airflow/*.db-journal
 airflow/webserver_config.py
 
+# Local Spark runtime status
+docker/spark/status/**/*.json
+
 # Environment and secrets
 .env
 .env.*
