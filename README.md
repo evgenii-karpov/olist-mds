@@ -21,6 +21,9 @@ The runtime is reproducible with Docker Compose. MySQL owns business data.
 PostgreSQL stores Airflow metadata, Polaris catalog metadata and serving
 control data.
 
+Work is actively underway on a permanent cloud contour based on GCP and
+BigQuery. See the [GCP and BigQuery dual-contour implementation plan](docs/plans/gcp-bigquery-dual-contour-plan/README.md).
+
 ## Key capabilities
 
 - **CDC ingestion:** Debezium, Kafka Connect and Kafka transport source

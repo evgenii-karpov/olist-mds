@@ -1,0 +1,151 @@
+{
+  "revision_date": "2026-08-07",
+  "repository_baseline": "1fe78c4b1d827e2d17fc604be39b6c227a2488ce",
+  "files": [
+    {
+      "path": "00-program-overview.md",
+      "sha256": "24330bc592616d79bc6d0305761bcb6ff067d6afbf36464b269087bdba23ba71",
+      "bytes": 5805
+    },
+    {
+      "path": "01-decision-register.md",
+      "sha256": "6cd6478c4b405bd06448e3bb232e32e03290ac0dd92905e2ac6b0805d82b76a8",
+      "bytes": 11735
+    },
+    {
+      "path": "02-repository-baseline-and-required-refactors.md",
+      "sha256": "653d1cfb90cd3b6761a8a822a27b98a3182c113aa1d975dbf4254766ec98e9d6",
+      "bytes": 4173
+    },
+    {
+      "path": "03-target-architecture-and-runtime-isolation.md",
+      "sha256": "26e87f7a005b1c678e7f7870fad0d2994f921ed03ee88740c1218333a8cc65a6",
+      "bytes": 3235
+    },
+    {
+      "path": "04-gcp-infrastructure-iam-and-cost-controls.md",
+      "sha256": "9fefcfabc88f25e525f6afcafd074412fbc4df4be0dc284a3da2003f217c5d8d",
+      "bytes": 4440
+    },
+    {
+      "path": "05-cdc-ordering-and-serving-boundary.md",
+      "sha256": "b3827f9cb716b10b492f3937bd3f7666c777d9ba6805bca7a1ef722fa3dbd9df",
+      "bytes": 3914
+    },
+    {
+      "path": "06-spark-iceberg-and-vertical-slice.md",
+      "sha256": "533a18aed12110209052c49e520948af0d01c4ea67aef22f60c1fc132561d558",
+      "bytes": 3409
+    },
+    {
+      "path": "07-bigquery-gold-and-publication.md",
+      "sha256": "237abb293b1f2813dbaa0ff7a9c0102828b2dc2b8705b6404c4056857ae8068c",
+      "bytes": 4710
+    },
+    {
+      "path": "08-orchestration-cli-and-operations.md",
+      "sha256": "651bf47d465d0f459f68e22729cb21902f9a2d0c8c07b2e69bfd7ed8b7686497",
+      "bytes": 3198
+    },
+    {
+      "path": "09-testing-parity-observability-and-ci.md",
+      "sha256": "8f8e1cbb6f9072f8db7f507deffd602be941711d1e6683ca634e352bce71c699",
+      "bytes": 3795
+    },
+    {
+      "path": "README.md",
+      "sha256": "0d10fa62609098a00e548bee70ec1f4f3ec16f5f3621ffe7b51e664fd6c6a8b7",
+      "bytes": 3256
+    },
+    {
+      "path": "appendices/A-command-surface.md",
+      "sha256": "d8b774c7a706b1d03db1840e5eb71f8d3fec884fe512e38307809069b20f43df",
+      "bytes": 1003
+    },
+    {
+      "path": "appendices/B-resource-and-schema-inventory.md",
+      "sha256": "c100081d558e19830e087e80d55af99c76ff2633e89af81567c42e09301e623d",
+      "bytes": 1347
+    },
+    {
+      "path": "appendices/C-acceptance-matrix.md",
+      "sha256": "c8bf0cbe03257950f1cc36c2eeae3c6a17bd6ee2f082e8d3ed370da803b6b095",
+      "bytes": 2173
+    },
+    {
+      "path": "appendices/D-risks-and-open-gates.md",
+      "sha256": "19dba2d7e7767f64c45c42251bacbcce62270311ad768527246256ad928c1d5a",
+      "bytes": 1744
+    },
+    {
+      "path": "appendices/E-official-reference-index.md",
+      "sha256": "fa6db10a093db5f823c48fea11bae4808213852d5fbb181a14b10712e959f97b",
+      "bytes": 1293
+    },
+    {
+      "path": "stages/WP0-baseline-ordering-and-timestamps.md",
+      "sha256": "3e99770f1aa3619451de1d67cbc737cd2bdf9c406c04eb429f26c703c64b53ea",
+      "bytes": 1461
+    },
+    {
+      "path": "stages/WP1-compose-and-cli-redesign.md",
+      "sha256": "d3a93d5e244fc5be8800270c68a6935ad00e149f2706c29a7be41e583d61af46",
+      "bytes": 1322
+    },
+    {
+      "path": "stages/WP10-atomic-publication-and-airflow.md",
+      "sha256": "fefa3661eda30796e902510a3d6c77b8785f7eacab4a9b9dbff46a153a0fd7a6",
+      "bytes": 1319
+    },
+    {
+      "path": "stages/WP11-parity-observability-ci-and-cost.md",
+      "sha256": "5d547134365e8041f3ec68138bbcc469a83e3afc0f222178c31e1580f0be04ec",
+      "bytes": 1342
+    },
+    {
+      "path": "stages/WP12-documentation-operations-and-final-acceptance.md",
+      "sha256": "b91c01c7e975744708fbb9e0b407ee2551e892da39ee0e8cd09dcf961a06e5c5",
+      "bytes": 1408
+    },
+    {
+      "path": "stages/WP2-serving-control-separation.md",
+      "sha256": "32baeed21d39da6546623a3c6a77c4694f36eda628c597f38a6cdc3bad6fdf35",
+      "bytes": 1202
+    },
+    {
+      "path": "stages/WP3-gcp-bootstrap-and-terraform.md",
+      "sha256": "e2bbbe1d1f7eeee1bcbbf59579bb19a668be5bb39a72107666d52eff169ebd55",
+      "bytes": 1382
+    },
+    {
+      "path": "stages/WP4-spark-gcp-backend-and-image.md",
+      "sha256": "5bc5f8ac620502502a014f65e8af49ac68a7b4934ecb341fed5f646587dd36e7",
+      "bytes": 1285
+    },
+    {
+      "path": "stages/WP5-blocking-vertical-slice.md",
+      "sha256": "ab38c380ee3d71436a56a2363a16dd3a68eb14135e438c53eaa22474406e55a7",
+      "bytes": 1294
+    },
+    {
+      "path": "stages/WP6-full-gcp-lakehouse.md",
+      "sha256": "824cc8bee0a6ea9d68278d5d8e1b67c7d3fc1febe2794c83161dae2b310122d8",
+      "bytes": 1353
+    },
+    {
+      "path": "stages/WP7-bigquery-migrations-and-bridge.md",
+      "sha256": "58aea5d4772b43d27ccc6f6c7049c3a93a7ba83556be4b35361b2ce05b6f3303",
+      "bytes": 1299
+    },
+    {
+      "path": "stages/WP8-transaction-boundary-planner.md",
+      "sha256": "65ea9f3b1399e8d3fa984571fa59edd1eaecea81acf33c0896540390ad346058",
+      "bytes": 1275
+    },
+    {
+      "path": "stages/WP9-dbt-bigquery-incremental-gold.md",
+      "sha256": "ae82e224321434fe8bbaa068d8ebdc144dff30eca4665171904e397d2193aca3",
+      "bytes": 1377
+    }
+  ]
+}
