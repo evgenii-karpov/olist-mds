@@ -73,6 +73,14 @@ object SilverBatchWriter {
       (decoded, row, sourceTimestamp)
     }
 
+    decodedRows.foreach { case (decoded, row, _) =>
+      SourceOrdering.validate(
+        decoded,
+        row.getAs[Int]("partition"),
+        row.getAs[Long]("offset")
+      )
+    }
+
     val changesTable = s"lakehouse.silver.${contract.entity}_changes"
     val currentTable = s"lakehouse.silver.${contract.entity}_current"
     val now = Timestamp.from(Instant.now())
@@ -154,7 +162,7 @@ object SilverBatchWriter {
           decoded.sourceServerId.map(Long.box).orNull,
           decoded.sourceGtid.orNull,
           decoded.sourceBinlogFile.orNull,
-          null,
+          decoded.sourceBinlogFileIndex.map(Int.box).orNull,
           decoded.sourceBinlogPos.map(Long.box).orNull,
           decoded.sourceRow.map(Int.box).orNull,
           decoded.transactionId.orNull,
@@ -201,6 +209,12 @@ object SilverBatchWriter {
         StructField("deleted_at", TimestampType, nullable = true),
         StructField("last_event_id", StringType, nullable = false),
         StructField("last_source_ts", TimestampType, nullable = false),
+        StructField("last_is_snapshot", BooleanType, nullable = false),
+        StructField("last_source_binlog_file_index", IntegerType, nullable = true),
+        StructField("last_source_binlog_pos", LongType, nullable = true),
+        StructField("last_source_row", IntegerType, nullable = true),
+        StructField("last_transaction_total_order", LongType, nullable = true),
+        StructField("last_transaction_data_collection_order", LongType, nullable = true),
         StructField("last_transaction_id", StringType, nullable = true),
         StructField("last_kafka_partition", IntegerType, nullable = false),
         StructField("last_kafka_offset", LongType, nullable = false),
@@ -218,6 +232,12 @@ object SilverBatchWriter {
           if (decoded.isDeleted) sourceTimestamp else null,
           decoded.eventId,
           sourceTimestamp,
+          decoded.isSnapshot,
+          decoded.sourceBinlogFileIndex.map(Int.box).orNull,
+          decoded.sourceBinlogPos.map(Long.box).orNull,
+          decoded.sourceRow.map(Int.box).orNull,
+          decoded.transactionTotalOrder.map(Long.box).orNull,
+          decoded.transactionDataCollectionOrder.map(Long.box).orNull,
           decoded.transactionId.orNull,
           row.getAs[Int]("partition"),
           row.getAs[Long]("offset"),
@@ -234,7 +254,18 @@ object SilverBatchWriter {
 
     val pkWindow = Window
       .partitionBy(contract.primaryKey.map(col): _*)
-      .orderBy(col("last_source_ts").desc, col("last_event_id").desc)
+      .orderBy(
+        col("last_is_snapshot").cast("int").desc,
+        coalesce(col("last_source_binlog_file_index"), lit(-1)).desc,
+        coalesce(col("last_source_binlog_pos"), lit(-1L)).desc,
+        coalesce(col("last_source_row"), lit(-1)).desc,
+        coalesce(col("last_transaction_total_order"), lit(-1L)).desc,
+        coalesce(col("last_transaction_data_collection_order"), lit(-1L)).desc,
+        col("last_source_ts").desc,
+        col("last_kafka_partition").desc,
+        col("last_kafka_offset").desc,
+        col("last_event_id").desc
+      )
     val latestCurrentDf = currentDf
       .withColumn("_rn", row_number().over(pkWindow))
       .filter(col("_rn") === 1)

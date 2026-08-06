@@ -730,6 +730,13 @@ class ClickHouseProbe(BaseProbe):
                     `{column_name}` AS optional_value,
                     apply_status,
                     is_deleted,
+                    is_snapshot,
+                    source_binlog_file_index,
+                    source_binlog_pos,
+                    source_row,
+                    transaction_total_order,
+                    transaction_data_collection_order,
+                    source_ts,
                     kafka_topic,
                     kafka_partition,
                     kafka_offset,
@@ -738,7 +745,17 @@ class ClickHouseProbe(BaseProbe):
                     transaction_id
                 FROM {silver_relation}
                 WHERE customer_id = {customer_literal}
-                ORDER BY kafka_offset DESC
+                ORDER BY
+                    if(is_snapshot, 0, 1) DESC,
+                    coalesce(source_binlog_file_index, -1) DESC,
+                    coalesce(source_binlog_pos, -1) DESC,
+                    coalesce(source_row, -1) DESC,
+                    coalesce(toInt64(transaction_total_order), -1) DESC,
+                    coalesce(toInt64(transaction_data_collection_order), -1) DESC,
+                    source_ts DESC,
+                    kafka_partition DESC,
+                    kafka_offset DESC,
+                    event_id DESC
                 LIMIT 1
                 """
             ),

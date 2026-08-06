@@ -27,6 +27,11 @@ COPY --from=sbt-downloader /tmp/sbt-launcher/sbt-launch.jar /tmp/sbt-launch.jar
 
 COPY streaming /tmp/streaming
 
+# The repository is developed on Windows as well as Linux.  Normalize the
+# checkout line endings inside the Linux builder so scalafmtCheckAll validates
+# the source content rather than failing on CRLF materialized by Git.
+RUN find /tmp/streaming/spark/scala -type f -exec sed -i 's/\r$//' {} +
+
 WORKDIR /tmp/streaming/spark/scala
 
 RUN java -jar /tmp/sbt-launch.jar scalafmtCheckAll scalafmtSbtCheck Test/compile test package

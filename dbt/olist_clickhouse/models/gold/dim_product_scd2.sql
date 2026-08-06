@@ -39,8 +39,14 @@ product_driven_ranked AS
             CAST(NULL, 'Nullable(String)'),
             toNullable(translations.product_category_name_english)
         ) AS product_category_name_english,
+        products.event_id AS event_id,
         products.event_id AS version_event_id,
         products.source_ts,
+        products.source_binlog_file_index,
+        products.source_binlog_pos,
+        products.source_row,
+        products.transaction_total_order,
+        products.transaction_data_collection_order,
         products.kafka_topic,
         products.kafka_partition,
         products.kafka_offset,
@@ -48,11 +54,7 @@ product_driven_ranked AS
         products.is_deleted,
         row_number() OVER (
             PARTITION BY products.event_id
-            ORDER BY
-                translations.source_ts DESC,
-                translations.kafka_topic DESC,
-                translations.kafka_partition DESC,
-                translations.kafka_offset DESC
+            ORDER BY {{ event_order_tuple('translations') }} DESC
         ) AS translation_rank
     FROM product_events AS products
     LEFT JOIN translation_events AS translations
@@ -88,8 +90,14 @@ translation_driven_ranked AS
             CAST(NULL, 'Nullable(String)'),
             toNullable(translations.product_category_name_english)
         ) AS product_category_name_english,
+        translations.event_id AS event_id,
         translations.event_id AS version_event_id,
         translations.source_ts,
+        translations.source_binlog_file_index,
+        translations.source_binlog_pos,
+        translations.source_row,
+        translations.transaction_total_order,
+        translations.transaction_data_collection_order,
         translations.kafka_topic,
         translations.kafka_partition,
         translations.kafka_offset,
@@ -98,11 +106,7 @@ translation_driven_ranked AS
         products.is_deleted AS product_is_deleted,
         row_number() OVER (
             PARTITION BY translations.event_id, products.product_id
-            ORDER BY
-                products.source_ts DESC,
-                products.kafka_topic DESC,
-                products.kafka_partition DESC,
-                products.kafka_offset DESC
+            ORDER BY {{ event_order_tuple('products') }} DESC
         ) AS product_rank
     FROM translation_events AS translations
     INNER JOIN product_events AS products
@@ -171,12 +175,7 @@ same_timestamp_ranked AS
         *,
         row_number() OVER (
             PARTITION BY product_id, valid_from
-            ORDER BY
-                source_ts DESC,
-                kafka_topic DESC,
-                kafka_partition DESC,
-                kafka_offset DESC,
-                version_event_id DESC
+            ORDER BY {{ event_order_tuple('') }} DESC, version_event_id DESC
         ) AS timestamp_rank
     FROM prepared_versions
 ),
@@ -196,10 +195,7 @@ with_previous_hash AS
             PARTITION BY product_id
             ORDER BY
                 valid_from,
-                source_ts,
-                kafka_topic,
-                kafka_partition,
-                kafka_offset,
+                {{ event_order_tuple('') }},
                 version_event_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) AS previous_dimension_row_hash
@@ -223,10 +219,7 @@ windowed_versions AS
             PARTITION BY product_id
             ORDER BY
                 valid_from,
-                source_ts,
-                kafka_topic,
-                kafka_partition,
-                kafka_offset,
+                {{ event_order_tuple('') }},
                 version_event_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) AS valid_to

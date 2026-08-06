@@ -22,6 +22,43 @@ def _as_int(value: object, default: int = 0) -> int:
     return int(value) if isinstance(value, (int, float, str)) else default
 
 
+def _event_order_tuple_sql(alias: str = "") -> str:
+    """Return the canonical source-version tuple for event tables."""
+
+    prefix = f"{alias}." if alias else ""
+    return f"""(
+        if({prefix}is_snapshot, 0, 1),
+        coalesce({prefix}source_binlog_file_index, -1),
+        coalesce({prefix}source_binlog_pos, -1),
+        coalesce({prefix}source_row, -1),
+        coalesce(toInt64({prefix}transaction_total_order), -1),
+        coalesce(toInt64({prefix}transaction_data_collection_order), -1),
+        {prefix}source_ts,
+        {prefix}kafka_partition,
+        {prefix}kafka_offset,
+        {prefix}event_id
+    )"""
+
+
+def _current_order_tuple_sql(alias: str = "") -> str:
+    """Return the canonical source-version tuple for current-version tables."""
+
+    prefix = f"{alias}." if alias else ""
+    return f"""(
+        if({prefix}last_is_snapshot, 0, 1),
+        coalesce({prefix}last_source_binlog_file_index, -1),
+        coalesce({prefix}last_source_binlog_pos, -1),
+        coalesce({prefix}last_source_row, -1),
+        coalesce(toInt64({prefix}last_transaction_total_order), -1),
+        coalesce(toInt64({prefix}last_transaction_data_collection_order), -1),
+        {prefix}last_source_ts,
+        {prefix}kafka_partition,
+        {prefix}kafka_offset,
+        {prefix}last_event_id,
+        {prefix}sync_run_seq
+    )"""
+
+
 def get_clickhouse_url() -> str:
     host = os.environ.get("CLICKHOUSE_HOST", "127.0.0.1")
     port = int(os.environ.get("CLICKHOUSE_PORT", "8123"))
@@ -179,7 +216,7 @@ class ClickHouseServingMaterializer:
                 (
                     SELECT
                         {primary_key},
-                        argMax(is_deleted, (kafka_partition, kafka_offset)) AS latest_deleted
+                        argMax(is_deleted, {_event_order_tuple_sql()}) AS latest_deleted
                     FROM {relation}
                     GROUP BY {primary_key}
                     HAVING latest_deleted = 0
@@ -236,7 +273,7 @@ class ClickHouseServingMaterializer:
                 (
                     SELECT
                         {primary_key},
-                        argMax(is_deleted, (kafka_partition, kafka_offset)) AS latest_deleted
+                        argMax(is_deleted, {_event_order_tuple_sql()}) AS latest_deleted
                     FROM {relation}
                     GROUP BY {primary_key}
                     HAVING latest_deleted = 1
@@ -268,8 +305,8 @@ class ClickHouseServingMaterializer:
                 f"""
                 SELECT
                     {primary_key},
-                    argMax(row_hash, (kafka_partition, kafka_offset)) AS row_hash,
-                    argMax(is_deleted, (kafka_partition, kafka_offset)) AS is_deleted
+                    argMax(row_hash, {_event_order_tuple_sql()}) AS row_hash,
+                    argMax(is_deleted, {_event_order_tuple_sql()}) AS is_deleted
                 FROM {relation}
                 GROUP BY {primary_key}
                 """
@@ -296,7 +333,7 @@ class ClickHouseServingMaterializer:
                         is_deleted,
                         row_number() OVER (
                             PARTITION BY {primary_key}
-                            ORDER BY kafka_offset DESC, sync_run_seq DESC
+                            ORDER BY {_current_order_tuple_sql()} DESC
                         ) AS _version_rank
                     FROM {spec.ch_current_versions_table}
                     WHERE sync_run_seq = {sync_run_seq}
@@ -447,7 +484,7 @@ class ClickHouseServingMaterializer:
                     *,
                     row_number() OVER (
                         PARTITION BY {primary_key}
-                        ORDER BY kafka_offset DESC, sync_run_seq DESC
+                        ORDER BY {_current_order_tuple_sql()} DESC
                     ) AS _version_rank
                 FROM {spec.ch_current_versions_table}
                 WHERE sync_run_seq IN
@@ -478,7 +515,7 @@ class ClickHouseServingMaterializer:
                         is_deleted,
                         row_number() OVER (
                             PARTITION BY {primary_key}
-                            ORDER BY kafka_offset DESC, sync_run_seq DESC
+                        ORDER BY {_current_order_tuple_sql()} DESC
                         ) AS _version_rank
                     FROM {spec.ch_current_versions_table}
                     WHERE sync_run_seq = {sync_run_seq}
@@ -596,7 +633,10 @@ class ClickHouseServingMaterializer:
         insert_sql = f"""
         INSERT INTO {spec.ch_current_versions_table} (
             sync_run_seq, sync_run_id, {pk_cols}, {cols}, is_deleted,
-            deleted_at, last_event_id, last_source_ts, last_transaction_id,
+            deleted_at, last_event_id, last_source_ts, last_is_snapshot,
+            last_source_binlog_file_index, last_source_binlog_pos, last_source_row,
+            last_transaction_total_order, last_transaction_data_collection_order,
+            last_transaction_id,
             kafka_partition, kafka_offset, last_row_hash, contract_version,
             updated_at
         )
@@ -605,6 +645,12 @@ class ClickHouseServingMaterializer:
             if(is_deleted, source_ts, NULL) AS deleted_at,
             event_id AS last_event_id,
             source_ts AS last_source_ts,
+            is_snapshot AS last_is_snapshot,
+            source_binlog_file_index AS last_source_binlog_file_index,
+            source_binlog_pos AS last_source_binlog_pos,
+            source_row AS last_source_row,
+            transaction_total_order AS last_transaction_total_order,
+            transaction_data_collection_order AS last_transaction_data_collection_order,
             transaction_id AS last_transaction_id,
             kafka_partition,
             kafka_offset,

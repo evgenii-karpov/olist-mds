@@ -70,7 +70,7 @@ final case class IcebergTableSpec(
 
 object LakehouseSchemaContract {
   val CatalogAlias = "lakehouse"
-  val ExpectedChecksum = "d3bf55d90fbfe953cfbc74eef83e6d83f91ce1986cfb85c849da2c3e788b3d8d"
+  val ExpectedChecksum = "7e13520a065e9c71d7c58bfa9faf1e3780aa597223023f2fcf054e2c0d907a4c"
   val Namespaces: Vector[String] = Vector("bronze", "silver", "reference", "audit")
 
   private def col(name: String, sqlType: String, required: Boolean = false): IcebergColumnSpec =
@@ -88,18 +88,18 @@ object LakehouseSchemaContract {
       col("order_id", "STRING", required = true),
       col("customer_id", "STRING", required = true),
       col("order_status", "STRING", required = true),
-      col("order_purchase_timestamp", "TIMESTAMP_NTZ", required = true),
-      col("order_approved_at", "TIMESTAMP_NTZ", required = false),
-      col("order_delivered_carrier_date", "TIMESTAMP_NTZ", required = false),
-      col("order_delivered_customer_date", "TIMESTAMP_NTZ", required = false),
-      col("order_estimated_delivery_date", "TIMESTAMP_NTZ", required = true)
+      col("order_purchase_timestamp", "TIMESTAMP_LTZ", required = true),
+      col("order_approved_at", "TIMESTAMP_LTZ", required = false),
+      col("order_delivered_carrier_date", "TIMESTAMP_LTZ", required = false),
+      col("order_delivered_customer_date", "TIMESTAMP_LTZ", required = false),
+      col("order_estimated_delivery_date", "TIMESTAMP_LTZ", required = true)
     ),
     "order_items" -> Vector(
       col("order_id", "STRING", required = true),
       col("order_item_id", "INT", required = true),
       col("product_id", "STRING", required = true),
       col("seller_id", "STRING", required = true),
-      col("shipping_limit_date", "TIMESTAMP_NTZ", required = true),
+      col("shipping_limit_date", "TIMESTAMP_LTZ", required = true),
       col("price", "DECIMAL(18,2)", required = true),
       col("freight_value", "DECIMAL(18,2)", required = true)
     ),
@@ -116,8 +116,8 @@ object LakehouseSchemaContract {
       col("review_score", "INT", required = true),
       col("review_comment_title", "STRING", required = false),
       col("review_comment_message", "STRING", required = false),
-      col("review_creation_date", "TIMESTAMP_NTZ", required = true),
-      col("review_answer_timestamp", "TIMESTAMP_NTZ", required = true)
+      col("review_creation_date", "TIMESTAMP_LTZ", required = true),
+      col("review_answer_timestamp", "TIMESTAMP_LTZ", required = true)
     ),
     "products" -> Vector(
       col("product_id", "STRING", required = true),
@@ -229,6 +229,12 @@ object LakehouseSchemaContract {
     col("deleted_at", "TIMESTAMP_LTZ", required = false),
     col("last_event_id", "STRING", required = true),
     col("last_source_ts", "TIMESTAMP_LTZ", required = true),
+    col("last_is_snapshot", "BOOLEAN", required = true),
+    col("last_source_binlog_file_index", "INT", required = false),
+    col("last_source_binlog_pos", "BIGINT", required = false),
+    col("last_source_row", "INT", required = false),
+    col("last_transaction_total_order", "BIGINT", required = false),
+    col("last_transaction_data_collection_order", "BIGINT", required = false),
     col("last_transaction_id", "STRING", required = false),
     col("last_kafka_partition", "INT", required = true),
     col("last_kafka_offset", "BIGINT", required = true),

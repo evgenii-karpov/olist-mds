@@ -20,6 +20,12 @@ WITH prepared_events AS
         customer_state,
         event_id,
         source_ts,
+        is_snapshot,
+        source_binlog_file_index,
+        source_binlog_pos,
+        source_row,
+        transaction_total_order,
+        transaction_data_collection_order,
         kafka_topic,
         kafka_partition,
         kafka_offset,
@@ -36,12 +42,7 @@ same_timestamp_ranked AS
         *,
         row_number() OVER (
             PARTITION BY customer_unique_id, valid_from
-            ORDER BY
-                source_ts DESC,
-                kafka_topic DESC,
-                kafka_partition DESC,
-                kafka_offset DESC,
-                customer_id DESC
+            ORDER BY {{ event_order_tuple('') }} DESC, customer_id DESC
         ) AS timestamp_rank
     FROM prepared_events
 ),
@@ -61,10 +62,7 @@ with_previous_hash AS
             PARTITION BY customer_unique_id
             ORDER BY
                 valid_from,
-                source_ts,
-                kafka_topic,
-                kafka_partition,
-                kafka_offset,
+                {{ event_order_tuple('') }},
                 customer_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) AS previous_dimension_row_hash
@@ -88,10 +86,7 @@ windowed_versions AS
             PARTITION BY customer_unique_id
             ORDER BY
                 valid_from,
-                source_ts,
-                kafka_topic,
-                kafka_partition,
-                kafka_offset,
+                {{ event_order_tuple('') }},
                 customer_id
             ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
         ) AS valid_to

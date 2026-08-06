@@ -1,3 +1,19 @@
+{% macro current_order_tuple(alias) -%}
+    tuple(
+        if({{ alias }}last_is_snapshot, 0, 1),
+        coalesce({{ alias }}last_source_binlog_file_index, -1),
+        coalesce({{ alias }}last_source_binlog_pos, -1),
+        coalesce({{ alias }}last_source_row, -1),
+        coalesce(toInt64({{ alias }}last_transaction_total_order), -1),
+        coalesce(toInt64({{ alias }}last_transaction_data_collection_order), -1),
+        {{ alias }}last_source_ts,
+        {{ alias }}kafka_partition,
+        {{ alias }}kafka_offset,
+        {{ alias }}last_event_id,
+        {{ alias }}sync_run_seq
+    )
+{%- endmacro %}
+
 {% macro current_state(source_table, primary_key) -%}
 WITH ranked_versions AS
 (
@@ -8,7 +24,7 @@ WITH ranked_versions AS
             {%- for column in primary_key %}
                 {{ column }}{% if not loop.last %}, {% endif %}
             {%- endfor %}
-            ORDER BY kafka_offset DESC, sync_run_seq DESC
+            ORDER BY {{ current_order_tuple('') }} DESC
         ) AS _version_rank
     FROM {{ source('serving_cdc', source_table) }}
     WHERE
@@ -42,11 +58,18 @@ WHERE
 {%- endmacro %}
 
 {% macro event_order_tuple(alias) -%}
+    {%- set prefix = alias ~ '.' if alias else '' -%}
     tuple(
-        {{ alias }}.source_ts,
-        {{ alias }}.kafka_topic,
-        {{ alias }}.kafka_partition,
-        {{ alias }}.kafka_offset
+        if({{ prefix }}is_snapshot, 0, 1),
+        coalesce({{ prefix }}source_binlog_file_index, -1),
+        coalesce({{ prefix }}source_binlog_pos, -1),
+        coalesce({{ prefix }}source_row, -1),
+        coalesce(toInt64({{ prefix }}transaction_total_order), -1),
+        coalesce(toInt64({{ prefix }}transaction_data_collection_order), -1),
+        {{ prefix }}source_ts,
+        {{ prefix }}kafka_partition,
+        {{ prefix }}kafka_offset,
+        {{ prefix }}event_id
     )
 {%- endmacro %}
 

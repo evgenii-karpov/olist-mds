@@ -11,6 +11,11 @@ while read -r expected_sha256 url filename; do
         ''|'#'*) continue ;;
     esac
 
+    # Git may materialize this manifest with CRLF on Windows.  Strip the
+    # carriage return before using the filename; otherwise the download is
+    # valid but the final jar-count contract sees filenames ending in `\r`.
+    filename=$(printf '%s' "${filename}" | tr -d '\r')
+
     case "${url}" in
         https://repo.maven.apache.org/maven2/*) ;;
         *)

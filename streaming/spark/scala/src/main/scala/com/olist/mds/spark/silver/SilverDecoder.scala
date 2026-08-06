@@ -24,6 +24,7 @@ final case class DecodedRecord(
     sourceServerId: Option[Long],
     sourceGtid: Option[String],
     sourceBinlogFile: Option[String],
+    sourceBinlogFileIndex: Option[Int],
     sourceBinlogPos: Option[Long],
     sourceRow: Option[Int],
     transactionId: Option[String],
@@ -123,6 +124,7 @@ object SilverDecoder {
     val sourceServerId = source.flatMap(record => optionalLong(record.get("server_id")))
     val sourceGtid = source.flatMap(record => optionalString(record.get("gtid")))
     val sourceBinlogFile = source.flatMap(record => optionalString(record.get("file")))
+    val sourceBinlogFileIndex = sourceBinlogFile.map(SourceOrdering.parseBinlogFileIndex)
     val sourceBinlogPos = source.flatMap(record => optionalLong(record.get("pos")))
     val sourceRow = source.flatMap(record => optionalInt(record.get("row")))
 
@@ -185,6 +187,7 @@ object SilverDecoder {
       sourceServerId = sourceServerId,
       sourceGtid = sourceGtid,
       sourceBinlogFile = sourceBinlogFile,
+      sourceBinlogFileIndex = sourceBinlogFileIndex,
       sourceBinlogPos = sourceBinlogPos,
       sourceRow = sourceRow,
       transactionId = transactionId,
