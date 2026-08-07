@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+from argparse import Namespace
+from pathlib import Path
+
+import pytest
+from scripts import lab
+from scripts.gcp.migrations import (
+    list_migrations,
+    migration_manifest,
+    render_migration,
+)
+
+
+def test_bigquery_migrations_are_ordered_and_checksummed() -> None:
+    migrations = list_migrations()
+
+    assert [migration.version for migration in migrations] == [1, 2]
+    assert [migration.migration_id for migration in migrations] == [
+        "V001__control_tables",
+        "V002__bridge_views",
+    ]
+    assert all(len(migration.checksum) == 64 for migration in migrations)
+    assert [item["version"] for item in migration_manifest()] == [1, 2]
+
+
+def test_rendered_migrations_replace_only_validated_identifiers() -> None:
+    migration = list_migrations()[-1]
+
+    rendered = render_migration(migration, "demo-project", "demo-catalog")
+
+    assert "{{" not in rendered
+    assert "demo-project.demo-catalog.bronze.mysql_cdc_records" in rendered
+    assert "demo-project.olist_lakehouse_bridge.silver_order_items_changes" in rendered
+    assert "CREATE OR REPLACE VIEW" in rendered
+    assert "BIGNUMERIC" in rendered
+
+
+def test_migration_renderer_rejects_unsafe_identifiers() -> None:
+    migration = list_migrations()[0]
+
+    with pytest.raises(ValueError, match="project ID"):
+        render_migration(migration, "not a project", "catalog")
+    with pytest.raises(ValueError, match="unsafe identifier"):
+        render_migration(migration, "demo-project", "catalog.with.dot")
+
+
+def test_bridge_migration_is_read_only_and_does_not_use_iceberg_metadata_tables() -> (
+    None
+):
+    migration = next(
+        path
+        for path in (Path("sql/bigquery/migrations")).glob("V002__bridge_views.sql")
+    )
+    sql = migration.read_text(encoding="utf-8")
+
+    assert sql.count("CREATE OR REPLACE VIEW") == 4
+    assert ".snapshots" not in sql
+    assert ".files" not in sql
+    assert "INSERT INTO" not in sql
+    assert "UPDATE `" not in sql
+    for source in (
+        "bronze.mysql_cdc_records",
+        "silver.order_items_changes",
+        "reference.geolocation",
+        "audit.silver_progress",
+    ):
+        assert f"{{{{ project_id }}}}.{{{{ catalog_id }}}}.{source}" in sql
+
+
+def test_lab_migration_status_is_cloud_independent(capsys) -> None:
+    result = lab._gcp_migrate(Namespace(action="status"))
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert '"status": "ready"' in output
+    assert "V002__bridge_views" in output
+
+
+def test_lab_migration_render_writes_a_reproducible_local_bundle(
+    tmp_path, capsys
+) -> None:
+    result = lab._gcp_migrate(
+        Namespace(
+            action="render",
+            project_id="demo-project",
+            catalog_id="demo-catalog",
+            output=str(tmp_path / "rendered"),
+        )
+    )
+
+    assert result == 0
+    assert (tmp_path / "rendered" / "V001__control_tables.sql").is_file()
+    assert (tmp_path / "rendered" / "V002__bridge_views.sql").is_file()
+    assert (tmp_path / "rendered" / "manifest.json").is_file()
+    assert '"status": "accepted"' in capsys.readouterr().out

@@ -22,6 +22,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.cdc import local_lab
+from scripts.gcp.migrations import (
+    list_migrations,
+    migration_manifest,
+    render_migration,
+)
 from scripts.gcp.vertical_slice import (
     DEFAULT_BRIDGE_DATASET,
     build_probe_plan,
@@ -274,6 +279,84 @@ def _gcp_vertical_slice(args: argparse.Namespace) -> int:
     )
 
 
+def _gcp_migrate(args: argparse.Namespace) -> int:
+    try:
+        migrations = list_migrations()
+    except (OSError, ValueError) as exc:
+        return _emit("gcp migrate", "failed", error=str(exc))
+
+    if args.action == "status":
+        return _emit(
+            "gcp migrate status",
+            "ready",
+            migrations=migration_manifest(),
+            cloud_execution="NOT_RUN",
+        )
+
+    project_id = args.project_id or os.environ.get("GCP_PROJECT_ID", "")
+    catalog_id = args.catalog_id or os.environ.get("GCP_LAKEHOUSE_CATALOG_ID", "")
+    if not project_id or not catalog_id:
+        return _emit(
+            f"gcp migrate {args.action}",
+            "blocked",
+            reason="project_id and catalog_id are required",
+        )
+
+    if args.action == "render":
+        output = Path(args.output)
+        if not output.is_absolute():
+            output = ROOT / output
+        try:
+            output.mkdir(parents=True, exist_ok=True)
+            rendered_paths: list[str] = []
+            for migration in migrations:
+                target = output / migration.path.name
+                target.write_text(
+                    render_migration(migration, project_id, catalog_id),
+                    encoding="utf-8",
+                )
+                rendered_paths.append(str(target))
+            (output / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "project_id": project_id,
+                        "catalog_id": catalog_id,
+                        "migrations": migration_manifest(),
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+        except (OSError, ValueError) as exc:
+            return _emit("gcp migrate render", "failed", error=str(exc))
+        return _emit(
+            "gcp migrate render",
+            "accepted",
+            output=str(output),
+            rendered_paths=rendered_paths,
+            cloud_execution="NOT_RUN",
+        )
+
+    preflight = _gcp_preflight()
+    missing = preflight["missing"]
+    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+        return _emit(
+            "gcp migrate apply",
+            "blocked",
+            reason="GCP preflight is incomplete",
+            preflight=preflight,
+        )
+    return _emit(
+        "gcp migrate apply",
+        "blocked",
+        reason="cloud migration execution requires a real GCP run",
+        preflight=preflight,
+        migrations=migration_manifest(),
+    )
+
+
 def _terraform(args: argparse.Namespace) -> int:
     if args.action == "apply" and not args.yes:
         return _emit(
@@ -416,6 +499,22 @@ def _build_parser() -> argparse.ArgumentParser:
             stream_command.add_argument("--allow-missing-auth", action="store_true")
         stream_command.add_argument("--timeout", type=float, default=1200.0)
         stream_command.set_defaults(func=_gcp_streaming)
+    migrate = gcp_commands.add_parser("migrate")
+    migrate_commands = migrate.add_subparsers(dest="action", required=True)
+    migrate_status = migrate_commands.add_parser("status")
+    migrate_status.set_defaults(func=_gcp_migrate)
+    migrate_render = migrate_commands.add_parser("render")
+    migrate_render.add_argument("--project-id")
+    migrate_render.add_argument("--catalog-id")
+    migrate_render.add_argument(
+        "--output", default="data/acceptance/gcp/rendered-migrations"
+    )
+    migrate_render.set_defaults(func=_gcp_migrate)
+    migrate_apply = migrate_commands.add_parser("apply")
+    migrate_apply.add_argument("--project-id")
+    migrate_apply.add_argument("--catalog-id")
+    migrate_apply.add_argument("--allow-missing-auth", action="store_true")
+    migrate_apply.set_defaults(func=_gcp_migrate)
     vertical_slice = gcp_commands.add_parser("vertical-slice")
     vertical_slice_commands = vertical_slice.add_subparsers(
         dest="action", required=True
