@@ -36,6 +36,9 @@ docker/spark/status/**/*.json
 *.pem
 *.key
 
+# Terraform provider cache and generated working state
+.terraform/
+
 # OS/editor
 .DS_Store
 Thumbs.db

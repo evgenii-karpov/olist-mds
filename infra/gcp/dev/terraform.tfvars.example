@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars outside version control and replace the placeholder.
+project_id = "replace-with-dedicated-olist-mds-project"
+region     = "us-east1"
+
+# The state bucket is created manually and passed to `terraform init`:
+# terraform init -backend-config="bucket=PROJECT_ID-terraform-state"
+
+# Optional globally unique names. Defaults are derived from project_id.
+# lakehouse_bucket_name  = "replace-with-globally-unique-lakehouse-bucket"
+# checkpoint_bucket_name = "replace-with-globally-unique-checkpoint-bucket"
+
+# Optional: enables the notification budget after billing is manually attached.
+# billing_account_id       = "000000-000000-000000"
+# budget_limit_usd         = 5
+# budget_notification_email = "operator@example.com"

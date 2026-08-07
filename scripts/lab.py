@@ -71,8 +71,14 @@ def _run_compose(
 
 
 def _gcp_preflight() -> dict[str, object]:
-    project = os.environ.get("GCP_PROJECT_ID", "").strip()
-    region = os.environ.get("GCP_REGION", "").strip()
+    project = (
+        os.environ.get("GCP_PROJECT_ID", "").strip()
+        or os.environ.get("TF_VAR_" + "project_id", "").strip()
+    )
+    region = (
+        os.environ.get("GCP_REGION", "").strip()
+        or os.environ.get("TF_VAR_" + "region", "").strip()
+    )
     adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
     adc_available = bool(adc_path) and Path(adc_path).is_file()
     checks = {
@@ -198,7 +204,43 @@ def _terraform(args: argparse.Namespace) -> int:
         )
     command = [executable, args.action]
     if args.action == "init":
-        command.append("-backend=false")
+        backend_configs = getattr(args, "backend_config", [])
+        if backend_configs:
+            command.extend(f"-backend-config={value}" for value in backend_configs)
+        else:
+            command.append("-backend=false")
+        command.append("-input=false")
+    elif args.action in {"plan", "apply", "output"}:
+        preflight = _gcp_preflight()
+        missing = preflight["missing"]
+        if (
+            isinstance(missing, list)
+            and missing
+            and not getattr(args, "allow_missing_auth", False)
+        ):
+            return _emit(
+                "gcp terraform",
+                "blocked",
+                action=args.action,
+                reason="GCP preflight is incomplete",
+                **preflight,
+            )
+        command.append("-input=false")
+    var_file = getattr(args, "var_file", None)
+    if var_file:
+        variable_file = Path(var_file)
+        if not variable_file.is_absolute():
+            variable_file = ROOT / variable_file
+        if not variable_file.is_file():
+            return _emit(
+                "gcp terraform",
+                "blocked",
+                action=args.action,
+                reason=f"variable file does not exist: {variable_file}",
+            )
+        command.append(f"-var-file={variable_file}")
+    if args.action == "apply":
+        command.append("-auto-approve")
     try:
         completed = subprocess.run(
             command,
@@ -290,6 +332,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "action", choices=("init", "validate", "plan", "apply", "output")
     )
     terraform.add_argument("--yes", action="store_true")
+    terraform.add_argument("--allow-missing-auth", action="store_true")
+    terraform.add_argument("--backend-config", action="append", default=[])
+    terraform.add_argument("--var-file")
     terraform.add_argument("--timeout", type=float, default=600.0)
     terraform.set_defaults(func=_terraform)
 
