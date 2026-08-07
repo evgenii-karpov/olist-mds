@@ -68,6 +68,7 @@ class TargetObservabilityCiTests(unittest.TestCase):
                 "python-contract-tests",
                 "scala-fast",
                 "compose-contract",
+                "gcp-static-contract",
                 "airflow-dag-imports",
                 "dbt-clickhouse-static",
                 "ci-success",
@@ -76,6 +77,20 @@ class TargetObservabilityCiTests(unittest.TestCase):
         )
         self.assertIn("scripts/ci/validate_observability_contract.py", ci)
         self.assertNotIn("local_cdc_acceptance.py", ci)
+
+    def test_gcp_static_job_is_credential_free_and_does_not_apply_cloud(self) -> None:
+        workflow = yaml.safe_load(
+            (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        )
+        job = workflow["jobs"]["gcp-static-contract"]
+        text = "\n".join(str(step.get("run", "")) for step in job.get("steps", []))
+        self.assertIn("dbt parse", text)
+        self.assertIn("terraform init -backend=false", text)
+        self.assertIn("terraform validate", text)
+        self.assertIn("parity run", text)
+        self.assertNotIn("terraform plan", text)
+        self.assertNotIn("terraform apply", text)
+        self.assertNotIn("GOOGLE_APPLICATION_CREDENTIALS", text)
 
     def test_host_workflows_set_repository_pythonpath(self) -> None:
         for name in (

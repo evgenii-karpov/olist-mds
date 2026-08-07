@@ -209,6 +209,71 @@ jobs:
         if: always()
         run: docker compose down -v --remove-orphans
 
+  gcp-static-contract:
+    name: GCP static contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: 0.11.28
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install static cloud-contract dependencies
+        run: uv sync --locked --group quality --group bigquery
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Run GCP and parity contract tests
+        run: >-
+          uv run pytest -q
+          tests/gcp
+          tests/infrastructure
+          tests/airflow/test_gcp_dag_contract.py
+          tests/orchestration/test_compose_render.py
+          tests/observability/test_gcp_metrics.py
+
+      - name: Parse dbt BigQuery project without online compilation
+        run: |
+          export DBT_CONTRACT_VARS='{"sync_run_seq": 1, "sync_run_id": "ci-gcp-static-contract"}'
+          uv run dbt parse --project-dir dbt/olist_bigquery --profiles-dir dbt/olist_bigquery --no-partial-parse --vars "$DBT_CONTRACT_VARS"
+
+      - name: Validate migration and no-credential parity plans
+        run: |
+          set -euo pipefail
+          uv run python scripts/lab.py gcp migrate status
+          uv run python scripts/lab.py parity run --output data/reports/parity-static
+          test "$(python -c 'import json; print(json.load(open("data/reports/parity-static/parity.json"))["status"])')" = "BLOCKED"
+
+      - name: Render GCP Compose contour
+        run: docker compose --profile core --profile lakehouse-gcp config --quiet
+
+      - name: Validate Terraform without a backend or cloud credentials
+        working-directory: infra/gcp/dev
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Validate observability assets
+        run: uv run python scripts/ci/validate_observability_contract.py
+
+      - name: Upload credential-free GCP evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcp-static-contract
+          path: data/reports/parity-static
+          if-no-files-found: warn
+
   airflow-dag-imports:
     name: Airflow target DAG imports
     runs-on: ubuntu-latest
@@ -331,6 +396,7 @@ jobs:
       - python-contract-tests
       - scala-fast
       - compose-contract
+      - gcp-static-contract
       - airflow-dag-imports
       - dbt-clickhouse-static
     runs-on: ubuntu-latest

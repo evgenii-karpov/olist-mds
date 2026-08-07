@@ -171,6 +171,7 @@ def _observability_files() -> list[Path]:
         ROOT / "observability/prometheus/prometheus.yml",
         ROOT / "observability/prometheus/rules/cdc-component-alerts.yml",
         ROOT / "observability/prometheus/rules/cdc-slo-recording.yml",
+        ROOT / "observability/prometheus/rules/gcp-serving-recording.yml",
         ROOT / "observability/prometheus/rules/lakehouse-serving-alerts.yml",
     ]
     paths.extend((ROOT / "observability/grafana/dashboards").glob("*.json"))

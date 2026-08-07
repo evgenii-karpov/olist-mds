@@ -30,6 +30,39 @@ _NULL_PARAMETER_TYPES = {
 }
 
 
+def _job_bytes(job: Any, attribute: str) -> int:
+    value = getattr(job, attribute, 0)
+    if value is None:
+        return 0
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(f"BigQuery job returned invalid {attribute}")
+    return value
+
+
+@dataclass(frozen=True, slots=True)
+class BigQueryJobEvidence:
+    """Bounded statistics captured after a BigQuery query completes."""
+
+    job_id: str
+    status: str
+    labels: dict[str, str]
+    bytes_processed: int
+    bytes_billed: int
+    maximum_bytes_billed: int | None
+    location: str
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "job_id": self.job_id,
+            "status": self.status,
+            "labels": dict(self.labels),
+            "bytes_processed": self.bytes_processed,
+            "bytes_billed": self.bytes_billed,
+            "maximum_bytes_billed": self.maximum_bytes_billed,
+            "location": self.location,
+        }
+
+
 def _scalar_type(name: str, value: object) -> str:
     if value is None:
         return _NULL_PARAMETER_TYPES.get(name, "STRING")
@@ -68,6 +101,7 @@ class BigQueryClientRunner:
     )
     _client: Any = field(init=False, repr=False)
     _bigquery: Any = field(init=False, repr=False)
+    last_job_evidence: BigQueryJobEvidence | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         if not _PROJECT_ID_PATTERN.fullmatch(self.project_id):
@@ -128,7 +162,21 @@ class BigQueryClientRunner:
         if self.maximum_bytes_billed is not None:
             job_config.maximum_bytes_billed = self.maximum_bytes_billed
         job = self._client.query(sql, job_config=job_config)
-        return [dict(row.items()) for row in job.result()]
+        rows: list[Mapping[str, object]] = []
+        for row in job.result():
+            rows.append({str(key): value for key, value in row.items()})
+        raw_labels = getattr(job, "labels", None) or self._labels_for(parameters)
+        labels = {str(key): str(value) for key, value in raw_labels.items()}
+        self.last_job_evidence = BigQueryJobEvidence(
+            job_id=str(getattr(job, "job_id", "unknown")),
+            status="SUCCEEDED",
+            labels=labels,
+            bytes_processed=_job_bytes(job, "total_bytes_processed"),
+            bytes_billed=_job_bytes(job, "total_bytes_billed"),
+            maximum_bytes_billed=self.maximum_bytes_billed,
+            location=str(getattr(job, "location", self.location) or self.location),
+        )
+        return rows
 
     def close(self) -> None:
         self._client.close()

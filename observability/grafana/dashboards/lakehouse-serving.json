@@ -13,6 +13,12 @@
     {"id": 3, "type": "stat", "title": "Active lease", "targets": [{"refId": "A", "expr": "olist_serving_active_lease"}]},
     {"id": 4, "type": "stat", "title": "Rejected boundary", "targets": [{"refId": "A", "expr": "olist_serving_rejected_boundary"}]},
     {"id": 5, "type": "stat", "title": "ClickHouse", "targets": [{"refId": "A", "expr": "up{job=\"clickhouse\"}"}]},
-    {"id": 6, "type": "stat", "title": "Control database", "targets": [{"refId": "A", "expr": "olist_target_up{target=\"control-postgres\"}"}]}
+    {"id": 6, "type": "stat", "title": "Control database", "targets": [{"refId": "A", "expr": "olist_target_up{target=\"control-postgres\"}"}]},
+    {"id": 7, "type": "stat", "title": "GCP bytes billed", "targets": [{"refId": "A", "expr": "olist_gcp_bigquery_bytes_billed"}]},
+    {"id": 8, "type": "stat", "title": "GCP byte-cap rejections", "targets": [{"refId": "A", "expr": "olist_gcp_bigquery_max_bytes_rejections_total"}]},
+    {"id": 9, "type": "stat", "title": "GCP Silver boundary", "targets": [{"refId": "A", "expr": "olist_gcp_boundary_last_transaction_timestamp"}]},
+    {"id": 10, "type": "stat", "title": "GCP dbt candidate rows", "targets": [{"refId": "A", "expr": "sum(olist_gcp_dbt_model_rows)"}]},
+    {"id": 11, "type": "stat", "title": "GCP publication conflicts", "targets": [{"refId": "A", "expr": "olist_gcp_publication_conflicts_total"}]},
+    {"id": 12, "type": "stat", "title": "BigLake errors", "targets": [{"refId": "A", "expr": "sum(olist_gcp_biglake_auth_errors_total + olist_gcp_biglake_catalog_errors_total + olist_gcp_biglake_checkpoint_errors_total + olist_gcp_biglake_commit_errors_total)"}]}
   ]
 }

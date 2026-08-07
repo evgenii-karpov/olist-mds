@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
 import pytest
 from scripts.gcp.bigquery_runtime import BigQueryClientRunner, runner_from_environment
@@ -20,6 +21,16 @@ class _FakeJobConfig:
 
 
 class _FakeJob:
+    job_id = "job-7"
+    labels: ClassVar[dict[str, str]] = {
+        "component": "olist-gcp-serving",
+        "target": "gcp",
+        "run": "run-7",
+    }
+    total_bytes_processed = 120
+    total_bytes_billed = 100
+    location = "us-east1"
+
     def result(self) -> list[dict[str, object]]:
         return [{"updated_count": 1}]
 
@@ -88,6 +99,20 @@ def test_bigquery_runner_builds_typed_named_parameters_and_labels() -> None:
         "run": "run-7",
     }
     assert client.config.maximum_bytes_billed == 1000
+    assert runner.last_job_evidence is not None
+    assert runner.last_job_evidence.to_dict() == {
+        "job_id": "job-7",
+        "status": "SUCCEEDED",
+        "labels": {
+            "component": "olist-gcp-serving",
+            "target": "gcp",
+            "run": "run-7",
+        },
+        "bytes_processed": 120,
+        "bytes_billed": 100,
+        "maximum_bytes_billed": 1000,
+        "location": "us-east1",
+    }
 
 
 def test_runner_from_environment_fails_closed_without_project(monkeypatch) -> None:

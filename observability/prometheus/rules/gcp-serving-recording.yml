@@ -1,0 +1,27 @@
+groups:
+  - name: gcp-serving-recordings
+    interval: 30s
+    rules:
+      - record: olist_lakehouse:gcp_kafka_lag
+        expr: sum(olist_gcp_kafka_lag)
+
+      - record: olist_lakehouse:gcp_spark_input_rows
+        expr: sum(olist_gcp_spark_input_rows)
+
+      - record: olist_lakehouse:gcp_dbt_candidate_rows
+        expr: sum(olist_gcp_dbt_model_rows)
+
+      - record: olist_lakehouse:gcp_bigquery_bytes_processed
+        expr: sum(olist_gcp_bigquery_bytes_processed)
+
+      - record: olist_lakehouse:gcp_bigquery_bytes_billed
+        expr: sum(olist_gcp_bigquery_bytes_billed)
+
+      - record: olist_lakehouse:gcp_bigquery_max_bytes_rejections
+        expr: sum(olist_gcp_bigquery_max_bytes_rejections_total)
+
+      - record: olist_lakehouse:gcp_publication_conflicts
+        expr: sum(olist_gcp_publication_conflicts_total)
+
+      - record: olist_lakehouse:gcp_biglake_errors
+        expr: sum(olist_gcp_biglake_auth_errors_total + olist_gcp_biglake_catalog_errors_total + olist_gcp_biglake_checkpoint_errors_total + olist_gcp_biglake_commit_errors_total)

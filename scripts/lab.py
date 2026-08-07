@@ -22,6 +22,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.cdc import local_lab
+from scripts.gcp.cost_evidence import (
+    load_cost_evidence,
+    pending_cost_report,
+    write_cost_report,
+)
 from scripts.gcp.migrations import (
     list_migrations,
     migration_manifest,
@@ -37,6 +42,15 @@ from scripts.orchestration.compose_profiles import (
     LakehouseTarget,
     compose_profiles,
     validate_profile_selection,
+)
+from scripts.serving.parity import (
+    DEFAULT_OUTPUT_DIR as DEFAULT_PARITY_OUTPUT_DIR,
+)
+from scripts.serving.parity import (
+    compare_evidence_files,
+    pending_report,
+    read_report,
+    write_report,
 )
 
 
@@ -357,6 +371,32 @@ def _gcp_migrate(args: argparse.Namespace) -> int:
     )
 
 
+def _gcp_cost_report(args: argparse.Namespace) -> int:
+    output_dir = _resolve_repo_path(args.output)
+    try:
+        if args.input:
+            report = load_cost_evidence(_resolve_repo_path(args.input))
+        else:
+            report = pending_cost_report()
+        json_path, markdown_path = write_cost_report(output_dir, report)
+    except (OSError, ValueError) as exc:
+        return _emit("gcp cost report", "failed", error=str(exc))
+    status = str(report.get("status", "UNKNOWN"))
+    command_status = {
+        "BLOCKED": "blocked",
+        "PASS": "accepted",
+        "RECORDED": "accepted",
+    }.get(status, "failed")
+    return _emit(
+        "gcp cost report",
+        command_status,
+        evidence_status=status,
+        cloud_execution=report.get("cloud_execution"),
+        report_json=str(json_path),
+        report_markdown=str(markdown_path),
+    )
+
+
 def _terraform(args: argparse.Namespace) -> int:
     if args.action == "apply" and not args.yes:
         return _emit(
@@ -430,6 +470,71 @@ def _terraform(args: argparse.Namespace) -> int:
         "ready" if completed.returncode == 0 else "failed",
         action=args.action,
         output=output[-4000:],
+    )
+
+
+def _resolve_repo_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
+
+
+def _parity_run(args: argparse.Namespace) -> int:
+    output_dir = _resolve_repo_path(args.output)
+    local_path = (
+        _resolve_repo_path(args.local_evidence) if args.local_evidence else None
+    )
+    gcp_path = _resolve_repo_path(args.gcp_evidence) if args.gcp_evidence else None
+    if bool(local_path) != bool(gcp_path):
+        return _emit(
+            "parity run",
+            "failed",
+            reason="local and gcp evidence must be supplied together",
+        )
+    try:
+        report = (
+            compare_evidence_files(local_path, gcp_path)
+            if local_path is not None and gcp_path is not None
+            else pending_report()
+        )
+        json_path, markdown_path = write_report(output_dir, report)
+    except (OSError, ValueError) as exc:
+        return _emit("parity run", "failed", error=str(exc))
+    report_status = str(report["status"])
+    status = {
+        "PASS": "accepted",
+        "FAIL": "failed",
+        "BLOCKED": "blocked",
+    }[report_status]
+    return _emit(
+        "parity run",
+        status,
+        parity_status=report_status,
+        cloud_execution=report.get("cloud_execution"),
+        report_json=str(json_path),
+        report_markdown=str(markdown_path),
+        difference_count=report.get("difference_count", 0),
+    )
+
+
+def _parity_report(args: argparse.Namespace) -> int:
+    input_path = _resolve_repo_path(args.input)
+    try:
+        report = read_report(input_path)
+    except (OSError, ValueError) as exc:
+        return _emit("parity report", "failed", error=str(exc))
+    report_status = str(report["status"])
+    status = {
+        "PASS": "accepted",
+        "FAIL": "failed",
+        "BLOCKED": "blocked",
+    }[report_status]
+    return _emit(
+        "parity report",
+        status,
+        parity_status=report_status,
+        cloud_execution=report.get("cloud_execution"),
+        report_json=str(input_path),
+        difference_count=report.get("difference_count", 0),
     )
 
 
@@ -515,6 +620,12 @@ def _build_parser() -> argparse.ArgumentParser:
     migrate_apply.add_argument("--catalog-id")
     migrate_apply.add_argument("--allow-missing-auth", action="store_true")
     migrate_apply.set_defaults(func=_gcp_migrate)
+    cost = gcp_commands.add_parser("cost")
+    cost_commands = cost.add_subparsers(dest="cost_action", required=True)
+    cost_report = cost_commands.add_parser("report")
+    cost_report.add_argument("--input")
+    cost_report.add_argument("--output", default="data/acceptance/gcp/cost")
+    cost_report.set_defaults(func=_gcp_cost_report)
     vertical_slice = gcp_commands.add_parser("vertical-slice")
     vertical_slice_commands = vertical_slice.add_subparsers(
         dest="action", required=True
@@ -545,14 +656,17 @@ def _build_parser() -> argparse.ArgumentParser:
     terraform.set_defaults(func=_terraform)
 
     parity = commands.add_parser("parity")
-    parity.add_argument("action", choices=("run", "report"))
-    parity.set_defaults(
-        func=lambda args: _emit(
-            f"parity {args.action}",
-            "blocked",
-            reason="parity implementation is added in a later work package",
-        )
+    parity_commands = parity.add_subparsers(dest="action", required=True)
+    parity_run = parity_commands.add_parser("run")
+    parity_run.add_argument("--local-evidence")
+    parity_run.add_argument("--gcp-evidence")
+    parity_run.add_argument("--output", default=str(DEFAULT_PARITY_OUTPUT_DIR))
+    parity_run.set_defaults(func=_parity_run)
+    parity_report = parity_commands.add_parser("report")
+    parity_report.add_argument(
+        "--input", default=str(DEFAULT_PARITY_OUTPUT_DIR / "parity.json")
     )
+    parity_report.set_defaults(func=_parity_report)
     return parser
 
 
