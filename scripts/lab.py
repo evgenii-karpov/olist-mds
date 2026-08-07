@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+GCP_STREAMING_SERVICES = ("spark-gcp-bronze", "spark-gcp-silver")
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -142,14 +143,11 @@ def _gcp_preflight_command(_: argparse.Namespace) -> int:
 def _gcp_up(args: argparse.Namespace) -> int:
     preflight = _gcp_preflight()
     missing = preflight["missing"]
-    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+    if isinstance(missing, list) and missing:
         return _emit(
             "gcp up",
             "blocked",
-            reason=(
-                "GCP preflight is incomplete; use --allow-missing-auth only "
-                "for local profile rendering"
-            ),
+            reason="GCP preflight is incomplete",
             **preflight,
         )
     profiles = compose_profiles(LakehouseTarget.GCP)
@@ -169,7 +167,7 @@ def _gcp_up(args: argparse.Namespace) -> int:
 
 
 def _gcp_down(args: argparse.Namespace) -> int:
-    profiles = compose_profiles(LakehouseTarget.GCP)
+    profiles = compose_profiles(LakehouseTarget.GCP, streaming=True)
     code, output = _run_compose(
         profiles, ["down", "--remove-orphans"], timeout=args.timeout
     )
@@ -184,19 +182,29 @@ def _gcp_down(args: argparse.Namespace) -> int:
 def _gcp_streaming(args: argparse.Namespace) -> int:
     profiles = compose_profiles(LakehouseTarget.GCP, streaming=True)
     if args.action == "status":
-        code, output = _run_compose(profiles, ["ps", "--all"], timeout=60)
+        code, output = _run_compose(
+            profiles,
+            ["ps", "--all", *GCP_STREAMING_SERVICES],
+            timeout=60,
+        )
         return _emit(
             "gcp streaming status",
             "ready" if code == 0 else "failed",
             profiles=list(profiles),
+            services=list(GCP_STREAMING_SERVICES),
             output=output,
         )
     if args.action == "stop":
-        code, output = _run_compose(profiles, ["stop"], timeout=args.timeout)
+        code, output = _run_compose(
+            profiles,
+            ["stop", *GCP_STREAMING_SERVICES],
+            timeout=args.timeout,
+        )
         return _emit(
             "gcp streaming stop",
             "ready" if code == 0 else "failed",
             profiles=list(profiles),
+            services=list(GCP_STREAMING_SERVICES),
             output=output,
         )
 
@@ -211,13 +219,14 @@ def _gcp_streaming(args: argparse.Namespace) -> int:
         )
     code, output = _run_compose(
         profiles,
-        ["up", "-d", *(["--build"] if args.build else [])],
+        ["up", "-d", *(["--build"] if args.build else []), *GCP_STREAMING_SERVICES],
         timeout=args.timeout,
     )
     return _emit(
         "gcp streaming start",
         "ready" if code == 0 else "failed",
         profiles=list(profiles),
+        services=list(GCP_STREAMING_SERVICES),
         output=output,
         streaming_started=code == 0,
         preflight=preflight,
@@ -644,7 +653,6 @@ def _build_parser() -> argparse.ArgumentParser:
     preflight.set_defaults(func=_gcp_preflight_command)
     gcp_up = gcp_commands.add_parser("up")
     gcp_up.add_argument("--build", action="store_true")
-    gcp_up.add_argument("--allow-missing-auth", action="store_true")
     gcp_up.add_argument("--timeout", type=float, default=1200.0)
     gcp_up.set_defaults(func=_gcp_up)
     gcp_down = gcp_commands.add_parser("down")

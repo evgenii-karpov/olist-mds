@@ -109,9 +109,13 @@ def run_serving_sync() -> None:
         heartbeat()
 
         # First select the complete transaction prefix without Silver-derived
-        # metrics.  Only after that frozen boundary is known may metrics be
-        # read; otherwise rows from an OPEN transaction that already reached
-        # Silver can widen the candidate beyond the planner's boundary.
+        # metrics.  An empty mapping is a deliberate probe: it lets the
+        # planner select a frozen transaction boundary while still refusing to
+        # materialize until per-topic offsets are loaded.  Passing ``None``
+        # here would make the planner fail closed before the DAG can fetch
+        # those metrics, including for the first snapshot publication.
+        # Otherwise rows from an OPEN transaction that already reached Silver
+        # could widen the candidate beyond the planner's boundary.
         boundary_plan = ServingBoundaryPlanner.plan_next_sync_run(
             sync_run_seq=seq,
             runtime_state=state,
@@ -119,10 +123,13 @@ def run_serving_sync() -> None:
             iceberg_snapshots=snapshots,
             coverage_state="READY",
             boundary_state=effective_boundary_state,
-            entity_metrics=None,
+            entity_metrics={},
         )
         entity_metrics = None
-        if boundary_plan.status == "MATERIALIZING":
+        if boundary_plan.status == "MATERIALIZING" or (
+            boundary_plan.status == "BLOCKED"
+            and boundary_plan.status_reason == "INVARIANT_FAILURE"
+        ):
             initial_snapshot_only = (
                 not bool(state.get("source_snapshot_completed"))
                 and boundary_plan.target_transaction_end_offset is None

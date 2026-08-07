@@ -53,6 +53,18 @@ def test_cross_target_boundary_is_rejected_before_allocation() -> None:
         )
 
 
+def test_invalid_boundary_does_not_consume_a_sequence() -> None:
+    ledger = TargetControlLedger(ServingTarget.LOCAL)
+
+    with pytest.raises(ValueError, match="boundary and run sequence"):
+        ledger.allocate_sync_run(
+            OperationType.SYNC,
+            boundary=_boundary(ServingTarget.LOCAL, 2),
+        )
+
+    assert ledger.next_sync_run_seq == 1
+
+
 def test_stale_predecessor_cannot_advance_target_state() -> None:
     ledger = TargetControlLedger(ServingTarget.GCP)
     ledger.allocate_sync_run(OperationType.SYNC)

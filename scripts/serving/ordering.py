@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 
 from scripts.serving.time import normalize_source_timestamp
@@ -30,6 +30,7 @@ CANONICAL_ORDER_FIELDS = (
 
 _BINLOG_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.(?P<index>[0-9]+)$")
 _INTEGER = re.compile(r"^[0-9]+$")
+_EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 class OrderingContractError(ValueError):
@@ -55,6 +56,7 @@ class ValidatedOrderingEvent:
     """Validated source coordinates used to construct the canonical tuple."""
 
     event_id: str
+    topic: str
     category: EventCategory
     source_binlog_file_index: int | None
     source_binlog_pos: int | None
@@ -101,8 +103,9 @@ class ValidatedOrderingEvent:
         """Return the coordinate identity used to detect conflicting duplicates."""
 
         if self.category is EventCategory.SNAPSHOT:
-            return (self.category, self.kafka_partition, self.kafka_offset)
+            return (self.topic, self.category, self.kafka_partition, self.kafka_offset)
         return (
+            self.topic,
             self.category,
             self.source_binlog_file_index,
             self.source_binlog_pos,
@@ -208,7 +211,10 @@ def _source_ts_micros(value: object, *, event_id: str) -> int | None:
                 "source_ts is not a valid timestamp",
                 event_id=event_id,
             ) from exc
-        return int(normalized.timestamp() * 1_000_000)
+        delta = normalized - _EPOCH
+        return (
+            delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+        )
     raise OrderingContractError(
         "MALFORMED_SOURCE_TS", "source_ts is not a valid timestamp", event_id=event_id
     )
@@ -226,7 +232,7 @@ def validate_ordering_event(row: Mapping[str, object]) -> ValidatedOrderingEvent
             "kafka_partition and kafka_offset are required",
             event_id=event_id,
         )
-    _required_text(row, "topic", event_id)
+    topic = _required_text(row, "topic", event_id)
 
     snapshot = _is_snapshot(row)
     transaction_id = row.get("transaction_id")
@@ -291,6 +297,7 @@ def validate_ordering_event(row: Mapping[str, object]) -> ValidatedOrderingEvent
 
     return ValidatedOrderingEvent(
         event_id=event_id,
+        topic=topic,
         category=category,
         source_binlog_file_index=source_file_index,
         source_binlog_pos=source_pos,

@@ -20,6 +20,7 @@ from scripts.serving.domain import (
     ServingTarget,
     TargetMismatchError,
 )
+from scripts.serving.entities import ALL_SERVING_ENTITIES
 from scripts.serving.models import (
     OperationType,
     StatusReason,
@@ -51,6 +52,10 @@ _GCP_SILVER_SOURCE_BY_ENTITY = {
     "products": "silver_products_changes",
     "sellers": "silver_sellers_changes",
     "product_category_translation": "silver_product_category_translation_changes",
+}
+_GCP_SILVER_TOPIC_PARTITIONS = {
+    f"olist_cdc.olist_oltp.{spec.entity}": spec.topic_partitions
+    for spec in ALL_SERVING_ENTITIES
 }
 _GOLD_MODEL_GRAIN = {
     "dim_date": "date_key",
@@ -299,6 +304,8 @@ SELECT @@row_count AS updated_count;
         query = f"""
 DECLARE allocated_seq INT64;
 DECLARE predecessor_seq INT64;
+DECLARE updated_count INT64;
+BEGIN TRANSACTION;
 SET allocated_seq = (
   SELECT next_sync_run_seq
   FROM {state}
@@ -309,12 +316,19 @@ SET predecessor_seq = (
   FROM {state}
   WHERE state_key = 'gcp' AND target = 'gcp'
 );
-BEGIN TRANSACTION;
 UPDATE {state}
 SET next_sync_run_seq = allocated_seq + 1,
     row_version = row_version + 1,
     updated_at = CURRENT_TIMESTAMP()
-WHERE state_key = 'gcp' AND target = 'gcp';
+WHERE state_key = 'gcp'
+  AND target = 'gcp'
+  AND next_sync_run_seq = allocated_seq;
+SET updated_count = @@row_count;
+IF updated_count = 0 THEN
+  ROLLBACK TRANSACTION;
+  SELECT CAST(NULL AS INT64) AS sync_run_seq,
+         'SEQUENCE_ALLOCATION_CONFLICT' AS error_code;
+ELSE
 INSERT INTO {runs} (
   target,
   sync_run_seq,
@@ -324,7 +338,11 @@ INSERT INTO {runs} (
   status_reason,
   current_airflow_dag_run_id,
   attempt_count,
+  is_noop,
   expected_active_sync_run_seq,
+  source_snapshot_completed,
+  expected_event_count,
+  materialized_event_count,
   created_at,
   updated_at
 )
@@ -337,7 +355,11 @@ VALUES (
   'NONE',
   @current_airflow_dag_run_id,
   1,
+  FALSE,
   predecessor_seq,
+  FALSE,
+  0,
+  0,
   CURRENT_TIMESTAMP(),
   CURRENT_TIMESTAMP()
 );
@@ -345,6 +367,7 @@ COMMIT TRANSACTION;
 SELECT *
 FROM {runs}
 WHERE target = 'gcp' AND sync_run_seq = allocated_seq;
+END IF;
 """
         row = _first_row(
             self._execute(
@@ -356,6 +379,12 @@ WHERE target = 'gcp' AND sync_run_seq = allocated_seq;
             ),
             "allocate sync run",
         )
+        if row.get("error_code") == "SEQUENCE_ALLOCATION_CONFLICT":
+            raise RuntimeError(
+                "GCP sync-run sequence allocation conflicted; retry the allocation"
+            )
+        if row.get("sync_run_seq") is None:
+            raise RuntimeError("BigQuery allocation returned no sync-run sequence")
         if str(row.get("target", _CONTROL_TARGET)) != _CONTROL_TARGET:
             raise TargetMismatchError("BigQuery returned a non-GCP serving run")
         return row
@@ -854,23 +883,38 @@ QUALIFY ROW_NUMBER() OVER (
         for row in progress_rows:
             topic = row.get("source_topic")
             partition = row.get("kafka_partition")
-            if isinstance(topic, str) and isinstance(partition, int):
+            if (
+                isinstance(topic, str)
+                and isinstance(partition, int)
+                and not isinstance(partition, bool)
+                and partition >= 0
+            ):
                 latest[(topic, partition)] = row
 
         missing: list[str] = []
         target_offsets: dict[str, int] = {}
+        entity_partitions: dict[str, list[int]] = {}
         for entity in _GCP_SILVER_SOURCE_BY_ENTITY:
-            key = f"olist_cdc.olist_oltp.{entity}:0"
-            progress = latest.get((f"olist_cdc.olist_oltp.{entity}", 0))
-            raw_offset = progress.get("last_kafka_offset") if progress else None
-            if (
-                progress is None
-                or str(progress.get("status", "")) != "COMMITTED"
-                or not isinstance(raw_offset, int)
-            ):
-                missing.append(key)
-            else:
+            topic = f"olist_cdc.olist_oltp.{entity}"
+            expected_partition_count = _GCP_SILVER_TOPIC_PARTITIONS[topic]
+            committed_partitions: list[int] = []
+            for partition in range(expected_partition_count):
+                progress = latest.get((topic, partition))
+                raw_offset = progress.get("last_kafka_offset") if progress else None
+                if (
+                    progress is None
+                    or str(progress.get("status", "")) != "COMMITTED"
+                    or isinstance(raw_offset, bool)
+                    or not isinstance(raw_offset, int)
+                    or raw_offset < 0
+                ):
+                    missing.append(f"{topic}:{partition}")
+                    continue
+                key = f"{topic}:{partition}"
+                committed_partitions.append(partition)
                 target_offsets[key] = raw_offset
+            if len(committed_partitions) == expected_partition_count:
+                entity_partitions[entity] = sorted(set(committed_partitions))
         if missing:
             return {
                 "status": "WAITING",
@@ -881,47 +925,67 @@ QUALIFY ROW_NUMBER() OVER (
 
         value_rows: list[str] = []
         parameters: dict[str, object] = {}
-        for index, (entity, source_view) in enumerate(
-            _GCP_SILVER_SOURCE_BY_ENTITY.items()
-        ):
+        parameter_index = 0
+        for entity, source_view in _GCP_SILVER_SOURCE_BY_ENTITY.items():
             topic = f"olist_cdc.olist_oltp.{entity}"
-            key = f"{topic}:0"
-            topic_param = f"topic_{index}"
-            previous_param = f"previous_{index}"
-            target_param = f"target_{index}"
-            entity_param = f"entity_{index}"
-            parameters[topic_param] = topic
-            parameters[previous_param] = previous_offsets.get(key, -1)
-            parameters[target_param] = target_offsets[key]
-            parameters[entity_param] = entity
             source_table = self._dataset_table(_BRIDGE_DATASET, source_view)
-            value_rows.append(
-                f"SELECT @{entity_param} AS entity, COUNT(*) AS event_count "
-                f"FROM {source_table} "
-                f"WHERE kafka_topic = @{topic_param} "
-                f"AND kafka_partition = 0 "
-                f"AND kafka_offset > @{previous_param} "
-                f"AND kafka_offset <= @{target_param}"
-            )
+            for partition in entity_partitions[entity]:
+                key = f"{topic}:{partition}"
+                topic_param = f"topic_{parameter_index}"
+                partition_param = f"partition_{parameter_index}"
+                previous_param = f"previous_{parameter_index}"
+                target_param = f"target_{parameter_index}"
+                entity_param = f"entity_{parameter_index}"
+                parameters[topic_param] = topic
+                parameters[partition_param] = partition
+                parameters[previous_param] = previous_offsets.get(key, -1)
+                parameters[target_param] = target_offsets[key]
+                parameters[entity_param] = entity
+                value_rows.append(
+                    f"SELECT @{entity_param} AS entity, COUNT(*) AS event_count "
+                    f"FROM {source_table} "
+                    f"WHERE kafka_topic = @{topic_param} "
+                    f"AND kafka_partition = @{partition_param} "
+                    f"AND kafka_offset > @{previous_param} "
+                    f"AND kafka_offset <= @{target_param}"
+                )
+                parameter_index += 1
         query = "\nUNION ALL\n".join(value_rows)
         rows = self._execute(query, parameters)
-        metrics: dict[str, dict[str, object]] = {}
+        metrics: dict[str, dict[str, object]] = {
+            entity: {
+                "event_count": 0,
+                "target_offsets": {
+                    f"olist_cdc.olist_oltp.{entity}:{partition}": target_offsets[
+                        f"olist_cdc.olist_oltp.{entity}:{partition}"
+                    ]
+                    for partition in entity_partitions[entity]
+                },
+            }
+            for entity in _GCP_SILVER_SOURCE_BY_ENTITY
+        }
+        observed_entities: set[str] = set()
         for row in rows:
             entity = row.get("entity")
             count = row.get("event_count")
-            if isinstance(entity, str) and isinstance(count, int):
-                metrics[entity] = {
-                    "event_count": count,
-                    "target_offsets": {
-                        f"olist_cdc.olist_oltp.{entity}:0": target_offsets[
-                            f"olist_cdc.olist_oltp.{entity}:0"
-                        ]
-                    },
-                }
-        if set(metrics) != set(_GCP_SILVER_SOURCE_BY_ENTITY):
+            if (
+                isinstance(entity, str)
+                and entity in metrics
+                and isinstance(count, int)
+                and not isinstance(count, bool)
+            ):
+                observed_entities.add(entity)
+                current_count = metrics[entity].get("event_count")
+                if not isinstance(current_count, int) or isinstance(
+                    current_count, bool
+                ):
+                    raise RuntimeError("invalid initialized BigQuery entity count")
+                metrics[entity]["event_count"] = current_count + count
+        missing_entities = set(_GCP_SILVER_SOURCE_BY_ENTITY) - observed_entities
+        if missing_entities:
             return {
                 "status": "BLOCKED",
-                "missing": sorted(set(_GCP_SILVER_SOURCE_BY_ENTITY) - set(metrics)),
+                "missing": sorted(missing_entities),
                 "target_offsets": target_offsets,
                 "metrics": metrics,
             }

@@ -256,7 +256,7 @@ object SilverBatchWriter {
     val pkWindow = Window
       .partitionBy(contract.primaryKey.map(col): _*)
       .orderBy(
-        col("last_is_snapshot").cast("int").desc,
+        when(col("last_is_snapshot"), lit(0)).otherwise(lit(1)).desc,
         coalesce(col("last_source_binlog_file_index"), lit(-1)).desc,
         coalesce(col("last_source_binlog_pos"), lit(-1L)).desc,
         coalesce(col("last_source_row"), lit(-1)).desc,

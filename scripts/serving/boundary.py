@@ -376,7 +376,9 @@ class ServingBoundaryPlanner:
             expected_entity_counts = metric_entity_counts
             expected_event_count = sum(metric_entity_counts.values())
             expected_topics = {
-                f"olist_cdc.olist_oltp.{spec.entity}:0" for spec in ALL_SERVING_ENTITIES
+                f"olist_cdc.olist_oltp.{spec.entity}:{partition}"
+                for spec in ALL_SERVING_ENTITIES
+                for partition in range(spec.topic_partitions)
             }
             missing_topics = sorted(expected_topics - set(target_offsets))
             if missing_topics:

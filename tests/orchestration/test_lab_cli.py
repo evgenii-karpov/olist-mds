@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from argparse import Namespace
 
+import pytest
 from scripts import lab
 
 
@@ -47,7 +48,7 @@ def test_gcp_up_uses_no_streaming_profile(monkeypatch) -> None:
         return 0, "rendered"
 
     monkeypatch.setattr(lab, "_run_compose", fake_run)
-    result = lab._gcp_up(Namespace(allow_missing_auth=False, build=False, timeout=30.0))
+    result = lab._gcp_up(Namespace(build=False, timeout=30.0))
 
     assert result == 0
     assert calls == [(("core", "lakehouse-gcp"), ("up", "-d"))]
@@ -83,7 +84,85 @@ def test_gcp_streaming_start_uses_the_dedicated_streaming_profile(monkeypatch) -
     assert calls == [
         (
             ("core", "lakehouse-gcp", "streaming-gcp"),
-            ("up", "-d"),
+            ("up", "-d", "spark-gcp-bronze", "spark-gcp-silver"),
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("action", "expected_arguments"),
+    (
+        (
+            "status",
+            ("ps", "--all", "spark-gcp-bronze", "spark-gcp-silver"),
+        ),
+        ("stop", ("stop", "spark-gcp-bronze", "spark-gcp-silver")),
+    ),
+)
+def test_gcp_streaming_lifecycle_targets_only_streaming_services(
+    monkeypatch, action, expected_arguments
+) -> None:
+    calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+
+    def fake_run(profiles, arguments, *, timeout):
+        calls.append((tuple(profiles), tuple(arguments)))
+        return 0, action
+
+    monkeypatch.setattr(lab, "_run_compose", fake_run)
+    result = lab._gcp_streaming(
+        Namespace(
+            action=action,
+            build=False,
+            allow_missing_auth=False,
+            timeout=30.0,
+        )
+    )
+
+    assert result == 0
+    assert calls == [
+        (
+            ("core", "lakehouse-gcp", "streaming-gcp"),
+            expected_arguments,
+        )
+    ]
+
+
+def test_gcp_up_cannot_bypass_preflight(monkeypatch) -> None:
+    calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        lab,
+        "_gcp_preflight",
+        lambda: {"checks": {}, "missing": ["adc_file"]},
+    )
+    monkeypatch.setattr(
+        lab,
+        "_run_compose",
+        lambda profiles, arguments, *, timeout: calls.append(
+            (tuple(profiles), tuple(arguments))
+        ),
+    )
+
+    result = lab._gcp_up(Namespace(build=False, timeout=30.0))
+
+    assert result == 0
+    assert calls == []
+
+
+def test_gcp_down_includes_the_streaming_profile(monkeypatch) -> None:
+    calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+
+    def fake_run(profiles, arguments, *, timeout):
+        calls.append((tuple(profiles), tuple(arguments)))
+        return 0, "stopped"
+
+    monkeypatch.setattr(lab, "_run_compose", fake_run)
+    result = lab._gcp_down(Namespace(timeout=30.0))
+
+    assert result == 0
+    assert calls == [
+        (
+            ("core", "lakehouse-gcp", "streaming-gcp"),
+            ("down", "--remove-orphans"),
         )
     ]
 

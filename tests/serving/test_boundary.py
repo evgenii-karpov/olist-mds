@@ -12,7 +12,8 @@ def _entity_metrics() -> dict[str, dict[str, object]]:
         spec.entity: {
             "event_count": 1,
             "target_offsets": {
-                f"olist_cdc.olist_oltp.{spec.entity}:0": index,
+                f"olist_cdc.olist_oltp.{spec.entity}:{partition}": index
+                for partition in range(spec.topic_partitions)
             },
         }
         for index, spec in enumerate(ALL_SERVING_ENTITIES)
@@ -206,7 +207,12 @@ def test_boundary_planner_initial_snapshot_without_transaction_boundary():
         entity: {
             "event_count": count,
             "target_offsets": {
-                f"olist_cdc.olist_oltp.{entity}:0": count - 1,
+                f"olist_cdc.olist_oltp.{entity}:{partition}": count - 1
+                for partition in range(
+                    next(
+                        spec for spec in ALL_SERVING_ENTITIES if spec.entity == entity
+                    ).topic_partitions
+                )
             },
         }
         for entity, count in {

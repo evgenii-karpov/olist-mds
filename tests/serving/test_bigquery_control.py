@@ -4,6 +4,7 @@ import pytest
 from scripts.serving.bigquery_control import BigQueryServingControlRepository
 from scripts.serving.control_adapters import PostgresServingControlAdapter
 from scripts.serving.domain import ServingBoundary, ServingTarget, TargetMismatchError
+from scripts.serving.entities import ALL_SERVING_ENTITIES
 from scripts.serving.models import OperationType, StatusReason, SyncStatus
 
 
@@ -19,6 +20,20 @@ class FakeBigQueryRunner:
     ) -> Iterable[Mapping[str, object]]:
         self.queries.append((sql, parameters))
         return [self.responses.pop(0)]
+
+
+class MultiRowBigQueryRunner:
+    def __init__(self, responses: Iterable[Iterable[Mapping[str, object]]]) -> None:
+        self.responses = [[dict(response) for response in batch] for batch in responses]
+        self.queries: list[tuple[str, Mapping[str, object]]] = []
+
+    def execute(
+        self,
+        sql: str,
+        parameters: Mapping[str, object],
+    ) -> Iterable[Mapping[str, object]]:
+        self.queries.append((sql, parameters))
+        return self.responses.pop(0)
 
 
 def _repository(
@@ -45,9 +60,21 @@ def test_bigquery_allocate_uses_gcp_local_sequence_and_transaction() -> None:
     assert run["target"] == "gcp"
     assert "BEGIN TRANSACTION" in query
     assert "next_sync_run_seq = allocated_seq + 1" in query
+    assert "AND next_sync_run_seq = allocated_seq" in query
+    assert "is_noop" in query
+    assert "source_snapshot_completed" in query
     assert "FROM `olist-dev-123.olist_serving_control.control_state`" in query
     assert "'gcp'" in query
     assert parameters["operation_type"] == "SYNC"
+
+
+def test_bigquery_sequence_allocation_conflict_fails_closed() -> None:
+    repository, _runner = _repository(
+        [{"sync_run_seq": None, "error_code": "SEQUENCE_ALLOCATION_CONFLICT"}]
+    )
+
+    with pytest.raises(RuntimeError, match="sequence allocation conflicted"):
+        repository.allocate_sync_run(OperationType.SYNC)
 
 
 def test_bigquery_status_transition_is_optimistic_and_can_report_conflict() -> None:
@@ -145,6 +172,47 @@ def test_bigquery_progress_check_fails_closed_until_every_partition_is_committed
     assert result["missing"] == ["olist_cdc.olist_oltp.customers:0"]
     assert "IN UNNEST(@entities)" in query
     assert parameters["entities"] == ["customers"]
+
+
+def test_bigquery_entity_metrics_preserve_all_configured_topic_partitions() -> None:
+    progress_rows = []
+    count_rows = []
+    for spec in ALL_SERVING_ENTITIES:
+        topic = f"olist_cdc.olist_oltp.{spec.entity}"
+        for partition in range(spec.topic_partitions):
+            progress_rows.append(
+                {
+                    "entity": spec.entity,
+                    "source_topic": topic,
+                    "kafka_partition": partition,
+                    "last_kafka_offset": 10 + partition,
+                    "status": "COMMITTED",
+                    "updated_at": "2026-08-07T00:00:00Z",
+                    "spark_batch_id": partition,
+                }
+            )
+            count_rows.append({"entity": spec.entity, "event_count": 1})
+
+    runner = MultiRowBigQueryRunner((progress_rows, count_rows))
+    repository = BigQueryServingControlRepository(runner, "olist-dev-123")
+
+    result = repository.fetch_entity_metrics(previous_offsets={})
+
+    assert result["status"] == "READY"
+    metrics = result["metrics"]
+    assert isinstance(metrics, dict)
+    orders = metrics["orders"]
+    assert orders["event_count"] == 3
+    assert orders["target_offsets"] == {
+        "olist_cdc.olist_oltp.orders:0": 10,
+        "olist_cdc.olist_oltp.orders:1": 11,
+        "olist_cdc.olist_oltp.orders:2": 12,
+    }
+    query, parameters = runner.queries[1]
+    assert "kafka_partition = @partition_" in query
+    assert set(
+        value for name, value in parameters.items() if name.startswith("partition_")
+    ) >= {0, 1, 2}
 
 
 def test_bigquery_reads_debezium_transaction_metadata_from_read_only_bridge() -> None:

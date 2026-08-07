@@ -55,7 +55,23 @@ def test_snapshot_contract_does_not_require_live_coordinates() -> None:
     )
 
     assert validated.category is EventCategory.SNAPSHOT
-    assert validated.source_coordinate_key == (EventCategory.SNAPSHOT, 0, 10)
+    assert validated.source_coordinate_key == (
+        "olist_cdc.olist_oltp.orders",
+        EventCategory.SNAPSHOT,
+        0,
+        10,
+    )
+
+
+def test_snapshot_coordinates_are_scoped_by_topic() -> None:
+    first = _event(event_id="snapshot-orders", is_snapshot=True)
+    second = _event(
+        event_id="snapshot-customers",
+        topic="olist_cdc.olist_oltp.customers",
+        is_snapshot=True,
+    )
+
+    assert len(validate_ordering_batch((first, second))) == 2
 
 
 def test_live_non_transactional_requires_validated_binlog_coordinates() -> None:
@@ -115,7 +131,8 @@ def test_conflicting_duplicate_source_coordinates_fail_closed() -> None:
         validate_ordering_batch((first, second))
 
 
-def test_source_wall_clock_is_normalized_to_utc() -> None:
+def test_source_wall_clock_is_normalized_to_utc(monkeypatch) -> None:
+    monkeypatch.delenv("SOURCE_TIME_ZONE", raising=False)
     normalized = normalize_source_timestamp("2020-01-01T00:00:00")
     assert normalized == datetime(2020, 1, 1, 3, tzinfo=UTC)
     assert configured_source_time_zone({}) == DEFAULT_SOURCE_TIME_ZONE
@@ -123,3 +140,19 @@ def test_source_wall_clock_is_normalized_to_utc() -> None:
 
     with pytest.raises(ValueError, match="unknown SOURCE_TIME_ZONE"):
         configured_source_time_zone({"SOURCE_TIME_ZONE": "Not/AZone"})
+
+
+def test_source_wall_clock_uses_the_environment_timezone(monkeypatch) -> None:
+    monkeypatch.setenv("SOURCE_TIME_ZONE", "UTC")
+
+    normalized = normalize_source_timestamp("2020-01-01T00:00:00")
+
+    assert normalized == datetime(2020, 1, 1, tzinfo=UTC)
+
+
+def test_source_timestamp_preserves_microsecond_precision(monkeypatch) -> None:
+    monkeypatch.setenv("SOURCE_TIME_ZONE", "UTC")
+
+    validated = validate_ordering_event(_event(source_ts="2020-01-01T00:00:00.000001"))
+
+    assert validated.source_ts_micros == 1_577_836_800_000_001

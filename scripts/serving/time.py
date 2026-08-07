@@ -29,11 +29,10 @@ def configured_source_time_zone(
 
 def normalize_source_timestamp(
     value: str | date | datetime,
-    source_time_zone: str = DEFAULT_SOURCE_TIME_ZONE,
+    source_time_zone: str | None = None,
 ) -> datetime:
     """Interpret naive source values in the configured zone and return UTC."""
 
-    zone = ZoneInfo(source_time_zone)
     if isinstance(value, datetime):
         parsed = value
     elif isinstance(value, date):
@@ -47,5 +46,10 @@ def normalize_source_timestamp(
         raise TypeError("source timestamp must be a date, datetime, or ISO string")
 
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=zone)
+        zone_name = (
+            configured_source_time_zone()
+            if source_time_zone is None
+            else configured_source_time_zone({SOURCE_TIME_ZONE_ENV: source_time_zone})
+        )
+        parsed = parsed.replace(tzinfo=ZoneInfo(zone_name))
     return parsed.astimezone(UTC)

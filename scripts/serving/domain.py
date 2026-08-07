@@ -204,7 +204,6 @@ class TargetControlLedger:
         if boundary is not None:
             self._assert_target(boundary.target)
         seq = self.next_sync_run_seq
-        self.next_sync_run_seq += 1
         run = ServingRun(
             target=self.target,
             sync_run_seq=seq,
@@ -213,6 +212,7 @@ class TargetControlLedger:
             expected_active_sync_run_seq=self.active_sync_run_seq,
             boundary=boundary,
         )
+        self.next_sync_run_seq += 1
         self.runs[seq] = run
         return run
 
@@ -226,6 +226,8 @@ class TargetControlLedger:
         status_reason: StatusReason = StatusReason.NONE,
     ) -> ServingRun:
         run = self.runs[sync_run_seq]
+        if run.target is not self.target:
+            raise TargetMismatchError("run belongs to another target")
         accepted = (
             {expected_status}
             if isinstance(expected_status, SyncStatus)

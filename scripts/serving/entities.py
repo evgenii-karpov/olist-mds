@@ -10,6 +10,7 @@ class ServingEntitySpec:
     entity: str
     primary_key: tuple[str, ...]
     source_topic: str
+    topic_partitions: int
     changes_relation: str
     ch_events_table: str
     ch_current_versions_table: str
@@ -22,6 +23,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="customers",
         primary_key=("customer_id",),
         source_topic="olist.olist_oltp.customers",
+        topic_partitions=1,
         changes_relation="lakehouse.silver.customers_changes",
         ch_events_table="serving_cdc.customers_events",
         ch_current_versions_table="serving_cdc.customers_current_versions",
@@ -37,6 +39,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="orders",
         primary_key=("order_id",),
         source_topic="olist.olist_oltp.orders",
+        topic_partitions=3,
         changes_relation="lakehouse.silver.orders_changes",
         ch_events_table="serving_cdc.orders_events",
         ch_current_versions_table="serving_cdc.orders_current_versions",
@@ -55,6 +58,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="order_items",
         primary_key=("order_id", "order_item_id"),
         source_topic="olist.olist_oltp.order_items",
+        topic_partitions=3,
         changes_relation="lakehouse.silver.order_items_changes",
         ch_events_table="serving_cdc.order_items_events",
         ch_current_versions_table="serving_cdc.order_items_current_versions",
@@ -71,6 +75,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="order_payments",
         primary_key=("order_id", "payment_sequential"),
         source_topic="olist.olist_oltp.order_payments",
+        topic_partitions=3,
         changes_relation="lakehouse.silver.order_payments_changes",
         ch_events_table="serving_cdc.order_payments_events",
         ch_current_versions_table="serving_cdc.order_payments_current_versions",
@@ -85,6 +90,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="order_reviews",
         primary_key=("review_id",),
         source_topic="olist.olist_oltp.order_reviews",
+        topic_partitions=3,
         changes_relation="lakehouse.silver.order_reviews_changes",
         ch_events_table="serving_cdc.order_reviews_events",
         ch_current_versions_table="serving_cdc.order_reviews_current_versions",
@@ -102,6 +108,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="products",
         primary_key=("product_id",),
         source_topic="olist.olist_oltp.products",
+        topic_partitions=1,
         changes_relation="lakehouse.silver.products_changes",
         ch_events_table="serving_cdc.products_events",
         ch_current_versions_table="serving_cdc.products_current_versions",
@@ -121,6 +128,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="sellers",
         primary_key=("seller_id",),
         source_topic="olist.olist_oltp.sellers",
+        topic_partitions=1,
         changes_relation="lakehouse.silver.sellers_changes",
         ch_events_table="serving_cdc.sellers_events",
         ch_current_versions_table="serving_cdc.sellers_current_versions",
@@ -135,6 +143,7 @@ ALL_SERVING_ENTITIES: tuple[ServingEntitySpec, ...] = (
         entity="product_category_translation",
         primary_key=("product_category_name",),
         source_topic="olist.olist_oltp.product_category_translation",
+        topic_partitions=1,
         changes_relation="lakehouse.silver.product_category_translation_changes",
         ch_events_table="serving_cdc.product_category_translation_events",
         ch_current_versions_table="serving_cdc.product_category_translation_current_versions",
