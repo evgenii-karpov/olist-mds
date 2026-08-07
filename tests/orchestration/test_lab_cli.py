@@ -86,3 +86,36 @@ def test_gcp_streaming_start_uses_the_dedicated_streaming_profile(monkeypatch) -
             ("up", "-d"),
         )
     ]
+
+
+def test_gcp_serving_run_is_explicitly_blocked_without_cloud_execution(capsys) -> None:
+    result = lab._gcp_serving(Namespace(sync_run_seq=7))
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert '"command": "gcp serving run"' in output
+    assert '"cloud_execution": "PENDING_GCP_ACCESS"' in output
+    assert '"dag_id": "olist_gcp_serving"' in output
+
+
+def test_gcp_destructive_commands_require_force(capsys) -> None:
+    result = lab._gcp_destructive(Namespace(action="destroy", force=False))
+
+    assert result == 0
+    output = capsys.readouterr().out
+    assert '"status": "blocked"' in output
+    assert "requires --force" in output
+    assert "state bucket is excluded" in output
+
+
+def test_gcp_operator_command_surface_is_registered() -> None:
+    command_lines = (
+        ("gcp", "serving", "run", "--sync-run-seq", "7"),
+        ("gcp", "inventory"),
+        ("gcp", "reset-data", "--force"),
+        ("gcp", "destroy", "--force"),
+    )
+
+    for command_line in command_lines:
+        parsed = lab._build_parser().parse_args(command_line)
+        assert callable(parsed.func)

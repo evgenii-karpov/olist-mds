@@ -397,6 +397,61 @@ def _gcp_cost_report(args: argparse.Namespace) -> int:
     )
 
 
+def _gcp_serving(args: argparse.Namespace) -> int:
+    preflight = _gcp_preflight()
+    sync_run_seq = getattr(args, "sync_run_seq", None)
+    if sync_run_seq is not None and sync_run_seq < 1:
+        return _emit(
+            "gcp serving run",
+            "failed",
+            reason="sync_run_seq must be positive",
+        )
+    return _emit(
+        "gcp serving run",
+        "blocked",
+        reason="cloud Airflow execution requires GCP credentials and a real run",
+        dag_id="olist_gcp_serving",
+        sync_run_seq=sync_run_seq,
+        cloud_execution="PENDING_GCP_ACCESS",
+        preflight=preflight,
+    )
+
+
+def _gcp_inventory(_: argparse.Namespace) -> int:
+    return _emit(
+        "gcp inventory",
+        "blocked",
+        reason="cloud inventory requires GCP credentials and a real project",
+        cloud_execution="PENDING_GCP_ACCESS",
+        preflight=_gcp_preflight(),
+    )
+
+
+def _gcp_destructive(args: argparse.Namespace) -> int:
+    command = f"gcp {args.action}"
+    scope = (
+        "application GCP data, Iceberg checkpoints, BigQuery datasets, and "
+        "Terraform-managed resources; the bootstrap state bucket is excluded"
+        if args.action == "reset-data"
+        else "the complete Terraform-managed GCP contour; the bootstrap state bucket is excluded"
+    )
+    if not args.force:
+        return _emit(
+            command,
+            "blocked",
+            reason=f"{command} requires --force",
+            scope=scope,
+        )
+    return _emit(
+        command,
+        "blocked",
+        reason="destructive cloud operation requires a real GCP run and operator confirmation",
+        scope=scope,
+        cloud_execution="PENDING_GCP_ACCESS",
+        preflight=_gcp_preflight(),
+    )
+
+
 def _terraform(args: argparse.Namespace) -> int:
     if args.action == "apply" and not args.yes:
         return _emit(
@@ -626,6 +681,19 @@ def _build_parser() -> argparse.ArgumentParser:
     cost_report.add_argument("--input")
     cost_report.add_argument("--output", default="data/acceptance/gcp/cost")
     cost_report.set_defaults(func=_gcp_cost_report)
+    serving = gcp_commands.add_parser("serving")
+    serving_run = serving.add_subparsers(dest="serving_action", required=True)
+    serving_run_command = serving_run.add_parser("run")
+    serving_run_command.add_argument("--sync-run-seq", type=int)
+    serving_run_command.set_defaults(func=_gcp_serving)
+    reset_data = gcp_commands.add_parser("reset-data")
+    reset_data.add_argument("--force", action="store_true")
+    reset_data.set_defaults(func=_gcp_destructive, action="reset-data")
+    destroy = gcp_commands.add_parser("destroy")
+    destroy.add_argument("--force", action="store_true")
+    destroy.set_defaults(func=_gcp_destructive, action="destroy")
+    inventory = gcp_commands.add_parser("inventory")
+    inventory.set_defaults(func=_gcp_inventory)
     vertical_slice = gcp_commands.add_parser("vertical-slice")
     vertical_slice_commands = vertical_slice.add_subparsers(
         dest="action", required=True
