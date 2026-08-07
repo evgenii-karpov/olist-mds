@@ -28,6 +28,9 @@ and retry/conflict semantics.
 - Added same-run cleanup hook that deletes only the current `sync_run_seq`
   before an incremental rebuild. Current tables, stable views, and atomic
   publication remain migration/procedure responsibilities.
+- Aligned the dbt Gold target with the migration-owned `olist_gold_store`
+  dataset by removing the extra custom schema suffix; the history relations
+  now resolve to the exact names consumed by V005.
 - Added pinned dependency `dbt-bigquery==1.11.3` and a dedicated
   `dbt-bigquery` Compose service/image. The service has no dependency on the
   Airflow image and exposes only its project files plus a future ADC mount.

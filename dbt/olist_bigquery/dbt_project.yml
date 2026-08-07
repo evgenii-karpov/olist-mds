@@ -28,6 +28,5 @@ models:
     intermediate:
       +materialized: ephemeral
     gold:
-      +schema: gold_store
       +tags: ["gold_candidate"]
       +on_schema_change: fail
