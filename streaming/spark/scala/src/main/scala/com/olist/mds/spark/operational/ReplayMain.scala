@@ -33,7 +33,7 @@ object ReplayMain {
     val spark = SparkSessionFactory.createSession(s"replay-$entity", config)
 
     val bronzeDf = spark
-      .table("lakehouse.bronze.mysql_cdc_records")
+      .table(s"${config.icebergCatalogName}.bronze.mysql_cdc_records")
       .filter(col("topic") === contract.topic)
 
     val filteredDf = (fromTsOpt, toTsOpt) match {
@@ -52,7 +52,13 @@ object ReplayMain {
 
     if (executeFlag && count > 0) {
       println(s"Executing replay for $entity...")
-      SilverBatchWriter.writeBatch(spark, filteredDf, contract, batchId = -1L)
+      SilverBatchWriter.writeBatch(
+        spark,
+        filteredDf,
+        contract,
+        batchId = -1L,
+        catalogAlias = config.icebergCatalogName
+      )
       println(s"Replay completed for $entity.")
     } else if (!executeFlag) {
       println("Dry-run mode. Pass --execute to run re-ingestion.")

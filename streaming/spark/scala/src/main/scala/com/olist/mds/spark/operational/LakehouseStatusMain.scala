@@ -12,10 +12,12 @@ import java.time.Instant
 
 object LakehouseStatusMain {
   val TargetTable = "lakehouse.audit.lakehouse_status"
+  def targetTable(catalogAlias: String): String = s"$catalogAlias.audit.lakehouse_status"
 
   def main(args: Array[String]): Unit = {
     val config = RuntimeConfig.load()
     val spark = SparkSessionFactory.createSession("lakehouse-status-collector", config)
+    val targetTableName = targetTable(config.icebergCatalogName)
 
     val statusDirs = Vector(
       s"${config.sparkStatusDir}/bronze/status.json",
@@ -80,7 +82,7 @@ object LakehouseStatusMain {
     // snapshot into a failed spark-ops container before the first append.
     spark.sql(
       s"""
-         |CREATE TABLE IF NOT EXISTS $TargetTable (
+         |CREATE TABLE IF NOT EXISTS $targetTableName (
          |  application STRING NOT NULL,
          |  contract_version INT NOT NULL,
          |  overall_state STRING NOT NULL,
@@ -120,8 +122,8 @@ object LakehouseStatusMain {
       )
 
       val df = spark.createDataFrame(spark.sparkContext.parallelize(rows.toSeq), schema)
-      df.writeTo(TargetTable).append()
-      println(s"Appended ${rows.size} status records to $TargetTable.")
+      df.writeTo(targetTableName).append()
+      println(s"Appended ${rows.size} status records to $targetTableName.")
     } else {
       println("No active status files found.")
     }

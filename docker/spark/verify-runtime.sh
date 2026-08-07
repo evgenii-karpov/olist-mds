@@ -45,6 +45,8 @@ test -f "/opt/spark/jars/hadoop-aws-${expected_hadoop_version}.jar"
 for required in \
     "iceberg-spark-runtime-4.1_2.13-1.11.0.jar" \
     "iceberg-aws-bundle-1.11.0.jar" \
+    "iceberg-gcp-bundle-1.11.0.jar" \
+    "gcs-connector-hadoop3-2.2.31-shaded.jar" \
     "spark-sql-kafka-0-10_2.13-${expected_spark_version}.jar" \
     "spark-avro_2.13-${expected_spark_version}.jar" \
     "mysql-connector-j-9.7.0.jar"; do

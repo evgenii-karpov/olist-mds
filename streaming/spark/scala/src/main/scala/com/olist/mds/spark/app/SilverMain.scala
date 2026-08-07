@@ -37,7 +37,7 @@ object SilverMain {
         s"${config.sparkCheckpointRoot}/silver_${contract.entity}/contract-v3/"
 
       val bronzeStream = spark.readStream
-        .table("lakehouse.bronze.mysql_cdc_records")
+        .table(s"${config.icebergCatalogName}.bronze.mysql_cdc_records")
         .filter(org.apache.spark.sql.functions.col("topic") === contract.topic)
 
       val streamingQuery = bronzeStream.writeStream
@@ -56,7 +56,8 @@ object SilverMain {
             contract,
             batchId,
             activeQuery.id.toString,
-            Some(registryResolver)
+            Some(registryResolver),
+            config.icebergCatalogName
           )
 
           queryStatuses.synchronized {
@@ -101,7 +102,7 @@ object SilverMain {
     val schemaQueryName = "capture_avro_schemas"
     val schemaCheckpoint = s"${config.sparkCheckpointRoot}/silver_capture_avro_schemas/contract-v3/"
     val schemaStream = spark.readStream
-      .table("lakehouse.bronze.mysql_cdc_records")
+      .table(s"${config.icebergCatalogName}.bronze.mysql_cdc_records")
       .filter(
         org.apache.spark.sql.functions.col("topic").isin(contracts.values.map(_.topic).toSeq: _*)
       )
@@ -117,7 +118,8 @@ object SilverMain {
           batchDf,
           batchId,
           knownValueSchemaIds,
-          registryResolver
+          registryResolver,
+          config.icebergCatalogName
         )
         val activeQuery = spark.streams.active.find(_.name == schemaQueryName).getOrElse {
           throw new IllegalStateException(s"Active query $schemaQueryName not found")
@@ -161,7 +163,7 @@ object SilverMain {
     val txCheckpoint =
       s"${config.sparkCheckpointRoot}/silver_normalize_mysql_transactions/contract-v3/"
     val txStream = spark.readStream
-      .table("lakehouse.bronze.mysql_cdc_records")
+      .table(s"${config.icebergCatalogName}.bronze.mysql_cdc_records")
       .filter(
         org.apache.spark.sql.functions.col("topic").isin("olist_cdc.transaction", "transaction")
       )
@@ -173,7 +175,13 @@ object SilverMain {
         val activeQuery = spark.streams.active.find(_.name == txQueryName).getOrElse {
           throw new IllegalStateException(s"Active query $txQueryName not found")
         }
-        TransactionBatchWriter.writeBatch(spark, batchDf, batchId, activeQuery.id.toString)
+        TransactionBatchWriter.writeBatch(
+          spark,
+          batchDf,
+          batchId,
+          activeQuery.id.toString,
+          config.icebergCatalogName
+        )
         queryStatuses.synchronized {
           queryStatuses(txQueryName) = QueryStatus(
             name = txQueryName,

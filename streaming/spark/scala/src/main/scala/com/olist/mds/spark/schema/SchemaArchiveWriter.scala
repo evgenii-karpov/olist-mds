@@ -12,13 +12,15 @@ import java.time.Instant
 
 object SchemaArchiveWriter {
   val SchemaTable = "lakehouse.bronze.avro_schemas"
+  def schemaTable(catalogAlias: String): String = s"$catalogAlias.bronze.avro_schemas"
 
   def writeBatch(
       spark: SparkSession,
       batchDf: DataFrame,
       batchId: Long,
       knownValueSchemaIds: Set[Int],
-      registryResolver: RegistrySchemaResolver
+      registryResolver: RegistrySchemaResolver,
+      catalogAlias: String = "lakehouse"
   ): Unit = {
     val schemaRows = batchDf
       .filter(col("value_bytes").isNotNull)
@@ -66,12 +68,13 @@ object SchemaArchiveWriter {
     // Keep one durable row per registry ID.  The query checkpoint normally
     // makes this idempotent; the anti-join also protects a replay after a
     // restart or a manual checkpoint repair.
-    val existingSchemaIds = spark.table(SchemaTable).select("schema_id").distinct()
+    val targetTable = schemaTable(catalogAlias)
+    val existingSchemaIds = spark.table(targetTable).select("schema_id").distinct()
     val newSchemas = df
       .join(existingSchemaIds, Seq("schema_id"), "left_anti")
       .localCheckpoint(eager = true)
-    IcebergCommitCoordinator.withLock(SchemaTable) {
-      if (newSchemas.count() > 0) newSchemas.writeTo(SchemaTable).append()
+    IcebergCommitCoordinator.withLock(targetTable) {
+      if (newSchemas.count() > 0) newSchemas.writeTo(targetTable).append()
     }
   }
 }

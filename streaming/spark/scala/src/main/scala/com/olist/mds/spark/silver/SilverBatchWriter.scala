@@ -21,7 +21,8 @@ object SilverBatchWriter {
       contract: EntityContract,
       batchId: Long,
       sparkQueryId: String = "silver-replay",
-      registryResolver: Option[RegistrySchemaResolver] = None
+      registryResolver: Option[RegistrySchemaResolver] = None,
+      catalogAlias: String = "lakehouse"
   ): Unit = {
     // Tombstones are a Kafka bookkeeping record, not a second delete event.
     // The preceding Debezium delete envelope is the record that belongs in
@@ -81,8 +82,8 @@ object SilverBatchWriter {
       )
     }
 
-    val changesTable = s"lakehouse.silver.${contract.entity}_changes"
-    val currentTable = s"lakehouse.silver.${contract.entity}_current"
+    val changesTable = s"$catalogAlias.silver.${contract.entity}_changes"
+    val currentTable = s"$catalogAlias.silver.${contract.entity}_current"
     val now = Timestamp.from(Instant.now())
 
     val contractColumns = contract.businessColumns.map(column => column.name).toSet
@@ -301,7 +302,7 @@ object SilverBatchWriter {
       }
       .toSeq
 
-    SilverProgressWriter.writeProgress(spark, progressRecords)
+    SilverProgressWriter.writeProgress(spark, progressRecords, catalogAlias)
   }
 
   private def ensureIcebergColumns(

@@ -80,7 +80,10 @@ class TableSpec:
     def qualified_name(self) -> str:
         return f"{CATALOG_ALIAS}.{self.namespace}.{self.name}"
 
-    def create_sql(self) -> str:
+    def qualified_name_for(self, catalog_alias: str = CATALOG_ALIAS) -> str:
+        return f"{catalog_alias}.{self.namespace}.{self.name}"
+
+    def create_sql(self, catalog_alias: str = CATALOG_ALIAS) -> str:
         columns = ",\n".join(
             f"  `{column.name}` {column.sql_type}"
             f"{' NOT NULL' if column.required else ''}"
@@ -94,7 +97,7 @@ class TableSpec:
             f"  '{name}' = '{value}'" for name, value in self.properties
         )
         return (
-            f"CREATE TABLE IF NOT EXISTS `{CATALOG_ALIAS}`.`{self.namespace}`.`{self.name}` (\n"
+            f"CREATE TABLE IF NOT EXISTS `{catalog_alias}`.`{self.namespace}`.`{self.name}` (\n"
             f"{columns}\n"
             ")\n"
             "USING iceberg"
@@ -511,15 +514,18 @@ TABLES_BY_NAME: Mapping[str, TableSpec] = {
 }
 
 
-def namespace_statements() -> tuple[str, ...]:
+def namespace_statements(catalog_alias: str = CATALOG_ALIAS) -> tuple[str, ...]:
     return tuple(
-        f"CREATE NAMESPACE IF NOT EXISTS `{CATALOG_ALIAS}`.`{namespace}`"
+        f"CREATE NAMESPACE IF NOT EXISTS `{catalog_alias}`.`{namespace}`"
         for namespace in NAMESPACES
     )
 
 
-def migration_statements() -> tuple[str, ...]:
-    return (*namespace_statements(), *(table.create_sql() for table in ALL_TABLES))
+def migration_statements(catalog_alias: str = CATALOG_ALIAS) -> tuple[str, ...]:
+    return (
+        *namespace_statements(catalog_alias),
+        *(table.create_sql(catalog_alias) for table in ALL_TABLES),
+    )
 
 
 def canonical_contract_json(tables: Iterable[TableSpec] = ALL_TABLES) -> str:

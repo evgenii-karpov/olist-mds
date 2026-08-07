@@ -28,15 +28,17 @@ def test_spark_image_pins_the_runtime() -> None:
     assert "ARG SPARK_VERSION=4.1.3" in dockerfile
     assert "ARG SCALA_BINARY_VERSION=2.13" in dockerfile
     assert "ARG HADOOP_VERSION=3.4.2" in dockerfile
+    assert "ARG GCS_CONNECTOR_VERSION=2.2.31" in dockerfile
     assert "4.1.3-iceberg1.11.0" in dockerfile
     assert "verify-olist-spark-runtime" in dockerfile
+    assert "verify-olist-spark-classpath" in dockerfile
     assert "--from=artifact-downloader" in dockerfile
 
 
 def test_every_runtime_jar_has_a_real_sha256_and_pinned_maven_url() -> None:
     rows = _manifest_rows()
 
-    assert len(rows) == 12
+    assert len(rows) == 14
     assert len({filename for _, _, filename in rows}) == len(rows)
     for checksum, url, filename in rows:
         assert re.fullmatch(r"[0-9a-f]{64}", checksum)
@@ -53,6 +55,7 @@ def test_manifest_contains_the_exact_connector_matrix() -> None:
     assert {
         "iceberg-spark-runtime-4.1_2.13-1.11.0.jar",
         "iceberg-aws-bundle-1.11.0.jar",
+        "iceberg-gcp-bundle-1.11.0.jar",
         "spark-sql-kafka-0-10_2.13-4.1.3.jar",
         "spark-token-provider-kafka-0-10_2.13-4.1.3.jar",
         "spark-avro_2.13-4.1.3.jar",
@@ -60,6 +63,7 @@ def test_manifest_contains_the_exact_connector_matrix() -> None:
         "commons-pool2-2.12.1.jar",
         "scala-parallel-collections_2.13-1.2.0.jar",
         "hadoop-aws-3.4.2.jar",
+        "gcs-connector-hadoop3-2.2.31-shaded.jar",
         "bundle-2.29.52.jar",
         "mysql-connector-j-9.7.0.jar",
         "protobuf-java-4.31.1.jar",
@@ -81,4 +85,20 @@ def test_downloader_accepts_only_the_declared_maven_origin() -> None:
 
     assert "https://repo.maven.apache.org/maven2/" in script
     assert "sha256sum --check --strict" in script
-    assert "-eq 12" in script
+    assert "-eq 14" in script
+
+
+def test_classpath_verifier_covers_the_shared_gcp_conflict_surface() -> None:
+    script = (SPARK_DIRECTORY / "verify-classpath.sh").read_text(encoding="utf-8")
+
+    for class_name in (
+        "com/google/auth/oauth2/GoogleCredentials.class",
+        "com/google/cloud/hadoop/fs/gcs/GoogleHadoopFileSystem.class",
+        "com/google/protobuf/Message.class",
+        "com/google/common/collect/ImmutableList.class",
+        "com/fasterxml/jackson/databind/ObjectMapper.class",
+        "org/apache/http/client/HttpClient.class",
+        "org/apache/hadoop/fs/FileSystem.class",
+        "org/apache/iceberg/gcp/gcs/GCSFileIO.class",
+    ):
+        assert class_name in script

@@ -72,15 +72,22 @@ def _run_compose(
 
 def _gcp_preflight() -> dict[str, object]:
     project = (
-        os.environ.get("GCP_PROJECT_ID", "").strip()
+        os.environ.get("GCP_LAKEHOUSE_PROJECT_ID", "").strip()
+        or os.environ.get("GCP_PROJECT_ID", "").strip()
         or os.environ.get("TF_VAR_" + "project_id", "").strip()
     )
     region = (
         os.environ.get("GCP_REGION", "").strip()
         or os.environ.get("TF_VAR_" + "region", "").strip()
     )
-    adc_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
-    adc_available = bool(adc_path) and Path(adc_path).is_file()
+    adc_path = (
+        os.environ.get("GCP_SPARK_ADC_SOURCE_FILE", "").strip()
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    )
+    resolved_adc_path = Path(adc_path)
+    if adc_path and not resolved_adc_path.is_absolute():
+        resolved_adc_path = ROOT / resolved_adc_path
+    adc_available = bool(adc_path) and resolved_adc_path.is_file()
     checks = {
         "project_id": bool(project),
         "region": bool(region),
@@ -94,6 +101,7 @@ def _gcp_preflight() -> dict[str, object]:
         "missing": missing,
         "project_id": project or None,
         "region": region or None,
+        "adc_path": adc_path or None,
     }
 
 
@@ -176,11 +184,17 @@ def _gcp_streaming(args: argparse.Namespace) -> int:
             reason="GCP preflight is incomplete",
             **preflight,
         )
+    code, output = _run_compose(
+        profiles,
+        ["up", "-d", *(["--build"] if args.build else [])],
+        timeout=args.timeout,
+    )
     return _emit(
         "gcp streaming start",
-        "blocked",
-        reason="GCP streaming drivers are delivered in WP4; no cloud stream was started",
+        "ready" if code == 0 else "failed",
         profiles=list(profiles),
+        output=output,
+        streaming_started=code == 0,
         preflight=preflight,
     )
 

@@ -25,6 +25,8 @@ final case class SilverProgressRecord(
 
 object SilverProgressWriter {
   val ProgressTable = "lakehouse.audit.silver_progress"
+  def progressTable(catalogAlias: String): String =
+    s"$catalogAlias.audit.silver_progress"
 
   val schema = StructType(
     Seq(
@@ -47,7 +49,11 @@ object SilverProgressWriter {
     )
   )
 
-  def writeProgress(spark: SparkSession, records: Seq[SilverProgressRecord]): Unit = {
+  def writeProgress(
+      spark: SparkSession,
+      records: Seq[SilverProgressRecord],
+      catalogAlias: String = "lakehouse"
+  ): Unit = {
     if (records.isEmpty) return
 
     val now = Timestamp.from(Instant.now())
@@ -77,7 +83,8 @@ object SilverProgressWriter {
     }
 
     val df = spark.createDataFrame(spark.sparkContext.parallelize(rows), schema)
-    IcebergCommitCoordinator.withLock(ProgressTable) { df.writeTo(ProgressTable).append() }
+    val table = progressTable(catalogAlias)
+    IcebergCommitCoordinator.withLock(table) { df.writeTo(table).append() }
   }
 
   def getLatestSnapshotId(spark: SparkSession, tableName: String): Option[Long] = {

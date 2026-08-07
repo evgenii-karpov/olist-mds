@@ -4,6 +4,7 @@ import org.apache.spark.sql.SparkSession
 
 object SparkSessionFactory {
   def createSession(appName: String, config: RuntimeConfig): SparkSession = {
+    val catalogPrefix = s"spark.sql.catalog.${config.icebergCatalogName}"
     val builder = SparkSession
       .builder()
       .appName(appName)
@@ -11,34 +12,46 @@ object SparkSessionFactory {
         "spark.sql.extensions",
         "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
       )
+      .config("spark.sql.defaultCatalog", config.icebergCatalogName)
+      .config(catalogPrefix, "org.apache.iceberg.spark.SparkCatalog")
+      .config(s"$catalogPrefix.type", "rest")
+      .config(s"$catalogPrefix.uri", config.icebergCatalogUri)
+      .config(s"$catalogPrefix.warehouse", config.icebergWarehouse)
       .config(
-        s"spark.sql.catalog.${config.icebergCatalogName}",
-        "org.apache.iceberg.spark.SparkCatalog"
-      )
-      .config(s"spark.sql.catalog.${config.icebergCatalogName}.type", "rest")
-      .config(s"spark.sql.catalog.${config.icebergCatalogName}.uri", config.icebergCatalogUri)
-      .config(s"spark.sql.catalog.${config.icebergCatalogName}.warehouse", config.icebergWarehouse)
-      .config(
-        s"spark.sql.catalog.${config.icebergCatalogName}.oauth2-server-uri",
-        s"${config.icebergCatalogUri}/v1/oauth/tokens"
-      )
-      .config(
-        s"spark.sql.catalog.${config.icebergCatalogName}.header.X-Iceberg-Access-Delegation",
+        s"$catalogPrefix.header.X-Iceberg-Access-Delegation",
         "vended-credentials"
       )
-      .config(s"spark.sql.catalog.${config.icebergCatalogName}.token-refresh-enabled", "false")
-      .config(
-        s"spark.sql.catalog.${config.icebergCatalogName}.io-impl",
-        "org.apache.iceberg.aws.s3.S3FileIO"
-      )
+      .config(s"$catalogPrefix.io-impl", config.icebergFileIo)
       .config("spark.sql.session.timeZone", "UTC")
       .config("spark.sql.shuffle.partitions", "4")
 
-    // Additional AWS/S3A configs for MinIO if needed
-    builder
-      .config("spark.hadoop.fs.s3a.endpoint", config.objectStoreEndpoint)
-      .config("spark.hadoop.fs.s3a.path.style.access", config.objectStorePathStyle.toString)
-      .config("spark.hadoop.fs.s3a.change.detection.mode", "none")
-      .getOrCreate()
+    config.icebergRestAuthType.foreach { authType =>
+      builder.config(s"$catalogPrefix.rest.auth.type", authType)
+    }
+    config.gcpProjectId.foreach { projectId =>
+      builder.config(s"$catalogPrefix.header.x-goog-user-project", projectId)
+    }
+
+    if (config.sparkBackend == "gcp") {
+      builder
+        .config(
+          "spark.hadoop.fs.gs.impl",
+          "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+        )
+        .config(
+          "spark.hadoop.fs.AbstractFileSystem.gs.impl",
+          "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS"
+        )
+        .config("spark.hadoop.fs.gs.auth.type", "APPLICATION_DEFAULT")
+        .config("spark.hadoop.fs.gs.client.type", "HTTP_API_CLIENT")
+        .config("spark.hadoop.fs.gs.project.id", config.gcpProjectId.get)
+    } else {
+      builder
+        .config("spark.hadoop.fs.s3a.endpoint", config.objectStoreEndpoint)
+        .config("spark.hadoop.fs.s3a.path.style.access", config.objectStorePathStyle.toString)
+        .config("spark.hadoop.fs.s3a.change.detection.mode", "none")
+    }
+
+    builder.getOrCreate()
   }
 }

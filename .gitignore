@@ -33,6 +33,7 @@ docker/spark/status/**/*.json
 .env.*
 !.env.example
 .secrets/
+.gcp/
 *.pem
 *.key
 

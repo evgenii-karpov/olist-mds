@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 
+from streaming.spark.platform.config import resolve_catalog_alias
 from streaming.spark.platform.migrations.initial_lakehouse import (
     MIGRATION_ID,
     MIGRATION_VERSION,
@@ -16,7 +17,7 @@ def main() -> int:
 
     spark = SparkSession.builder.appName("olist_iceberg_migrations").getOrCreate()
     try:
-        checksum = apply(spark)
+        checksum = apply(spark, catalog_alias=resolve_catalog_alias())
         print(
             json.dumps(
                 {

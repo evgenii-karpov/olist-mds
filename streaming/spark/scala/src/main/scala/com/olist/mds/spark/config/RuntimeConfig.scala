@@ -15,6 +15,9 @@ final case class RuntimeConfig(
     icebergCatalogUri: String,
     icebergCatalogName: String,
     icebergWarehouse: String,
+    icebergFileIo: String,
+    icebergRestAuthType: Option[String],
+    gcpProjectId: Option[String],
     objectStoreEndpoint: String,
     objectStoreRegion: String,
     objectStorePathStyle: Boolean,
@@ -22,6 +25,8 @@ final case class RuntimeConfig(
     sparkContractVersion: Int,
     sparkStatusDir: String,
     sparkRuntimeMode: String,
+    sparkBackend: String,
+    googleApplicationCredentials: Option[String],
     mysqlReferenceReaderUser: Option[String],
     mysqlReferenceReaderPassword: Option[String]
 )
@@ -56,10 +61,29 @@ object RuntimeConfig {
 
   def load(): RuntimeConfig = {
     val mode = sys.env.getOrElse("SPARK_RUNTIME_MODE", "local")
-    if (mode != "local" && mode != "integration-test") {
+    if (mode != "local" && mode != "integration-test" && mode != "gcp") {
       throw SparkJobException(
         "contract_resource_mismatch",
         s"Invalid SPARK_RUNTIME_MODE: $mode",
+        FatalContractFailure
+      )
+    }
+
+    val backend = sys.env
+      .get("SPARK_BACKEND")
+      .orElse(sys.env.get("SPARK_CONTOUR"))
+      .getOrElse(if (mode == "gcp") "gcp" else "local")
+    if (backend != "local" && backend != "gcp") {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        s"Invalid SPARK_BACKEND: $backend",
+        FatalContractFailure
+      )
+    }
+    if (mode == "gcp" && backend != "gcp") {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        "SPARK_RUNTIME_MODE=gcp requires SPARK_BACKEND=gcp",
         FatalContractFailure
       )
     }
@@ -97,6 +121,65 @@ object RuntimeConfig {
       }
     }
 
+    val catalogAlias = sys.env
+      .get("ICEBERG_SPARK_CATALOG_ALIAS")
+      .orElse(sys.env.get("ICEBERG_CATALOG_NAME"))
+      .getOrElse("lakehouse")
+    if (!catalogAlias.matches("[A-Za-z][A-Za-z0-9_]*")) {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        s"Invalid Iceberg catalog alias: $catalogAlias",
+        FatalContractFailure
+      )
+    }
+
+    val defaultCatalogUri =
+      if (backend == "gcp") "https://biglake.googleapis.com/iceberg/v1/restcatalog"
+      else "http://polaris:8181/api/catalog"
+    val catalogUri = sys.env.getOrElse("ICEBERG_CATALOG_URI", defaultCatalogUri)
+    val warehouse = sys.env
+      .get("ICEBERG_WAREHOUSE")
+      .orElse(if (backend == "local") Some("olist_lakehouse") else None)
+      .getOrElse {
+        throw SparkJobException(
+          "contract_resource_mismatch",
+          "ICEBERG_WAREHOUSE is required for the GCP backend",
+          FatalContractFailure
+        )
+      }
+    val gcpProjectId = sys.env
+      .get("GCP_LAKEHOUSE_PROJECT_ID")
+      .orElse(sys.env.get("GCP_PROJECT_ID"))
+      .orElse(sys.env.get("GOOGLE_CLOUD_PROJECT"))
+      .filter(_.matches("[a-z][a-z0-9-]{4,28}[a-z0-9]"))
+    if (backend == "gcp" && gcpProjectId.isEmpty) {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        "GCP_LAKEHOUSE_PROJECT_ID is required for the GCP backend",
+        FatalContractFailure
+      )
+    }
+
+    val checkpointRoot = sys.env.getOrElse(
+      "SPARK_CHECKPOINT_ROOT",
+      if (backend == "gcp") "" else "s3a://olist-checkpoints"
+    )
+    if (backend == "gcp" && !checkpointRoot.startsWith("gs://")) {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        "GCP SPARK_CHECKPOINT_ROOT must use gs://",
+        FatalContractFailure
+      )
+    }
+    val adcPath = sys.env.get("GOOGLE_APPLICATION_CREDENTIALS").filter(_.nonEmpty)
+    if (backend == "gcp" && adcPath.forall(path => !Files.isRegularFile(Paths.get(path)))) {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        "GCP backend requires a mounted GOOGLE_APPLICATION_CREDENTIALS file",
+        FatalContractFailure
+      )
+    }
+
     RuntimeConfig(
       mysqlHost = sys.env.getOrElse("MYSQL_HOST", "mysql"),
       mysqlPort =
@@ -107,17 +190,30 @@ object RuntimeConfig {
         .getOrElse("APICURIO_REGISTRY_URL", "http://apicurio-registry:8080/apis/registry/v2"),
       apicurioCcompatUrl =
         sys.env.getOrElse("APICURIO_CCOMPAT_URL", "http://apicurio-registry:8080/apis/ccompat/v7"),
-      icebergCatalogUri =
-        sys.env.getOrElse("ICEBERG_CATALOG_URI", "http://polaris:8181/api/catalog"),
-      icebergCatalogName = sys.env.getOrElse("ICEBERG_CATALOG_NAME", "lakehouse"),
-      icebergWarehouse = sys.env.getOrElse("ICEBERG_WAREHOUSE", "olist_lakehouse"),
+      icebergCatalogUri = catalogUri,
+      icebergCatalogName = catalogAlias,
+      icebergWarehouse = warehouse,
+      icebergFileIo =
+        if (backend == "gcp") "org.apache.iceberg.gcp.gcs.GCSFileIO"
+        else "org.apache.iceberg.aws.s3.S3FileIO",
+      icebergRestAuthType =
+        if (backend == "gcp") Some("org.apache.iceberg.gcp.auth.GoogleAuthManager")
+        else None,
+      gcpProjectId = gcpProjectId,
       objectStoreEndpoint = sys.env.getOrElse("OBJECT_STORE_ENDPOINT", "http://minio:9000"),
-      objectStoreRegion = sys.env.getOrElse("OBJECT_STORE_REGION", "us-east-1"),
-      objectStorePathStyle = sys.env.getOrElse("OBJECT_STORE_PATH_STYLE", "true").toBoolean,
-      sparkCheckpointRoot = sys.env.getOrElse("SPARK_CHECKPOINT_ROOT", "s3a://olist-checkpoints"),
+      objectStoreRegion = sys.env.getOrElse(
+        "OBJECT_STORE_REGION",
+        if (backend == "gcp") "us-east1" else "us-east-1"
+      ),
+      objectStorePathStyle = sys.env
+        .getOrElse("OBJECT_STORE_PATH_STYLE", if (backend == "gcp") "false" else "true")
+        .toBoolean,
+      sparkCheckpointRoot = checkpointRoot,
       sparkContractVersion = contractVersion,
       sparkStatusDir = sys.env.getOrElse("SPARK_STATUS_DIR", "/var/run/olist-spark"),
       sparkRuntimeMode = mode,
+      sparkBackend = backend,
+      googleApplicationCredentials = adcPath,
       mysqlReferenceReaderUser = getEnvOrSecret("MYSQL_REFERENCE_READER_USERNAME"),
       mysqlReferenceReaderPassword = getEnvOrSecret("MYSQL_REFERENCE_READER_PASSWORD")
     )

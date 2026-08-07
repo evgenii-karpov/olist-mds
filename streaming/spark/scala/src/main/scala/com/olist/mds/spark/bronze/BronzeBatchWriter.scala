@@ -9,15 +9,20 @@ import java.time.Instant
 
 object BronzeBatchWriter {
   val TargetTable = "lakehouse.bronze.mysql_cdc_records"
+  def targetTable(catalogAlias: String): String =
+    s"$catalogAlias.bronze.mysql_cdc_records"
 
   def writeBatch(
       spark: SparkSession,
       batchDf: DataFrame,
       batchId: Long,
       sparkQueryId: String,
-      ingestedAt: Instant
+      ingestedAt: Instant,
+      catalogAlias: String = "lakehouse"
   ): Unit = {
     if (batchDf.isEmpty) return
+
+    val targetTableName = targetTable(catalogAlias)
 
     val projected = BronzeProjection.project(batchDf, batchId, sparkQueryId, ingestedAt)
 
@@ -61,8 +66,8 @@ object BronzeBatchWriter {
     val deduplicated = projected.dropDuplicates("event_id")
 
     // 2. Check existing target rows
-    if (spark.catalog.tableExists(TargetTable)) {
-      val existing = spark.table(TargetTable)
+    if (spark.catalog.tableExists(targetTableName)) {
+      val existing = spark.table(targetTableName)
 
       // Join existing target rows on event_id
       val joined = deduplicated
@@ -105,10 +110,10 @@ object BronzeBatchWriter {
       // the lineage after the existence check so the append receives a
       // stable, already-materialized batch plan.
       if (newRows.count() > 0) {
-        newRows.localCheckpoint(eager = true).writeTo(TargetTable).append()
+        newRows.localCheckpoint(eager = true).writeTo(targetTableName).append()
       }
     } else {
-      deduplicated.writeTo(TargetTable).append()
+      deduplicated.writeTo(targetTableName).append()
     }
   }
 }

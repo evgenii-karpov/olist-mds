@@ -23,8 +23,9 @@ def _normalized_type(sql_type: str) -> str:
     return aliases.get(normalized, normalized)
 
 
-def _validate_schema(spark: Any, table: TableSpec) -> None:
-    actual_fields = spark.table(table.qualified_name).schema.fields
+def _validate_schema(spark: Any, table: TableSpec, catalog_alias: str) -> None:
+    qualified_name = table.qualified_name_for(catalog_alias)
+    actual_fields = spark.table(qualified_name).schema.fields
     actual = [
         (field.name, field.dataType.simpleString().replace(" ", ""), not field.nullable)
         for field in actual_fields
@@ -35,41 +36,43 @@ def _validate_schema(spark: Any, table: TableSpec) -> None:
     ]
     if actual != expected:
         raise RuntimeError(
-            f"schema drift for {table.qualified_name}: expected {expected!r}, got {actual!r}"
+            f"schema drift for {qualified_name}: expected {expected!r}, got {actual!r}"
         )
 
 
-def _validate_properties(spark: Any, table: TableSpec) -> None:
-    rows = spark.sql(f"SHOW TBLPROPERTIES {table.qualified_name}").collect()
+def _validate_properties(spark: Any, table: TableSpec, catalog_alias: str) -> None:
+    qualified_name = table.qualified_name_for(catalog_alias)
+    rows = spark.sql(f"SHOW TBLPROPERTIES {qualified_name}").collect()
     actual = {row[0]: row[1] for row in rows}
     for name, expected in table.properties:
         if actual.get(name) != expected:
             raise RuntimeError(
-                f"property drift for {table.qualified_name}.{name}: "
+                f"property drift for {qualified_name}.{name}: "
                 f"expected {expected!r}, got {actual.get(name)!r}"
             )
 
 
-def _validate_partition(spark: Any, table: TableSpec) -> None:
-    create_rows = spark.sql(f"SHOW CREATE TABLE {table.qualified_name}").collect()
+def _validate_partition(spark: Any, table: TableSpec, catalog_alias: str) -> None:
+    qualified_name = table.qualified_name_for(catalog_alias)
+    create_rows = spark.sql(f"SHOW CREATE TABLE {qualified_name}").collect()
     create_sql = "\n".join(str(row[0]) for row in create_rows)
     normalized = re.sub(r"[`\s]", "", create_sql.lower())
     if table.partition_transform:
         expected = f"partitionedby({table.partition_transform})"
         if expected not in normalized:
             raise RuntimeError(
-                f"partition drift for {table.qualified_name}: expected {table.partition_transform}"
+                f"partition drift for {qualified_name}: expected {table.partition_transform}"
             )
     elif "partitionedby(" in normalized:
-        raise RuntimeError(f"{table.qualified_name} must be unpartitioned")
+        raise RuntimeError(f"{qualified_name} must be unpartitioned")
 
 
-def _record_migration(spark: Any, checksum: str) -> None:
+def _record_migration(spark: Any, checksum: str, catalog_alias: str) -> None:
     app_id = spark.sparkContext.applicationId.replace("'", "''")
     applied_by = getpass.getuser().replace("'", "''")
     spark.sql(
         f"""
-        MERGE INTO {CATALOG_ALIAS}.audit.schema_migrations AS target
+        MERGE INTO {catalog_alias}.audit.schema_migrations AS target
         USING (
           SELECT
             {MIGRATION_VERSION} AS migration_version,
@@ -90,13 +93,13 @@ def _record_migration(spark: Any, checksum: str) -> None:
     )
 
 
-def _assert_migration_history(spark: Any, checksum: str) -> bool:
-    if not spark.catalog.tableExists(f"{CATALOG_ALIAS}.audit.schema_migrations"):
+def _assert_migration_history(spark: Any, checksum: str, catalog_alias: str) -> bool:
+    if not spark.catalog.tableExists(f"{catalog_alias}.audit.schema_migrations"):
         return False
     rows = spark.sql(
         f"""
         SELECT checksum_sha256, status
-        FROM {CATALOG_ALIAS}.audit.schema_migrations
+        FROM {catalog_alias}.audit.schema_migrations
         WHERE migration_version = {MIGRATION_VERSION}
         ORDER BY recorded_at DESC
         LIMIT 1
@@ -111,22 +114,22 @@ def _assert_migration_history(spark: Any, checksum: str) -> bool:
     return True
 
 
-def apply(spark: Any) -> str:
+def apply(spark: Any, catalog_alias: str = CATALOG_ALIAS) -> str:
     """Idempotently create and then verify all configured Iceberg relations."""
 
     checksum = contract_checksum()
-    already_applied = _assert_migration_history(spark, checksum)
+    already_applied = _assert_migration_history(spark, checksum, catalog_alias)
 
     for namespace in ("bronze", "silver", "reference", "audit"):
-        spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {CATALOG_ALIAS}.{namespace}")
+        spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {catalog_alias}.{namespace}")
     for table in ALL_TABLES:
-        spark.sql(table.create_sql())
+        spark.sql(table.create_sql(catalog_alias))
 
     for table in ALL_TABLES:
-        _validate_schema(spark, table)
-        _validate_properties(spark, table)
-        _validate_partition(spark, table)
+        _validate_schema(spark, table, catalog_alias)
+        _validate_properties(spark, table, catalog_alias)
+        _validate_partition(spark, table, catalog_alias)
 
     if not already_applied:
-        _record_migration(spark, checksum)
+        _record_migration(spark, checksum, catalog_alias)
     return checksum

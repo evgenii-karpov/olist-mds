@@ -14,6 +14,10 @@ object LakehouseOpsMain {
 
   val MaintenanceTable = "lakehouse.audit.maintenance_runs"
   val ServingReportsTable = "lakehouse.audit.serving_sync_reports"
+  def maintenanceTable(catalogAlias: String): String =
+    s"$catalogAlias.audit.maintenance_runs"
+  def servingReportsTable(catalogAlias: String): String =
+    s"$catalogAlias.audit.serving_sync_reports"
 
   val AllowedProcedures = Set(
     "rewrite_data_files",
@@ -65,6 +69,7 @@ object LakehouseOpsMain {
     val jsonContent = new String(Files.readAllBytes(file.toPath), "UTF-8")
     val config = RuntimeConfig.load()
     val spark = SparkSessionFactory.createSession("lakehouse-serving-report-writer", config)
+    val targetTable = servingReportsTable(config.icebergCatalogName)
 
     val now = Timestamp.from(Instant.now())
     val schema = StructType(
@@ -82,13 +87,13 @@ object LakehouseOpsMain {
 
     val mergeSql =
       s"""
-         |MERGE INTO $ServingReportsTable AS target
+         |MERGE INTO $targetTable AS target
          |USING inc_report AS inc
          |ON target.report_json = inc.report_json
          |WHEN NOT MATCHED THEN INSERT (report_json, recorded_at) VALUES (inc.report_json, inc.recorded_at)
          |""".stripMargin
 
-    IcebergCommitCoordinator.withLock(ServingReportsTable) {
+    IcebergCommitCoordinator.withLock(targetTable) {
       spark.sql(mergeSql)
     }
     println("Recorded serving sync report successfully.")
@@ -134,7 +139,7 @@ object LakehouseOpsMain {
     val config = RuntimeConfig.load()
     val spark = SparkSessionFactory.createSession("lakehouse-maintenance-executor", config)
 
-    val procCall = s"CALL lakehouse.system.$proc(table => '$tbl')"
+    val procCall = s"CALL ${config.icebergCatalogName}.system.$proc(table => '$tbl')"
     println(s"Executing maintenance procedure: $procCall")
 
     try {

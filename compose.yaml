@@ -1,5 +1,17 @@
 name: ${COMPOSE_PROJECT_NAME:-olist_local_cdc}
 
+x-spark-gcp-environment: &spark-gcp-environment
+  SPARK_BACKEND: gcp
+  SPARK_RUNTIME_MODE: gcp
+  ICEBERG_SPARK_CATALOG_ALIAS: ${GCP_LAKEHOUSE_CATALOG_ALIAS:-lakehouse}
+  ICEBERG_CATALOG_URI: ${GCP_LAKEHOUSE_CATALOG_URI:-https://biglake.googleapis.com/iceberg/v1/restcatalog}
+  ICEBERG_WAREHOUSE: ${GCP_LAKEHOUSE_WAREHOUSE:-}
+  GCP_LAKEHOUSE_PROJECT_ID: ${GCP_LAKEHOUSE_PROJECT_ID:-}
+  GCP_CHECKPOINT_BUCKET: ${GCP_CHECKPOINT_BUCKET:-}
+  SPARK_CHECKPOINT_ROOT: ${GCP_CHECKPOINT_ROOT:-}
+  GOOGLE_APPLICATION_CREDENTIALS: /run/gcp/adc/spark.json
+  SPARK_STATUS_DIR: /var/run/olist-spark
+
 services:
   platform-postgres:
     image: postgres:17.10
@@ -478,6 +490,7 @@ services:
     environment:
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1
@@ -540,6 +553,7 @@ services:
     environment:
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1
@@ -589,6 +603,7 @@ services:
     environment:
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1
@@ -636,6 +651,7 @@ services:
     environment:
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1
@@ -690,6 +706,7 @@ services:
     environment:
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1
@@ -703,6 +720,188 @@ services:
       SPARK_STATUS_DIR: /var/run/olist-spark
     volumes:
       - spark_credentials:/run/projected-credentials:ro
+      - ./docker/spark/status:/var/run/olist-spark
+
+  spark-gcp-migration:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [lakehouse-gcp]
+    restart: "no"
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - /opt/olist/streaming/spark/platform/migrate.py
+    environment:
+      <<: *spark-gcp-environment
+      SPARK_CONFIG_MODE: maintenance
+    volumes:
+      - type: bind
+        source: ${GCP_SPARK_ADC_SOURCE_FILE:-./.gcp/credentials/spark-adc.json}
+        target: /run/gcp/adc/spark.json
+        read_only: true
+
+  spark-gcp-geolocation:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [lakehouse-gcp]
+    restart: "no"
+    depends_on:
+      spark-gcp-migration:
+        condition: service_completed_successfully
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.GeolocationMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      <<: *spark-gcp-environment
+      SPARK_CONFIG_MODE: maintenance
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      MYSQL_REFERENCE_READER_USERNAME: olist_spark_reference_reader
+      MYSQL_REFERENCE_READER_PASSWORD_FILE: /run/secrets/mysql_spark_reference_reader_password
+    volumes:
+      - type: bind
+        source: ${GCP_SPARK_ADC_SOURCE_FILE:-./.gcp/credentials/spark-adc.json}
+        target: /run/gcp/adc/spark.json
+        read_only: true
+    secrets:
+      - mysql_spark_reference_reader_password
+
+  spark-gcp-bronze:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [streaming-gcp]
+    restart: unless-stopped
+    depends_on:
+      spark-gcp-migration:
+        condition: service_completed_successfully
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.BronzeMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      <<: *spark-gcp-environment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v2
+      APICURIO_CCOMPAT_URL: http://apicurio-registry:8080/apis/ccompat/v7
+    volumes:
+      - type: bind
+        source: ${GCP_SPARK_ADC_SOURCE_FILE:-./.gcp/credentials/spark-adc.json}
+        target: /run/gcp/adc/spark.json
+        read_only: true
+      - ./docker/spark/status:/var/run/olist-spark
+
+  spark-gcp-silver:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [streaming-gcp]
+    restart: unless-stopped
+    depends_on:
+      spark-gcp-migration:
+        condition: service_completed_successfully
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=2
+      - --conf
+      - spark.executor.cores=2
+      - --conf
+      - spark.executor.memory=3g
+      - --class
+      - com.olist.mds.spark.app.SilverMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      <<: *spark-gcp-environment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v2
+      APICURIO_CCOMPAT_URL: http://apicurio-registry:8080/apis/ccompat/v7
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: olist_oltp
+      MYSQL_REFERENCE_READER_USERNAME: olist_spark_reference_reader
+      MYSQL_REFERENCE_READER_PASSWORD_FILE: /run/secrets/mysql_spark_reference_reader_password
+    volumes:
+      - type: bind
+        source: ${GCP_SPARK_ADC_SOURCE_FILE:-./.gcp/credentials/spark-adc.json}
+        target: /run/gcp/adc/spark.json
+        read_only: true
+      - ./docker/spark/status:/var/run/olist-spark
+    secrets:
+      - mysql_spark_reference_reader_password
+
+  spark-gcp-ops:
+    image: olist-spark:4.1.3-iceberg1.11.0
+    profiles: [lakehouse-gcp]
+    restart: "no"
+    depends_on:
+      spark-gcp-migration:
+        condition: service_completed_successfully
+      spark-master:
+        condition: service_healthy
+      spark-worker:
+        condition: service_started
+    entrypoint: ["/usr/local/bin/run-with-platform-config.sh"]
+    command:
+      - --master
+      - spark://spark-master:7077
+      - --conf
+      - spark.cores.max=1
+      - --conf
+      - spark.executor.cores=1
+      - --conf
+      - spark.executor.memory=1g
+      - --class
+      - com.olist.mds.spark.app.LakehouseStatusMain
+      - local:///opt/olist/jars/olist-spark-jobs.jar
+    environment:
+      <<: *spark-gcp-environment
+      SPARK_CONFIG_MODE: maintenance
+    volumes:
+      - type: bind
+        source: ${GCP_SPARK_ADC_SOURCE_FILE:-./.gcp/credentials/spark-adc.json}
+        target: /run/gcp/adc/spark.json
+        read_only: true
       - ./docker/spark/status:/var/run/olist-spark
 
   clickhouse:
@@ -843,6 +1042,7 @@ services:
       APICURIO_REGISTRY_URL: http://apicurio-registry:8080/apis/registry/v3
       ICEBERG_CATALOG_URI: http://polaris:8181/api/catalog
       ICEBERG_CATALOG_NAME: olist_lakehouse
+      ICEBERG_SPARK_CATALOG_ALIAS: lakehouse
       ICEBERG_WAREHOUSE: olist_lakehouse
       OBJECT_STORE_ENDPOINT: http://minio:9000
       OBJECT_STORE_REGION: us-east-1

@@ -39,4 +39,4 @@ while read -r expected_sha256 url filename; do
     mv "${target}.part" "${target}"
 done < "${manifest}"
 
-test "$(find "${destination}" -type f -name '*.jar' | wc -l | tr -d ' ')" -eq 12
+test "$(find "${destination}" -type f -name '*.jar' | wc -l | tr -d ' ')" -eq 14

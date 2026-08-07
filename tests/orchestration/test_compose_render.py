@@ -57,6 +57,10 @@ def test_gcp_render_has_no_local_lakehouse_services_or_mounts() -> None:
     }
     assert forbidden_services.isdisjoint(services)
     assert "airflow-gcp" in services
+    assert {"spark-gcp-migration", "spark-gcp-geolocation", "spark-gcp-ops"} <= set(
+        services
+    )
+    assert {"spark-gcp-bronze", "spark-gcp-silver"}.isdisjoint(services)
     active_text = json.dumps(services, sort_keys=True)
     assert "polaris_db_password" not in active_text
     assert "clickhouse_password" not in active_text
@@ -81,3 +85,12 @@ def test_streaming_is_explicit_for_the_local_contour() -> None:
 
     streaming_services = _services(_render("core", "lakehouse-local", "streaming"))
     assert {"spark-bronze", "spark-silver", "spark-ops"} <= set(streaming_services)
+
+
+@pytest.mark.skipif(shutil.which("docker") is None, reason="Docker is unavailable")
+def test_streaming_is_explicit_for_the_gcp_contour() -> None:
+    services = _services(_render("core", "lakehouse-gcp"))
+    assert {"spark-gcp-bronze", "spark-gcp-silver"}.isdisjoint(services)
+
+    streaming_services = _services(_render("core", "lakehouse-gcp", "streaming-gcp"))
+    assert {"spark-gcp-bronze", "spark-gcp-silver"} <= set(streaming_services)

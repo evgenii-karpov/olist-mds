@@ -106,7 +106,14 @@ object BronzeMain {
           throw new IllegalStateException(s"Active query $QueryName not found")
         }
 
-        BronzeBatchWriter.writeBatch(spark, batchDf, batchId, activeQuery.id.toString, now)
+        BronzeBatchWriter.writeBatch(
+          spark,
+          batchDf,
+          batchId,
+          activeQuery.id.toString,
+          now,
+          config.icebergCatalogName
+        )
 
         // Publish status
         val qStatus = QueryStatus(

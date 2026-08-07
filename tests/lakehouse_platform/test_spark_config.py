@@ -38,6 +38,22 @@ def _environment(directory: Path) -> dict[str, str]:
     }
 
 
+def _gcp_environment(directory: Path) -> dict[str, str]:
+    adc_path = directory / "spark-adc.json"
+    adc_path.write_text('{"type":"external_account"}\n', encoding="utf-8")
+    return {
+        "SPARK_BACKEND": "gcp",
+        "ICEBERG_SPARK_CATALOG_ALIAS": "lakehouse",
+        "ICEBERG_CATALOG_NAME": "legacy_catalog_name",
+        "ICEBERG_CATALOG_URI": "https://biglake.googleapis.com/iceberg/v1/restcatalog",
+        "ICEBERG_WAREHOUSE": "bl://projects/demo-project/catalogs/olist-lakehouse-dev",
+        "GCP_LAKEHOUSE_PROJECT_ID": "demo-project",
+        "GCP_CHECKPOINT_BUCKET": "olist-checkpoints-dev",
+        "SPARK_CHECKPOINT_ROOT": "gs://olist-checkpoints-dev/streaming",
+        "GOOGLE_APPLICATION_CREDENTIALS": str(adc_path),
+    }
+
+
 def test_spark_properties_match_the_polaris_and_checkpoint_contract(
     tmp_path: Path,
 ) -> None:
@@ -94,6 +110,61 @@ def test_secrets_are_file_only_and_checkpoint_bucket_is_not_configurable(
     environment = _environment(tmp_path)
     environment["SPARK_CHECKPOINT_ROOT"] = "s3a://olist-lakehouse/checkpoints"
     with pytest.raises(ConfigurationError, match="isolated"):
+        SparkPlatformConfig.from_environment(environment)
+
+
+def test_gcp_backend_renders_rest_catalog_and_gcs_checkpoint_properties(
+    tmp_path: Path,
+) -> None:
+    config = SparkPlatformConfig.from_environment(_gcp_environment(tmp_path))
+    properties = config.spark_properties()
+
+    assert properties["spark.sql.defaultCatalog"] == "lakehouse"
+    assert properties["spark.sql.catalog.lakehouse.uri"] == (
+        "https://biglake.googleapis.com/iceberg/v1/restcatalog"
+    )
+    assert properties["spark.sql.catalog.lakehouse.warehouse"] == (
+        "bl://projects/demo-project/catalogs/olist-lakehouse-dev"
+    )
+    assert properties["spark.sql.catalog.lakehouse.rest.auth.type"] == (
+        "org.apache.iceberg.gcp.auth.GoogleAuthManager"
+    )
+    assert properties["spark.sql.catalog.lakehouse.io-impl"] == (
+        "org.apache.iceberg.gcp.gcs.GCSFileIO"
+    )
+    assert properties["spark.sql.catalog.lakehouse.header.x-goog-user-project"] == (
+        "demo-project"
+    )
+    assert properties["spark.hadoop.fs.gs.auth.type"] == "APPLICATION_DEFAULT"
+    assert properties["spark.hadoop.fs.gs.impl"] == (
+        "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
+    )
+    assert properties["spark.hadoop.fs.AbstractFileSystem.gs.impl"] == (
+        "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS"
+    )
+    assert properties["spark.olist.checkpoint.root"] == (
+        "gs://olist-checkpoints-dev/streaming"
+    )
+    assert not any(key.startswith("spark.hadoop.fs.s3a.") for key in properties)
+    assert "spark.sql.catalog.lakehouse.credential" not in properties
+
+
+def test_gcp_alias_precedence_and_checkpoint_isolation_are_enforced(
+    tmp_path: Path,
+) -> None:
+    environment = _gcp_environment(tmp_path)
+    environment["ICEBERG_SPARK_CATALOG_ALIAS"] = "gcp_catalog"
+    config = SparkPlatformConfig.from_environment(environment)
+    assert "spark.sql.catalog.gcp_catalog" in config.spark_properties()
+    assert "spark.sql.catalog.legacy_catalog_name" not in config.spark_properties()
+
+    environment["SPARK_CHECKPOINT_ROOT"] = "gs://another-bucket/streaming"
+    with pytest.raises(ConfigurationError, match="GCP_CHECKPOINT_BUCKET"):
+        SparkPlatformConfig.from_environment(environment)
+
+    environment = _gcp_environment(tmp_path)
+    environment["GOOGLE_APPLICATION_CREDENTIALS"] = str(tmp_path / "missing.json")
+    with pytest.raises(ConfigurationError, match="mounted regular file"):
         SparkPlatformConfig.from_environment(environment)
 
 

@@ -21,6 +21,7 @@ import scala.jdk.CollectionConverters._
 
 object TransactionBatchWriter {
   val TxTable = "lakehouse.audit.mysql_transactions"
+  def txTable(catalogAlias: String): String = s"$catalogAlias.audit.mysql_transactions"
 
   private val KeySchema = new Schema.Parser().parse(
     """{"type":"record","name":"TransactionMetadataKey","namespace":"io.debezium.connector.common","fields":[{"name":"id","type":"string"}]}"""
@@ -121,7 +122,8 @@ object TransactionBatchWriter {
       spark: SparkSession,
       batchDf: DataFrame,
       batchId: Long,
-      sparkQueryId: String = "silver-transaction-replay"
+      sparkQueryId: String = "silver-transaction-replay",
+      catalogAlias: String = "lakehouse"
   ): Unit = {
     val txRows = batchDf
       .filter(col("topic").isin("olist_cdc.transaction", "transaction"))
@@ -166,6 +168,7 @@ object TransactionBatchWriter {
     )
 
     val now = Timestamp.from(Instant.now())
+    val targetTable = txTable(catalogAlias)
     val progressRecords = scala.collection.mutable.ArrayBuffer[SilverProgressRecord]()
 
     grouped.foreach { transactionEvents =>
@@ -211,8 +214,8 @@ object TransactionBatchWriter {
         spark.sparkContext.parallelize(Seq(Row.fromSeq(values))),
         schema
       )
-      IcebergCommitCoordinator.withLock(TxTable) {
-        rowDf.writeTo(TxTable).append()
+      IcebergCommitCoordinator.withLock(targetTable) {
+        rowDf.writeTo(targetTable).append()
       }
 
       val last = ordered.last
@@ -227,13 +230,13 @@ object TransactionBatchWriter {
         lastSourceTs = Some(last.sourceTimestamp),
         sparkQueryId = sparkQueryId,
         sparkBatchId = batchId,
-        changesSnapshotId = SilverProgressWriter.getLatestSnapshotId(spark, TxTable),
+        changesSnapshotId = SilverProgressWriter.getLatestSnapshotId(spark, targetTable),
         currentSnapshotId = None,
         status = "COMMITTED",
         errorClass = None
       )
     }
 
-    SilverProgressWriter.writeProgress(spark, progressRecords.toSeq)
+    SilverProgressWriter.writeProgress(spark, progressRecords.toSeq, catalogAlias)
   }
 }
