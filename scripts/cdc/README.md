@@ -1,7 +1,10 @@
 # Local CDC lifecycle
 
-`local_lab.py` is the lifecycle entry point for the local Compose
-runtime:
+`scripts/lab.py` is the normative target-scoped lifecycle entry point. The
+legacy `local_lab.py` remains the compatibility implementation used by the
+existing local acceptance harness and detailed local runbooks.
+
+The local runtime is:
 
 ```text
 MySQL -> Debezium / Kafka Connect -> Kafka + Apicurio
@@ -9,9 +12,25 @@ MySQL -> Debezium / Kafka Connect -> Kafka + Apicurio
       -> ClickHouse serving -> Airflow and dbt
 ```
 
-It owns service startup, fixture bootstrap, connector registration, readiness
-checks, serving sync, rebuild and maintenance commands. Each command emits one
-redacted JSON result.
+The compatibility implementation owns service startup, fixture bootstrap,
+connector registration, readiness checks, serving sync, rebuild and
+maintenance commands. Each command emits one redacted JSON result.
+
+Target-scoped commands include:
+
+```powershell
+uv run python scripts/lab.py doctor
+uv run python scripts/lab.py local up
+uv run python scripts/lab.py local streaming start --wait-ready
+uv run python scripts/lab.py local serving
+uv run python scripts/lab.py gcp preflight
+uv run python scripts/lab.py gcp up
+```
+
+`gcp up` is intentionally blocked until project, region, ADC, `gcloud` and
+the remaining cloud prerequisites are available; `gcp streaming start` is
+reserved for the GCP Spark driver package in WP4. Neither command contacts
+GCP during import or static validation.
 
 The main commands are `doctor`, `reset`, `up`, `down`,
 `bootstrap`, `status`, `validate`, `start-streaming`,

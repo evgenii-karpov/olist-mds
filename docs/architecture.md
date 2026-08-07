@@ -49,20 +49,26 @@ entity results and publication state.
 
 ## Local lifecycle
 
-[`scripts/cdc/local_lab.py`](../scripts/cdc/local_lab.py) is the lifecycle
-entry point. It owns Compose startup, fixture bootstrap, connector setup,
-streaming readiness, serving sync, rebuild and validation commands. It emits
-one redacted JSON result for each command.
+[`scripts/lab.py`](../scripts/lab.py) is the normative target-scoped lifecycle
+entry point. It delegates the existing local implementation to
+[`scripts/cdc/local_lab.py`](../scripts/cdc/local_lab.py), which remains a
+compatibility surface for detailed local operations and the acceptance
+harness. Each command emits one redacted JSON result.
 
 Compose profiles group the runtime:
 
 | Profile         | Services                                                         |
 | --------------- | ---------------------------------------------------------------- |
-| `platform`      | MySQL, PostgreSQL, Kafka, Apicurio, Polaris and MinIO bootstrap. |
-| `streaming`     | Kafka Connect and Spark.                                         |
-| `serving`       | ClickHouse, Airflow and serving bootstrap.                       |
+| `core`          | MySQL, PostgreSQL, Kafka, Apicurio and shared Spark.             |
+| `lakehouse-local` | Polaris, MinIO, local Spark drivers, ClickHouse and local Airflow. |
+| `lakehouse-gcp` | GCP Airflow shell and the future GCP drivers/dbt services.       |
+| `platform`      | Legacy alias for the local/core bootstrap combination.           |
+| `streaming`     | Explicit local streaming drivers.                                |
+| `serving`       | Legacy alias for local serving services.                         |
 | `observability` | Prometheus, Alertmanager, Grafana and target probe.              |
 | `logs`          | Loki and Alloy.                                                  |
 
 The acceptance runner does not start observability services. Start the
 observability and log profiles explicitly when telemetry is being checked.
+The local and GCP lakehouse profiles are mutually exclusive; `gcp up` does
+not select a streaming profile.

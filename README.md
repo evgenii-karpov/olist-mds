@@ -87,7 +87,17 @@ docs/                     Architecture, data model, CI and operational guides.
 
 ## Documentation
 
-Operational commands are kept in the platform runbooks:
+The normative target-scoped command surface is [`scripts/lab.py`](scripts/lab.py):
+
+```powershell
+uv run python scripts/lab.py doctor
+uv run python scripts/lab.py local up
+uv run python scripts/lab.py gcp preflight
+```
+
+`scripts/cdc/local_lab.py` remains available as a compatibility entry point
+for the detailed local runbooks and acceptance harness. Operational commands
+are kept in the platform runbooks:
 
 - [Windows runbook](docs/runbook_windows.md)
 - [macOS and Linux runbook](docs/runbook_macos.md)

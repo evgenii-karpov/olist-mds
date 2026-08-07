@@ -1,6 +1,13 @@
 #!/usr/bin/env sh
 set -eu
 
+: "${AIRFLOW_POSTGRES_PASSWORD_FILE:=}"
+
+if [ -n "${AIRFLOW_POSTGRES_PASSWORD_FILE}" ] && [ -r "${AIRFLOW_POSTGRES_PASSWORD_FILE}" ]; then
+    PGPASSWORD="$(sed -e 's/[[:space:]]*$//' "${AIRFLOW_POSTGRES_PASSWORD_FILE}")"
+    export PGPASSWORD
+fi
+
 read_secret() {
     variable_name=$1
     eval "secret_path=\${${variable_name}:-}"
