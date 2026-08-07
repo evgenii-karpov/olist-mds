@@ -15,15 +15,16 @@ from scripts.gcp.migrations import (
 def test_bigquery_migrations_are_ordered_and_checksummed() -> None:
     migrations = list_migrations()
 
-    assert [migration.version for migration in migrations] == [1, 2, 3, 4]
+    assert [migration.version for migration in migrations] == [1, 2, 3, 4, 5]
     assert [migration.migration_id for migration in migrations] == [
         "V001__control_tables",
         "V002__bridge_views",
         "V003__gold_source_bridge_views",
         "V004__transaction_boundary_bridge",
+        "V005__gold_current_and_publication",
     ]
     assert all(len(migration.checksum) == 64 for migration in migrations)
-    assert [item["version"] for item in migration_manifest()] == [1, 2, 3, 4]
+    assert [item["version"] for item in migration_manifest()] == [1, 2, 3, 4, 5]
 
 
 def test_rendered_migrations_replace_only_validated_identifiers() -> None:
@@ -53,6 +54,43 @@ def test_transaction_boundary_bridge_normalizes_debezium_metadata() -> None:
     assert "CAST(collection.`event_count` AS INT64)" in sql
     assert "ARRAY(" in sql
     assert "INSERT INTO" not in sql
+    assert ".snapshots" not in sql
+    assert ".files" not in sql
+
+
+def test_gold_publication_migration_owns_current_state_and_atomic_procedure() -> None:
+    migration = Path("sql/bigquery/migrations/V005__gold_current_and_publication.sql")
+    sql = migration.read_text(encoding="utf-8")
+
+    models = (
+        "dim_date",
+        "dim_order_status",
+        "dim_seller",
+        "dim_customer_scd2",
+        "dim_product_scd2",
+        "fact_order_items",
+        "mart_daily_revenue",
+        "mart_monthly_arpu",
+    )
+    assert sql.count("CREATE TABLE IF NOT EXISTS") == 8
+    assert sql.count("CREATE OR REPLACE VIEW") == 8
+    assert "CREATE OR REPLACE PROCEDURE" in sql
+    assert "publish_gcp_run" in sql
+    assert "BEGIN TRANSACTION" in sql
+    assert "COMMIT TRANSACTION" in sql
+    assert "ROLLBACK TRANSACTION" in sql
+    assert "SET control_updated_count = @@row_count" in sql
+    assert "SET publication_updated_count = @@row_count" in sql
+    assert "PARTITION BY DATE(order_purchase_timestamp)" in sql
+    assert "PARTITION BY order_purchase_date" in sql
+    assert "PARTITION BY order_month" in sql
+    assert "STALE_PREDECESSOR" in sql
+    assert "IDEMPOTENT" in sql
+    assert "CONFLICTED" in sql
+    for model in models:
+        assert f"olist_gold_store.{model}__current" in sql
+        assert f"olist_gold_store.{model}__history" in sql
+        assert f"olist_gold.{model}" in sql
     assert ".snapshots" not in sql
     assert ".files" not in sql
 
@@ -115,7 +153,7 @@ def test_lab_migration_status_is_cloud_independent(capsys) -> None:
     assert result == 0
     output = capsys.readouterr().out
     assert '"status": "ready"' in output
-    assert "V004__transaction_boundary_bridge" in output
+    assert "V005__gold_current_and_publication" in output
 
 
 def test_lab_migration_render_writes_a_reproducible_local_bundle(
@@ -135,5 +173,6 @@ def test_lab_migration_render_writes_a_reproducible_local_bundle(
     assert (tmp_path / "rendered" / "V002__bridge_views.sql").is_file()
     assert (tmp_path / "rendered" / "V003__gold_source_bridge_views.sql").is_file()
     assert (tmp_path / "rendered" / "V004__transaction_boundary_bridge.sql").is_file()
+    assert (tmp_path / "rendered" / "V005__gold_current_and_publication.sql").is_file()
     assert (tmp_path / "rendered" / "manifest.json").is_file()
     assert '"status": "accepted"' in capsys.readouterr().out

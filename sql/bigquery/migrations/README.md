@@ -30,3 +30,9 @@ decision and must be followed by direct-vs-bridge schema and row-count checks.
 `audit_mysql_transactions` view used by the transaction-complete boundary
 planner. It exposes Debezium begin/end offsets and transaction status without
 inventing a boundary from Kafka end offsets or idle time.
+
+`V005__gold_current_and_publication.sql` owns the eight Gold current tables,
+stable `olist_gold` views, and `publish_gcp_run` procedure. The procedure
+checks model/entity evidence and the active predecessor, handles stale and
+already-active runs, applies history operations and replacement grains in one
+BigQuery transaction, and advances the GCP publication state atomically.
