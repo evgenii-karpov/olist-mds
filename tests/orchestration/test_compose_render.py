@@ -57,6 +57,11 @@ def test_gcp_render_has_no_local_lakehouse_services_or_mounts() -> None:
     }
     assert forbidden_services.isdisjoint(services)
     assert "airflow-gcp" in services
+    assert "docker-socket-proxy" in services
+    assert services["airflow-gcp"]["environment"]["DOCKER_HOST"] == (
+        "tcp://docker-socket-proxy:2375"
+    )
+    assert "docker.sock" in json.dumps(services["docker-socket-proxy"])
     assert {"spark-gcp-migration", "spark-gcp-geolocation", "spark-gcp-ops"} <= set(
         services
     )

@@ -1085,17 +1085,47 @@ services:
       retries: 10
       start_period: 60s
 
+  docker-socket-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:0.3.0
+    profiles: [lakehouse-gcp]
+    restart: unless-stopped
+    environment:
+      CONTAINERS: "1"
+      POST: "1"
+      ALLOW_START: "1"
+      ALLOW_STOP: "0"
+      ALLOW_RESTARTS: "0"
+      ALLOW_PAUSE: "0"
+      ALLOW_UNPAUSE: "0"
+      EXEC: "0"
+      IMAGES: "0"
+      NETWORKS: "0"
+      VOLUMES: "0"
+      INFO: "0"
+      SYSTEM: "0"
+      SERVICES: "0"
+      TASKS: "0"
+      SWARM: "0"
+      SECRETS: "0"
+    volumes:
+      - type: bind
+        source: ${DOCKER_SOCKET_SOURCE:-/var/run/docker.sock}
+        target: /var/run/docker.sock
+        read_only: true
+
   airflow-gcp:
     build:
       context: .
       dockerfile: docker/airflow/Dockerfile
-    image: olist-airflow:local
+    image: olist-airflow-gcp:local
     profiles: [lakehouse-gcp]
     restart: unless-stopped
     working_dir: /opt/airflow/project
     depends_on:
       platform-postgres-bootstrap:
         condition: service_completed_successfully
+      docker-socket-proxy:
+        condition: service_started
     command: ["bash", "/opt/airflow/project/docker/airflow/load-env-and-run.sh", "airflow", "standalone"]
     ports:
       - "${AIRFLOW_HOST_PORT:-8080}:8080"
@@ -1117,6 +1147,16 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py sql_alchemy_conn
       AIRFLOW__API__SECRET_KEY_CMD: python /opt/airflow/project/scripts/utilities/airflow_config_cmd.py api_secret_key
       AIRFLOW__API__SECRET_KEY_FILE: /run/secrets/airflow_api_secret_key
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      GCP_LAKEHOUSE_PROJECT_ID: ${GCP_LAKEHOUSE_PROJECT_ID:-${GCP_PROJECT_ID:-}}
+      GCP_REGION: ${GCP_REGION:-us-east1}
+      GCP_BIGQUERY_MAX_BYTES_BILLED: ${GCP_BIGQUERY_MAX_BYTES_BILLED:-1000000000}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/gcp/adc/airflow.json
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+      GCP_DBT_PROJECT_HOST_PATH: ${GCP_DBT_PROJECT_HOST_PATH:-}
+      GCP_DBT_ADC_HOST_PATH: ${GCP_DBT_ADC_HOST_PATH:-}
+      GCP_DBT_IMAGE: ${GCP_DBT_IMAGE:-olist-dbt-bigquery:1.11.3}
+      GCP_DBT_NETWORK: ${GCP_DBT_NETWORK:-}
       GCP_LAKEHOUSE_CATALOG_URI: ${GCP_LAKEHOUSE_CATALOG_URI:-https://biglake.googleapis.com/iceberg/v1/restcatalog}
       GCP_LAKEHOUSE_WAREHOUSE: ${GCP_LAKEHOUSE_WAREHOUSE:-}
       GCP_LAKEHOUSE_IO_IMPL: org.apache.iceberg.gcp.gcs.GCSFileIO
@@ -1126,6 +1166,10 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
+      - type: bind
+        source: ${GCP_AIRFLOW_ADC_SOURCE_FILE:-./.gcp/credentials/airflow-adc.json}
+        target: /run/gcp/adc/airflow.json
+        read_only: true
     secrets:
       - airflow_postgres_password
       - airflow_api_secret_key

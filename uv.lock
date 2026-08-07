@@ -1741,6 +1741,7 @@ dependencies = [
     { name = "confluent-kafka" },
     { name = "dbt-clickhouse" },
     { name = "dbt-core" },
+    { name = "google-cloud-bigquery" },
     { name = "mysql-connector-python" },
     { name = "psycopg2-binary" },
 ]
@@ -1783,6 +1784,7 @@ requires-dist = [
     { name = "confluent-kafka", specifier = ">=2.12,<3" },
     { name = "dbt-clickhouse", specifier = "==1.10.1" },
     { name = "dbt-core", specifier = ">=1.8,<2" },
+    { name = "google-cloud-bigquery", specifier = "==3.43.0" },
     { name = "mysql-connector-python", specifier = "==9.7.0" },
     { name = "psycopg2-binary", specifier = ">=2.9,<3" },
 ]

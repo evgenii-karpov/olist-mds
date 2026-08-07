@@ -186,6 +186,82 @@ def test_bigquery_compare_and_set_active_state_requires_ready_predecessor() -> N
     assert "active_sync_run_seq = @expected_active_sync_run_seq" in query
 
 
+def test_bigquery_lease_uses_expiry_and_owner_compare_and_set() -> None:
+    repository, runner = _repository([{"acquired": True}])
+
+    assert repository.acquire_lease("airflow-gcp", "SYNC", ttl_seconds=60)
+
+    query, parameters = runner.queries[0]
+    assert "BEGIN TRANSACTION" in query
+    assert "lease_expires_at < CURRENT_TIMESTAMP()" in query
+    assert "lease_owner_id = @owner_id" in query
+    assert parameters["ttl_seconds"] == 60
+
+
+def test_bigquery_runtime_state_joins_latest_published_boundary() -> None:
+    repository, runner = _repository([{"target": "gcp", "active_sync_run_seq": 6}])
+
+    state = repository.fetch_boundary_runtime_state()
+
+    assert state["active_sync_run_seq"] == 6
+    query, _parameters = runner.queries[0]
+    assert "last_published_transaction_id" in query
+    assert "status IN ('SUCCEEDED', 'NOOP')" in query
+    assert "ROW_NUMBER() OVER" in query
+
+
+def test_bigquery_publication_calls_the_versioned_procedure() -> None:
+    repository, runner = _repository(
+        [{"publication_result": "PUBLISHED", "sync_run_seq": 7}]
+    )
+
+    result = repository.publish_gcp_run(
+        sync_run_seq=7,
+        expected_active_sync_run_seq=6,
+    )
+
+    assert result["publication_result"] == "PUBLISHED"
+    query, parameters = runner.queries[0]
+    assert "CALL `olist-dev-123.olist_serving_control.publish_gcp_run`" in query
+    assert parameters == {
+        "sync_run_seq": 7,
+        "expected_active_sync_run_seq": 6,
+    }
+
+
+def test_bigquery_result_writes_are_target_scoped_and_named() -> None:
+    repository, runner = _repository([{"updated_count": 1}, {"updated_count": 1}])
+
+    assert repository.write_entity_result(
+        sync_run_seq=7,
+        entity="customers",
+        status="VALIDATED",
+        expected_event_count=3,
+        materialized_event_count=3,
+        affected_key_count=2,
+        candidate_current_count=2,
+    )
+    assert repository.write_model_result(
+        sync_run_seq=7,
+        model_name="dim_customer_scd2",
+        status="SUCCEEDED",
+        candidate_row_count=2,
+        affected_grain_count=2,
+    )
+
+    entity_query, entity_parameters = runner.queries[0]
+    model_query, model_parameters = runner.queries[1]
+    assert (
+        "INSERT INTO `olist-dev-123.olist_serving_control.entity_results`"
+        in entity_query
+    )
+    assert (
+        "INSERT INTO `olist-dev-123.olist_serving_control.model_results`" in model_query
+    )
+    assert entity_parameters["entity"] == "customers"
+    assert model_parameters["model_name"] == "dim_customer_scd2"
+
+
 def test_adapters_cannot_be_constructed_for_the_other_target() -> None:
     with pytest.raises(TargetMismatchError):
         PostgresServingControlAdapter(target=ServingTarget.GCP)

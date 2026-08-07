@@ -15,12 +15,14 @@ from airflow.dag_processing.dagbag import DagBag
 TARGET_DAG_FILES = {
     "olist_lakehouse_maintenance.py",
     "olist_lakehouse_serving.py",
+    "olist_gcp_serving.py",
 }
 EXPECTED_DAG_IDS = {
     "olist_lakehouse_maintenance",
     "olist_lakehouse_serving_sync",
     "olist_lakehouse_quality",
     "olist_lakehouse_serving_rebuild",
+    "olist_gcp_serving",
 }
 
 
