@@ -4,6 +4,19 @@ from scripts.serving.boundary import (
     collapse_transaction_history,
     transaction_boundary_state,
 )
+from scripts.serving.entities import ALL_SERVING_ENTITIES
+
+
+def _entity_metrics() -> dict[str, dict[str, object]]:
+    return {
+        spec.entity: {
+            "event_count": 1,
+            "target_offsets": {
+                f"olist_cdc.olist_oltp.{spec.entity}:0": index,
+            },
+        }
+        for index, spec in enumerate(ALL_SERVING_ENTITIES)
+    }
 
 
 def test_transaction_history_collapses_split_begin_end_and_duplicate_end():
@@ -88,6 +101,7 @@ def test_rejected_observation_can_become_complete():
         runtime_state={"source_snapshot_completed": True},
         transaction_rows=rows,
         iceberg_snapshots={},
+        entity_metrics=_entity_metrics(),
     )
     assert plan.status == "MATERIALIZING"
     assert plan.target_transaction_id == "tx-retry"
@@ -158,12 +172,33 @@ def test_boundary_planner_complete_transactions():
         runtime_state={"source_snapshot_completed": True},
         transaction_rows=txs,
         iceberg_snapshots={"customers": 10},
+        entity_metrics=_entity_metrics(),
     )
     assert plan.is_noop is False
     assert plan.status == "MATERIALIZING"
     assert plan.target_transaction_id == "tx_2"
     assert plan.target_transaction_end_offset == 200
     assert plan.expected_event_count == 8
+
+
+def test_boundary_planner_does_not_use_transaction_topic_end_offset_as_fallback():
+    plan = ServingBoundaryPlanner.plan_next_sync_run(
+        sync_run_seq=1,
+        runtime_state={"source_snapshot_completed": True},
+        transaction_rows=[
+            {
+                "transaction_id": "tx-1",
+                "status": "COMPLETE",
+                "end_kafka_offset": 100,
+                "event_count": 1,
+            }
+        ],
+        iceberg_snapshots={},
+    )
+
+    assert plan.status == "BLOCKED"
+    assert plan.status_reason == "INVARIANT_FAILURE"
+    assert plan.target_offsets == {}
 
 
 def test_boundary_planner_initial_snapshot_without_transaction_boundary():
@@ -256,11 +291,12 @@ def test_boundary_planner_ignores_empty_complete_transactions():
             },
         ],
         iceberg_snapshots={"customers": 10},
+        entity_metrics=_entity_metrics(),
     )
     assert plan.is_noop is False
     assert plan.target_transaction_id == "tx_business"
     assert plan.target_transaction_end_offset == 100
-    assert plan.expected_event_count == 5
+    assert plan.expected_event_count == 8
 
 
 def test_boundary_planner_empty_complete_transactions_are_noop():
@@ -280,6 +316,7 @@ def test_boundary_planner_empty_complete_transactions_are_noop():
             }
         ],
         iceberg_snapshots={"customers": 10},
+        entity_metrics=_entity_metrics(),
     )
     assert plan.is_noop is True
     assert plan.status == "NOOP"

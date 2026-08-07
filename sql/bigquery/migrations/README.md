@@ -25,3 +25,8 @@ timestamp, decimal, binary and nested-field casts. `V003__gold_source_bridge_vie
 adds the remaining Silver change streams required by the independent Gold
 project. Applying either bridge migration requires the WP5 vertical-slice
 decision and must be followed by direct-vs-bridge schema and row-count checks.
+
+`V004__transaction_boundary_bridge.sql` adds the normalized, read-only
+`audit_mysql_transactions` view used by the transaction-complete boundary
+planner. It exposes Debezium begin/end offsets and transaction status without
+inventing a boundary from Kafka end offsets or idle time.

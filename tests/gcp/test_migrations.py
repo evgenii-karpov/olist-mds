@@ -15,14 +15,15 @@ from scripts.gcp.migrations import (
 def test_bigquery_migrations_are_ordered_and_checksummed() -> None:
     migrations = list_migrations()
 
-    assert [migration.version for migration in migrations] == [1, 2, 3]
+    assert [migration.version for migration in migrations] == [1, 2, 3, 4]
     assert [migration.migration_id for migration in migrations] == [
         "V001__control_tables",
         "V002__bridge_views",
         "V003__gold_source_bridge_views",
+        "V004__transaction_boundary_bridge",
     ]
     assert all(len(migration.checksum) == 64 for migration in migrations)
-    assert [item["version"] for item in migration_manifest()] == [1, 2, 3]
+    assert [item["version"] for item in migration_manifest()] == [1, 2, 3, 4]
 
 
 def test_rendered_migrations_replace_only_validated_identifiers() -> None:
@@ -39,6 +40,21 @@ def test_rendered_migrations_replace_only_validated_identifiers() -> None:
     assert "demo-project.olist_lakehouse_bridge.silver_order_items_changes" in rendered
     assert "CREATE OR REPLACE VIEW" in rendered
     assert "BIGNUMERIC" in rendered
+
+
+def test_transaction_boundary_bridge_normalizes_debezium_metadata() -> None:
+    migration = Path("sql/bigquery/migrations/V004__transaction_boundary_bridge.sql")
+    sql = migration.read_text(encoding="utf-8")
+
+    assert sql.count("CREATE OR REPLACE VIEW") == 1
+    assert "audit.mysql_transactions" in sql
+    assert "audit_mysql_transactions" in sql
+    assert "CAST(`end_kafka_offset` AS INT64)" in sql
+    assert "CAST(collection.`event_count` AS INT64)" in sql
+    assert "ARRAY(" in sql
+    assert "INSERT INTO" not in sql
+    assert ".snapshots" not in sql
+    assert ".files" not in sql
 
 
 def test_migration_renderer_rejects_unsafe_identifiers() -> None:
@@ -99,7 +115,7 @@ def test_lab_migration_status_is_cloud_independent(capsys) -> None:
     assert result == 0
     output = capsys.readouterr().out
     assert '"status": "ready"' in output
-    assert "V003__gold_source_bridge_views" in output
+    assert "V004__transaction_boundary_bridge" in output
 
 
 def test_lab_migration_render_writes_a_reproducible_local_bundle(
@@ -118,5 +134,6 @@ def test_lab_migration_render_writes_a_reproducible_local_bundle(
     assert (tmp_path / "rendered" / "V001__control_tables.sql").is_file()
     assert (tmp_path / "rendered" / "V002__bridge_views.sql").is_file()
     assert (tmp_path / "rendered" / "V003__gold_source_bridge_views.sql").is_file()
+    assert (tmp_path / "rendered" / "V004__transaction_boundary_bridge.sql").is_file()
     assert (tmp_path / "rendered" / "manifest.json").is_file()
     assert '"status": "accepted"' in capsys.readouterr().out

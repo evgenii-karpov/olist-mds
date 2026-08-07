@@ -212,7 +212,6 @@ class ServingBoundaryPlanner:
         complete_txs: list[dict[str, object]] = []
         target_tx_id = prev_tx_id
         target_offset = prev_offset
-        total_events = 0
         entity_counts = {spec.entity: 0 for spec in ALL_SERVING_ENTITIES}
         open_transaction: dict[str, object] | None = None
 
@@ -289,7 +288,6 @@ class ServingBoundaryPlanner:
                 complete_txs.append(tx)
                 target_tx_id = tx_id_raw
                 target_offset = tx_end_offset
-                total_events += tx_event_count
             else:
                 return TransactionCandidatePlan(
                     sync_run_seq=sync_run_seq,
@@ -399,10 +397,26 @@ class ServingBoundaryPlanner:
                     expected_entity_counts=entity_counts,
                 )
         else:
-            target_offsets = {}
-            target_offsets["transaction"] = target_offset
-            expected_entity_counts = entity_counts
-            expected_event_count = total_events
+            # A transaction-topic end offset is not a per-entity boundary. It
+            # cannot prove that every entity topic is frozen at a prefix that
+            # does not split the source transaction, so fail closed when
+            # per-topic/per-partition progress is unavailable.
+            return TransactionCandidatePlan(
+                sync_run_seq=sync_run_seq,
+                operation_type="SYNC",
+                is_noop=True,
+                status="BLOCKED",
+                status_reason="INVARIANT_FAILURE",
+                previous_transaction_id=prev_tx_id,
+                previous_transaction_end_offset=prev_offset,
+                target_transaction_id=prev_tx_id,
+                target_transaction_end_offset=prev_offset,
+                source_snapshot_completed=snapshot_done,
+                target_offsets={},
+                iceberg_snapshot_ids=iceberg_snapshots,
+                expected_event_count=0,
+                expected_entity_counts=entity_counts,
+            )
 
         return TransactionCandidatePlan(
             sync_run_seq=sync_run_seq,
