@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 CATALOG_ALIAS = "lakehouse"
 DEFAULT_CATALOG_URI = "http://polaris:8181/api/catalog"
@@ -23,6 +24,7 @@ GCP_FILE_IO = "org.apache.iceberg.gcp.gcs.GCSFileIO"
 GCP_AUTH_MANAGER = "org.apache.iceberg.gcp.auth.GoogleAuthManager"
 GCP_CHECKPOINT_FILESYSTEM = "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem"
 GCP_CHECKPOINT_ABSTRACT_FILESYSTEM = "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS"
+DEFAULT_SOURCE_TIME_ZONE = "America/Sao_Paulo"
 
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
 _REDACTION_REGEX = r"(?i)secret|password|token|access[.]?key|credential"
@@ -40,6 +42,17 @@ def _required(environment: Mapping[str, str], name: str) -> str:
         raise ConfigurationError(
             f"configuration {name} contains a forbidden control byte"
         )
+    return value
+
+
+def _source_time_zone(environment: Mapping[str, str]) -> str:
+    value = environment.get("SOURCE_TIME_ZONE", DEFAULT_SOURCE_TIME_ZONE).strip()
+    if not value:
+        raise ConfigurationError("SOURCE_TIME_ZONE must not be empty")
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as exc:
+        raise ConfigurationError(f"unknown SOURCE_TIME_ZONE: {value}") from exc
     return value
 
 
@@ -322,6 +335,7 @@ class SparkPlatformConfig:
     checkpoint_access_key: str
     checkpoint_secret_key: str
     adc_path: str | None
+    source_time_zone: str
 
     @classmethod
     def from_environment(
@@ -329,6 +343,7 @@ class SparkPlatformConfig:
     ) -> SparkPlatformConfig:
         env = os.environ if environment is None else environment
         backend = resolve_backend(env)
+        source_time_zone = _source_time_zone(env)
         catalog = SparkCatalogConfig.from_environment(env, backend=backend)
         if backend == "local":
             checkpoint_root = _validate_checkpoint_root(
@@ -352,6 +367,7 @@ class SparkPlatformConfig:
                     env, "OBJECT_STORE_SECRET_KEY_FILE"
                 ),
                 adc_path=None,
+                source_time_zone=source_time_zone,
             )
 
         checkpoint_bucket = _required(env, "GCP_CHECKPOINT_BUCKET")
@@ -375,10 +391,12 @@ class SparkPlatformConfig:
             checkpoint_access_key="",
             checkpoint_secret_key="",
             adc_path=adc_path,
+            source_time_zone=source_time_zone,
         )
 
     def spark_properties(self, mode: str = "streaming") -> dict[str, str]:
         props = self.catalog.spark_properties()
+        props["spark.olist.source.time.zone"] = self.source_time_zone
         if mode == "maintenance":
             return props
         if mode != "streaming":

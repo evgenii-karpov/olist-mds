@@ -19,6 +19,7 @@ from scripts.serving.domain import (
     ServingBoundary,
     ServingTarget,
     TargetMismatchError,
+    validate_status_transition,
 )
 from scripts.serving.entities import ALL_SERVING_ENTITIES
 from scripts.serving.models import (
@@ -426,6 +427,13 @@ WHERE target = 'gcp' AND sync_run_seq = @sync_run_seq
             if isinstance(expected_status, SyncStatus)
             else [status.value for status in expected_status]
         )
+        expected_states = (
+            [expected_status]
+            if isinstance(expected_status, SyncStatus)
+            else list(expected_status)
+        )
+        for expected_state in expected_states:
+            validate_status_transition(expected_state, new_status)
         state = self._table("control_state")
         runs = self._table("serving_runs")
         query = f"""
@@ -452,6 +460,10 @@ WHERE target = 'gcp'
       FROM {state}
       WHERE state_key = 'gcp' AND target = 'gcp'
     ) = @expected_active_sync_run_seq
+  )
+  AND (
+    @expected_active_sync_run_seq IS NULL
+    OR expected_active_sync_run_seq = @expected_active_sync_run_seq
   );
 SELECT @@row_count AS updated_count;
 """

@@ -210,7 +210,7 @@ def _gcp_streaming(args: argparse.Namespace) -> int:
 
     preflight = _gcp_preflight()
     missing = preflight["missing"]
-    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+    if isinstance(missing, list) and missing:
         return _emit(
             "gcp streaming start",
             "blocked",
@@ -280,7 +280,7 @@ def _gcp_vertical_slice(args: argparse.Namespace) -> int:
         return _emit("gcp vertical-slice run", "failed", error=str(exc))
 
     missing = preflight["missing"]
-    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+    if isinstance(missing, list) and missing:
         return _emit(
             "gcp vertical-slice run",
             "blocked",
@@ -364,7 +364,7 @@ def _gcp_migrate(args: argparse.Namespace) -> int:
 
     preflight = _gcp_preflight()
     missing = preflight["missing"]
-    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+    if isinstance(missing, list) and missing:
         return _emit(
             "gcp migrate apply",
             "blocked",
@@ -489,11 +489,7 @@ def _terraform(args: argparse.Namespace) -> int:
     elif args.action in {"plan", "apply", "output"}:
         preflight = _gcp_preflight()
         missing = preflight["missing"]
-        if (
-            isinstance(missing, list)
-            and missing
-            and not getattr(args, "allow_missing_auth", False)
-        ):
+        if isinstance(missing, list) and missing:
             return _emit(
                 "gcp terraform",
                 "blocked",
@@ -646,6 +642,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     local_serving = local_commands.add_parser("serving")
     local_serving.set_defaults(func=lambda _: _legacy(["sync-serving"]))
+    local_serving_commands = local_serving.add_subparsers(
+        dest="serving_action", required=False
+    )
+    local_serving_run = local_serving_commands.add_parser("run")
+    local_serving_run.set_defaults(func=lambda _: _legacy(["sync-serving"]))
 
     gcp = commands.add_parser("gcp")
     gcp_commands = gcp.add_subparsers(dest="action", required=True)
@@ -664,7 +665,6 @@ def _build_parser() -> argparse.ArgumentParser:
         stream_command = gcp_streaming_commands.add_parser(action)
         if action == "start":
             stream_command.add_argument("--build", action="store_true")
-            stream_command.add_argument("--allow-missing-auth", action="store_true")
         stream_command.add_argument("--timeout", type=float, default=1200.0)
         stream_command.set_defaults(func=_gcp_streaming)
     migrate = gcp_commands.add_parser("migrate")
@@ -681,7 +681,6 @@ def _build_parser() -> argparse.ArgumentParser:
     migrate_apply = migrate_commands.add_parser("apply")
     migrate_apply.add_argument("--project-id")
     migrate_apply.add_argument("--catalog-id")
-    migrate_apply.add_argument("--allow-missing-auth", action="store_true")
     migrate_apply.set_defaults(func=_gcp_migrate)
     cost = gcp_commands.add_parser("cost")
     cost_commands = cost.add_subparsers(dest="cost_action", required=True)
@@ -713,7 +712,6 @@ def _build_parser() -> argparse.ArgumentParser:
     vertical_slice_run.add_argument(
         "--output", default="data/acceptance/gcp/wp5-vertical-slice-plan.json"
     )
-    vertical_slice_run.add_argument("--allow-missing-auth", action="store_true")
     vertical_slice_run.set_defaults(func=_gcp_vertical_slice)
     vertical_slice_report = vertical_slice_commands.add_parser("report")
     vertical_slice_report.add_argument(
@@ -725,7 +723,6 @@ def _build_parser() -> argparse.ArgumentParser:
         "action", choices=("init", "validate", "plan", "apply", "output")
     )
     terraform.add_argument("--yes", action="store_true")
-    terraform.add_argument("--allow-missing-auth", action="store_true")
     terraform.add_argument("--backend-config", action="append", default=[])
     terraform.add_argument("--var-file")
     terraform.add_argument("--timeout", type=float, default=600.0)

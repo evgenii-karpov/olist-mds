@@ -127,7 +127,10 @@ ENTITIES: tuple[Entity, ...] = (
                 "order_purchase_timestamp",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column(
                 "order_approved_at",
@@ -135,14 +138,20 @@ ENTITIES: tuple[Entity, ...] = (
                 TIMESTAMP_MICROS,
                 nullable=True,
                 checks=("order_approved_at >= order_purchase_timestamp",),
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column(
                 "order_delivered_carrier_date",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
                 nullable=True,
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column(
                 "order_delivered_customer_date",
@@ -150,13 +159,19 @@ ENTITIES: tuple[Entity, ...] = (
                 TIMESTAMP_MICROS,
                 nullable=True,
                 checks=("order_delivered_customer_date >= order_purchase_timestamp",),
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column(
                 "order_estimated_delivery_date",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
         ),
     ),
@@ -188,7 +203,10 @@ ENTITIES: tuple[Entity, ...] = (
                 "shipping_limit_date",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column("price", "DECIMAL(18,2)", DECIMAL_18_2, checks=(">= 0",)),
             column(
@@ -247,14 +265,20 @@ ENTITIES: tuple[Entity, ...] = (
                 "review_creation_date",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
             column(
                 "review_answer_timestamp",
                 "DATETIME(6)",
                 TIMESTAMP_MICROS,
                 checks=("review_answer_timestamp >= review_creation_date",),
-                metadata={"precision": "microseconds", "timezone_semantics": "UTC"},
+                metadata={
+                    "precision": "microseconds",
+                    "timezone_semantics": "SOURCE_TIME_ZONE",
+                },
             ),
         ),
     ),

@@ -465,7 +465,23 @@ class LocalCdcAcceptanceHarnessUnitTests(unittest.TestCase):
     def test_orchestrator_prepare_creates_evidence_dirs(
         self, mock_run_cmd: MagicMock
     ) -> None:
-        mock_run_cmd.return_value = (0, "Mocked output", "")
+        def mocked_command(
+            args: list[str], *_: object, **__: object
+        ) -> tuple[int, str, str]:
+            command = " ".join(args)
+            if "docker build" in command:
+                return (
+                    0,
+                    "production decoder interprets a MySQL DATETIME wall clock\n"
+                    "batch validation rejects snapshot coordinate conflicts\n"
+                    "batch validation rejects live non-transactional coordinate conflicts\n"
+                    "batch validation rejects live transactional coordinate conflicts\n"
+                    "audit error IDs are deterministic and schema carries the Bronze locator",
+                    "",
+                )
+            return (0, "1 passed", "")
+
+        mock_run_cmd.side_effect = mocked_command
         with tempfile.TemporaryDirectory() as tmp_dir:
             ev_dir = Path(tmp_dir) / "evidence"
             orchestrator = LocalCdcAcceptanceOrchestrator("test_run_001", ev_dir)

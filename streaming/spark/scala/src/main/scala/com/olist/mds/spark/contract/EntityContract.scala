@@ -6,7 +6,8 @@ final case class BusinessColumn(
     name: String,
     sparkType: DataType,
     nullable: Boolean,
-    primaryKeyOrdinal: Option[Int]
+    primaryKeyOrdinal: Option[Int],
+    sourceWallClock: Boolean = false
 )
 
 final case class EntityContract(
@@ -22,7 +23,9 @@ final case class EntityContract(
     allowedKeySchemaIds: Set[Int],
     allowedValueSchemaIds: Set[Int],
     allowedKeyWriterSchemas: Map[Int, String],
-    allowedValueWriterSchemas: Map[Int, String]
+    allowedValueWriterSchemas: Map[Int, String],
+    allowedKeySchemaFingerprints: Map[Int, String] = Map.empty,
+    allowedValueSchemaFingerprints: Map[Int, String] = Map.empty
 ) {
   def toChangesSparkSchema: org.apache.spark.sql.types.StructType = {
     import org.apache.spark.sql.types._

@@ -156,6 +156,23 @@ object ContractLoader {
     val pk = Vector.tabulate(pkNode.size())(i => pkNode.get(i).asText())
     val pkOrdinals = pk.zipWithIndex.toMap
 
+    val sourceWallClockColumns = {
+      val mysqlColumns = tree.get("mysql_columns")
+      if (mysqlColumns == null || !mysqlColumns.isArray) Set.empty[String]
+      else {
+        (0 until mysqlColumns.size()).flatMap { i =>
+          val column = mysqlColumns.get(i)
+          val metadata = column.get("type_metadata")
+          val semantics =
+            if (metadata != null && metadata.has("timezone_semantics"))
+              metadata.get("timezone_semantics").asText()
+            else ""
+          if (semantics == "SOURCE_TIME_ZONE") Some(column.get("name").asText())
+          else None
+        }.toSet
+      }
+    }
+
     val colsNode = tree.get("iceberg_projection").get("business_columns")
     val businessColumns = Vector.tabulate(colsNode.size()) { i =>
       val c = colsNode.get(i)
@@ -163,7 +180,7 @@ object ContractLoader {
       val st = parseSparkType(c.get("type").asText())
       val nullable = c.get("nullable").asBoolean()
       val pkOrd = pkOrdinals.get(name)
-      BusinessColumn(name, st, nullable, pkOrd)
+      BusinessColumn(name, st, nullable, pkOrd, sourceWallClockColumns.contains(name))
     }
 
     val keyReaderSchema = avroNode.get("key_reader_schema").toString
@@ -206,6 +223,27 @@ object ContractLoader {
     }
     val allowedKeySchemaIds = schemaIds(allowedKeyFpNode)
     val allowedValueSchemaIds = schemaIds(allowedValFpNode)
+
+    def schemaFingerprints(
+        node: com.fasterxml.jackson.databind.JsonNode
+    ): Map[Int, String] = {
+      val fingerprints = scala.collection.mutable.Map[Int, String]()
+      var i = 0
+      while (i < node.size()) {
+        val item = node.get(i)
+        val source =
+          if (item.isObject && item.has("source")) item.get("source").asText()
+          else ""
+        val fingerprint =
+          if (item.isObject && item.has("sha256")) item.get("sha256").asText().toLowerCase
+          else ""
+        schemaIdPattern
+          .findFirstMatchIn(source)
+          .foreach(matchData => fingerprints(matchData.group(1).toInt) = fingerprint)
+        i += 1
+      }
+      fingerprints.toMap
+    }
 
     def writerSchemas(node: com.fasterxml.jackson.databind.JsonNode): Map[Int, String] = {
       val schemas = scala.collection.mutable.Map[Int, String]()
@@ -257,7 +295,9 @@ object ContractLoader {
       allowedKeySchemaIds = allowedKeySchemaIds,
       allowedValueSchemaIds = allowedValueSchemaIds,
       allowedKeyWriterSchemas = allowedKeyWriterSchemas,
-      allowedValueWriterSchemas = allowedValueWriterSchemas
+      allowedValueWriterSchemas = allowedValueWriterSchemas,
+      allowedKeySchemaFingerprints = schemaFingerprints(allowedKeyFpNode),
+      allowedValueSchemaFingerprints = schemaFingerprints(allowedValFpNode)
     )
   }
 

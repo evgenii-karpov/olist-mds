@@ -12,6 +12,7 @@ from typing import cast
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from scripts.serving.domain import validate_status_transition
 from scripts.serving.models import (
     OperationType,
     StatusReason,
@@ -130,6 +131,13 @@ class ServingControlRepository:
             if isinstance(expected_status, SyncStatus)
             else [s.value for s in expected_status]
         )
+        expected_states = (
+            [expected_status]
+            if isinstance(expected_status, SyncStatus)
+            else list(expected_status)
+        )
+        for expected_state in expected_states:
+            validate_status_transition(expected_state, new_status)
         completed_at = (
             datetime.datetime.now(datetime.UTC)
             if new_status
@@ -171,6 +179,7 @@ class ServingControlRepository:
                           WHERE singleton_key = 1 AND target = 'local'
                       ) = %s
                   )
+                  AND (%s IS NULL OR expected_active_sync_run_seq = %s)
                 """,
                 (
                     new_status.value,
@@ -201,6 +210,8 @@ class ServingControlRepository:
                     completed_at,
                     sync_run_seq,
                     expected_list,
+                    expected_active_sync_run_seq,
+                    expected_active_sync_run_seq,
                     expected_active_sync_run_seq,
                     expected_active_sync_run_seq,
                 ),

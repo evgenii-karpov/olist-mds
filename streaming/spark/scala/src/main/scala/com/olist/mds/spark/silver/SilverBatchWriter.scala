@@ -22,7 +22,8 @@ object SilverBatchWriter {
       batchId: Long,
       sparkQueryId: String = "silver-replay",
       registryResolver: Option[RegistrySchemaResolver] = None,
-      catalogAlias: String = "lakehouse"
+      catalogAlias: String = "lakehouse",
+      sourceTimeZone: String = SourceTimestamp.DefaultSourceTimeZone
   ): Unit = {
     // Tombstones are a Kafka bookkeeping record, not a second delete event.
     // The preceding Debezium delete envelope is the record that belongs in
@@ -65,7 +66,8 @@ object SilverBatchWriter {
         keyBytes,
         valueBytes,
         contract,
-        registryResolver
+        registryResolver,
+        sourceTimeZone
       )
       val kafkaTimestamp = row.getAs[Timestamp]("kafka_timestamp")
       val sourceTimestamp = decoded.sourceTsMs
@@ -74,12 +76,57 @@ object SilverBatchWriter {
       (decoded, row, sourceTimestamp)
     }
 
-    decodedRows.foreach { case (decoded, row, _) =>
-      SourceOrdering.validate(
-        decoded,
-        row.getAs[Int]("partition"),
-        row.getAs[Long]("offset")
+    val orderingEvents = decodedRows.map { case (decoded, row, _) =>
+      SourceOrderingEvent(
+        decoded = decoded,
+        topic = row.getAs[String]("topic"),
+        kafkaPartition = row.getAs[Int]("partition"),
+        kafkaOffset = row.getAs[Long]("offset")
       )
+    }
+    val acceptedEvents = try {
+      SourceOrdering.validateBatch(orderingEvents)
+    } catch {
+      case failure: SourceOrderingBatchException =>
+        val conflictSummary = failure.conflicts
+          .map(conflict => s"${conflict.code}:${conflict.event.decoded.eventId}")
+          .distinct
+          .mkString(",")
+        try {
+          NormalizationErrorWriter.writeOrderingFailures(
+            spark,
+            contract.entity,
+            contractVersion = 2,
+            conflicts = failure.conflicts,
+            catalogAlias = catalogAlias
+          )
+        } catch {
+          case auditFailure: Throwable =>
+            throw SparkJobException(
+              "normalization_audit_write_failed",
+              s"Could not persist ordering evidence for ${contract.entity} batch $batchId ($conflictSummary)",
+              FatalContractFailure,
+              auditFailure
+            )
+        }
+        throw SparkJobException(
+          "ordering_batch_rejected",
+          s"Rejected ${failure.conflicts.size} ordering conflict(s) for ${contract.entity} batch $batchId",
+          FatalContractFailure,
+          failure
+        )
+    }
+
+    // SourceOrdering.validateBatch already removes exact event-id/payload
+    // replays.  Keep the decoded rows aligned with that accepted set before
+    // any changes/current/progress write can happen.
+    val acceptedEventIds = acceptedEvents.map(_.decoded.eventId).toSet
+    val uniqueDecodedRows = decodedRows.foldLeft(Vector.empty[(DecodedRecord, Row, Timestamp)]) {
+      case (acc, rowData @ (decoded, _, _))
+          if acceptedEventIds.contains(decoded.eventId) &&
+            !acc.exists(_._1.eventId == decoded.eventId) =>
+        acc :+ rowData
+      case (acc, _) => acc
     }
 
     val changesTable = s"$catalogAlias.silver.${contract.entity}_changes"
@@ -87,7 +134,7 @@ object SilverBatchWriter {
     val now = Timestamp.from(Instant.now())
 
     val contractColumns = contract.businessColumns.map(column => column.name).toSet
-    val dynamicTypes = decodedRows
+    val dynamicTypes = uniqueDecodedRows
       .flatMap { case (decoded, _, _) => decoded.businessTypes }
       .toMap
       .filterNot { case (name, _) => contractColumns.contains(name) }
@@ -146,7 +193,7 @@ object SilverBatchWriter {
         )
     )
 
-    val changesRows = decodedRows.map { case (decoded, row, sourceTimestamp) =>
+    val changesRows = uniqueDecodedRows.map { case (decoded, row, sourceTimestamp) =>
       val businessValues =
         businessColumns.map(column => decoded.businessValues.getOrElse(column.name, null))
       Row.fromSeq(
@@ -175,7 +222,7 @@ object SilverBatchWriter {
           row.getAs[Timestamp]("kafka_timestamp"),
           decoded.keySchemaId.map(Int.box).orNull,
           decoded.valueSchemaId.map(Int.box).orNull,
-          null,
+          decoded.schemaFingerprint.orNull,
           2,
           decoded.beforeRowHash.orNull,
           decoded.afterRowHash.orNull,
@@ -224,7 +271,7 @@ object SilverBatchWriter {
         StructField("updated_at", TimestampType, nullable = false)
       )
     )
-    val currentRows = decodedRows.map { case (decoded, row, sourceTimestamp) =>
+    val currentRows = uniqueDecodedRows.map { case (decoded, row, sourceTimestamp) =>
       val businessValues =
         businessColumns.map(column => decoded.businessValues.getOrElse(column.name, null))
       Row.fromSeq(
@@ -276,7 +323,7 @@ object SilverBatchWriter {
     }
     val currentSnapshotId = SilverProgressWriter.getLatestSnapshotId(spark, currentTable)
 
-    val progressRecords = decodedRows
+    val progressRecords = uniqueDecodedRows
       .groupBy { case (_, row, _) => row.getAs[Int]("partition") }
       .values
       .map { items =>

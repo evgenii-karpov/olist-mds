@@ -23,6 +23,7 @@ object SparkSessionFactory {
       )
       .config(s"$catalogPrefix.io-impl", config.icebergFileIo)
       .config("spark.sql.session.timeZone", "UTC")
+      .config("spark.olist.source.time.zone", config.sourceTimeZone)
       .config("spark.sql.shuffle.partitions", "4")
 
     config.icebergRestAuthType.foreach { authType =>

@@ -43,7 +43,7 @@
       "iceberg_type": "timestamp",
       "type_metadata": {
         "precision": "microseconds",
-        "timezone_semantics": "UTC"
+        "timezone_semantics": "SOURCE_TIME_ZONE"
       }
     },
     {
@@ -57,7 +57,7 @@
       ],
       "type_metadata": {
         "precision": "microseconds",
-        "timezone_semantics": "UTC"
+        "timezone_semantics": "SOURCE_TIME_ZONE"
       }
     },
     {
@@ -68,7 +68,7 @@
       "iceberg_type": "timestamp",
       "type_metadata": {
         "precision": "microseconds",
-        "timezone_semantics": "UTC"
+        "timezone_semantics": "SOURCE_TIME_ZONE"
       }
     },
     {
@@ -82,7 +82,7 @@
       ],
       "type_metadata": {
         "precision": "microseconds",
-        "timezone_semantics": "UTC"
+        "timezone_semantics": "SOURCE_TIME_ZONE"
       }
     },
     {
@@ -93,7 +93,7 @@
       "iceberg_type": "timestamp",
       "type_metadata": {
         "precision": "microseconds",
-        "timezone_semantics": "UTC"
+        "timezone_semantics": "SOURCE_TIME_ZONE"
       }
     }
   ],

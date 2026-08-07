@@ -12,7 +12,8 @@ import org.apache.avro.io.DecoderFactory
 import org.apache.spark.sql.types._
 import java.nio.ByteBuffer
 import java.sql.Timestamp
-import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 import scala.jdk.CollectionConverters._
 
 final case class DecodedRecord(
@@ -38,18 +39,25 @@ final case class DecodedRecord(
     afterRowHash: Option[String],
     rowHash: Option[String],
     businessValues: Map[String, Any],
-    businessTypes: Map[String, DataType]
+    businessTypes: Map[String, DataType],
+    schemaFingerprint: Option[String] = None
 )
 
 object SilverDecoder {
+
+  private[silver] def isSnapshotMarker(value: String): Boolean =
+    Set("true", "last", "first_in_data_collection", "last_in_data_collection")
+      .contains(value.toLowerCase(Locale.ROOT))
 
   def decodeRow(
       eventId: String,
       keyBytes: Array[Byte],
       valueBytes: Array[Byte],
       contract: EntityContract,
-      registryResolver: Option[RegistrySchemaResolver] = None
+      registryResolver: Option[RegistrySchemaResolver] = None,
+      sourceTimeZone: String = SourceTimestamp.DefaultSourceTimeZone
   ): DecodedRecord = {
+    val sourceZone = ZoneId.of(sourceTimeZone)
     val keyInsp = ConfluentFrame.inspect(keyBytes, isKey = true)
     val valInsp = ConfluentFrame.inspect(valueBytes, isKey = false)
 
@@ -175,14 +183,15 @@ object SilverDecoder {
       } else {
         payloadRecord.get(name)
       }
-      name -> convertValue(rawVal, resolvedType)
+      val sourceWallClock = contractColumns.get(name).exists(_.sourceWallClock)
+      name -> convertValue(rawVal, resolvedType, sourceWallClock, sourceZone)
     }
 
     DecodedRecord(
       eventId = eventId,
       op = opStr,
       isDeleted = isDeleted,
-      isSnapshot = snapshot.exists(value => value == "true" || value == "last"),
+      isSnapshot = snapshot.exists(isSnapshotMarker),
       sourceTsMs = sourceTsMs,
       sourceServerId = sourceServerId,
       sourceGtid = sourceGtid,
@@ -195,6 +204,7 @@ object SilverDecoder {
       transactionDataCollectionOrder = transactionDataCollectionOrder,
       keySchemaId = keyInsp.schemaId,
       valueSchemaId = valInsp.schemaId,
+      schemaFingerprint = valInsp.schemaId.flatMap(contract.allowedValueSchemaFingerprints.get),
       keyFingerprint = Some(ConfluentFrame.sha256Hex(keyBytes)),
       valueFingerprint = Some(ConfluentFrame.sha256Hex(valueBytes)),
       beforeRowHash = if (isDeleted) Some(ConfluentFrame.sha256Hex(keyBytes)) else None,
@@ -269,7 +279,12 @@ object SilverDecoder {
     reader.read(null, decoder)
   }
 
-  private def convertValue(raw: Any, sparkType: org.apache.spark.sql.types.DataType): Any = {
+  private def convertValue(
+      raw: Any,
+      sparkType: org.apache.spark.sql.types.DataType,
+      sourceWallClock: Boolean,
+      sourceTimeZone: ZoneId
+  ): Any = {
     if (raw == null) null
     else {
       sparkType match {
@@ -293,9 +308,11 @@ object SilverDecoder {
           }
         case org.apache.spark.sql.types.TimestampType =>
           val micros = raw.asInstanceOf[Number].longValue()
-          val millis = micros / 1000
-          val nanos = (micros % 1000) * 1000
-          Timestamp.from(Instant.ofEpochMilli(millis).plusNanos(nanos))
+          val instant =
+            if (sourceWallClock)
+              SourceTimestamp.normalizeWallClockMicros(micros, sourceTimeZone)
+            else SourceTimestamp.instantFromMicros(micros)
+          Timestamp.from(instant)
         case _ =>
           raw
       }

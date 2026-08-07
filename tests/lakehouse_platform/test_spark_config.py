@@ -185,6 +185,22 @@ def test_properties_file_is_atomic_private_and_contains_no_file_paths(
     assert list(output.parent.glob(".*.tmp")) == []
 
 
+def test_source_time_zone_is_validated_and_projected_before_spark_starts(
+    tmp_path: Path,
+) -> None:
+    environment = _environment(tmp_path)
+    environment["SOURCE_TIME_ZONE"] = "UTC"
+
+    config = SparkPlatformConfig.from_environment(environment)
+
+    assert config.source_time_zone == "UTC"
+    assert config.spark_properties()["spark.olist.source.time.zone"] == "UTC"
+
+    environment["SOURCE_TIME_ZONE"] = "Not/AZone"
+    with pytest.raises(ConfigurationError, match="SOURCE_TIME_ZONE"):
+        SparkPlatformConfig.from_environment(environment)
+
+
 def test_query_names_and_checkpoints_are_stable_and_physically_isolated() -> None:
     assert BRONZE_QUERY == "kafka_to_bronze"
     assert SILVER_QUERIES == (

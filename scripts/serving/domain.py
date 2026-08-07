@@ -53,6 +53,100 @@ RETRYABLE_RUN_STATUSES = frozenset(
     }
 )
 
+# This matrix is the provider-independent serving state machine.  PostgreSQL,
+# BigQuery, and the reference ledger must reject the same invalid transition;
+# the physical adapters only add their storage-specific compare-and-set guards.
+ALLOWED_STATUS_TRANSITIONS: Mapping[SyncStatus, frozenset[SyncStatus]] = {
+    SyncStatus.PLANNING: frozenset(
+        {
+            SyncStatus.PLANNING,
+            SyncStatus.WAITING,
+            SyncStatus.BLOCKED,
+            SyncStatus.MATERIALIZING,
+            SyncStatus.VALIDATING,
+            SyncStatus.READY_TO_PUBLISH,
+            SyncStatus.NOOP,
+            # The existing local serving DAG performs one atomic successful
+            # publication from its PLANNING row; keep that compatible path
+            # while still rejecting terminal-state re-entry and stale CAS.
+            SyncStatus.SUCCEEDED,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.WAITING: frozenset(
+        {
+            SyncStatus.WAITING,
+            SyncStatus.BLOCKED,
+            SyncStatus.MATERIALIZING,
+            SyncStatus.VALIDATING,
+            SyncStatus.NOOP,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.BLOCKED: frozenset(
+        {
+            SyncStatus.BLOCKED,
+            SyncStatus.WAITING,
+            SyncStatus.PLANNING,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.MATERIALIZING: frozenset(
+        {
+            SyncStatus.MATERIALIZING,
+            SyncStatus.VALIDATING,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.VALIDATING: frozenset(
+        {
+            SyncStatus.VALIDATING,
+            SyncStatus.READY_TO_PUBLISH,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.READY_TO_PUBLISH: frozenset(
+        {
+            SyncStatus.READY_TO_PUBLISH,
+            SyncStatus.PUBLISHED_PENDING_FINALIZATION,
+            SyncStatus.SUCCEEDED,
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.PUBLISHED_PENDING_FINALIZATION: frozenset(
+        {
+            SyncStatus.PUBLISHED_PENDING_FINALIZATION,
+            SyncStatus.SUCCEEDED,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.FAILED_RETRYABLE: frozenset(
+        {
+            SyncStatus.FAILED_RETRYABLE,
+            SyncStatus.PLANNING,
+            SyncStatus.FAILED_TERMINAL,
+        }
+    ),
+    SyncStatus.SUCCEEDED: frozenset({SyncStatus.SUCCEEDED}),
+    SyncStatus.NOOP: frozenset({SyncStatus.NOOP}),
+    SyncStatus.FAILED_TERMINAL: frozenset({SyncStatus.FAILED_TERMINAL}),
+}
+
+
+def validate_status_transition(current: SyncStatus, new: SyncStatus) -> None:
+    """Reject a state transition not present in the shared matrix."""
+
+    if new not in ALLOWED_STATUS_TRANSITIONS[current]:
+        raise ControlContractError(
+            f"invalid serving status transition {current.value} -> {new.value}"
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ServingBoundary:
@@ -192,6 +286,17 @@ class TargetControlLedger:
                 f"actual {self.active_sync_run_seq}"
             )
 
+    def _assert_run_predecessor(
+        self, run: ServingRun, expected_active_sync_run_seq: int
+    ) -> None:
+        self._assert_predecessor(expected_active_sync_run_seq)
+        if run.expected_active_sync_run_seq != expected_active_sync_run_seq:
+            raise PredecessorConflictError(
+                "run predecessor does not match the requested predecessor: "
+                f"run={run.expected_active_sync_run_seq}, "
+                f"requested={expected_active_sync_run_seq}"
+            )
+
     def allocate_sync_run(
         self,
         operation_type: OperationType,
@@ -238,8 +343,9 @@ class TargetControlLedger:
                 f"run {sync_run_seq} is {run.status.value}, expected "
                 f"one of {sorted(status.value for status in accepted)}"
             )
+        validate_status_transition(run.status, new_status)
         if expected_active_sync_run_seq is not None:
-            self._assert_predecessor(expected_active_sync_run_seq)
+            self._assert_run_predecessor(run, expected_active_sync_run_seq)
         updated = replace(run, status=new_status, status_reason=status_reason)
         self.runs[sync_run_seq] = updated
         return updated
@@ -285,6 +391,8 @@ class TargetControlLedger:
             raise ControlContractError(
                 "only READY_TO_PUBLISH runs may advance active state"
             )
+        self._assert_run_predecessor(run, expected_active_sync_run_seq)
+        validate_status_transition(run.status, SyncStatus.SUCCEEDED)
         self.active_sync_run_seq = sync_run_seq
         updated = replace(run, status=SyncStatus.SUCCEEDED)
         self.runs[sync_run_seq] = updated

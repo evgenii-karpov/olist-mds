@@ -183,6 +183,11 @@ REQUIRED_ASSERTIONS: dict[str, tuple[str, ...]] = {
         "uv_lock_check",
         "python_tests_check",
         "scala_sbt_build_check",
+        "scala_production_source_timezone_test",
+        "scala_batch_conflict_test",
+        "scala_audit_evidence_test",
+        "rejected_ordering_silver_gate_test",
+        "stale_predecessor_scenario_test",
     ),
     "01-harness-ready": tuple(
         [
@@ -816,10 +821,12 @@ class LocalCdcAcceptanceOrchestrator:
         )
 
         # Check Scala Docker build
-        scala_code, _, _ = self.run_cmd(
+        scala_code, scala_build_output, scala_build_error = self.run_cmd(
             [
                 "docker",
                 "build",
+                "--no-cache",
+                "--progress=plain",
                 "--target",
                 "scala-builder",
                 "-f",
@@ -832,6 +839,83 @@ class LocalCdcAcceptanceOrchestrator:
                 "name": "scala_sbt_build_check",
                 "status": "PASS" if scala_code == 0 else "FAIL",
                 "detail": "Scala sbt scalafmtCheckAll and test suite passed",
+            }
+        )
+
+        # These remediation assertions prove the named Scala tests actually
+        # ran instead of relying on a green historical test count.
+        scala_test_output = "\n".join((scala_build_output, scala_build_error))
+        assertions.extend(
+            [
+                {
+                    "name": "scala_production_source_timezone_test",
+                    "status": (
+                        "PASS"
+                        if scala_code == 0
+                        and "production decoder interprets a MySQL DATETIME wall clock"
+                        in scala_test_output
+                        else "FAIL"
+                    ),
+                    "detail": "Scala SilverDecoder fixture covered Sao Paulo and UTC SOURCE_TIME_ZONE paths",
+                },
+                {
+                    "name": "scala_batch_conflict_test",
+                    "status": (
+                        "PASS"
+                        if scala_code == 0
+                        and "batch validation rejects snapshot coordinate conflicts"
+                        in scala_test_output
+                        and "batch validation rejects live non-transactional coordinate conflicts"
+                        in scala_test_output
+                        and "batch validation rejects live transactional coordinate conflicts"
+                        in scala_test_output
+                        else "FAIL"
+                    ),
+                    "detail": "Scala Silver micro-batch conflict matrix ran",
+                },
+                {
+                    "name": "scala_audit_evidence_test",
+                    "status": (
+                        "PASS"
+                        if scala_code == 0
+                        and "audit error IDs are deterministic and schema carries the Bronze locator"
+                        in scala_test_output
+                        else "FAIL"
+                    ),
+                    "detail": "Deterministic normalization_errors evidence test ran",
+                },
+            ]
+        )
+        ordering_gate_code, ordering_gate_output, ordering_gate_error = self.run_cmd(
+            [
+                "uv",
+                "run",
+                "pytest",
+                "tests/lakehouse_platform/test_spark_ordering_contract.py::test_silver_batch_rejects_and_audits_before_any_state_write",
+                "-q",
+            ]
+        )
+        assertions.append(
+            {
+                "name": "rejected_ordering_silver_gate_test",
+                "status": "PASS" if ordering_gate_code == 0 else "FAIL",
+                "detail": ordering_gate_output.strip() or ordering_gate_error.strip(),
+            }
+        )
+        stale_code, stale_output, stale_error = self.run_cmd(
+            [
+                "uv",
+                "run",
+                "pytest",
+                "tests/serving/test_control_domain.py::test_stale_run_cannot_advance_with_the_new_active_sequence",
+                "-q",
+            ]
+        )
+        assertions.append(
+            {
+                "name": "stale_predecessor_scenario_test",
+                "status": "PASS" if stale_code == 0 else "FAIL",
+                "detail": stale_output.strip() or stale_error.strip(),
             }
         )
 

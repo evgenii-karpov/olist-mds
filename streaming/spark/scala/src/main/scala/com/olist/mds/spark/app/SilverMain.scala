@@ -57,7 +57,8 @@ object SilverMain {
             batchId,
             activeQuery.id.toString,
             Some(registryResolver),
-            config.icebergCatalogName
+            config.icebergCatalogName,
+            config.sourceTimeZone
           )
 
           queryStatuses.synchronized {

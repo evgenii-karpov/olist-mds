@@ -4,6 +4,8 @@ import com.olist.mds.spark.normalize.FatalContractFailure
 import com.olist.mds.spark.normalize.SparkJobException
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.time.DateTimeException
+import java.time.ZoneId
 
 final case class RuntimeConfig(
     mysqlHost: String,
@@ -26,12 +28,37 @@ final case class RuntimeConfig(
     sparkStatusDir: String,
     sparkRuntimeMode: String,
     sparkBackend: String,
+    sourceTimeZone: String,
     googleApplicationCredentials: Option[String],
     mysqlReferenceReaderUser: Option[String],
     mysqlReferenceReaderPassword: Option[String]
 )
 
 object RuntimeConfig {
+  val DefaultSourceTimeZone = "America/Sao_Paulo"
+
+  def validateSourceTimeZone(value: String): String = {
+    val normalized = Option(value).map(_.trim).getOrElse("")
+    if (normalized.isEmpty) {
+      throw SparkJobException(
+        "contract_resource_mismatch",
+        "SOURCE_TIME_ZONE must not be empty",
+        FatalContractFailure
+      )
+    }
+    try {
+      ZoneId.of(normalized)
+      normalized
+    } catch {
+      case _: DateTimeException =>
+        throw SparkJobException(
+          "contract_resource_mismatch",
+          s"unknown SOURCE_TIME_ZONE: $normalized",
+          FatalContractFailure
+        )
+    }
+  }
+
   private def getEnvOrSecret(envName: String): Option[String] = {
     val fileEnv = envName + "_FILE"
     sys.env.get(fileEnv) match {
@@ -87,6 +114,13 @@ object RuntimeConfig {
         FatalContractFailure
       )
     }
+
+    // Validate before any Spark session or Structured Streaming query starts.
+    // This setting applies only to MySQL DATETIME wall-clock fields; Kafka,
+    // Debezium source, and ingestion timestamps are already UTC instants.
+    val sourceTimeZone = validateSourceTimeZone(
+      sys.env.getOrElse("SOURCE_TIME_ZONE", DefaultSourceTimeZone)
+    )
 
     val contractVersionStr = sys.env.getOrElse("SPARK_CONTRACT_VERSION", "2")
     val contractVersion = try {
@@ -213,6 +247,7 @@ object RuntimeConfig {
       sparkStatusDir = sys.env.getOrElse("SPARK_STATUS_DIR", "/var/run/olist-spark"),
       sparkRuntimeMode = mode,
       sparkBackend = backend,
+      sourceTimeZone = sourceTimeZone,
       googleApplicationCredentials = adcPath,
       mysqlReferenceReaderUser = getEnvOrSecret("MYSQL_REFERENCE_READER_USERNAME"),
       mysqlReferenceReaderPassword = getEnvOrSecret("MYSQL_REFERENCE_READER_PASSWORD")

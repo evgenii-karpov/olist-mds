@@ -18,6 +18,34 @@ final case class ValidatedSourceOrdering(
     transactionDataCollectionOrder: Option[Long]
 )
 
+/** A decoded Silver input row together with the transport coordinates needed to validate a complete
+  * micro-batch.
+  */
+final case class SourceOrderingEvent(
+    decoded: DecodedRecord,
+    topic: String,
+    kafkaPartition: Int,
+    kafkaOffset: Long
+) {
+  def payloadIdentity: (Option[String], Option[String]) =
+    (decoded.keyFingerprint, decoded.valueFingerprint)
+}
+
+final case class SourceOrderingConflict(
+    code: String,
+    message: String,
+    event: SourceOrderingEvent,
+    conflictingEvent: Option[SourceOrderingEvent] = None
+)
+
+final class SourceOrderingBatchException(
+    val conflicts: Vector[SourceOrderingConflict]
+) extends RuntimeException(
+      conflicts
+        .map(conflict => s"${conflict.code}: ${conflict.message}")
+        .mkString("Source ordering batch rejected: ", "; ", "")
+    )
+
 /** Single source of truth for source-version ordering inside Spark.
   *
   * Live rows never fall back to timestamps or Kafka offsets when a MySQL coordinate is missing. The
@@ -150,6 +178,119 @@ object SourceOrdering {
       kafkaPartition,
       kafkaOffset,
       decoded.eventId
+    )
+  }
+
+  /** Validate every row before Silver state is materialized.
+    *
+    * An exact replay is the only duplicate accepted: both the event identity and the wire-payload
+    * fingerprints must match. Coordinate identity and the canonical tuple prefix are kept
+    * separately so an unrelated topic or transport record cannot silently win an otherwise
+    * ambiguous ordering.
+    */
+  def validateBatch(events: Seq[SourceOrderingEvent]): Vector[SourceOrderingEvent] = {
+    val conflicts = Vector.newBuilder[SourceOrderingConflict]
+    val accepted = Vector.newBuilder[SourceOrderingEvent]
+    val coordinates = scala.collection.mutable.Map.empty[Seq[Any], SourceOrderingEvent]
+    val canonicalPrefixes = scala.collection.mutable.Map.empty[Seq[Any], SourceOrderingEvent]
+    val eventIdentities = scala.collection.mutable.Map.empty[String, SourceOrderingEvent]
+
+    events.foreach { event =>
+      try {
+        val validated = validate(event.decoded, event.kafkaPartition, event.kafkaOffset)
+        val coordinate = sourceCoordinateKey(event, validated)
+        val canonicalPrefix = canonicalPrefixKey(event, validated)
+
+        eventIdentities.get(event.decoded.eventId) match {
+          case Some(previous) if previous.payloadIdentity != event.payloadIdentity =>
+            conflicts += SourceOrderingConflict(
+              "EVENT_ID_COLLISION",
+              s"event identity ${event.decoded.eventId} was reused with a different payload",
+              event,
+              Some(previous)
+            )
+          case Some(_) =>
+            () // exact event identity and payload replay: ignore transport re-delivery
+          case _ =>
+            coordinates.get(coordinate) match {
+              case Some(previous)
+                  if previous.decoded.eventId == event.decoded.eventId &&
+                    previous.payloadIdentity == event.payloadIdentity =>
+                () // exact replay: keep the first physical record only
+              case Some(previous) =>
+                conflicts += SourceOrderingConflict(
+                  "CONFLICTING_SOURCE_COORDINATE",
+                  s"source coordinates are shared by ${previous.decoded.eventId} and ${event.decoded.eventId}",
+                  event,
+                  Some(previous)
+                )
+              case None =>
+                canonicalPrefixes.get(canonicalPrefix) match {
+                  case Some(previous) if previous.decoded.eventId != event.decoded.eventId =>
+                    conflicts += SourceOrderingConflict(
+                      "AMBIGUOUS_CANONICAL_ORDER",
+                      s"canonical ordering is ambiguous between ${previous.decoded.eventId} and ${event.decoded.eventId}",
+                      event,
+                      Some(previous)
+                    )
+                  case _ =>
+                    coordinates += coordinate -> event
+                    canonicalPrefixes += canonicalPrefix -> event
+                    eventIdentities += event.decoded.eventId -> event
+                    accepted += event
+                }
+            }
+        }
+      } catch {
+        case error: SparkJobException =>
+          conflicts += SourceOrderingConflict(
+            error.code,
+            error.message,
+            event,
+            None
+          )
+      }
+    }
+
+    val result = conflicts.result()
+    if (result.nonEmpty) throw new SourceOrderingBatchException(result)
+    accepted.result()
+  }
+
+  private def sourceCoordinateKey(
+      event: SourceOrderingEvent,
+      validated: ValidatedSourceOrdering
+  ): Seq[Any] = {
+    if (validated.category == SnapshotEvent) {
+      Seq(event.topic, validated.category, event.kafkaPartition, event.kafkaOffset)
+    } else {
+      Seq(
+        event.topic,
+        validated.category,
+        validated.sourceBinlogFileIndex,
+        validated.sourceBinlogPos,
+        validated.sourceRow,
+        validated.transactionTotalOrder,
+        validated.transactionDataCollectionOrder
+      )
+    }
+  }
+
+  private def canonicalPrefixKey(
+      event: SourceOrderingEvent,
+      validated: ValidatedSourceOrdering
+  ): Seq[Any] = {
+    Seq(
+      event.topic,
+      if (validated.category == SnapshotEvent) 0 else 1,
+      validated.sourceBinlogFileIndex.getOrElse(-1),
+      validated.sourceBinlogPos.getOrElse(-1L),
+      validated.sourceRow.getOrElse(-1),
+      validated.transactionTotalOrder.getOrElse(-1L),
+      validated.transactionDataCollectionOrder.getOrElse(-1L),
+      event.decoded.sourceTsMs.getOrElse(-1L),
+      event.kafkaPartition,
+      event.kafkaOffset
     )
   }
 

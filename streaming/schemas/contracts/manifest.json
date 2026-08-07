@@ -24,7 +24,7 @@
       "entity": "orders",
       "contract_version": 2,
       "path": "orders/v2.json",
-      "contract_sha256": "02d8818df97f179ae65a8b1d0c48df26aac543c8b6bc795cbdaeb080ffaa97a9",
+      "contract_sha256": "09f9cd9d3d87b94f5eefe4ce3cba3b65481306fcb238587f6a26cc877e2a9ecb",
       "versions": [
         {
           "contract_version": 1,
@@ -34,7 +34,7 @@
         {
           "contract_version": 2,
           "path": "orders/v2.json",
-          "contract_sha256": "02d8818df97f179ae65a8b1d0c48df26aac543c8b6bc795cbdaeb080ffaa97a9"
+          "contract_sha256": "09f9cd9d3d87b94f5eefe4ce3cba3b65481306fcb238587f6a26cc877e2a9ecb"
         }
       ]
     },
@@ -42,7 +42,7 @@
       "entity": "order_items",
       "contract_version": 2,
       "path": "order_items/v2.json",
-      "contract_sha256": "661d136d70d3c82b0ae3339283991cbf4615084b1c2b4f8c519fd4e533f38fd1",
+      "contract_sha256": "789d3cba18446d1ddfa91bece4e211db6e9e8556b2f014c0d7d817f254cd5873",
       "versions": [
         {
           "contract_version": 1,
@@ -52,7 +52,7 @@
         {
           "contract_version": 2,
           "path": "order_items/v2.json",
-          "contract_sha256": "661d136d70d3c82b0ae3339283991cbf4615084b1c2b4f8c519fd4e533f38fd1"
+          "contract_sha256": "789d3cba18446d1ddfa91bece4e211db6e9e8556b2f014c0d7d817f254cd5873"
         }
       ]
     },
@@ -78,7 +78,7 @@
       "entity": "order_reviews",
       "contract_version": 2,
       "path": "order_reviews/v2.json",
-      "contract_sha256": "2f7bd257a3f728b74821a366fd0504252e7ef9dea6a923e3811ab8366be5cd15",
+      "contract_sha256": "8d9394b42e5b47c5dabbe8958e4fd907ef8ba7ea2e3113afb7207654e2002245",
       "versions": [
         {
           "contract_version": 1,
@@ -88,7 +88,7 @@
         {
           "contract_version": 2,
           "path": "order_reviews/v2.json",
-          "contract_sha256": "2f7bd257a3f728b74821a366fd0504252e7ef9dea6a923e3811ab8366be5cd15"
+          "contract_sha256": "8d9394b42e5b47c5dabbe8958e4fd907ef8ba7ea2e3113afb7207654e2002245"
         }
       ]
     },

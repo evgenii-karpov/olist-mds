@@ -3,6 +3,7 @@ name: ${COMPOSE_PROJECT_NAME:-olist_local_cdc}
 x-spark-gcp-environment: &spark-gcp-environment
   SPARK_BACKEND: gcp
   SPARK_RUNTIME_MODE: gcp
+  SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
   ICEBERG_SPARK_CATALOG_ALIAS: ${GCP_LAKEHOUSE_CATALOG_ALIAS:-lakehouse}
   ICEBERG_CATALOG_URI: ${GCP_LAKEHOUSE_CATALOG_URI:-https://biglake.googleapis.com/iceberg/v1/restcatalog}
   ICEBERG_WAREHOUSE: ${GCP_LAKEHOUSE_WAREHOUSE:-}
@@ -497,6 +498,7 @@ services:
       OBJECT_STORE_PATH_STYLE: "true"
       OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
       SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
       POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
       POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
       OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
@@ -560,6 +562,7 @@ services:
       OBJECT_STORE_PATH_STYLE: "true"
       OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
       SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
       POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
       POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
       OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
@@ -610,6 +613,7 @@ services:
       OBJECT_STORE_PATH_STYLE: "true"
       OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
       SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
       POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
       POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
       OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
@@ -658,6 +662,7 @@ services:
       OBJECT_STORE_PATH_STYLE: "true"
       OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
       SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
       POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
       POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
       OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key
@@ -713,6 +718,7 @@ services:
       OBJECT_STORE_PATH_STYLE: "true"
       OBJECT_STORE_CREDENTIAL_PROVIDER: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
       SPARK_CHECKPOINT_ROOT: s3a://olist-checkpoints
+      SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}
       POLARIS_SPARK_CLIENT_ID_FILE: /run/projected-credentials/polaris-spark-client-id
       POLARIS_SPARK_CLIENT_SECRET_FILE: /run/projected-credentials/polaris-spark-client-secret
       OBJECT_STORE_ACCESS_KEY_FILE: /run/projected-credentials/minio-checkpoints-access-key

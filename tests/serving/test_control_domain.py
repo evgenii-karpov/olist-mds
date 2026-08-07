@@ -1,5 +1,6 @@
 import pytest
 from scripts.serving.domain import (
+    ControlContractError,
     PredecessorConflictError,
     ServingBoundary,
     ServingTarget,
@@ -99,3 +100,50 @@ def test_same_run_retry_preserves_identity_boundary_and_predecessor() -> None:
     assert retried.expected_active_sync_run_seq == 0
     assert retried.attempt_count == 2
     assert retried.status is SyncStatus.PLANNING
+
+
+def test_stale_run_cannot_advance_with_the_new_active_sequence() -> None:
+    ledger = TargetControlLedger(ServingTarget.GCP)
+    run_a = ledger.allocate_sync_run(OperationType.SYNC)
+    run_b = ledger.allocate_sync_run(OperationType.SYNC)
+
+    ledger.set_status(
+        run_b.sync_run_seq,
+        expected_status=SyncStatus.PLANNING,
+        new_status=SyncStatus.READY_TO_PUBLISH,
+    )
+    ledger.advance_active_sync_run(
+        run_b.sync_run_seq,
+        expected_active_sync_run_seq=0,
+    )
+    ledger.set_status(
+        run_a.sync_run_seq,
+        expected_status=SyncStatus.PLANNING,
+        new_status=SyncStatus.READY_TO_PUBLISH,
+    )
+
+    with pytest.raises(PredecessorConflictError):
+        ledger.advance_active_sync_run(
+            run_a.sync_run_seq,
+            expected_active_sync_run_seq=1,
+        )
+
+    assert ledger.active_sync_run_seq == 2
+    assert ledger.runs[run_a.sync_run_seq].status is SyncStatus.READY_TO_PUBLISH
+
+
+def test_terminal_run_cannot_reenter_the_state_machine() -> None:
+    ledger = TargetControlLedger(ServingTarget.LOCAL)
+    run = ledger.allocate_sync_run(OperationType.SYNC)
+    ledger.set_status(
+        run.sync_run_seq,
+        expected_status=SyncStatus.PLANNING,
+        new_status=SyncStatus.FAILED_TERMINAL,
+    )
+
+    with pytest.raises(ControlContractError, match="invalid serving status transition"):
+        ledger.set_status(
+            run.sync_run_seq,
+            expected_status=SyncStatus.FAILED_TERMINAL,
+            new_status=SyncStatus.PLANNING,
+        )

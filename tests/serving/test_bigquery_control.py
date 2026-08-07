@@ -3,7 +3,12 @@ from collections.abc import Iterable, Mapping
 import pytest
 from scripts.serving.bigquery_control import BigQueryServingControlRepository
 from scripts.serving.control_adapters import PostgresServingControlAdapter
-from scripts.serving.domain import ServingBoundary, ServingTarget, TargetMismatchError
+from scripts.serving.domain import (
+    ControlContractError,
+    ServingBoundary,
+    ServingTarget,
+    TargetMismatchError,
+)
 from scripts.serving.entities import ALL_SERVING_ENTITIES
 from scripts.serving.models import OperationType, StatusReason, SyncStatus
 
@@ -92,8 +97,22 @@ def test_bigquery_status_transition_is_optimistic_and_can_report_conflict() -> N
     assert not updated
     assert "active_sync_run_seq" in query
     assert "@expected_active_sync_run_seq" in query
+    assert "expected_active_sync_run_seq = @expected_active_sync_run_seq" in query
     assert "target = 'gcp'" in query
     assert parameters["expected_active_sync_run_seq"] == 6
+
+
+def test_bigquery_rejects_invalid_transition_before_query_execution() -> None:
+    repository, runner = _repository([])
+
+    with pytest.raises(ControlContractError, match="invalid serving status transition"):
+        repository.update_status(
+            sync_run_seq=7,
+            expected_status=SyncStatus.FAILED_TERMINAL,
+            new_status=SyncStatus.PLANNING,
+        )
+
+    assert runner.queries == []
 
 
 def test_bigquery_same_run_retry_does_not_allocate_new_sequence() -> None:

@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -49,6 +50,30 @@ def test_source_profiles_use_target_neutral_raw_type_metadata():
     )
     assert entities
     assert all(entity.columns for entity in entities)
+
+
+def test_every_spark_driver_profile_receives_source_time_zone():
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+
+    assert "SOURCE_TIME_ZONE: ${SOURCE_TIME_ZONE:-America/Sao_Paulo}" in compose
+    for service in (
+        "iceberg-migration:",
+        "spark-geolocation:",
+        "spark-bronze:",
+        "spark-silver:",
+        "spark-ops:",
+    ):
+        start = compose.index(f"  {service}")
+        next_service_match = re.search(
+            r"\n  [A-Za-z0-9][A-Za-z0-9_-]*:\n", compose[start + 1 :]
+        )
+        next_service = (
+            start + 1 + next_service_match.start()
+            if next_service_match
+            else len(compose)
+        )
+        block = compose[start:next_service]
+        assert "SOURCE_TIME_ZONE:" in block, service
 
 
 def test_cdc_admin_uses_the_target_mysql_connector():

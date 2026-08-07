@@ -63,6 +63,23 @@ def test_snapshot_contract_does_not_require_live_coordinates() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "marker", ("true", "last", "first_in_data_collection", "last_in_data_collection")
+)
+def test_debezium_snapshot_markers_are_not_classified_as_live(marker: str) -> None:
+    validated = validate_ordering_event(
+        _event(
+            event_id=f"snapshot-{marker}",
+            is_snapshot=marker,
+            source_binlog_file="binlog.000002",
+            source_binlog_pos=12383,
+            source_row=0,
+        )
+    )
+
+    assert validated.category is EventCategory.SNAPSHOT
+
+
 def test_snapshot_coordinates_are_scoped_by_topic() -> None:
     first = _event(event_id="snapshot-orders", is_snapshot=True)
     second = _event(
@@ -129,6 +146,35 @@ def test_conflicting_duplicate_source_coordinates_fail_closed() -> None:
     second = _event(event_id="event-b", kafka_offset=11)
     with pytest.raises(OrderingContractError, match="CONFLICTING_SOURCE_COORDINATE"):
         validate_ordering_batch((first, second))
+
+
+def test_exact_replay_is_deduplicated_but_payload_collision_fails() -> None:
+    first = _event(
+        event_id="event-a",
+        key_fingerprint="a" * 64,
+        value_fingerprint="b" * 64,
+    )
+    replay = dict(first)
+    collision = dict(first, value_fingerprint="c" * 64)
+
+    assert len(validate_ordering_batch((first, replay))) == 1
+    with pytest.raises(OrderingContractError, match="EVENT_ID_COLLISION"):
+        validate_ordering_batch((first, collision))
+
+
+def test_exact_replay_remains_idempotent_when_transport_coordinates_differ() -> None:
+    first = _event(
+        event_id="event-a",
+        key_fingerprint="a" * 64,
+        value_fingerprint="b" * 64,
+    )
+    replay = dict(
+        first,
+        kafka_offset=11,
+        source_binlog_pos=101,
+    )
+
+    assert len(validate_ordering_batch((first, replay))) == 1
 
 
 def test_source_wall_clock_is_normalized_to_utc(monkeypatch) -> None:

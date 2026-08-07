@@ -185,7 +185,12 @@ def _is_snapshot(row: Mapping[str, object]) -> bool:
     value = row.get("is_snapshot", row.get("snapshot"))
     if isinstance(value, bool):
         return value
-    return isinstance(value, str) and value.strip().lower() in {"true", "last"}
+    return isinstance(value, str) and value.strip().lower() in {
+        "true",
+        "last",
+        "first_in_data_collection",
+        "last_in_data_collection",
+    }
 
 
 def _source_ts_micros(value: object, *, event_id: str) -> int | None:
@@ -321,20 +326,53 @@ def canonical_order_key(
 def validate_ordering_batch(
     rows: Iterable[Mapping[str, object]],
 ) -> tuple[ValidatedOrderingEvent, ...]:
-    """Validate a batch and reject conflicting duplicate source coordinates."""
+    """Validate a batch and reject ambiguous or conflicting duplicate records."""
 
     validated: list[ValidatedOrderingEvent] = []
-    coordinates: dict[tuple[object, ...], str] = {}
+    coordinates: dict[
+        tuple[object, ...], tuple[ValidatedOrderingEvent, tuple[object, ...]]
+    ] = {}
+    canonical_prefixes: dict[
+        tuple[object, ...], tuple[ValidatedOrderingEvent, tuple[object, ...]]
+    ] = {}
+    event_identities: dict[str, tuple[ValidatedOrderingEvent, tuple[object, ...]]] = {}
     for row in rows:
         event = validate_ordering_event(row)
-        previous_event_id = coordinates.get(event.source_coordinate_key)
-        if previous_event_id is not None and previous_event_id != event.event_id:
+        payload_identity = (
+            row.get("key_fingerprint", row.get("key_sha256")),
+            row.get("value_fingerprint", row.get("value_sha256")),
+        )
+        previous_identity = event_identities.get(event.event_id)
+        if previous_identity is not None:
+            _, previous_payload = previous_identity
+            if previous_payload != payload_identity:
+                raise OrderingContractError(
+                    "EVENT_ID_COLLISION",
+                    f"event identity {event.event_id} was reused with a different payload",
+                    event_id=event.event_id,
+                )
+            continue
+
+        previous_identity = coordinates.get(event.source_coordinate_key)
+        if previous_identity is not None:
             raise OrderingContractError(
                 "CONFLICTING_SOURCE_COORDINATE",
-                f"source coordinates are shared by {previous_event_id} and {event.event_id}",
+                f"source coordinates are shared by {previous_identity[0].event_id} and {event.event_id}",
                 event_id=event.event_id,
             )
-        coordinates[event.source_coordinate_key] = event.event_id
+
+        canonical_prefix = (event.topic, *event.order_key()[:-1])
+        previous_identity = canonical_prefixes.get(canonical_prefix)
+        if previous_identity is not None:
+            raise OrderingContractError(
+                "AMBIGUOUS_CANONICAL_ORDER",
+                f"canonical ordering is ambiguous between {previous_identity[0].event_id} and {event.event_id}",
+                event_id=event.event_id,
+            )
+
+        coordinates[event.source_coordinate_key] = (event, payload_identity)
+        canonical_prefixes[canonical_prefix] = (event, payload_identity)
+        event_identities[event.event_id] = (event, payload_identity)
         validated.append(event)
     return tuple(sorted(validated, key=ValidatedOrderingEvent.order_key))
 

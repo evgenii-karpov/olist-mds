@@ -148,6 +148,27 @@ def test_gcp_up_cannot_bypass_preflight(monkeypatch) -> None:
     assert calls == []
 
 
+def test_gcp_streaming_start_cannot_bypass_preflight(monkeypatch) -> None:
+    calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        lab,
+        "_gcp_preflight",
+        lambda: {"checks": {}, "missing": ["adc_file"]},
+    )
+    monkeypatch.setattr(
+        lab,
+        "_run_compose",
+        lambda profiles, arguments, *, timeout: calls.append(
+            (tuple(profiles), tuple(arguments))
+        ),
+    )
+
+    result = lab._gcp_streaming(Namespace(action="start", build=False, timeout=30.0))
+
+    assert result == 0
+    assert calls == []
+
+
 def test_gcp_down_includes_the_streaming_profile(monkeypatch) -> None:
     calls: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
 
@@ -198,3 +219,41 @@ def test_gcp_operator_command_surface_is_registered() -> None:
     for command_line in command_lines:
         parsed = lab._build_parser().parse_args(command_line)
         assert callable(parsed.func)
+
+
+@pytest.mark.parametrize(
+    "command_line",
+    (
+        ("local", "up"),
+        ("local", "down"),
+        ("local", "streaming", "start"),
+        ("local", "streaming", "status"),
+        ("local", "streaming", "stop"),
+        ("local", "serving", "run"),
+        ("local", "reset-data", "--force"),
+        ("gcp", "preflight"),
+        ("gcp", "up"),
+        ("gcp", "down"),
+        ("gcp", "streaming", "start"),
+        ("gcp", "streaming", "status"),
+        ("gcp", "streaming", "stop"),
+        ("gcp", "migrate", "status"),
+        ("gcp", "migrate", "apply"),
+        ("gcp", "serving", "run"),
+        ("gcp", "reset-data", "--force"),
+        ("gcp", "destroy", "--force"),
+        ("gcp", "inventory"),
+        ("parity", "run"),
+        ("parity", "report"),
+    ),
+)
+def test_normative_command_surface_parses(command_line: tuple[str, ...]) -> None:
+    parsed = lab._build_parser().parse_args(command_line)
+    assert callable(parsed.func)
+
+
+def test_gcp_streaming_start_has_no_public_auth_bypass() -> None:
+    with pytest.raises(SystemExit):
+        lab._build_parser().parse_args(
+            ("gcp", "streaming", "start", "--allow-missing-auth")
+        )
