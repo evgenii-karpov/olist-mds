@@ -6,11 +6,13 @@ CREATE SEQUENCE IF NOT EXISTS serving.sync_run_seq AS bigint START WITH 1 INCREM
 CREATE TABLE IF NOT EXISTS serving.sync_runs (
     sync_run_seq bigint PRIMARY KEY DEFAULT nextval('serving.sync_run_seq'),
     sync_run_id text UNIQUE NOT NULL,
+    target text NOT NULL DEFAULT 'local' CHECK (target = 'local'),
     operation_type text NOT NULL CHECK (operation_type IN ('SYNC', 'REBUILD')),
     status text NOT NULL CHECK (status IN ('PLANNING', 'WAITING', 'BLOCKED', 'MATERIALIZING', 'VALIDATING', 'READY_TO_PUBLISH', 'PUBLISHED_PENDING_FINALIZATION', 'SUCCEEDED', 'NOOP', 'FAILED_RETRYABLE', 'FAILED_TERMINAL')),
     status_reason text NOT NULL CHECK (status_reason IN ('NONE', 'NO_NEW_TRANSACTION', 'SOURCE_NOT_CAUGHT_UP', 'OPEN_TRANSACTION', 'OPEN_TRANSACTION_STALE', 'REJECTED_TRANSACTION', 'SNAPSHOT_REJECTED', 'ACTIVE_LEASE', 'MATERIALIZATION_MISMATCH', 'PUBLICATION_DRIFT', 'INVARIANT_FAILURE', 'EXECUTION_FAILURE')),
     current_airflow_dag_run_id text,
     attempt_count integer NOT NULL DEFAULT 0,
+    expected_active_sync_run_seq bigint NOT NULL DEFAULT 0,
     is_noop boolean NOT NULL DEFAULT false,
     previous_transaction_id text,
     previous_transaction_end_offset bigint,
@@ -47,6 +49,7 @@ CREATE TABLE IF NOT EXISTS serving.sync_entity_results (
 
 CREATE TABLE IF NOT EXISTS serving.runtime_state (
     singleton_key integer PRIMARY KEY CHECK (singleton_key = 1),
+    target text NOT NULL DEFAULT 'local' CHECK (target = 'local'),
     last_published_sync_run_seq bigint NOT NULL DEFAULT 0,
     last_published_transaction_id text,
     last_published_transaction_end_offset bigint,

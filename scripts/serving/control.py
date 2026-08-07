@@ -79,11 +79,16 @@ class ServingControlRepository:
             cur.execute(
                 """
                 INSERT INTO serving.sync_runs (
-                    sync_run_seq, sync_run_id, operation_type, status, status_reason,
-                    current_airflow_dag_run_id, attempt_count
-                ) VALUES (
-                    %s, %s, %s, %s, %s, %s, 1
-                ) RETURNING *
+                    sync_run_seq, sync_run_id, target, operation_type, status,
+                    status_reason, current_airflow_dag_run_id, attempt_count,
+                    expected_active_sync_run_seq
+                )
+                SELECT
+                    %s, %s, 'local', %s, %s, %s, %s, 1,
+                    last_published_sync_run_seq
+                FROM serving.runtime_state
+                WHERE singleton_key = 1 AND target = 'local'
+                RETURNING *
                 """,
                 (
                     seq,
@@ -118,6 +123,7 @@ class ServingControlRepository:
         materialized_event_count: int | None = None,
         expected_entity_counts_json: dict[str, int] | None = None,
         materialized_entity_counts_json: dict[str, int] | None = None,
+        expected_active_sync_run_seq: int | None = None,
     ) -> bool:
         expected_list = (
             [expected_status.value]
@@ -154,7 +160,17 @@ class ServingControlRepository:
                     published_at = COALESCE(%s, published_at),
                     completed_at = COALESCE(%s, completed_at),
                     updated_at = clock_timestamp()
-                WHERE sync_run_seq = %s AND status = ANY(%s)
+                WHERE target = 'local'
+                  AND sync_run_seq = %s
+                  AND status = ANY(%s)
+                  AND (
+                      %s IS NULL
+                      OR (
+                          SELECT last_published_sync_run_seq
+                          FROM serving.runtime_state
+                          WHERE singleton_key = 1 AND target = 'local'
+                      ) = %s
+                  )
                 """,
                 (
                     new_status.value,
@@ -185,9 +201,60 @@ class ServingControlRepository:
                     completed_at,
                     sync_run_seq,
                     expected_list,
+                    expected_active_sync_run_seq,
+                    expected_active_sync_run_seq,
                 ),
             )
             return cur.rowcount > 0
+
+    @staticmethod
+    def prepare_same_run_retry(
+        sync_run_seq: int,
+        expected_active_sync_run_seq: int,
+    ) -> bool:
+        """Reset an unpublished local run while preserving its sequence/boundary."""
+
+        with control_db_cursor() as cur:
+            cur.execute(
+                """
+                UPDATE serving.sync_runs AS run
+                SET status = 'PLANNING',
+                    status_reason = 'NONE',
+                    attempt_count = attempt_count + 1,
+                    report_json = NULL,
+                    error_details_json = NULL,
+                    updated_at = clock_timestamp()
+                WHERE run.target = 'local'
+                  AND run.sync_run_seq = %s
+                  AND run.status IN (
+                      'FAILED_RETRYABLE', 'MATERIALIZING', 'VALIDATING',
+                      'READY_TO_PUBLISH'
+                  )
+                  AND run.expected_active_sync_run_seq = %s
+                  AND EXISTS (
+                      SELECT 1
+                      FROM serving.runtime_state AS state
+                      WHERE state.singleton_key = 1
+                        AND state.target = 'local'
+                        AND state.last_published_sync_run_seq = %s
+                  )
+                """,
+                (
+                    sync_run_seq,
+                    expected_active_sync_run_seq,
+                    expected_active_sync_run_seq,
+                ),
+            )
+            if cur.rowcount == 0:
+                return False
+            cur.execute(
+                """
+                DELETE FROM serving.sync_entity_results
+                WHERE sync_run_seq = %s
+                """,
+                (sync_run_seq,),
+            )
+            return True
 
     @staticmethod
     def acquire_lease(
@@ -210,7 +277,7 @@ class ServingControlRepository:
                     lease_heartbeat_at = %s,
                     lease_expires_at = %s,
                     updated_at = clock_timestamp()
-                WHERE singleton_key = 1 AND (
+                WHERE singleton_key = 1 AND target = 'local' AND (
                     lease_expires_at IS NULL OR lease_expires_at < %s OR lease_owner_id = %s
                 )
                 """,
@@ -239,7 +306,7 @@ class ServingControlRepository:
                 SET lease_heartbeat_at = %s,
                     lease_expires_at = %s,
                     updated_at = clock_timestamp()
-                WHERE singleton_key = 1 AND lease_owner_id = %s
+                WHERE singleton_key = 1 AND target = 'local' AND lease_owner_id = %s
                 """,
                 (now, expires_at, owner_id),
             )
@@ -258,7 +325,7 @@ class ServingControlRepository:
                     lease_heartbeat_at = NULL,
                     lease_expires_at = NULL,
                     updated_at = clock_timestamp()
-                WHERE singleton_key = 1 AND lease_owner_id = %s
+                WHERE singleton_key = 1 AND target = 'local' AND lease_owner_id = %s
                 """,
                 (owner_id,),
             )
@@ -267,7 +334,13 @@ class ServingControlRepository:
     @staticmethod
     def get_runtime_state() -> dict[str, object]:
         with control_db_cursor() as cur:
-            cur.execute("SELECT * FROM serving.runtime_state WHERE singleton_key = 1")
+            cur.execute(
+                """
+                SELECT *
+                FROM serving.runtime_state
+                WHERE singleton_key = 1 AND target = 'local'
+                """
+            )
             row = cur.fetchone()
             return dict(row) if row else {}
 
@@ -289,7 +362,7 @@ class ServingControlRepository:
                     last_published_target_offsets_json = %s,
                     source_snapshot_completed = %s,
                     updated_at = clock_timestamp()
-                WHERE singleton_key = 1
+                WHERE singleton_key = 1 AND target = 'local'
                 """,
                 (
                     sync_run_seq,
@@ -304,7 +377,13 @@ class ServingControlRepository:
     def get_latest_sync_run() -> dict[str, object]:
         with control_db_cursor() as cur:
             cur.execute(
-                "SELECT * FROM serving.sync_runs ORDER BY sync_run_seq DESC LIMIT 1"
+                """
+                SELECT *
+                FROM serving.sync_runs
+                WHERE target = 'local'
+                ORDER BY sync_run_seq DESC
+                LIMIT 1
+                """
             )
             row = cur.fetchone()
             return dict(row) if row else {}
@@ -313,7 +392,11 @@ class ServingControlRepository:
     def get_sync_run_by_seq(sync_run_seq: int) -> dict[str, object]:
         with control_db_cursor() as cur:
             cur.execute(
-                "SELECT * FROM serving.sync_runs WHERE sync_run_seq = %s",
+                """
+                SELECT *
+                FROM serving.sync_runs
+                WHERE target = 'local' AND sync_run_seq = %s
+                """,
                 (sync_run_seq,),
             )
             row = cur.fetchone()
@@ -328,7 +411,8 @@ class ServingControlRepository:
                 """
                 SELECT sync_run_seq, sync_run_id, operation_type, status, is_noop
                 FROM serving.sync_runs
-                WHERE status NOT IN ('SUCCEEDED', 'NOOP', 'FAILED_TERMINAL')
+                WHERE target = 'local'
+                  AND status NOT IN ('SUCCEEDED', 'NOOP', 'FAILED_TERMINAL')
                 ORDER BY sync_run_seq
                 """
             )
@@ -343,7 +427,7 @@ class ServingControlRepository:
                 """
                 SELECT *
                 FROM serving.sync_runs
-                WHERE current_airflow_dag_run_id = %s
+                WHERE target = 'local' AND current_airflow_dag_run_id = %s
                 ORDER BY sync_run_seq DESC
                 LIMIT 1
                 """,
@@ -378,7 +462,11 @@ class ServingControlRepository:
 
             # Verify singleton constraint on runtime_state
             cur.execute(
-                "SELECT singleton_key FROM serving.runtime_state WHERE singleton_key = 1"
+                """
+                SELECT singleton_key
+                FROM serving.runtime_state
+                WHERE singleton_key = 1 AND target = 'local'
+                """
             )
             singleton_exists = cur.fetchone() is not None
 
