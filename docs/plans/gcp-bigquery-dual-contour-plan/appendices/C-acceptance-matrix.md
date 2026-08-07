@@ -6,9 +6,16 @@
 | Profile isolation | Render GCP profiles | No Polaris/MinIO/ClickHouse/local-db bootstrap leakage |
 | Ordering | Malformed binlog filename | Audit/quarantine and fail closed |
 | Ordering | Snapshot/live/transaction field matrix | Correct required-field enforcement |
+| Ordering | Conflicting source coordinates in one Silver batch | Audit evidence written; no Silver/current/progress advance |
+| Ordering | Exact replay of the same event | Idempotent; no false coordinate conflict |
 | Boundary | Missing transaction metadata | Serving run blocked |
 | Boundary | Multi-partition transaction | Frozen offsets do not split transaction |
-| Timestamp | Source wall clock | Interpreted in configured zone and stored as UTC instant |
+| Timestamp | Source wall clock through production Spark | Interpreted in configured zone and stored as the expected UTC instant |
+| Timestamp | Non-default and invalid `SOURCE_TIME_ZONE` | Non-default zone changes the stored instant; invalid zone blocks startup |
+| CLI | Normative WP1 command tree | Every documented command parses; `local serving run` is available |
+| CLI | Missing GCP authentication | `gcp up` and `gcp streaming start` block with no public bypass |
+| Control | Run predecessor changed after allocation | Stale run cannot advance active state |
+| Control | Invalid transition or persistence failure | No partial state/result mutation |
 | Decimal | Money | BigQuery NUMERIC with exact accepted values |
 | Decimal | Geolocation/high precision | BigQuery BIGNUMERIC with accepted precision |
 | Checkpoint | Restart GCP query | Continues idempotently from GCS checkpoint |
@@ -28,3 +35,4 @@
 | CI | Cloud static workflow | No GCP credentials or live resources |
 | Cost | BigQuery limits/labels | Caps enforced and actual bytes recorded |
 | Cleanup | Main destroy | Managed contour absent; state bucket explicitly remains |
+| Evidence | Local acceptance archive | Durable report/checksums exist and cleanup claims match recorded actions |

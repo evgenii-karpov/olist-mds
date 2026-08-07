@@ -58,6 +58,7 @@ Live cloud integration tests in GitHub Actions are out of scope for the first im
 WP0  Baseline, ordering, and timestamp contract
   -> WP1  Compose/profile and CLI redesign
   -> WP2  Target-scoped serving-control separation
+  -> WP0-WP2-R  Post-review remediation and consolidated acceptance
   -> WP3  GCP bootstrap and flat Terraform root
   -> WP4  Catalog, Spark backend, and runtime dependencies
   -> WP5  Blocking four-table vertical slice
@@ -79,6 +80,7 @@ WP0  Baseline, ordering, and timestamp contract
 | G0 Baseline pinned | Baseline SHA, local acceptance evidence, current model/table inventory | All refactoring |
 | G1 Ordering corrected | Canonical ordering implemented; malformed coordinates fail closed; rebuilt local fixture | Cloud Silver and Gold |
 | G2 Runtime isolation | Compose renders cleanly for each profile; GCP path has no Polaris/MinIO dependency | Cloud runtime |
+| G2R WP0–WP2 review closure | Production timezone path, batch ordering conflicts, audit evidence, exact CLI grammar, and stale-predecessor contracts pass the consolidated remediation matrix | WP3 and cloud rollout |
 | G3 Infrastructure ready | State bootstrap, flat Terraform root, IAM and buckets verified | Vertical slice |
 | G4 Vertical slice accepted | Four representative tables, BigQuery P.C.N.T reads, bridge views, restart, types, costs | Full cloud port |
 | G5 Full lakehouse ready | All Iceberg tables and progress contracts validated | dbt-bigquery |

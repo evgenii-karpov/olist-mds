@@ -4,8 +4,8 @@
   "files": [
     {
       "path": "00-program-overview.md",
-      "sha256": "24330bc592616d79bc6d0305761bcb6ff067d6afbf36464b269087bdba23ba71",
-      "bytes": 5805
+      "sha256": "c4649db9877b3ff3c3845767d4f4b4cbd7ee2092de00213311ee179894de83b6",
+      "bytes": 6092
     },
     {
       "path": "01-decision-register.md",
@@ -54,8 +54,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "0d10fa62609098a00e548bee70ec1f4f3ec16f5f3621ffe7b51e664fd6c6a8b7",
-      "bytes": 3256
+      "sha256": "e5b41b4f3ecb4d5ca46df594088da0de714574b2cabf3ada069a7b6874ab1aca",
+      "bytes": 3740
     },
     {
       "path": "appendices/A-command-surface.md",
@@ -69,8 +69,8 @@
     },
     {
       "path": "appendices/C-acceptance-matrix.md",
-      "sha256": "c8bf0cbe03257950f1cc36c2eeae3c6a17bd6ee2f082e8d3ed370da803b6b095",
-      "bytes": 2173
+      "sha256": "0adfe5c6c3c785e3de02fc76dc02b5ed5d2476053e0b5c97c3029d4e54fe03fe",
+      "bytes": 3069
     },
     {
       "path": "appendices/D-risks-and-open-gates.md",
@@ -84,13 +84,13 @@
     },
     {
       "path": "stages/WP0-baseline-ordering-and-timestamps.md",
-      "sha256": "3e99770f1aa3619451de1d67cbc737cd2bdf9c406c04eb429f26c703c64b53ea",
-      "bytes": 1461
+      "sha256": "7322652040650f31cabfe762031daec748c7d9cfda1eb7ecbdb3f075530d75c8",
+      "bytes": 3197
     },
     {
       "path": "stages/WP1-compose-and-cli-redesign.md",
-      "sha256": "d3a93d5e244fc5be8800270c68a6935ad00e149f2706c29a7be41e583d61af46",
-      "bytes": 1322
+      "sha256": "a73d973c94620203e343fcfd3ddae4b4e1fc12f3f179bb479cef5404a12d33a6",
+      "bytes": 2152
     },
     {
       "path": "stages/WP10-atomic-publication-and-airflow.md",
@@ -109,8 +109,13 @@
     },
     {
       "path": "stages/WP2-serving-control-separation.md",
-      "sha256": "32baeed21d39da6546623a3c6a77c4694f36eda628c597f38a6cdc3bad6fdf35",
-      "bytes": 1202
+      "sha256": "a3f2a2b131baa2fcf3f6c922f2d86fd710e9042acbc71f7ad7581db0b76b60de",
+      "bytes": 2479
+    },
+    {
+      "path": "stages/WP0-WP2-remediation.md",
+      "sha256": "1e0b9e95b4ba4c8188ab3b070cd53d2ffa60f05b4174f59e8fc3ed975c90a717",
+      "bytes": 7966
     },
     {
       "path": "stages/WP3-gcp-bootstrap-and-terraform.md",

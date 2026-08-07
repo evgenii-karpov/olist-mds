@@ -22,15 +22,18 @@ This package is the consolidated implementation plan for adding a permanent GCP/
 | [`08-orchestration-cli-and-operations.md`](08-orchestration-cli-and-operations.md) | `lab.py`, Airflow, migrations, streaming ownership, destructive commands |
 | [`09-testing-parity-observability-and-ci.md`](09-testing-parity-observability-and-ci.md) | Testing, parity, CI, observability, cost evidence |
 | [`stages/`](stages/) | Executable work packages WP0–WP12 |
+| [`stages/WP0-WP2-remediation.md`](stages/WP0-WP2-remediation.md) | Mandatory post-review closure gate for the current WP0–WP2 implementation |
 | [`appendices/`](appendices/) | Commands, inventories, acceptance matrix, risks, references |
 
 ## Reading order
 
 1. Read the overview and decision register.
 2. Review the repository corrections before changing Compose or cloud code.
-3. Execute WP0–WP5 in order.
-4. Stop after WP5 and make a manual go/no-go decision based on evidence.
-5. Continue WP6–WP12 only after a go or go-with-constraints outcome.
+3. Execute WP0–WP2 in order and satisfy the post-review amendments in each package.
+4. For the current implementation branch, execute `stages/WP0-WP2-remediation.md` and close its gate before WP3. A clean reimplementation may satisfy the same requirements during WP0–WP2, but must still run the consolidated remediation acceptance matrix.
+5. Execute WP3–WP5 in order.
+6. Stop after WP5 and make a manual go/no-go decision based on evidence.
+7. Continue WP6–WP12 only after a go or go-with-constraints outcome.
 
 ## Normative precedence
 

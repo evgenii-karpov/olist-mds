@@ -16,6 +16,8 @@ Deliver this work package without weakening the existing local contour or bypass
 - Add profile exclusivity validation.
 - Add explicit local/GCP streaming lifecycle commands.
 - Preserve existing local command semantics through compatibility aliases where practical.
+- Make the parser accept the exact normative command tree in `appendices/A-command-surface.md`.
+- Keep credential and configuration preflight mandatory for every mutating GCP start operation; do not expose an operator flag that bypasses missing authentication.
 
 ## Required evidence
 
@@ -30,6 +32,13 @@ Deliver this work package without weakening the existing local contour or bypass
 - GCP render contains no Polaris/MinIO/ClickHouse dependency or credential.
 - Local render requires no ADC/GCP variables.
 - `gcp up` does not start streaming.
+- Parser tests cover every normative WP1 command, including `lab.py local serving run`.
+- `gcp up` and `gcp streaming start` refuse incomplete preflight, and no public CLI option bypasses that refusal.
+- Compatibility aliases exercise the same target/profile validation as the canonical commands.
+
+## Post-review amendment
+
+Successful Compose rendering is necessary but not sufficient. WP1 acceptance also covers the operator-visible CLI grammar and guards. Tests that call private Python handlers directly do not replace parser-level tests of the documented commands.
 
 ## Rollback rule
 
