@@ -22,6 +22,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.cdc import local_lab
+from scripts.gcp.vertical_slice import (
+    DEFAULT_BRIDGE_DATASET,
+    build_probe_plan,
+    validate_probe_plan,
+    write_probe_plan,
+)
 from scripts.orchestration.compose_profiles import (
     LakehouseTarget,
     compose_profiles,
@@ -199,6 +205,75 @@ def _gcp_streaming(args: argparse.Namespace) -> int:
     )
 
 
+def _gcp_vertical_slice(args: argparse.Namespace) -> int:
+    output = Path(args.output)
+    if not output.is_absolute():
+        output = ROOT / output
+
+    if args.action == "report":
+        if not output.is_file():
+            return _emit(
+                "gcp vertical-slice report",
+                "blocked",
+                reason=f"probe plan does not exist: {output}",
+            )
+        try:
+            plan = json.loads(output.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return _emit("gcp vertical-slice report", "failed", error=str(exc))
+        errors = validate_probe_plan(plan)
+        return _emit(
+            "gcp vertical-slice report",
+            "blocked" if errors or plan.get("cloud_execution") != "READY" else "ready",
+            plan_path=str(output),
+            errors=errors,
+            cloud_execution=plan.get("cloud_execution"),
+            decision=None,
+        )
+
+    preflight = _gcp_preflight()
+    project_id = args.project_id or preflight.get("project_id")
+    catalog_id = args.catalog_id or os.environ.get("GCP_LAKEHOUSE_CATALOG_ID", "")
+    if not project_id or not catalog_id:
+        return _emit(
+            "gcp vertical-slice run",
+            "blocked",
+            reason="project_id and catalog_id are required to render the plan",
+            preflight=preflight,
+        )
+    try:
+        plan = build_probe_plan(
+            str(project_id),
+            str(catalog_id),
+            args.bridge_dataset,
+        )
+        write_probe_plan(output, plan)
+    except (OSError, ValueError) as exc:
+        return _emit("gcp vertical-slice run", "failed", error=str(exc))
+
+    missing = preflight["missing"]
+    if isinstance(missing, list) and missing and not args.allow_missing_auth:
+        return _emit(
+            "gcp vertical-slice run",
+            "blocked",
+            reason="probe plan written; GCP preflight is incomplete",
+            plan_path=str(output),
+            preflight=preflight,
+            cloud_execution=plan["cloud_execution"],
+        )
+    return _emit(
+        "gcp vertical-slice run",
+        "blocked",
+        reason=(
+            "probe plan is ready, but the cloud execution and manual decision "
+            "require a real GCP run"
+        ),
+        plan_path=str(output),
+        preflight=preflight,
+        cloud_execution=plan["cloud_execution"],
+    )
+
+
 def _terraform(args: argparse.Namespace) -> int:
     if args.action == "apply" and not args.yes:
         return _emit(
@@ -341,6 +416,24 @@ def _build_parser() -> argparse.ArgumentParser:
             stream_command.add_argument("--allow-missing-auth", action="store_true")
         stream_command.add_argument("--timeout", type=float, default=1200.0)
         stream_command.set_defaults(func=_gcp_streaming)
+    vertical_slice = gcp_commands.add_parser("vertical-slice")
+    vertical_slice_commands = vertical_slice.add_subparsers(
+        dest="action", required=True
+    )
+    vertical_slice_run = vertical_slice_commands.add_parser("run")
+    vertical_slice_run.add_argument("--project-id")
+    vertical_slice_run.add_argument("--catalog-id")
+    vertical_slice_run.add_argument("--bridge-dataset", default=DEFAULT_BRIDGE_DATASET)
+    vertical_slice_run.add_argument(
+        "--output", default="data/acceptance/gcp/wp5-vertical-slice-plan.json"
+    )
+    vertical_slice_run.add_argument("--allow-missing-auth", action="store_true")
+    vertical_slice_run.set_defaults(func=_gcp_vertical_slice)
+    vertical_slice_report = vertical_slice_commands.add_parser("report")
+    vertical_slice_report.add_argument(
+        "--output", default="data/acceptance/gcp/wp5-vertical-slice-plan.json"
+    )
+    vertical_slice_report.set_defaults(func=_gcp_vertical_slice)
     terraform = gcp_commands.add_parser("terraform")
     terraform.add_argument(
         "action", choices=("init", "validate", "plan", "apply", "output")
