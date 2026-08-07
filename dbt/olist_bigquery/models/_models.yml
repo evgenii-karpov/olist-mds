@@ -1,0 +1,118 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Run-scoped date grains derived from changed order timestamps.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, date_key]
+    columns:
+      - name: sync_run_seq
+        data_tests: [candidate_not_null]
+      - name: date_key
+        data_tests: [candidate_not_null]
+      - name: date_day
+        data_tests: [candidate_not_null]
+
+  - name: dim_order_status
+    description: Run-scoped order-status reference values.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_status]
+    columns:
+      - name: order_status_key
+        data_tests: [candidate_not_null]
+      - name: order_status
+        data_tests: [candidate_not_null]
+
+  - name: dim_seller
+    description: Type-1 seller projection at candidate-run state.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, seller_id]
+    columns:
+      - name: seller_key
+        data_tests: [candidate_not_null]
+      - name: seller_id
+        data_tests: [candidate_not_null]
+
+  - name: dim_customer_scd2
+    description: Event-derived customer SCD2 keyed by customer and opening event.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, customer_key]
+    columns:
+      - name: customer_key
+        data_tests: [candidate_not_null]
+      - name: customer_unique_id
+        data_tests: [candidate_not_null]
+      - name: valid_from
+        data_tests: [candidate_not_null]
+
+  - name: dim_product_scd2
+    description: Product SCD2 driven by product and category-translation events.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, product_key]
+    columns:
+      - name: product_key
+        data_tests: [candidate_not_null]
+      - name: product_id
+        data_tests: [candidate_not_null]
+      - name: valid_from
+        data_tests: [candidate_not_null]
+
+  - name: fact_order_items
+    description: Item-grain analytical projection for a candidate serving run.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_id, order_item_id]
+    columns:
+      - name: order_item_key
+        data_tests: [candidate_not_null]
+      - name: price
+        data_tests: [candidate_not_null, non_negative]
+      - name: freight_value
+        data_tests: [candidate_not_null, non_negative]
+      - name: gross_item_amount
+        data_tests: [candidate_not_null, non_negative]
+      - name: allocated_payment_value
+        data_tests: [non_negative]
+
+  - name: mart_daily_revenue
+    description: Daily revenue and delivery measures for impacted dates.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_purchase_date]
+    columns:
+      - name: order_purchase_date
+        data_tests: [candidate_not_null]
+      - name: gross_revenue
+        data_tests: [candidate_not_null, non_negative]
+      - name: allocated_payment_revenue
+        data_tests: [candidate_not_null, non_negative]
+      - name: orders_count
+        data_tests: [candidate_not_null, non_negative]
+
+  - name: mart_monthly_arpu
+    description: Monthly ARPU and repeat-customer measures.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [sync_run_seq, order_month]
+    columns:
+      - name: order_month
+        data_tests: [candidate_not_null]
+      - name: active_customers
+        data_tests: [candidate_not_null, non_negative]
+      - name: total_revenue
+        data_tests: [candidate_not_null, non_negative]
+      - name: orders_count
+        data_tests: [candidate_not_null, non_negative]

@@ -1,0 +1,12 @@
+olist_bigquery:
+  target: local_static
+  outputs:
+    local_static:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_LAKEHOUSE_PROJECT_ID', 'local-gcp-project') }}"
+      dataset: "{{ env_var('DBT_BIGQUERY_DATASET', 'olist_gold_store') }}"
+      location: "{{ env_var('GCP_REGION', 'us-east1') }}"
+      threads: 2
+      priority: interactive
+      maximum_bytes_billed: 1000000000

@@ -1,0 +1,6 @@
+selectors:
+  - name: gcp_gold_candidate
+    description: All physical per-run Gold history candidates.
+    definition:
+      method: tag
+      value: gold_candidate

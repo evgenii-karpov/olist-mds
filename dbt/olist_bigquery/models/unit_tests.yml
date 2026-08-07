@@ -1,0 +1,37 @@
+version: 2
+
+unit_tests:
+  - name: payment_allocation_is_proportional_at_item_grain
+    model: int_order_payment_allocations
+    given:
+      - input: ref('stg_order_items_current')
+        format: dict
+        rows:
+          - {order_id: order-1, order_item_id: 1, price: 60.00, freight_value: 0.00, is_deleted: false}
+          - {order_id: order-1, order_item_id: 2, price: 40.00, freight_value: 0.00, is_deleted: false}
+      - input: ref('stg_order_payments_current')
+        format: dict
+        rows:
+          - {order_id: order-1, payment_value: 50.00, is_deleted: false}
+          - {order_id: order-1, payment_value: 50.00, is_deleted: false}
+    expect:
+      format: dict
+      rows:
+        - {order_id: order-1, order_item_id: 1, allocated_payment_value: 60.00}
+        - {order_id: order-1, order_item_id: 2, allocated_payment_value: 40.00}
+
+  - name: zero_gross_order_has_null_payment_allocation
+    model: int_order_payment_allocations
+    given:
+      - input: ref('stg_order_items_current')
+        format: dict
+        rows:
+          - {order_id: order-zero, order_item_id: 1, price: 0.00, freight_value: 0.00, is_deleted: false}
+      - input: ref('stg_order_payments_current')
+        format: dict
+        rows:
+          - {order_id: order-zero, payment_value: 10.00, is_deleted: false}
+    expect:
+      format: dict
+      rows:
+        - {order_id: order-zero, order_item_id: 1, allocated_payment_value: null}

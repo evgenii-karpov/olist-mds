@@ -1,0 +1,30 @@
+version: 2
+
+sources:
+  - name: lakehouse_bridge
+    database: "{{ env_var('GCP_LAKEHOUSE_PROJECT_ID', 'local-gcp-project') }}"
+    schema: olist_lakehouse_bridge
+    description: Read-only native BigQuery views over the Iceberg lakehouse.
+    tables:
+      - name: silver_customers_changes
+      - name: silver_orders_changes
+      - name: silver_order_items_changes
+      - name: silver_order_payments_changes
+      - name: silver_order_reviews_changes
+      - name: silver_products_changes
+      - name: silver_sellers_changes
+      - name: silver_product_category_translation_changes
+      - name: reference_geolocation
+      - name: audit_silver_progress
+
+  - name: serving_control
+    database: "{{ env_var('GCP_LAKEHOUSE_PROJECT_ID', 'local-gcp-project') }}"
+    schema: olist_serving_control
+    description: Frozen run boundaries and publication-control state.
+    tables:
+      - name: boundary_offsets
+      - name: serving_runs
+      - name: entity_results
+      - name: model_results
+      - name: publication_state
+      - name: control_state

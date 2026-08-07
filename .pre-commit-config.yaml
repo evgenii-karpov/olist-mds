@@ -41,3 +41,14 @@ repos:
         language: system
         pass_filenames: false
         files: ^dbt/olist_clickhouse/(dbt_project\.yml|profiles\.yml(?:\.example)?|selectors\.yml|models/|macros/|tests/)
+
+      - id: dbt-bigquery-parse
+        name: dbt-bigquery-parse
+        entry: >-
+          uv run dbt parse --project-dir dbt/olist_bigquery
+          --profiles-dir dbt/olist_bigquery --target local_static
+          --vars '{"sync_run_seq": 1, "sync_run_id": "pre-commit-parse", "build_mode": "initial"}'
+          --no-partial-parse --show-all-deprecations
+        language: system
+        pass_filenames: false
+        files: ^dbt/olist_bigquery/(dbt_project\.yml|profiles\.yml|selectors\.yml|models/|macros/|tests/)

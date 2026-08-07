@@ -1136,6 +1136,40 @@ services:
       retries: 10
       start_period: 60s
 
+  dbt-bigquery:
+    build:
+      context: .
+      dockerfile: docker/dbt-bigquery/Dockerfile
+    image: olist-dbt-bigquery:1.11.3
+    profiles: [lakehouse-gcp]
+    restart: "no"
+    working_dir: /opt/olist
+    command:
+      - parse
+      - --project-dir
+      - /opt/olist/dbt/olist_bigquery
+      - --profiles-dir
+      - /opt/olist/dbt/olist_bigquery
+      - --target
+      - local_static
+      - --target-path
+      - /tmp/dbt-target
+      - --vars
+      - '{"sync_run_seq": 1, "sync_run_id": "compose-parse", "build_mode": "initial"}'
+      - --no-partial-parse
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/gcp/adc/dbt.json
+      DBT_TARGET_PATH: /tmp/dbt-target
+    volumes:
+      - type: bind
+        source: ./dbt/olist_bigquery
+        target: /opt/olist/dbt/olist_bigquery
+        read_only: true
+      - type: bind
+        source: ${GCP_DBT_ADC_SOURCE_FILE:-./.gcp/credentials/dbt-adc.json}
+        target: /run/gcp/adc/dbt.json
+        read_only: true
+
   kafka-exporter:
     image: danielqsj/kafka-exporter:v1.9.0
     profiles: [observability]
