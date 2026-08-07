@@ -21,6 +21,7 @@ with the migration ledger and BigQuery job evidence is available.
 
 `V002__bridge_views.sql` is intentionally read-only. It creates native
 BigQuery views over the four WP5 source relations and applies explicit
-timestamp, decimal, binary and nested-field casts. Applying it requires the
-WP5 vertical-slice decision and must be followed by direct-vs-bridge schema
-and row-count checks.
+timestamp, decimal, binary and nested-field casts. `V003__gold_source_bridge_views.sql`
+adds the remaining Silver change streams required by the independent Gold
+project. Applying either bridge migration requires the WP5 vertical-slice
+decision and must be followed by direct-vs-bridge schema and row-count checks.

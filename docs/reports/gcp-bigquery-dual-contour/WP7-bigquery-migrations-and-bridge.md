@@ -21,6 +21,11 @@ P.C.N.T source relation or the native bridge views.
   - `olist_lakehouse_bridge.reference_geolocation`;
   - `olist_lakehouse_bridge.audit_silver_progress`.
 
+- Added `V003__gold_source_bridge_views.sql` with seven additional native,
+  read-only views for the remaining `silver.*_changes` entities needed by the
+  independent BigQuery Gold project. The existing V002 order-item view is
+  intentionally not redefined.
+
 - Each view uses explicit casts for UTC timestamps, `INT64`, `NUMERIC`,
   `BIGNUMERIC`, `BYTES` and the Bronze nested header array. It never writes to
   the Lakehouse source and never references Iceberg metadata tables.
@@ -51,7 +56,7 @@ assumption.
 ```text
 uv run python scripts/lab.py gcp migrate status
 status: ready
-migrations: V001__control_tables, V002__bridge_views
+migrations: V001__control_tables, V002__bridge_views, V003__gold_source_bridge_views
 cloud_execution: NOT_RUN
 
 uv run python scripts/lab.py gcp migrate render \
@@ -74,8 +79,8 @@ of `.snapshots`/`.files` references.
 
 ## Required cloud closeout
 
-After WP5 accepts the direct P.C.N.T path, render with real IDs, apply V001 and
-V002 through the future BigQuery job runner, record migration-ledger rows and
+After WP5 accepts the direct P.C.N.T path, render with real IDs, apply V001–V003
+through the future BigQuery job runner, record migration-ledger rows and
 job IDs, then compare direct and bridge schemas, counts, null/deletion
 semantics, timestamps, decimals, binary and nested fields during Spark
 commits. Only then can the stage be marked complete.

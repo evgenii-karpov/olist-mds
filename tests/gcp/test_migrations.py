@@ -15,17 +15,22 @@ from scripts.gcp.migrations import (
 def test_bigquery_migrations_are_ordered_and_checksummed() -> None:
     migrations = list_migrations()
 
-    assert [migration.version for migration in migrations] == [1, 2]
+    assert [migration.version for migration in migrations] == [1, 2, 3]
     assert [migration.migration_id for migration in migrations] == [
         "V001__control_tables",
         "V002__bridge_views",
+        "V003__gold_source_bridge_views",
     ]
     assert all(len(migration.checksum) == 64 for migration in migrations)
-    assert [item["version"] for item in migration_manifest()] == [1, 2]
+    assert [item["version"] for item in migration_manifest()] == [1, 2, 3]
 
 
 def test_rendered_migrations_replace_only_validated_identifiers() -> None:
-    migration = list_migrations()[-1]
+    migration = next(
+        migration
+        for migration in list_migrations()
+        if migration.migration_id == "V002__bridge_views"
+    )
 
     rendered = render_migration(migration, "demo-project", "demo-catalog")
 
@@ -68,13 +73,33 @@ def test_bridge_migration_is_read_only_and_does_not_use_iceberg_metadata_tables(
         assert f"{{{{ project_id }}}}.{{{{ catalog_id }}}}.{source}" in sql
 
 
+def test_gold_source_bridge_migration_covers_all_non_slice_silver_changes() -> None:
+    migration = Path("sql/bigquery/migrations/V003__gold_source_bridge_views.sql")
+    sql = migration.read_text(encoding="utf-8")
+
+    assert sql.count("CREATE OR REPLACE VIEW") == 7
+    assert ".snapshots" not in sql
+    assert ".files" not in sql
+    assert "INSERT INTO" not in sql
+    for source in (
+        "silver.customers_changes",
+        "silver.orders_changes",
+        "silver.order_payments_changes",
+        "silver.order_reviews_changes",
+        "silver.products_changes",
+        "silver.sellers_changes",
+        "silver.product_category_translation_changes",
+    ):
+        assert f"{{{{ project_id }}}}.{{{{ catalog_id }}}}.{source}" in sql
+
+
 def test_lab_migration_status_is_cloud_independent(capsys) -> None:
     result = lab._gcp_migrate(Namespace(action="status"))
 
     assert result == 0
     output = capsys.readouterr().out
     assert '"status": "ready"' in output
-    assert "V002__bridge_views" in output
+    assert "V003__gold_source_bridge_views" in output
 
 
 def test_lab_migration_render_writes_a_reproducible_local_bundle(
@@ -92,5 +117,6 @@ def test_lab_migration_render_writes_a_reproducible_local_bundle(
     assert result == 0
     assert (tmp_path / "rendered" / "V001__control_tables.sql").is_file()
     assert (tmp_path / "rendered" / "V002__bridge_views.sql").is_file()
+    assert (tmp_path / "rendered" / "V003__gold_source_bridge_views.sql").is_file()
     assert (tmp_path / "rendered" / "manifest.json").is_file()
     assert '"status": "accepted"' in capsys.readouterr().out
